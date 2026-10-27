@@ -117,6 +117,19 @@ async function login(p, u, pw = PW) {
   m._expectFail = false;
   console.log('Giám sát thấy', await m.evaluate(() => Store.data.projects.length), 'dự án, logs', await m.evaluate(() => Store.data.logs.length));
 
+  // Quản trị đặt lại mật khẩu: phiên đang mở của giám sát phải hết hiệu lực
+  const r1 = await p.evaluate(async () => (await fetch('/api/users/u-giamsat/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: JSON.stringify({ password: 'Moi2026abc' }) })).status);
+  m._expectFail = true;
+  const r2 = await m.evaluate(async () => (await fetch('/api/data')).status);
+  m._expectFail = false;
+  console.log('Đặt lại mật khẩu:', r1, '→ phiên cũ của giám sát:', r2);
+  if (r1 !== 200 || r2 !== 401) errs.push('Phiên cũ vẫn dùng được sau khi đặt lại mật khẩu');
+
+  // Tên đăng nhập không tồn tại: báo sai thông tin (401), không lỗi máy chủ
+  const ctx4 = await b.newContext(); const q4 = await ctx4.newPage();
+  const nx = await q4.request.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'khongtontai', password: 'abc12345' } });
+  if (nx.status() !== 401) errs.push('Đăng nhập tài khoản không tồn tại trả ' + nx.status());
+
   // Đăng nhập sai nhiều lần bị tạm khóa
   const ctx3 = await b.newContext(); const q = await ctx3.newPage(); q._expectFail = true;
   let last;

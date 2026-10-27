@@ -43,6 +43,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 Tham số khác: `-InstallPath` (mặc định `C:\inetpub\QLDA_TTTS`), `-DataPath` (mặc định `D:\QLDA_TTTS_Data`, nơi lưu tệp đính kèm), `-SiteName`, `-Database`.
 
+Khi SQL Server nằm **máy khác** mà không dùng `-SqlUser`, login cần tạo là tài khoản máy chủ web (`DOMAIN\TENMAYWEB$`) thay cho `IIS APPPOOL\QLDA_TTTS`; đơn giản hơn là dùng tài khoản SQL với `-SqlUser`.
+
 Khi dùng `-SqlUser`, tài khoản SQL cần quyền `dbcreator` lần đầu (để tạo CSDL), hoặc DBA tạo sẵn CSDL `QLDA_TTTS` và cấp `db_owner`. DBA muốn tạo lược đồ thủ công thì dùng `sql\QLDA_TTTS_schema.sql` (chạy lại nhiều lần vẫn an toàn).
 
 Script tự: bật IIS, chép ứng dụng, tạo Application Pool (No Managed Code, luôn chạy), tạo website, ghi `appsettings.Production.json`, cấp quyền thư mục, tạo CSDL và bảng (EF Core migration chạy khi ứng dụng khởi động), kiểm tra `/api/health`.

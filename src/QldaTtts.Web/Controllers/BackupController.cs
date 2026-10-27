@@ -86,6 +86,8 @@ public class BackupController : ApiControllerBase
                 }
         }
         catch (JsonException ex) { return Error(400, "Tệp sao lưu bị lỗi: " + ex.Message); }
+        // Nhóm quản trị hệ thống luôn giữ toàn quyền, kể cả khi tệp sao lưu ghi khác
+        if (await Db.Groups.FindAsync("g-admin") is { } ga) ga.Admin = true;
         Uc.Log("Phục hồi dữ liệu", "Hệ thống", n + " bản ghi");
         await Db.SaveChangesAsync();
         return Ok(new { restored = n });

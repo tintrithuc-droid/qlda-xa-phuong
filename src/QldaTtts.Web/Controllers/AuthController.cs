@@ -97,7 +97,7 @@ public class AuthController : ApiControllerBase
         const string bad = "Tên đăng nhập hoặc mật khẩu không đúng.";
         var un = (r.Username ?? "").Trim().ToLowerInvariant();
         var u = await Db.Users.FirstOrDefaultAsync(x => x.Username == un);
-        if (u is null) { Passwords.Verify(new AppUser { PasswordHash = "x" }, r.Password ?? ""); return Error(401, bad); }
+        if (u is null) { Passwords.VerifyDummy(r.Password ?? ""); return Error(401, bad); }
         if (u.LockoutUntil is { } until && until > DateTime.UtcNow)
             return Error(423, $"Tài khoản tạm khóa do nhập sai mật khẩu nhiều lần. Thử lại sau {Math.Ceiling((until - DateTime.UtcNow).TotalMinutes)} phút.");
         if (!Passwords.Verify(u, r.Password ?? ""))
@@ -137,12 +137,13 @@ public class AuthController : ApiControllerBase
         u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = u.Username;
         Uc.Log("Đổi mật khẩu", "Người dùng", u.Username);
         await Db.SaveChangesAsync();
+        await SignIn(u);
         return Ok(new { ok = true });
     }
 
     private Task SignIn(AppUser u)
     {
-        var id = new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, u.Id), new Claim(ClaimTypes.Name, u.Username) },
+        var id = new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, u.Id), new Claim(ClaimTypes.Name, u.Username), new Claim("stamp", Passwords.Stamp(u)) },
             CookieAuthenticationDefaults.AuthenticationScheme);
         return HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(id),
             new AuthenticationProperties { IsPersistent = false });

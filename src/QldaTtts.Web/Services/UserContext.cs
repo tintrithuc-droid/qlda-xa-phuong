@@ -22,6 +22,7 @@ public class UserContext
         var id = _http.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (id is null) return this;
         User = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id && u.Active);
+        if (User is not null && _http.HttpContext!.User.FindFirstValue("stamp") != Passwords.Stamp(User)) User = null;
         if (User?.GroupId is not null) Group = await _db.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == User.GroupId);
         return this;
     }

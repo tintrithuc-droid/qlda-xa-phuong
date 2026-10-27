@@ -226,9 +226,9 @@ function emptyBox(text, btn){ return `<div class="empty">${text}${btn?`<div styl
 function table(cols, rows, o={}){
   if(!rows.length) return emptyBox(o.empty||'Chưa có dữ liệu.');
   const head = cols.map(c=>`<th class="${c.r?'r':''}">${esc(c.h)}</th>`).join('') + (o.actions?'<th></th>':'');
-  const body = rows.map(r=>`<tr class="${o.rowAct?'click':''}" ${o.rowAct?`data-act="${o.rowAct}" data-id="${esc(r.id)}"`:''}>${cols.map(c=>`<td class="${c.r?'r':''}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}${o.actions?`<td class="acts">${o.actions(r)}</td>`:''}</tr>`).join('');
+  const body = rows.map(r=>`<tr class="${o.rowAct?'click':''}" ${o.rowAct?`data-act="${o.rowAct}" data-id="${esc(r.id)}"`:''}>${cols.map(c=>`<td class="${c.r?'r':''}" data-label="${esc(c.h)}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}${o.actions?`<td class="acts">${o.actions(r)}</td>`:''}</tr>`).join('');
   const foot = o.foot? `<tfoot><tr>${o.foot.map((f,i)=>`<td class="${cols[i]&&cols[i].r?'r':''}">${f??''}</td>`).join('')}${o.actions?'<td></td>':''}</tr></tfoot>`:'';
-  return `<div class="tw"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
+  return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
 }
 const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>` : extra;
 

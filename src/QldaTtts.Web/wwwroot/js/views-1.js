@@ -38,7 +38,7 @@ function render(){
 }
 function buildShell(){
   $('#root').innerHTML=`<div class="app" id="app">
-    <aside class="side" id="side"><div class="brand"><div class="mark">${ic('cube').replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>Quản lý dự án đầu tư xây dựng</b><span>Ban QL Trung tâm Thủy sản TP.HCM</span></div></div><nav class="nav" id="nav"></nav><div class="foot" id="sidefoot"></div></aside>
+    <aside class="side" id="side"><div class="brand"><div class="mark">${ic('cube').replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>QLDA đầu tư xây dựng</b><span>Trung tâm Thủy sản TP.HCM</span></div></div><nav class="nav" id="nav"></nav><div class="foot" id="sidefoot"></div></aside>
     <div class="main"><header class="top" id="top"></header><main class="content" id="content"></main></div>
   </div><nav class="tabbar" id="tabbar"></nav>`;
 }

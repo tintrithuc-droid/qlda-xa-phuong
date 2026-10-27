@@ -10,9 +10,25 @@ const MOB = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMob
 let b;
 
 async function newPage(opts) { const c = await b.newContext(opts); const p = await c.newPage(); p.on('pageerror', e => console.log('PAGEERR', e.message)); return p; }
+// Mã TOTP như ứng dụng xác thực; mỗi mã chỉ dùng một lần nên chờ sang chu kỳ 30 giây mới khi cần
+let SECRET = '', lastStep = 0;
+async function totp() {
+  while (Math.floor(Date.now() / 30000) <= lastStep) await wait(1000);
+  const step = lastStep = Math.floor(Date.now() / 30000);
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = '';
+  for (const ch of SECRET) bits += A.indexOf(ch).toString(2).padStart(5, '0');
+  const key = Buffer.from(bits.match(/.{8}/g).map(b => parseInt(b, 2)));
+  const msg = Buffer.alloc(8); msg.writeBigUInt64BE(BigInt(step));
+  const h = require('crypto').createHmac('sha1', key).update(msg).digest(); const o = h[19] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
+}
 async function login(p, u) {
   await p.goto(BASE + '/'); await p.waitForSelector('#login,#app', { timeout: 20000 });
-  if (await p.$('#login')) { await p.fill('#lg_user', u); await p.fill('#lg_pw', PW); await p.click('#login button[type=submit]'); await p.waitForSelector('#app', { timeout: 20000 }); }
+  if (await p.$('#login')) {
+    await p.fill('#lg_user', u); await p.fill('#lg_pw', PW); await p.click('#login button[type=submit]');
+    await p.waitForSelector('#app,#mfa', { timeout: 20000 });
+    if (await p.$('#mfa')) { await p.fill('#mf_code', await totp()); await p.click('#mfa button[type=submit]'); await p.waitForSelector('#app', { timeout: 20000 }); }
+  }
   await wait(400);
 }
 async function go(p, r) { await closeModal(p); await p.evaluate(r => { location.hash = r; scrollTo(0, 0); }, r); await wait(500); }
@@ -62,9 +78,21 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await p.goto(BASE + '/'); await p.waitForSelector('#setup', { timeout: 20000 });
   await p.fill('#su_name', 'Nguyễn Văn Quản Trị');
   await shot(p, 'qt-khoi-tao', undefined, [{ sel: '#su_name', n: 1 }, { sel: '#su_user', n: 2 }, { sel: '#su_pw', n: 3 }, { sel: '#su_pw2', n: 4 }, { sel: '#setup label.checks', n: 5 }, { sel: '#setup button[type=submit]', n: 6 }]);
-  await p.fill('#su_pw', PW); await p.fill('#su_pw2', PW); await p.click('#setup button[type=submit]'); await p.waitForSelector('#app', { timeout: 30000 }); await wait(800);
+  await p.fill('#su_pw', PW); await p.fill('#su_pw2', PW); await p.click('#setup button[type=submit]');
+  // Xác thực 2 lớp: thiết lập ngay sau khởi tạo
+  await p.waitForSelector('#mfa .qr svg', { timeout: 30000 }); SECRET = await p.evaluate(() => S.mfaStep.secret);
+  await p.setViewportSize({ width: 1440, height: 1000 });
+  await shot(p, 'qt-2lop-thiet-lap', '#mfa', [{ sel: '.mfa-steps .qr', n: 1 }, { sel: '.otp-key', n: 2 }, { sel: '#mf_code', n: 3 }, { sel: '#mfa button[type=submit]', n: 4 }]);
+  await p.fill('#mf_code', await totp()); await p.click('#mfa button[type=submit]');
+  await p.waitForSelector('#mfa .rcodes', { timeout: 15000 });
+  await shot(p, 'qt-2lop-ma-khoi-phuc', '#mfa', [{ sel: '.rcodes', n: 1 }, { sel: '#rc_dl', n: 2 }, { sel: '#rc_pr', n: 3 }, { sel: '#mfa label.checks', n: 4 }, { sel: '#mfa button[type=submit]', n: 5 }]);
+  await p.check('#rc_ok'); await p.click('#mfa button[type=submit]'); await p.waitForSelector('#app', { timeout: 30000 }); await wait(800);
+  await p.setViewportSize({ width: 1440, height: 860 });
   await p.evaluate(() => fetch('/api/auth/logout', { method: 'POST', headers: { 'X-QLDA': '1' } })); await p.goto(BASE + '/'); await p.waitForSelector('#login');
   await shot(p, 'chung-dang-nhap', undefined, [{ sel: '#lg_user', n: 1 }, { sel: '#lg_pw', n: 2 }, { sel: '#login button[type=submit]', n: 3 }]);
+  await p.fill('#lg_user', 'admin'); await p.fill('#lg_pw', PW); await p.click('#login button[type=submit]'); await p.waitForSelector('#mf_code');
+  await shot(p, 'qt-2lop-dang-nhap', '#mfa', [{ sel: '#mf_code', n: 1 }, { sel: '#mfa button[type=submit]', n: 2 }, { sel: '#mf_alt', n: 3 }]);
+  await p.click('#mf_alt'); await wait(200); await shot(p, 'qt-2lop-ma-khoi-phuc-dang-nhap', '#mfa');
   await p.context().close();
 
   // ===== Các ảnh chung theo từng vai trò =====
@@ -150,7 +178,16 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
 
   // ===== Quản trị hệ thống =====
   p = await newPage(DESK); await login(p, 'admin');
-  await go(p, 'quan-tri'); await shot(p, 'qt-nguoi-dung', undefined, [{ sel: '.content .tabs', n: 1 }, { sel: '[data-act=add-user]', n: 2 }, { sel: '[data-act=edit-users]', n: 3 }, { sel: '[data-act=reset-pw]', n: 4 }, { sel: '[data-act=lock-user]', n: 5 }]);
+  // Quản trị thứ hai đã bật 2 lớp (để minh họa nút Đặt lại 2 lớp)
+  { const H = { 'X-QLDA': '1' };
+    await p.evaluate(async pw => fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: JSON.stringify({ username: 'quantri2', name: 'Trần Văn Quản Trị', unit: 'Ban QL Trung tâm Thủy sản', groupId: 'g-admin', password: pw }) }), PW);
+    const c2 = await b.newContext(); const ch = await (await c2.request.post(BASE + '/api/auth/login', { headers: H, data: { username: 'quantri2', password: PW } })).json();
+    const keep = [SECRET, lastStep]; SECRET = ch.secret; lastStep = 0; const cd = await totp(); [SECRET, lastStep] = keep;
+    await c2.request.post(BASE + '/api/auth/mfa', { headers: H, data: { code: cd } }); await c2.close();
+    await p.evaluate(() => Store.load()); }
+  await go(p, 'quan-tri'); await shot(p, 'qt-nguoi-dung', 'full', [{ sel: '.content .tabs', n: 1 }, { sel: '[data-act=add-user]', n: 2 }, { sel: '[data-act=edit-users]', n: 3 }, { sel: '[data-act=reset-pw]', n: 4 }, { sel: '[data-act=lock-user]', n: 5 }, { sel: 'th', text: 'Xác thực 2 lớp', n: 6 }, { sel: '[data-act=reset-2fa]', n: 7 }]);
+  await click(p, '[data-act=reset-2fa]'); await shot(p, 'qt-2lop-dat-lai', '#ov .mform'); await p.click('#cf_no'); await wait(200);
+  await click(p, '[data-act=account]'); await shot(p, 'qt-2lop-tai-khoan', '#ov .mform', [{ sel: '.mfa-state', n: 1 }, { sel: '[data-act=new-rc]', n: 2 }]); await closeModal(p);
   await click(p, '[data-act=add-user]'); await shot(p, 'qt-them-nguoi-dung', '#ov .mform'); await closeModal(p);
   { const rp = await p.$$('[data-act=reset-pw]'); await rp[1].click(); await wait(400); } await shot(p, 'qt-dat-lai-mat-khau', '#ov .mform'); await closeModal(p);
   await tab(p, 'Nhóm và phân quyền'); await shot(p, 'qt-nhom-quyen', undefined, [{ sel: '[data-act=add-group]', n: 1 }, { sel: '[data-act=edit-groups]', n: 2, nth: 2 }]);

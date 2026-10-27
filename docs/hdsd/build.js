@@ -10,6 +10,7 @@ const DIR = __dirname, SHOTS = path.join(DIR, 'shots'), OUT = path.join(DIR, 'ou
 fs.mkdirSync(OUT, { recursive: true });
 const FONT = 'Times New Roman', NAVY = '0D2A57', RED = 'C8102E', GREY = 'BFC5CE', TXT = 9071; // vùng chữ 16 cm ≈ 9070 DXA
 const DATE = '27.10.2026', VER = 'V2';
+const verNo = role => role.v1 ? '1.0' : '1.' + ((role.rev || 2) - 1);
 
 const pngSize = f => { const b = fs.readFileSync(f); return { w: b.readUInt32BE(16), h: b.readUInt32BE(20), buf: b }; };
 const cm2px = cm => Math.round(cm * 37.795);
@@ -148,7 +149,7 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
     cv('PHẦN MỀM QUẢN LÝ DỰ ÁN ĐẦU TƯ XÂY DỰNG', { bold: true, size: 28 }),
     cv('BAN QUẢN LÝ DỰ ÁN – TRUNG TÂM THỦY SẢN TP. HỒ CHÍ MINH', { size: 26, after: 600 }),
     P([new TextRun({ text: role.cover ? '' : 'Dành cho: ', size: 28 }), new TextRun({ text: role.cover || role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-    cv(role.v1 ? 'Phiên bản 1.0' : 'Phiên bản 1.1', { italics: true, size: 26, after: 2000 }),
+    cv('Phiên bản ' + verNo(role), { italics: true, size: 26, after: 2000 }),
     cv('Đơn vị thực hiện: Công ty Cổ phần Tin học Tri Thức', { size: 24 }),
     cv('TP. Hồ Chí Minh, tháng 10 năm 2026', { bold: true, size: 26, before: 200 }),
   ];
@@ -162,12 +163,12 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   const info = [
     title('THÔNG TIN TÀI LIỆU'),
     kv([['Tên tài liệu', role.audience ? `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – ${role.name.toLowerCase()}` : `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – dành cho ${role.name}`],
-      ['Mã tài liệu', `HDSD-QLDA-TTTS-${k.toUpperCase()}`], ['Phiên bản', role.v1 ? '1.0' : '1.1'], ['Ngày ban hành', '27/10/2026'],
+      ['Mã tài liệu', `HDSD-QLDA-TTTS-${k.toUpperCase()}`], ['Phiên bản', verNo(role)], ['Ngày ban hành', '27/10/2026'],
       ['Đối tượng sử dụng', role.audience || `Cán bộ thuộc nhóm người dùng «${role.name}»`],
       ['Cơ quan sử dụng', 'Ban Quản lý dự án – Trung tâm Thủy sản Thành phố Hồ Chí Minh'],
       ['Đơn vị soạn thảo', 'Công ty Cổ phần Tin học Tri Thức']]),
     sub('Lịch sử thay đổi'),
-    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], [['1.0', '27/10/2026', 'Ban hành lần đầu', 'Công ty CP Tin học Tri Thức'], ...(role.v1 ? [] : [['1.1', '27/10/2026', 'Chỉnh dàn trang: hình, chú thích và bảng chú giải luôn liền trang; giảm khoảng trống; bảng đúng bề rộng trang', 'Công ty CP Tin học Tri Thức']])]),
+    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], [['1.0', '27/10/2026', 'Ban hành lần đầu', 'Công ty CP Tin học Tri Thức'], ...(role.v1 ? [] : [['1.1', '27/10/2026', 'Chỉnh dàn trang: hình, chú thích và bảng chú giải luôn liền trang; giảm khoảng trống; bảng đúng bề rộng trang', 'Công ty CP Tin học Tri Thức']]), ...((role.rev || 2) >= 3 ? [['1.2', '27/10/2026', 'Bổ sung chương Xác thực 2 lớp cho tài khoản quản trị', 'Công ty CP Tin học Tri Thức']] : [])]),
     sub('Thuật ngữ và từ viết tắt'),
     hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
       ['BC KTKT', 'Báo cáo kinh tế – kỹ thuật'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian']]),
@@ -234,7 +235,7 @@ function tocOf(k) {
 (async () => {
   const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROLES).filter(k => k !== 'dt');
   for (const k of keys) {
-    const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA TTTS - ${ROLES[k].file} - ${ROLES[k].v1 ? 'V1' : VER}.docx`);
+    const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA TTTS - ${ROLES[k].file} - ${ROLES[k].v1 ? 'V1' : 'V' + (ROLES[k].rev || 2)}.docx`);
     const toc = tocOf(k), FIT = {}, log = [];
     let pages = {}, rep;
     // dàn trang: thu nhỏ hình bị đẩy sang trang sau (mỗi lượt sửa hình sớm nhất) cho tới khi không còn

@@ -1,6 +1,6 @@
 // Nội dung bộ HDSD theo vai trò. Mỗi khối: h1/h2/h3/p/steps/bullets/img/imgs2/legend/table/note
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin' },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', rev: 3 },
   ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao' },
   kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat' },
   ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan' },
@@ -62,6 +62,7 @@ function common(k) {
   ] });
   out.push(img('chung-dang-nhap', 'Màn hình đăng nhập hệ thống', 16));
   out.push(legend([[1, 'Ô nhập tên đăng nhập'], [2, 'Ô nhập mật khẩu'], [3, 'Nút Đăng nhập']]));
+  if (k === 'qt') out.push({ p: 'Tài khoản quản trị nhập thêm mã 6 số từ ứng dụng xác thực trên điện thoại sau bước mật khẩu (xem chương **Xác thực 2 lớp**).' });
   out.push({ note: 'Nhập sai mật khẩu 5 lần liên tiếp, tài khoản bị tạm khóa 15 phút để chống dò mật khẩu. Quên mật khẩu, đề nghị quản trị hệ thống đặt lại; không chia sẻ mật khẩu cho người khác.' });
   out.push({ h2: 'Giao diện làm việc chính' });
   out.push({ p: 'Sau khi đăng nhập, giao diện gồm thanh chức năng bên trái, thanh công cụ phía trên và vùng làm việc ở giữa.' });
@@ -91,6 +92,7 @@ const tail = (k, mobile) => {
   out.push({ h1: 'CÂU HỎI THƯỜNG GẶP VÀ HỖ TRỢ' });
   out.push({ table: { head: ['Tình huống', 'Cách xử lý'], widths: [3600, 5400], rows: [
     ['Không đăng nhập được, báo sai tên đăng nhập hoặc mật khẩu', 'Kiểm tra bộ gõ tiếng Việt và phím Caps Lock. Sau 5 lần sai tài khoản bị khóa 15 phút; liên hệ quản trị hệ thống nếu quên mật khẩu.'],
+    ...(k === 'qt' ? [['Mã xác thực 2 lớp luôn báo sai', 'Kiểm tra đồng hồ điện thoại (bật Đặt giờ tự động); nhập mã đang hiển thị, không dùng lại mã vừa nhập. Mất điện thoại: dùng mã khôi phục hoặc nhờ quản trị khác đặt lại 2 lớp.']] : []),
     ['Thông báo «Tài khoản đã bị khóa»', 'Tài khoản bị quản trị hệ thống khóa hoặc đang trong thời gian khóa tạm. Liên hệ quản trị hệ thống.'],
     ['Không thấy một chức năng trên thanh bên trái', 'Nhóm người dùng của tài khoản chưa được cấp quyền phân hệ đó. Đề nghị quản trị hệ thống xem lại phân quyền.'],
     ['Không thấy dữ liệu của một dự án', 'Kiểm tra ô chọn dự án ở thanh công cụ phía trên; nếu vẫn không thấy, tài khoản chưa được giao phạm vi dự án đó.'],
@@ -393,10 +395,55 @@ S.admin = () => [
   legend([[1, 'Họ và tên quản trị'], [2, 'Tên đăng nhập'], [3, 'Mật khẩu'], [4, 'Nhập lại mật khẩu'], [5, 'Tùy chọn nạp dữ liệu mẫu'], [6, 'Nút Khởi tạo hệ thống']]),
   { note: 'Màn hình này chỉ xuất hiện một lần khi cơ sở dữ liệu chưa có người dùng. Ghi nhớ và bảo quản mật khẩu quản trị theo quy định an toàn thông tin của Ban.' },
 
+  { h1: 'XÁC THỰC 2 LỚP' },
+  { p: 'Để bảo vệ tài khoản có toàn quyền, mọi tài khoản thuộc nhóm **Quản trị hệ thống** bắt buộc dùng xác thực 2 lớp: ngoài mật khẩu, khi đăng nhập phải nhập thêm mã 6 số do ứng dụng xác thực trên điện thoại sinh ra. Mã đổi sau mỗi 30 giây và chỉ dùng được một lần, nên dù lộ mật khẩu, người khác vẫn không đăng nhập được nếu không cầm điện thoại của quản trị.' },
+  { bullets: [
+    'Ứng dụng xác thực: **Google Authenticator** hoặc **Microsoft Authenticator** (miễn phí trên CH Play và App Store). Ứng dụng sinh mã ngay trên điện thoại, không cần SMS và không cần kết nối Internet.',
+    'Các nhóm khác (Lãnh đạo Ban, Cán bộ kỹ thuật, Kế toán, Tư vấn giám sát) đăng nhập bằng mật khẩu như bình thường.',
+  ] },
+  { h2: 'Thiết lập lần đầu' },
+  { p: 'Màn hình **Thiết lập xác thực 2 lớp** xuất hiện ngay sau khi khởi tạo hệ thống, và ở lần đăng nhập đầu tiên của mỗi tài khoản quản trị mới.' },
+  img('qt-2lop-thiet-lap', 'Màn hình thiết lập xác thực 2 lớp', 7.2),
+  legend([[1, 'Mã QR để quét bằng ứng dụng xác thực'], [2, 'Khóa thiết lập (dùng khi không quét được mã QR)'], [3, 'Ô nhập mã 6 số'], [4, 'Nút Xác nhận và bật']]),
+  { steps: [
+    'Cài ứng dụng Google Authenticator hoặc Microsoft Authenticator trên điện thoại.',
+    'Trong ứng dụng, nhấn nút **+** → **Quét mã QR** và quét mã QR (1) trên màn hình. Ứng dụng thêm mục «QLDA TTTS HCM» kèm tên đăng nhập.',
+    'Nếu không quét được, chọn **Nhập khóa thiết lập** trong ứng dụng, nhập tên tài khoản và dãy khóa (2) hiển thị bên dưới mã QR.',
+    'Nhập mã 6 số đang hiển thị trên ứng dụng vào ô (3), nhấn **Xác nhận và bật** (4).',
+  ] },
+  { h2: 'Lưu mã khôi phục' },
+  { p: 'Sau khi bật, phần mềm cấp **10 mã khôi phục** (1). Mỗi mã dùng thay cho mã 6 số được một lần, khi mất hoặc đổi điện thoại. Mã chỉ hiển thị một lần.' },
+  { steps: [
+    'Nhấn **Tải tệp .txt** (2) để lưu tệp mã, hoặc **In** (3) để in ra giấy; cất giữ nơi an toàn, tách biệt với điện thoại.',
+    'Đánh dấu **Tôi đã lưu mã khôi phục ở nơi an toàn** (4), nhấn **Vào hệ thống** (5).',
+  ] },
+  img('qt-2lop-ma-khoi-phuc', 'Màn hình lưu mã khôi phục', 9.5),
+  legend([[1, 'Danh sách 10 mã khôi phục'], [2, 'Tải mã về tệp văn bản'], [3, 'In mã ra giấy'], [4, 'Xác nhận đã lưu mã'], [5, 'Vào hệ thống']]),
+  { h2: 'Đăng nhập hằng ngày' },
+  { steps: [
+    'Nhập tên đăng nhập và mật khẩu như bình thường, nhấn **Đăng nhập**.',
+    'Mở ứng dụng xác thực, nhập mã 6 số của mục «QLDA TTTS HCM» vào ô (1), nhấn **Xác nhận** (2).',
+    'Không có điện thoại bên cạnh: nhấn **Dùng mã khôi phục** (3) và nhập một mã khôi phục chưa dùng (dạng xxxxx-xxxxx).',
+  ] },
+  { imgs2: ['qt-2lop-dang-nhap', 'qt-2lop-ma-khoi-phuc-dang-nhap'], caps: ['Nhập mã 6 số khi đăng nhập', 'Nhập mã khôi phục thay cho mã 6 số'] },
+  legend([[1, 'Ô nhập mã 6 số'], [2, 'Nút Xác nhận'], [3, 'Chuyển sang dùng mã khôi phục']]),
+  { note: 'Nhập sai mã 5 lần, tài khoản bị tạm khóa 15 phút. Mã luôn bị từ chối thường do đồng hồ điện thoại lệch giờ: bật «Đặt giờ tự động» trên điện thoại.' },
+  { h2: 'Tạo mã khôi phục mới' },
+  { p: 'Nhấn vào tên tài khoản ở góc trên bên phải. Hộp **Tài khoản** hiện trạng thái xác thực 2 lớp và số mã khôi phục còn lại (1). Khi sắp hết mã hoặc nghi lộ mã, nhấn **Tạo mã khôi phục mới** (2), nhập lại mật khẩu; bộ mã cũ hết hiệu lực ngay.' },
+  img('qt-2lop-tai-khoan', 'Trạng thái xác thực 2 lớp trong hộp Tài khoản', 6.5),
+  legend([[1, 'Trạng thái và số mã khôi phục còn lại'], [2, 'Tạo bộ mã khôi phục mới']]),
+  { h2: 'Đặt lại khi quản trị mất điện thoại' },
+  { bullets: [
+    'Một quản trị khác vào **Quản trị hệ thống → Người dùng**, nhấn **Đặt lại 2 lớp** trên dòng tài khoản đó và xác nhận. Mã cũ, mã khôi phục cũ và các phiên đăng nhập của tài khoản hết hiệu lực; lần đăng nhập sau người đó quét mã QR mới.',
+    'Quản trị không tự đặt lại được cho chính mình. Nếu Ban chỉ có một tài khoản quản trị và mất cả điện thoại lẫn mã khôi phục, đề nghị cán bộ phụ trách máy chủ thực hiện theo mục «Xác thực 2 lớp» của Hướng dẫn cài đặt.',
+    'Khuyến nghị: duy trì ít nhất hai tài khoản quản trị (ví dụ một cán bộ chính, một cán bộ dự phòng) để luôn có người đặt lại được.',
+  ] },
+  img('qt-2lop-dat-lai', 'Hộp xác nhận đặt lại xác thực 2 lớp', 9),
+
   { h1: 'QUẢN LÝ NGƯỜI DÙNG' },
   { p: 'Chọn **Quản trị hệ thống**. Các thẻ (1) gồm: Người dùng, Nhóm và phân quyền, Danh mục dùng chung, Nhật ký hoạt động, Sao lưu – hệ thống.' },
   img('qt-nguoi-dung', 'Danh sách người dùng', 16),
-  legend([[1, 'Các thẻ quản trị'], [2, 'Thêm người dùng'], [3, 'Sửa thông tin người dùng'], [4, 'Đặt lại mật khẩu'], [5, 'Khóa / mở khóa tài khoản']]),
+  legend([[1, 'Các thẻ quản trị'], [2, 'Thêm người dùng'], [3, 'Sửa thông tin người dùng'], [4, 'Đặt lại mật khẩu'], [5, 'Khóa / mở khóa tài khoản'], [6, 'Trạng thái xác thực 2 lớp: Đã bật / Chờ thiết lập (quản trị mới chưa đăng nhập lần đầu) / Không bắt buộc'], [7, 'Đặt lại xác thực 2 lớp cho quản trị mất điện thoại']]),
   { h2: 'Thêm người dùng' },
   { steps: [
     'Nhấn **+ Thêm người dùng** (2).',

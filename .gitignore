@@ -1,0 +1,10 @@
+bin/
+obj/
+App_Data/
+publish/
+*.user
+.vs/
+node_modules/
+test-results/
+tests/e2e/shots/
+dist/

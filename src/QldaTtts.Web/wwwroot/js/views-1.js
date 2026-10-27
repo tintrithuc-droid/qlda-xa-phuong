@@ -38,7 +38,7 @@ function render(){
 }
 function buildShell(){
   $('#root').innerHTML=`<div class="app" id="app">
-    <aside class="side" id="side"><div class="brand"><div class="mark">${ic('cube').replace('stroke="currentColor"','stroke="#fff"')}</div><div><b>QLDA đầu tư xây dựng</b><span>Trung tâm Thủy sản TP.HCM</span></div></div><nav class="nav" id="nav"></nav><div class="foot" id="sidefoot"></div></aside>
+    <aside class="side" id="side"><div class="brand"><div class="mark">${drumSVG()}</div><div><span>Trung tâm Thủy sản TP.HCM</span><b>QLDA đầu tư xây dựng</b></div></div><nav class="nav" id="nav"></nav><div class="foot" id="sidefoot"></div></aside>
     <div class="main"><header class="top" id="top"></header><main class="content" id="content"></main></div>
   </div><nav class="tabbar" id="tabbar"></nav>`;
 }
@@ -110,19 +110,14 @@ ACT.del=async(id,el)=>{
 
 /* ===== Thiết lập lần đầu & đăng nhập ===== */
 function authArt(){
-  return `<div class="art"><div style="position:relative"><div class="eyebrow" style="color:var(--side-ink)">Ban Quản lý Trung tâm Thủy sản Thành phố Hồ Chí Minh</div><h1 style="margin-top:10px">Phần mềm quản lý dự án đầu tư xây dựng</h1></div>
-  <canvas id="wave"></canvas>
-  <div class="meta">Mô hình hóa công trình · Hợp đồng · Tiến độ nhiều gói thầu · Nhật ký thi công · Khối lượng và thanh toán · Quản trị hệ thống · Ứng dụng di động<br><span style="opacity:.7">255 Trần Hưng Đạo, Phường Cầu Ông Lãnh, TP. Hồ Chí Minh</span></div></div>`;
-}
-function drawWave(){
-  const c=$('#wave'); if(!c) return; const r=c.getBoundingClientRect(); c.width=r.width*devicePixelRatio; c.height=r.height*devicePixelRatio;
-  const g=c.getContext('2d'); g.scale(devicePixelRatio,devicePixelRatio); const col=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#0d6b66';
-  for(let k=0;k<7;k++){ g.beginPath(); g.strokeStyle=col; g.globalAlpha=.25+k*.08; g.lineWidth=1.2;
-    for(let x=0;x<=r.width;x+=6){ const y=r.height*(.25+k*.1)+Math.sin(x/(60+k*9)+k)*10*(1+k*.25); x?g.lineTo(x,y):g.moveTo(x,y); } g.stroke(); }
+  return `<div class="art"><div class="drum-mark">${drumSVG()}</div>
+  <div class="art-head"><div class="seal">${drumSVG()}</div><div><div class="org1">Trung tâm Thủy sản Thành phố Hồ Chí Minh</div><div class="org2">Ban Quản lý dự án</div></div></div>
+  <div class="art-title"><h1>Phần mềm quản lý dự án đầu tư xây dựng</h1><p>Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.</p></div>
+  <div class="meta">255 Trần Hưng Đạo, Phường Cầu Ông Lãnh, TP. Hồ Chí Minh</div></div>`;
 }
 function renderSetup(){
   $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box"><form id="setup" autocomplete="off">
-    <div><div class="eyebrow">Khởi tạo hệ thống</div><h2 style="margin-top:6px">Tạo tài khoản quản trị đầu tiên</h2><p class="muted small" style="margin:6px 0 0">Hệ thống chưa có người dùng. Tài khoản này có toàn quyền và dùng để cấp tài khoản cho cán bộ khác.</p></div>
+    <div class="form-head"><h2>Khởi tạo hệ thống</h2><p class="muted small">Tạo tài khoản quản trị đầu tiên. Hệ thống chưa có người dùng. Tài khoản này có toàn quyền và dùng để cấp tài khoản cho cán bộ khác.</p></div>
     <div class="fld"><label for="su_name">Họ và tên</label><input id="su_name" required value=""></div>
     <div class="fld"><label for="su_user">Tên đăng nhập</label><input id="su_user" required value="admin"></div>
     <div class="fld"><label for="su_pw">Mật khẩu (tối thiểu 8 ký tự, có chữ và số)</label><input id="su_pw" type="password" required autocomplete="new-password"></div>
@@ -131,8 +126,7 @@ function renderSetup(){
     <div class="err" id="su_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Khởi tạo hệ thống</button>
     <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu SQL Server của máy chủ.</p>
-  </form></div></div>`;
-  drawWave();
+  </form><p class="auth-foot">© ${new Date().getFullYear()} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM</p></div></div>`;
   $('#setup').onsubmit=async e=>{
     e.preventDefault(); const err=$('#su_err');
     const name=$('#su_name').value.trim(), username=$('#su_user').value.trim().toLowerCase(), pw=$('#su_pw').value, pw2=$('#su_pw2').value;
@@ -156,14 +150,13 @@ function renderSetup(){
 }
 function renderLogin(){
   $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box"><form id="login">
-    <div><div class="eyebrow">Đăng nhập</div><h2 style="margin-top:6px">Chào mừng trở lại</h2></div>
+    <div class="form-head"><h2>Đăng nhập hệ thống</h2><p class="muted small">Sử dụng tài khoản do quản trị hệ thống cấp.</p></div>
     <div class="fld"><label for="lg_user">Tên đăng nhập</label><input id="lg_user" autocomplete="username" required></div>
     <div class="fld"><label for="lg_pw">Mật khẩu</label><input id="lg_pw" type="password" autocomplete="current-password" required></div>
     <div class="err" id="lg_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Đăng nhập</button>
     <p class="small muted" style="margin:0">Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại. ${Store.sampleUsers?'Tài khoản mẫu: lanhdao, kythuat, ketoan, giamsat (mật khẩu như tài khoản quản trị lúc khởi tạo).':''}</p>
-  </form></div></div>`;
-  drawWave();
+  </form><p class="auth-foot">© ${new Date().getFullYear()} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM</p></div></div>`;
   $('#login').onsubmit=async e=>{
     e.preventDefault(); const err=$('#lg_err');
     const un=$('#lg_user').value.trim().toLowerCase(), pw=$('#lg_pw').value;

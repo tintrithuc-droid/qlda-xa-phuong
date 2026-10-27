@@ -58,8 +58,8 @@ public class MainActivity extends Activity {
     private static final String KEY_SERVER = "server";
     private static final String START_PATH = "/#hien-truong";
     private static final int REQ_FILE = 11;
-    private static final int COLOR_DARK = 0xFF0F2A2E;
-    private static final int COLOR_ACCENT = 0xFF1F7A6D;
+    private static final int COLOR_DARK = 0xFF0D2A57;
+    private static final int COLOR_ACCENT = 0xFF1F5FBF;
 
     /** Chặn thẻ <a download href="blob:..."> (xuất Excel, sao lưu) và chuyển nội dung sang ứng dụng để lưu. */
     private static final String BLOB_HOOK =

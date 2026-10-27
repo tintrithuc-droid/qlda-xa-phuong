@@ -20,6 +20,28 @@ const ICON = {
   search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
 };
 const ic = (n)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||''}</svg>`;
+/* Hoa văn mặt trống đồng Đông Sơn (vẽ cách điệu): ngôi sao 14 cánh, vành tròn chấm, vành vạch, vành chim Lạc bay ngược chiều kim đồng hồ, vành răng cưa */
+const drumSVG = (()=>{ let cache=null; return ()=>{ if(cache) return cache;
+  const P=Math.PI, f=n=>+n.toFixed(2), C=160, out=[];
+  const ring=r=>out.push(`<circle cx="${C}" cy="${C}" r="${r}"/>`);
+  const at=(r,a)=>[f(C+r*Math.cos(a)), f(C+r*Math.sin(a))];
+  const star=[]; for(let k=0;k<28;k++){ const r=k%2?11:34, a=-P/2+k*P/14; star.push(at(r,a).join(',')); }
+  out.push(`<polygon points="${star.join(' ')}" fill="currentColor" stroke="none"/>`);
+  for(let k=0;k<14;k++){ const a=-P/2+(k+.5)*P/7; const [x1,y1]=at(20,a-.12),[x2,y2]=at(31,a),[x3,y3]=at(20,a+.12); out.push(`<path d="M${x1} ${y1}L${x2} ${y2}L${x3} ${y3}"/>`); }
+  [40,44].forEach(ring);
+  for(let k=0;k<36;k++){ const [x,y]=at(50,k*P/18); out.push(`<circle cx="${x}" cy="${y}" r="4.2"/><circle cx="${x}" cy="${y}" r="1.1" fill="currentColor"/>`); }
+  [56,59].forEach(ring);
+  for(let k=0;k<96;k++){ const a=k*P/48, [x1,y1]=at(60,a), [x2,y2]=at(67,a); out.push(`<path d="M${x1} ${y1}L${x2} ${y2}"/>`); }
+  [68,71].forEach(ring);
+  const bird='M-17 0C-10-3.2 3-3.4 9-.6L24-1.4 9.4 1.4C3 3.4-10 3.2-17 0ZM-3-1.6-9-13-1-2.6M3-1-1-11 5-1.8M-17 0-25-6M-17 0-25 5M8-1 12-6';
+  for(let k=0;k<10;k++){ const a=k*P/5+P/10, [x,y]=at(87,a), deg=f(a*180/P-90); out.push(`<path transform="translate(${x} ${y}) rotate(${deg})" d="${bird}"/>`); }
+  [104,107].forEach(ring);
+  for(let k=0;k<48;k++){ const [x,y]=at(113,k*P/24); out.push(`<circle cx="${x}" cy="${y}" r="4.2"/><circle cx="${x}" cy="${y}" r="1.1" fill="currentColor"/>`); }
+  [119,122].forEach(ring);
+  const zz=[]; for(let k=0;k<=96;k++){ zz.push(at(k%2?131:124,k*P/48).join(',')); } out.push(`<polyline points="${zz.join(' ')}"/>`);
+  [133,137,150].forEach(ring);
+  for(let k=0;k<120;k++){ const a=k*P/60, [x1,y1]=at(139,a), [x2,y2]=at(148,a); out.push(`<path d="M${x1} ${y1}L${x2} ${y2}"/>`); }
+  return cache=`<svg viewBox="0 0 320 320" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${out.join('')}</svg>`; }; })();
 
 const MODULES = [
   {key:'tong-quan', label:'Tổng quan', icon:'dash', grp:'Điều hành'},

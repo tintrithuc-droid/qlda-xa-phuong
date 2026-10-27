@@ -249,6 +249,13 @@ public class AppUser : EntityBase
     [JsonIgnore] public string PasswordHash { get; set; } = "";
     [JsonIgnore] public int FailedCount { get; set; }
     [JsonIgnore] public DateTime? LockoutUntil { get; set; }
+    /// <summary>Khóa bí mật TOTP (đã mã hóa bằng Data Protection); null = chưa bật xác thực 2 lớp.</summary>
+    [JsonIgnore, MaxLength(1000)] public string? TotpSecret { get; set; }
+    /// <summary>Chu kỳ 30 giây của mã đã dùng gần nhất, chặn dùng lại một mã.</summary>
+    [JsonIgnore] public long TotpLastStep { get; set; }
+    /// <summary>Mã khôi phục dạng băm, cách nhau bởi dấu ;</summary>
+    [JsonIgnore, MaxLength(1000)] public string? RecoveryCodes { get; set; }
+    [NotMapped] public bool TwoFactor => TotpSecret is not null;
     public DateTime? CreatedAt { get; set; }
     public DateTime? LastLogin { get; set; }
 }

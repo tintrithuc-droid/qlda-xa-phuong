@@ -21,6 +21,7 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();
+builder.Services.AddSingleton<TwoFactor>();
 builder.Services.AddControllersWithViews().AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
 
 var keysDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
@@ -54,6 +55,27 @@ using (var scope = app.Services.CreateScope())
     {
         Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data"));
         db.Database.EnsureCreated();
+        // CSDL SQLite tạo từ bản trước: bổ sung cột mới (EnsureCreated không tự thêm cột)
+        var conn = db.Database.GetDbConnection(); conn.Open();
+        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = conn.CreateCommand()) { cmd.CommandText = "PRAGMA table_info(Users)"; using var rd = cmd.ExecuteReader(); while (rd.Read()) cols.Add(rd.GetString(1)); }
+        foreach (var (col, type) in new[] { ("TotpSecret", "TEXT NULL"), ("TotpLastStep", "INTEGER NOT NULL DEFAULT 0"), ("RecoveryCodes", "TEXT NULL") })
+            if (!cols.Contains(col)) db.Database.ExecuteSqlRaw($"ALTER TABLE Users ADD COLUMN {col} {type}");
+        conn.Close();
+    }
+
+    // Lệnh khẩn cấp khi quản trị duy nhất mất điện thoại: QldaTtts.Web.exe --reset-2fa <tên đăng nhập>
+    var i = Array.IndexOf(args, "--reset-2fa");
+    if (i >= 0)
+    {
+        var un = i + 1 < args.Length ? args[i + 1].Trim().ToLowerInvariant() : "";
+        var u = db.Users.FirstOrDefault(x => x.Username == un);
+        if (u is null) { Console.Error.WriteLine($"Không tìm thấy tài khoản '{un}'."); Environment.Exit(1); }
+        u.TotpSecret = null; u.RecoveryCodes = null; u.TotpLastStep = 0; u.FailedCount = 0; u.LockoutUntil = null; u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = "he-thong";
+        db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, Username = "he-thong", Action = "Đặt lại xác thực 2 lớp (dòng lệnh trên máy chủ)", Module = "Người dùng", Target = u.Username });
+        db.SaveChanges();
+        Console.WriteLine($"Đã đặt lại xác thực 2 lớp cho '{un}'. Lần đăng nhập sau sẽ thiết lập lại bằng ứng dụng xác thực.");
+        return;
     }
 }
 

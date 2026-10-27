@@ -231,6 +231,18 @@ tfoot td{font-weight:600; background:var(--panel2)}
 .auth form .btn.primary{min-height:46px; justify-content:center; font-size:15px}
 .auth label.checks{flex-wrap:nowrap; align-items:flex-start; gap:10px; line-height:1.45}
 .auth label.checks input{margin-top:2px}
+.auth form.wide{width:min(460px,100%)}
+.auth input.otp{font-size:22px; letter-spacing:.35em; text-align:center; font-variant-numeric:tabular-nums}
+.mfa-steps{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:10px; font-size:14px; line-height:1.5}
+.mfa-steps .qr{width:180px; height:180px; margin:10px 0 8px; padding:8px; background:#fff; border:1px solid var(--line); border-radius:10px}
+.mfa-steps .qr svg{width:100%; height:100%; display:block}
+.otp-key{display:block; margin-top:6px; font-size:15px; letter-spacing:.06em; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px}
+.mfa-links{margin:0; text-align:center}
+.rcodes{margin:0; padding:12px 12px 12px 40px; display:grid; grid-template-columns:1fr 1fr; gap:6px 24px; background:var(--bg); border:1px solid var(--line); border-radius:10px; font-size:15px}
+.rcodes code{letter-spacing:.04em}
+.row-btns{display:flex; gap:8px; flex-wrap:wrap}
+.mfa-state{display:flex; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:10px; color:var(--green)}
+.mfa-state b{color:var(--ink)}
 .auth-foot{margin:0; font-size:12px; color:var(--muted); text-align:center}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .form-head h2{color:var(--ink)} }
 :root[data-theme="dark"] .form-head h2{color:var(--ink)}

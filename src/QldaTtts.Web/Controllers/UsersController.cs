@@ -98,6 +98,23 @@ public class UsersController : ApiControllerBase
         return Ok(new { ok = true });
     }
 
+    /// <summary>Đặt lại xác thực 2 lớp (người dùng mất điện thoại): xóa khóa và mã khôi phục, lần đăng nhập sau phải thiết lập lại.</summary>
+    [HttpPost("{id}/reset-2fa")]
+    public async Task<IActionResult> ResetTwoFactor(string id)
+    {
+        if (await Guard() is { } deny) return deny;
+        if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được đặt lại xác thực 2 lớp.");
+        if (id == Uc.User!.Id) return Error(400, "Không thể tự đặt lại xác thực 2 lớp của chính mình. Nhờ một quản trị khác thực hiện.");
+        var u = await Db.Users.FirstOrDefaultAsync(x => x.Id == id);
+        if (u is null) return Error(404, "Người dùng không còn tồn tại.");
+        if (u.TotpSecret is null) return Error(400, "Tài khoản này chưa bật xác thực 2 lớp.");
+        u.TotpSecret = null; u.RecoveryCodes = null; u.TotpLastStep = 0;
+        u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = Uc.User.Username;
+        Uc.Log("Đặt lại xác thực 2 lớp", Mod, u.Username);
+        await Db.SaveChangesAsync();
+        return Ok(u);
+    }
+
     public record ActiveRequest(bool Active);
 
     [HttpPost("{id}/active")]

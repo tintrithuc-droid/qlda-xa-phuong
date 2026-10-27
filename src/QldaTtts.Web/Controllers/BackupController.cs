@@ -70,9 +70,11 @@ public class BackupController : ApiControllerBase
                     }
                     else
                     {
-                        var keep = ex.PasswordHash;
+                        var (keep, totp, step, rc) = (ex.PasswordHash, ex.TotpSecret, ex.TotpLastStep, ex.RecoveryCodes);
                         Db.Entry(ex).CurrentValues.SetValues(u);
                         ex.PasswordHash = hash.Length > 0 ? hash : keep;
+                        // Giữ nguyên xác thực 2 lớp đang có (không nằm trong tệp sao lưu)
+                        (ex.TotpSecret, ex.TotpLastStep, ex.RecoveryCodes) = (totp, step, rc);
                     }
                     n++;
                 }

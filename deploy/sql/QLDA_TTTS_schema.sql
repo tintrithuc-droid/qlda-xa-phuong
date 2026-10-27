@@ -553,3 +553,46 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261027112331_TwoFactor'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [RecoveryCodes] nvarchar(1000) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261027112331_TwoFactor'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [TotpLastStep] bigint NOT NULL DEFAULT CAST(0 AS bigint);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261027112331_TwoFactor'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [TotpSecret] nvarchar(1000) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261027112331_TwoFactor'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261027112331_TwoFactor', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+

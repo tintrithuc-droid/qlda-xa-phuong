@@ -10,13 +10,14 @@ using QldaTtts.Web.Services;
 
 namespace QldaTtts.Web.Controllers;
 
-/// <summary>Khởi tạo hệ thống, đăng nhập/đăng xuất, đổi mật khẩu.</summary>
+/// <summary>Khởi tạo hệ thống, đăng nhập/đăng xuất (kể cả bước xác thực 2 lớp), đổi mật khẩu.</summary>
 [Route("api/auth")]
 public class AuthController : ApiControllerBase
 {
     private const int MaxFailed = 5;
     private static readonly TimeSpan LockoutTime = TimeSpan.FromMinutes(15);
-    public AuthController(AppDbContext db, UserContext uc) : base(db, uc) { }
+    private readonly TwoFactor _tf;
+    public AuthController(AppDbContext db, UserContext uc, TwoFactor tf) : base(db, uc) { _tf = tf; }
 
     /// <summary>Trạng thái: hệ thống đã khởi tạo chưa, người dùng hiện tại là ai.</summary>
     [HttpGet("state")]
@@ -24,7 +25,13 @@ public class AuthController : ApiControllerBase
     {
         await Uc.LoadAsync();
         var initialized = await Db.Users.AnyAsync();
-        return Ok(new { initialized, user = Uc.User, sampleUsers = initialized && await Db.Users.AnyAsync(u => u.Sample) });
+        object? mfa = null;
+        if (Uc.User is not null)
+        {
+            var me = await Db.Users.AsNoTracking().FirstAsync(x => x.Id == Uc.User.Id);
+            mfa = new { enabled = me.TotpSecret is not null, required = _tf.Required(me, Uc.Group), recoveryLeft = TwoFactor.RecoveryLeft(me) };
+        }
+        return Ok(new { initialized, user = Uc.User, mfa, sampleUsers = initialized && await Db.Users.AnyAsync(u => u.Sample) });
     }
 
     public class SetupRequest
@@ -85,7 +92,9 @@ public class AuthController : ApiControllerBase
         Db.Users.Add(u);
         Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = now, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Khởi tạo hệ thống", Module = "Người dùng", Target = "Tài khoản quản trị " + username, Ip = Uc.Ip });
         await Db.SaveChangesAsync();
-        await SignIn(u);
+        // Tài khoản quản trị đầu tiên phải thiết lập xác thực 2 lớp ngay
+        if (_tf.RequiredForAdmins) return Ok(MfaChallenge(u));
+        await SignIn(u, false);
         return Ok(new { user = u });
     }
 
@@ -108,11 +117,102 @@ public class AuthController : ApiControllerBase
             return Error(401, bad);
         }
         if (!u.Active) return Error(403, "Tài khoản đã bị khóa. Liên hệ quản trị hệ thống.");
-        u.FailedCount = 0; u.LockoutUntil = null; u.LastLogin = DateTime.UtcNow;
-        Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Đăng nhập", Module = "Người dùng", Target = u.Username, Ip = Uc.Ip });
-        await Db.SaveChangesAsync();
-        await SignIn(u);
+        var g = u.GroupId is null ? null : await Db.Groups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == u.GroupId);
+        if (_tf.Required(u, g))
+        {
+            // Mật khẩu đúng nhưng chưa đăng nhập: chờ bước mã xác thực (giữ nguyên số lần sai để tính chung với bước mã)
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return Ok(MfaChallenge(u));
+        }
+        await Complete(u, false);
         return Ok(new { user = u });
+    }
+
+    /// <summary>Phát phiếu tạm cho bước 2: "verify" nếu đã có khóa, "enroll" kèm khóa mới và mã QR nếu chưa thiết lập.</summary>
+    private object MfaChallenge(AppUser u)
+    {
+        if (u.TotpSecret is not null) { _tf.IssueTicket(HttpContext, u, null); return new { mfa = "verify", recoveryLeft = TwoFactor.RecoveryLeft(u) }; }
+        var secret = TwoFactor.NewSecret();
+        _tf.IssueTicket(HttpContext, u, secret);
+        var uri = _tf.OtpAuthUri(u.Username, secret);
+        return new { mfa = "enroll", secret, issuer = _tf.Issuer, account = u.Username, otpauthUri = uri, qrSvg = TwoFactor.QrSvg(uri) };
+    }
+
+    private async Task Complete(AppUser u, bool mfa)
+    {
+        u.FailedCount = 0; u.LockoutUntil = null; u.LastLogin = DateTime.UtcNow;
+        Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = mfa ? "Đăng nhập (xác thực 2 lớp)" : "Đăng nhập", Module = "Người dùng", Target = u.Username, Ip = Uc.Ip });
+        await Db.SaveChangesAsync();
+        await SignIn(u, mfa);
+    }
+
+    public record MfaRequest(string? Code, bool Recovery = false);
+
+    /// <summary>Bước 2 đăng nhập: nhập mã 6 số từ ứng dụng xác thực (hoặc mã khôi phục). Lần đầu thì đồng thời lưu khóa và cấp mã khôi phục.</summary>
+    [HttpPost("mfa")]
+    public async Task<IActionResult> Mfa([FromBody] MfaRequest r)
+    {
+        const string expired = "Phiên xác thực đã hết hạn. Vui lòng đăng nhập lại.";
+        var t = _tf.ReadTicket(HttpContext);
+        if (t is null) return Error(401, expired);
+        var u = await Db.Users.FirstOrDefaultAsync(x => x.Id == t.UserId);
+        if (u is null || !u.Active || Passwords.Stamp(u) != t.Stamp) { TwoFactor.ClearTicket(HttpContext); return Error(401, expired); }
+        if (u.LockoutUntil is { } until && until > DateTime.UtcNow)
+            return Error(423, $"Tài khoản tạm khóa do nhập sai nhiều lần. Thử lại sau {Math.Ceiling((until - DateTime.UtcNow).TotalMinutes)} phút.");
+
+        List<string>? codes = null;
+        var enroll = t.Secret is not null;
+        bool ok;
+        if (enroll)
+        {
+            var step = TwoFactor.Verify(t.Secret!, r.Code, 0);
+            ok = step is not null;
+            if (ok)
+            {
+                u.TotpSecret = _tf.Protect(t.Secret!); u.TotpLastStep = step!.Value;
+                (codes, u.RecoveryCodes) = TwoFactor.NewRecoveryCodes();
+                u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = u.Username;
+            }
+        }
+        else if (r.Recovery) ok = TwoFactor.UseRecovery(u, r.Code);
+        else
+        {
+            var secret = _tf.Unprotect(u.TotpSecret);
+            if (secret is null) return Error(500, "Không đọc được khóa xác thực 2 lớp (khóa mã hóa của máy chủ đã thay đổi). Liên hệ quản trị hệ thống để đặt lại.");
+            var step = TwoFactor.Verify(secret, r.Code, u.TotpLastStep);
+            ok = step is not null;
+            if (ok) u.TotpLastStep = step!.Value;
+        }
+        if (!ok)
+        {
+            u.FailedCount++;
+            var locked = u.FailedCount >= MaxFailed;
+            if (locked) { u.LockoutUntil = DateTime.UtcNow + LockoutTime; u.FailedCount = 0; TwoFactor.ClearTicket(HttpContext); }
+            await Db.SaveChangesAsync();
+            return Error(locked ? 423 : 400, locked ? "Nhập sai quá nhiều lần, tài khoản tạm khóa 15 phút."
+                : r.Recovery ? "Mã khôi phục không đúng hoặc đã được dùng." : "Mã xác thực không đúng hoặc đã hết hạn. Hãy nhập mã đang hiển thị trên ứng dụng.");
+        }
+        if (enroll) Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Bật xác thực 2 lớp", Module = "Người dùng", Target = u.Username, Ip = Uc.Ip });
+        if (r.Recovery) Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Dùng mã khôi phục", Module = "Người dùng", Target = $"{u.Username} (còn {TwoFactor.RecoveryLeft(u)} mã)", Ip = Uc.Ip });
+        TwoFactor.ClearTicket(HttpContext);
+        await Complete(u, true);
+        return Ok(new { user = u, recoveryCodes = codes, recoveryLeft = TwoFactor.RecoveryLeft(u) });
+    }
+
+    public record PasswordConfirm(string? Password);
+
+    /// <summary>Tạo bộ mã khôi phục mới (bộ cũ hết hiệu lực); cần nhập lại mật khẩu.</summary>
+    [Authorize, HttpPost("recovery-codes")]
+    public async Task<IActionResult> RecoveryCodes([FromBody] PasswordConfirm r)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var u = await Db.Users.FirstAsync(x => x.Id == Uc.User.Id);
+        if (u.TotpSecret is null) return Error(400, "Tài khoản chưa bật xác thực 2 lớp.");
+        if (!Passwords.Verify(u, r.Password ?? "")) return Error(400, "Mật khẩu không đúng.");
+        (var codes, u.RecoveryCodes) = TwoFactor.NewRecoveryCodes();
+        Uc.Log("Tạo lại mã khôi phục", "Người dùng", u.Username);
+        await Db.SaveChangesAsync();
+        return Ok(new { recoveryCodes = codes });
     }
 
     [HttpPost("logout")]
@@ -121,6 +221,7 @@ public class AuthController : ApiControllerBase
         await Uc.LoadAsync();
         if (Uc.User is not null) { Uc.Log("Đăng xuất", "Người dùng", Uc.User.Username); await Db.SaveChangesAsync(); }
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        TwoFactor.ClearTicket(HttpContext);
         return Ok(new { ok = true });
     }
 
@@ -137,14 +238,15 @@ public class AuthController : ApiControllerBase
         u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = u.Username;
         Uc.Log("Đổi mật khẩu", "Người dùng", u.Username);
         await Db.SaveChangesAsync();
-        await SignIn(u);
+        await SignIn(u, Uc.Mfa);
         return Ok(new { ok = true });
     }
 
-    private Task SignIn(AppUser u)
+    private Task SignIn(AppUser u, bool mfa)
     {
-        var id = new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, u.Id), new Claim(ClaimTypes.Name, u.Username), new Claim("stamp", Passwords.Stamp(u)) },
-            CookieAuthenticationDefaults.AuthenticationScheme);
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, u.Id), new(ClaimTypes.Name, u.Username), new("stamp", Passwords.Stamp(u)) };
+        if (mfa) claims.Add(new Claim("amr", "mfa"));
+        var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         return HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(id),
             new AuthenticationProperties { IsPersistent = false });
     }

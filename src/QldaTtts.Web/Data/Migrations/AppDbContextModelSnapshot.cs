@@ -102,8 +102,19 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("RecoveryCodes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<bool>("Sample")
                         .HasColumnType("bit");
+
+                    b.Property<long>("TotpLastStep")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TotpSecret")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("Unit")
                         .HasMaxLength(200)

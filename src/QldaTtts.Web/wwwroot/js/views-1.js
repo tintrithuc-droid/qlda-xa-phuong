@@ -16,7 +16,7 @@ function render(){
   if(Store.mode==='loading'){ if(!$('#loading')) root.innerHTML=`<div id="loading" style="display:grid;place-items:center;min-height:100%;padding:40px" class="muted">Đang kết nối máy chủ…</div>`; return; }
   if(Store.mode==='offline' && !S.user){ root.innerHTML=`<div id="loading" style="display:grid;place-items:center;min-height:100%;padding:40px;text-align:center" class="muted">Không kết nối được máy chủ ứng dụng.<br>${esc(Store.error)}<br>Hệ thống sẽ tự thử lại sau ít giây.</div>`; return; }
   if(!Store.initialized){ return renderSetup(); }
-  if(!S.user) return renderLogin();
+  if(!S.user) return S.mfaStep ? ($('#mfa')? undefined : renderMfa()) : renderLogin();
   if(!$('#app')) buildShell();
   let r=(location.hash||'').slice(1)||'tong-quan';
   if(!VIEWS[r]) r='tong-quan';
@@ -143,8 +143,8 @@ function renderSetup(){
         body.sampleUsers=[['lanhdao','Lãnh đạo Ban (mẫu)','g-lead','Lãnh đạo Ban'],['kythuat','Cán bộ kỹ thuật (mẫu)','g-tech','Phòng Kỹ thuật'],['ketoan','Kế toán (mẫu)','g-acc','Phòng Kế toán'],['giamsat','Tư vấn giám sát TV01 (mẫu)','g-site','Tư vấn giám sát']].map(([username,name,groupId,unit])=>({username,name,groupId,unit}));
       }
       const r=await api('POST','/api/auth/setup',body,{auth:true});
-      Store.initialized=true; Store.sampleUsers=!!body.sampleUsers; S.user=r.user;
-      await Store.load(); location.hash='tong-quan'; render();
+      Store.initialized=true; Store.sampleUsers=!!body.sampleUsers; location.hash='tong-quan';
+      await authDone(r);
     }catch(ex){ console.error(ex); err.style.color='var(--red)'; err.textContent=errText(ex); btn.disabled=false; }
   };
 }
@@ -161,18 +161,80 @@ function renderLogin(){
     e.preventDefault(); const err=$('#lg_err');
     const un=$('#lg_user').value.trim().toLowerCase(), pw=$('#lg_pw').value;
     const btn=$('#login button[type=submit]'); btn.disabled=true; err.textContent='';
-    try{ const r=await api('POST','/api/auth/login',{username:un, password:pw},{auth:true}); S.user=r.user; await Store.load(); render(); }
+    try{ const r=await api('POST','/api/auth/login',{username:un, password:pw},{auth:true}); await authDone(r); }
     catch(ex){ err.textContent=errText(ex); btn.disabled=false; }
   };
 }
+/* ===== Xác thực 2 lớp (bắt buộc với tài khoản quản trị) ===== */
+async function authDone(r){
+  if(r.mfa){ S.mfaStep=r; return renderMfa(); }
+  if(r.recoveryCodes){ S.mfaStep={mfa:'codes', codes:r.recoveryCodes, user:r.user}; return renderMfa(); }
+  S.mfaStep=null; S.user=r.user; S.mfa=r.recoveryLeft!=null?{enabled:true, required:true, recoveryLeft:r.recoveryLeft}:S.mfa;
+  await Store.load(); render();
+}
+function authBox(inner){ $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box">${inner}<p class="auth-foot">© ${new Date().getFullYear()} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM</p></div></div>`; }
+const codeField=(label)=>`<div class="fld"><label for="mf_code">${label}</label><input id="mf_code" class="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required></div>`;
+function recoveryText(codes, user){ return `MÃ KHÔI PHỤC XÁC THỰC 2 LỚP – PHẦN MỀM QLDA TTTS\r\nTài khoản: ${user}\r\nTạo lúc: ${fmtDT(new Date().toISOString())}\r\n\r\nMỗi mã chỉ dùng được một lần, khi không có điện thoại để lấy mã 6 số.\r\nCất giữ nơi an toàn, không chia sẻ cho người khác.\r\n\r\n${codes.map((c,i)=>String(i+1).padStart(2,' ')+'. '+c).join('\r\n')}\r\n`; }
+function codesHtml(codes){ return `<ol class="rcodes">${codes.map(c=>`<li><code>${esc(c)}</code></li>`).join('')}</ol>`; }
+function printCodes(codes, user){ const w=window.open('','_blank'); if(!w) return toast('Trình duyệt chặn cửa sổ in. Hãy dùng nút Tải tệp.','err'); w.document.write(`<title>Ma khoi phuc</title><pre style="font:15px/1.7 monospace;padding:24px">${esc(recoveryText(codes,user))}</pre>`); w.document.close(); w.focus(); w.print(); }
+function renderMfa(){
+  const st=S.mfaStep; if(!st) return renderLogin();
+  if(st.mfa==='codes'){
+    authBox(`<form id="mfa" class="wide">
+      <div class="form-head"><h2>Lưu mã khôi phục</h2><p class="muted small">Đã bật xác thực 2 lớp cho tài khoản <b>${esc(st.user.username)}</b>. Khi mất hoặc đổi điện thoại, dùng một trong các mã dưới đây thay cho mã 6 số. Mỗi mã dùng một lần; mã chỉ hiển thị lần này.</p></div>
+      ${codesHtml(st.codes)}
+      <div class="row-btns"><button type="button" class="btn" id="rc_dl">Tải tệp .txt</button><button type="button" class="btn" id="rc_pr">In</button></div>
+      <label class="checks"><input type="checkbox" id="rc_ok"> Tôi đã lưu mã khôi phục ở nơi an toàn</label>
+      <button class="btn primary" type="submit" disabled>Vào hệ thống</button>
+    </form>`);
+    $('#rc_dl').onclick=()=>saveFile('Ma khoi phuc QLDA - '+st.user.username+'.txt', new Blob([recoveryText(st.codes,st.user.username)],{type:'text/plain;charset=utf-8'}));
+    $('#rc_pr').onclick=()=>printCodes(st.codes, st.user.username);
+    $('#rc_ok').onchange=e=>{ $('#mfa button[type=submit]').disabled=!e.target.checked; };
+    $('#mfa').onsubmit=async e=>{ e.preventDefault(); const u=st.user; S.mfaStep=null; S.user=u; S.mfa={enabled:true, required:true, recoveryLeft:st.codes.length}; await Store.load(); render(); };
+    return;
+  }
+  const enroll=st.mfa==='enroll', rec=!!st.useRecovery;
+  const key=enroll? st.secret.match(/.{1,4}/g).join(' ') : '';
+  authBox(`<form id="mfa" class="${enroll?'wide':''}" autocomplete="off">
+    <div class="form-head"><h2>${enroll?'Thiết lập xác thực 2 lớp':'Xác thực 2 lớp'}</h2><p class="muted small">${enroll
+      ? 'Tài khoản quản trị phải dùng thêm mã xác thực trên điện thoại khi đăng nhập. Thực hiện 3 bước sau (chỉ làm một lần).'
+      : rec ? 'Nhập một mã khôi phục đã lưu khi bật xác thực 2 lớp (dạng xxxxx-xxxxx). Mỗi mã chỉ dùng một lần.'
+      : 'Mở ứng dụng xác thực trên điện thoại (Google Authenticator, Microsoft Authenticator…) và nhập mã 6 số của mục <b>'+esc('QLDA TTTS HCM')+'</b>.'}</p></div>
+    ${enroll?`<ol class="mfa-steps">
+      <li><b>Cài ứng dụng xác thực</b> trên điện thoại: Google Authenticator hoặc Microsoft Authenticator (miễn phí trên CH Play, App Store).</li>
+      <li><b>Quét mã QR</b> bằng ứng dụng (nút “+” → Quét mã QR).<div class="qr" role="img" aria-label="Mã QR thiết lập xác thực 2 lớp">${st.qrSvg}</div>
+        <span class="small muted">Không quét được? Chọn “Nhập khóa thiết lập” và nhập: tài khoản <b>${esc(st.account)}</b>, khóa</span><code class="otp-key">${esc(key)}</code></li>
+      <li><b>Nhập mã 6 số</b> ứng dụng đang hiển thị để xác nhận.</li></ol>` : ''}
+    ${rec?`<div class="fld"><label for="mf_code">Mã khôi phục</label><input id="mf_code" autocomplete="off" maxlength="12" required></div>`:codeField('Mã xác thực 6 số')}
+    <div class="err" id="mf_err" role="alert"></div>
+    <button class="btn primary" type="submit">${enroll?'Xác nhận và bật':'Xác nhận'}</button>
+    <p class="small muted mfa-links">${!enroll?`<a href="#" id="mf_alt">${rec?'Dùng mã 6 số từ ứng dụng':'Không có điện thoại? Dùng mã khôi phục'}</a> · `:''}<a href="#" id="mf_back">Quay lại đăng nhập</a></p>
+  </form>`);
+  $('#mf_code').focus();
+  $('#mf_back').onclick=e=>{ e.preventDefault(); S.mfaStep=null; api('POST','/api/auth/logout',undefined,{auth:true}).catch(()=>{}); renderLogin(); };
+  if($('#mf_alt')) $('#mf_alt').onclick=e=>{ e.preventDefault(); st.useRecovery=!rec; renderMfa(); };
+  $('#mfa').onsubmit=async e=>{
+    e.preventDefault(); const err=$('#mf_err'), btn=$('#mfa button[type=submit]'); const code=$('#mf_code').value.trim();
+    if(!rec && !/^\d{6}$/.test(code.replace(/\s/g,''))) return err.textContent='Mã xác thực gồm 6 chữ số.';
+    btn.disabled=true; err.textContent='';
+    try{ await authDone(await api('POST','/api/auth/mfa',{code, recovery:rec},{auth:true})); }
+    catch(ex){ err.textContent=errText(ex); btn.disabled=false; if(ex.status===401||ex.status===423){ S.mfaStep=null; setTimeout(()=>{ renderLogin(); $('#lg_err').textContent=errText(ex); },0); } else { $('#mf_code').select(); } }
+  };
+}
+ACT['new-rc']=()=>openForm({title:'Tạo mã khôi phục mới', narrow:true, fields:[{key:'pw',label:'Nhập mật khẩu để xác nhận',type:'password',req:true,full:true}],
+  onSave:async v=>{ const r=await api('POST','/api/auth/recovery-codes',{password:v.pw},{auth:true}); S.mfa={...S.mfa, recoveryLeft:r.recoveryCodes.length};
+    setTimeout(()=>openModal(`<div class="mform narrow"><header><h3>Mã khôi phục mới</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;display:flex;flex-direction:column;gap:12px"><p class="small muted" style="margin:0">Bộ mã cũ đã hết hiệu lực. Lưu bộ mã này ở nơi an toàn; mã chỉ hiển thị lần này.</p>${codesHtml(r.recoveryCodes)}<div class="row-btns"><button class="btn" id="rc_dl">Tải tệp .txt</button><button class="btn" id="rc_pr">In</button></div></div></div>`,true),0);
+    setTimeout(()=>{ const c=r.recoveryCodes, un=S.user.username; $('#rc_dl').onclick=()=>saveFile('Ma khoi phuc QLDA - '+un+'.txt', new Blob([recoveryText(c,un)],{type:'text/plain;charset=utf-8'})); $('#rc_pr').onclick=()=>printCodes(c,un); },20); }});
 ACT.account=()=>{
   const g=myGroup();
   openModal(`<div class="mform narrow"><header><h3>Tài khoản</h3><button class="icon-btn" data-close>×</button></header>
   <div style="padding:16px;display:flex;flex-direction:column;gap:12px"><div style="display:flex;gap:12px;align-items:center"><span class="avatar" style="width:44px;height:44px;font-size:15px">${esc(initials(S.user.name))}</span><div><b>${esc(S.user.name)}</b><div class="small muted">${esc(S.user.username)} · ${esc(g?g.name:'')}</div><div class="small muted">${esc(S.user.unit||'')}</div></div></div>
+  ${S.mfa&&S.mfa.enabled?`<div class="mfa-state">${ic('shield').replace('<svg','<svg width="18" height="18"')}<div><b>Xác thực 2 lớp: đang bật</b><div class="small muted">Còn ${S.mfa.recoveryLeft} mã khôi phục chưa dùng</div></div></div>
+  <button class="btn" data-act="new-rc">Tạo mã khôi phục mới</button>`:''}
   <button class="btn" data-act="chpw">${ic('key').replace('<svg','<svg width="16" height="16"')} Đổi mật khẩu</button>
   <button class="btn danger" data-act="logout">${ic('out').replace('<svg','<svg width="16" height="16"')} Đăng xuất</button></div></div>`);
 };
-ACT.logout=async()=>{ try{ await api('POST','/api/auth/logout',undefined,{auth:true}); }catch{} S.user=null; Store.clear(); closeModal(); S.sel={}; render(); };
+ACT.logout=async()=>{ try{ await api('POST','/api/auth/logout',undefined,{auth:true}); }catch{} S.user=null; S.mfa=null; S.mfaStep=null; Store.clear(); closeModal(); S.sel={}; render(); };
 ACT.chpw=()=>{
   openForm({title:'Đổi mật khẩu', narrow:true, fields:[{key:'old',label:'Mật khẩu hiện tại',type:'password',req:true,full:true},{key:'pw',label:'Mật khẩu mới (≥ 8 ký tự, có chữ và số)',type:'password',req:true,full:true},{key:'pw2',label:'Nhập lại mật khẩu mới',type:'password',req:true,full:true}],
     onSave: async v=>{

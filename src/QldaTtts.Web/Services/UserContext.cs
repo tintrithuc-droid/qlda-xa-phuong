@@ -13,7 +13,11 @@ public class UserContext
     public AppUser? User { get; private set; }
     public UserGroup? Group { get; private set; }
 
-    public UserContext(AppDbContext db, IHttpContextAccessor http) { _db = db; _http = http; }
+    private readonly TwoFactor _tf;
+    public UserContext(AppDbContext db, IHttpContextAccessor http, TwoFactor tf) { _db = db; _http = http; _tf = tf; }
+
+    /// <summary>Phiên hiện tại đã qua bước xác thực 2 lớp.</summary>
+    public bool Mfa => _http.HttpContext?.User.FindFirstValue("amr") == "mfa";
 
     public async Task<UserContext> LoadAsync()
     {
@@ -24,6 +28,8 @@ public class UserContext
         User = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id && u.Active);
         if (User is not null && _http.HttpContext!.User.FindFirstValue("stamp") != Passwords.Stamp(User)) User = null;
         if (User?.GroupId is not null) Group = await _db.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == User.GroupId);
+        // Tài khoản bắt buộc 2 lớp (quản trị, hoặc đã tự bật) mà phiên chưa qua bước mã thì coi như chưa đăng nhập
+        if (User is not null && _tf.Required(User, Group) && !Mfa) { User = null; Group = null; }
         return this;
     }
 

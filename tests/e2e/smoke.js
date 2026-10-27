@@ -7,6 +7,15 @@ const SHOTS = path.join(__dirname, 'shots'); fs.mkdirSync(SHOTS, { recursive: tr
 const PW = 'Admin2026';
 const errs = [];
 const wait = ms => new Promise(r => setTimeout(r, ms));
+// Mã TOTP (RFC 6238) như ứng dụng Google/Microsoft Authenticator, để kiểm thử xác thực 2 lớp
+function totp(secret, offset = 0) {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = '';
+  for (const ch of secret) bits += A.indexOf(ch).toString(2).padStart(5, '0');
+  const key = Buffer.from(bits.match(/.{8}/g).map(b => parseInt(b, 2)));
+  const msg = Buffer.alloc(8); msg.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + offset));
+  const h = require('crypto').createHmac('sha1', key).update(msg).digest(); const o = h[19] & 15;
+  return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
+}
 
 function watch(p, tag) {
   p.on('pageerror', e => errs.push(`${tag} PAGEERR ${e.message}`));
@@ -26,8 +35,18 @@ async function login(p, u, pw = PW) {
   await p.goto(BASE + '/'); await p.waitForSelector('#login, #setup', { timeout: 15000 });
   if (await p.$('#setup')) {
     await p.fill('#su_name', 'Nguyễn Quản Trị'); await p.fill('#su_pw', PW); await p.fill('#su_pw2', PW);
-    await p.click('#setup button[type=submit]'); await p.waitForSelector('#app', { timeout: 30000 });
-  } else await login(p, 'admin');
+    await p.click('#setup button[type=submit]');
+  } else throw new Error('Cần cơ sở dữ liệu trống');
+  // Tài khoản quản trị bắt buộc thiết lập xác thực 2 lớp ngay sau khởi tạo
+  await p.waitForSelector('#mfa .qr svg', { timeout: 30000 }); await p.screenshot({ path: `${SHOTS}/mfa-enroll.png` });
+  const secret = await p.evaluate(() => S.mfaStep.secret);
+  p._expectFail = true; await p.fill('#mf_code', '000000'); await p.click('#mfa button[type=submit]'); await p.waitForTimeout(400); p._expectFail = false;
+  if (!(await p.textContent('#mf_err')).trim()) errs.push('Không báo lỗi khi nhập sai mã 2 lớp');
+  await p.fill('#mf_code', totp(secret)); await p.click('#mfa button[type=submit]');
+  await p.waitForSelector('#mfa .rcodes', { timeout: 10000 }); await p.screenshot({ path: `${SHOTS}/mfa-codes.png` });
+  const rcodes = await p.evaluate(() => S.mfaStep.codes);
+  if (rcodes.length !== 10) errs.push('Số mã khôi phục: ' + rcodes.length);
+  await p.check('#rc_ok'); await p.click('#mfa button[type=submit]'); await p.waitForSelector('#app', { timeout: 30000 });
   const counts = await p.evaluate(() => Object.fromEntries(Object.entries(Store.data).map(([k, v]) => [k, v.length])));
   console.log('Số bản ghi sau khởi tạo:', JSON.stringify(counts));
 
@@ -129,6 +148,32 @@ async function login(p, u, pw = PW) {
   const ctx4 = await b.newContext(); const q4 = await ctx4.newPage();
   const nx = await q4.request.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'khongtontai', password: 'abc12345' } });
   if (nx.status() !== 401) errs.push('Đăng nhập tài khoản không tồn tại trả ' + nx.status());
+
+  // Xác thực 2 lớp: đăng nhập lại quản trị bằng mã khôi phục, mã đã dùng không dùng lại được
+  const ctx5 = await b.newContext({ viewport: { width: 1280, height: 860 } }); const a2 = await ctx5.newPage(); watch(a2, 'admin2');
+  await a2.goto(BASE + '/'); await a2.waitForSelector('#login'); await a2.fill('#lg_user', 'admin'); await a2.fill('#lg_pw', PW); await a2.click('#login button[type=submit]');
+  await a2.waitForSelector('#mfa #mf_code'); await a2.screenshot({ path: `${SHOTS}/mfa-verify.png` });
+  a2._expectFail = true;
+  if ((await a2.evaluate(async () => (await fetch('/api/data')).status)) !== 401) errs.push('Chưa nhập mã 2 lớp mà đã vào được dữ liệu');
+  a2._expectFail = false;
+  await a2.click('#mf_alt'); await a2.fill('#mf_code', rcodes[0]); await a2.click('#mfa button[type=submit]'); await a2.waitForSelector('#app', { timeout: 15000 });
+  const rc = await ctx5.request.post(BASE + '/api/auth/logout', { headers: { 'X-QLDA': '1' } });
+  await ctx5.request.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'admin', password: PW } });
+  const reuse = await ctx5.request.post(BASE + '/api/auth/mfa', { headers: { 'X-QLDA': '1' }, data: { code: rcodes[0], recovery: true } });
+  if (reuse.status() !== 400 || rc.status() !== 200) errs.push('Mã khôi phục dùng lại được: ' + reuse.status());
+
+  // Tài khoản quản trị thứ hai: thiết lập 2 lớp qua API, quản trị chính đặt lại thì phiên của người đó hết hiệu lực
+  const cu = await p.evaluate(async () => (await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: JSON.stringify({ username: 'qt2', name: 'Quản trị 2', groupId: 'g-admin', password: 'Admin2026' }) })).json());
+  const ctx6 = await b.newContext(); const rq = ctx6.request, H = { 'X-QLDA': '1' };
+  const ch = await (await rq.post(BASE + '/api/auth/login', { headers: H, data: { username: 'qt2', password: PW } })).json();
+  if (ch.mfa !== 'enroll' || !ch.secret) errs.push('Quản trị mới không bị yêu cầu thiết lập 2 lớp: ' + JSON.stringify(ch).slice(0, 80));
+  const ok2 = await rq.post(BASE + '/api/auth/mfa', { headers: H, data: { code: totp(ch.secret) } });
+  const d1 = (await rq.get(BASE + '/api/data')).status();
+  const rs2 = await p.evaluate(async id => (await fetch('/api/users/' + id + '/reset-2fa', { method: 'POST', headers: { 'X-QLDA': '1' } })).status, cu.id);
+  const d2 = (await rq.get(BASE + '/api/data')).status();
+  console.log('Quản trị 2: bật 2 lớp', ok2.status(), '→ dữ liệu', d1, '; đặt lại 2 lớp', rs2, '→ phiên cũ', d2);
+  if (ok2.status() !== 200 || d1 !== 200 || rs2 !== 200 || d2 !== 401) errs.push('Luồng đặt lại 2 lớp sai');
+  await p.evaluate(() => { S.tab.qt = 'users'; return Store.load(); }); await go(p, 'quan-tri'); await p.screenshot({ path: `${SHOTS}/mfa-users.png` });
 
   // Đăng nhập sai nhiều lần bị tạm khóa
   const ctx3 = await b.newContext(); const q = await ctx3.newPage(); q._expectFail = true;

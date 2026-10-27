@@ -53,6 +53,7 @@ Script tự: bật IIS, chép ứng dụng, tạo Application Pool (No Managed C
 
 1. Mở trình duyệt tới địa chỉ website.
 2. Màn hình **Khởi tạo hệ thống**: nhập họ tên, tên đăng nhập, mật khẩu quản trị. Bỏ chọn *Nạp dữ liệu mẫu* khi triển khai chính thức.
+   Tiếp theo là màn hình **Thiết lập xác thực 2 lớp**: cài Google Authenticator hoặc Microsoft Authenticator trên điện thoại, quét mã QR, nhập mã 6 số, rồi tải/in **10 mã khôi phục** và cất giữ nơi an toàn (xem mục 8a).
 3. Vào **Quản trị hệ thống**: tạo nhóm người dùng, phân quyền theo phân hệ và phạm vi dự án, tạo tài khoản cán bộ, cập nhật danh mục.
 
 ## 5. Ứng dụng trên điện thoại
@@ -68,17 +69,31 @@ Giải nén gói mới và chạy lại `.\install.ps1` (không cần tham số 
 - **CSDL**: lập SQL Server Agent job (hoặc Task Scheduler + `sqlcmd`) sao lưu `QLDA_TTTS` hằng ngày, ví dụ:
   `BACKUP DATABASE [QLDA_TTTS] TO DISK = N'E:\Backup\QLDA_TTTS.bak' WITH INIT, COMPRESSION`
 - **Tệp đính kèm**: sao lưu thư mục `-DataPath\files` cùng lịch (robocopy sang ổ/máy khác).
-- **Khóa ứng dụng**: thư mục `<InstallPath>\App_Data\keys` (mất khóa thì người dùng chỉ phải đăng nhập lại).
+- **Khóa ứng dụng**: thư mục `<InstallPath>\App_Data\keys`. Khóa này mã hóa cả khóa xác thực 2 lớp: mất khóa thì mọi người phải đăng nhập lại và tài khoản quản trị phải thiết lập lại xác thực 2 lớp (mục 8a). Phục hồi CSDL sang máy chủ mới thì chép kèm thư mục này.
 - Trong phần mềm: *Quản trị hệ thống → Hệ thống → Tải tệp sao lưu* xuất toàn bộ dữ liệu nghiệp vụ dạng JSON.
 
 ## 8. Bảo mật đã có
 
 - Mật khẩu băm PBKDF2 (ASP.NET Core Identity), tối thiểu 8 ký tự gồm chữ và số; nhập sai 5 lần khóa 15 phút.
+- Tài khoản quản trị bắt buộc xác thực 2 lớp bằng mã 6 số trên điện thoại (mục 8a).
 - Cookie phiên HttpOnly, SameSite=Strict; chặn ghi dữ liệu từ trang khác (CSRF); tiêu đề bảo mật HTTP.
 - Phân quyền kiểm tra trên máy chủ theo phân hệ (không truy cập / xem / cập nhật) và theo phạm vi dự án.
 - Nhật ký hoạt động ghi trên máy chủ cho mọi thao tác thêm, sửa, xóa, đăng nhập (kèm địa chỉ IP).
 - Chặn tải lên tệp thực thi (.exe, .js, .ps1, .html…); tệp chỉ tải về được khi đã đăng nhập.
 - Bật HTTPS: dùng `-CertThumbprint`; ứng dụng tự chuyển hướng HTTP sang HTTPS và bật HSTS.
+
+## 8a. Xác thực 2 lớp cho tài khoản quản trị
+
+- Tài khoản thuộc nhóm có **toàn quyền** (Quản trị hệ thống) bắt buộc nhập thêm mã 6 số từ ứng dụng xác thực trên điện thoại (TOTP theo RFC 6238, đổi mã mỗi 30 giây; dùng Google Authenticator, Microsoft Authenticator hoặc ứng dụng tương đương, không cần SMS hay Internet trên điện thoại).
+- Lần đăng nhập đầu tiên của mỗi tài khoản quản trị: quét mã QR, nhập mã để xác nhận, lưu 10 mã khôi phục (mỗi mã dùng một lần khi không có điện thoại). Tạo bộ mã mới tại *Tài khoản → Tạo mã khôi phục mới*.
+- Nhập sai mã 5 lần: tạm khóa 15 phút (tính chung với nhập sai mật khẩu). Mỗi mã chỉ dùng được một lần.
+- Quản trị mất điện thoại: một quản trị khác vào *Quản trị hệ thống → Người dùng → Đặt lại 2 lớp*; lần đăng nhập sau người đó quét mã QR mới.
+- Chỉ có một quản trị và mất cả điện thoại lẫn mã khôi phục: trên máy chủ, mở PowerShell bằng tài khoản có quyền vào CSDL rồi chạy
+  `cd C:\inetpub\QLDA_TTTS; $env:ASPNETCORE_ENVIRONMENT='Production'; .\QldaTtts.Web.exe --reset-2fa admin`
+  (thay `admin` bằng tên đăng nhập). Hoặc chạy trong SQL Server Management Studio:
+  `UPDATE Users SET TotpSecret = NULL, RecoveryCodes = NULL, TotpLastStep = 0 WHERE Username = 'admin'`.
+- Đồng hồ máy chủ và điện thoại phải đúng giờ (lệch quá 30 giây thì mã bị từ chối): bật đồng bộ thời gian Windows (`w32tm /resync`).
+- Tắt yêu cầu bắt buộc (không khuyến nghị): thêm `"Security": { "RequireTwoFactorForAdmins": false }` vào `appsettings.Production.json`. Tên hiển thị trong ứng dụng xác thực đổi bằng `Security:TwoFactorIssuer` (mặc định "QLDA TTTS HCM").
 
 ## 9. Xử lý sự cố
 
@@ -87,4 +102,6 @@ Giải nén gói mới và chạy lại `.\install.ps1` (không cần tham số 
 | HTTP Error 500.19 / 500.31 | Chưa cài hoặc cần cài lại ASP.NET Core 8 Hosting Bundle (Repair), rồi `iisreset`. |
 | 500.30 khi khởi động | Thường do không kết nối được SQL Server. Sửa `appsettings.Production.json`, xem Event Viewer → Application. Bật `stdoutLogEnabled="true"` trong `web.config` để ghi log vào `logs\`. |
 | Không tải được tệp lớn | Kiểm tra `maxAllowedContentLength` trong `web.config` (mặc định 500 MB). |
+| Mã xác thực 2 lớp luôn báo sai | Đồng hồ máy chủ hoặc điện thoại lệch giờ: đồng bộ lại thời gian (`w32tm /resync`, bật *Đặt giờ tự động* trên điện thoại). |
+| "Không đọc được khóa xác thực 2 lớp" | Thư mục `App_Data\keys` đã thay đổi hoặc mất: đặt lại 2 lớp cho tài khoản đó (mục 8a). |
 | Kiểm tra nhanh | Mở `/api/health`: trả `{"status":"ok","db":"ok"}` là ứng dụng và CSDL hoạt động. |

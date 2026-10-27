@@ -172,7 +172,7 @@ ACT['lock-user']=async(id)=>{ const u=get('users',id); try{ const r=await api('P
 function groupForm(g){
   const permHtml=`<table class="perm"><thead><tr><th>Phân hệ</th><th>Không truy cập</th><th>Chỉ xem</th><th>Xem và cập nhật</th></tr></thead><tbody>${MODULES.map(m=>{ const p=((g&&g.perms)||{})[m.key]||'none'; return `<tr><td>${esc(m.label)}</td>${['none','view','edit'].map(l=>`<td><input type="radio" name="perm_${m.key}" value="${l}" ${p===l?'checked':''} aria-label="${esc(m.label)} ${l}"></td>`).join('')}</tr>`; }).join('')}</tbody></table>`;
   openForm({title:g?'Phân quyền nhóm: '+g.name:'Thêm nhóm người dùng', value:g||{}, fields:[{key:'name',label:'Tên nhóm',req:true},{key:'desc',label:'Mô tả'},
-    {key:'perm',label:'Phân quyền chức năng',type:'html',html:permHtml},{key:'scope',label:'Phạm vi dữ liệu: chỉ các dự án (để trống = tất cả dự án)',type:'checks',options:()=>D('projects').sort(by('code')).map(p=>[p.id,p.code])}],
+    {key:'perm',label:'Phân quyền chức năng',type:'html',full:true,html:permHtml},{key:'scope',label:'Phạm vi dữ liệu: chỉ các dự án (để trống = tất cả dự án)',type:'checks',options:()=>D('projects').sort(by('code')).map(p=>[p.id,p.code])}],
     onSave:v=>{ const perms={}; MODULES.forEach(m=>{ const r=document.querySelector(`input[name="perm_${m.key}"]:checked`); perms[m.key]=r?r.value:'none'; }); if(!perms['tong-quan']||perms['tong-quan']==='none') perms['tong-quan']='view'; return save('groups',{...v, perms, admin:!!(g&&g.admin)}, v.name); }});
 }
 ACT['add-group']=()=>groupForm(null);

@@ -12,6 +12,13 @@ for it in zi.infolist():
         def en(m):
             e[0]+=1;return m.group(1)+'w:id="%d"'%(1000+e[0])
         s=re.sub(r'(<w:bookmarkEnd\b[^>]*?)w:id="\d+"',en,s)
-        assert n[0]==e[0];d=s.encode()
+        assert n[0]==e[0]
+        # viền mảnh quanh ảnh chụp màn hình
+        def ln(m):
+            b=m.group(0)
+            if 'name="shot-' not in b or '<a:ln' in b: return b
+            return b.replace('</pic:spPr>','<a:ln w="6350"><a:solidFill><a:srgbClr val="9AA3B0"/></a:solidFill></a:ln></pic:spPr>')
+        s=re.sub(r'<w:drawing>.*?</w:drawing>',ln,s,flags=re.S)
+        d=s.encode()
     zo.writestr(it,d)
 zo.close();shutil.move(tmp,fn)

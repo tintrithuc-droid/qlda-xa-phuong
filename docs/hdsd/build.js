@@ -8,8 +8,8 @@ const { ROLES, build } = require('./content');
 
 const DIR = __dirname, SHOTS = path.join(DIR, 'shots'), OUT = path.join(DIR, 'out');
 fs.mkdirSync(OUT, { recursive: true });
-const FONT = 'Times New Roman', NAVY = '0D2A57', RED = 'C8102E', GREY = 'BFC5CE', TXT = 9000; // vùng chữ 16 cm ≈ 9070 DXA
-const DATE = '27.10.2026', VER = 'V1';
+const FONT = 'Times New Roman', NAVY = '0D2A57', RED = 'C8102E', GREY = 'BFC5CE', TXT = 9071; // vùng chữ 16 cm ≈ 9070 DXA
+const DATE = '27.10.2026', VER = 'V2';
 
 const pngSize = f => { const b = fs.readFileSync(f); return { w: b.readUInt32BE(16), h: b.readUInt32BE(20), buf: b }; };
 const cm2px = cm => Math.round(cm * 37.795);
@@ -38,12 +38,14 @@ const noBorders = { top: none, bottom: none, left: none, right: none, insideHori
 function cell(children, width, opt = {}) {
   return new TableCell({ children, width: { size: width, type: WidthType.DXA }, borders: opt.borders || borders,
     shading: opt.fill ? { fill: opt.fill, type: ShadingType.CLEAR, color: 'auto' } : undefined,
-    margins: opt.margins || { top: 60, bottom: 60, left: 100, right: 100 }, verticalAlign: opt.va || VerticalAlign.CENTER,
+    margins: opt.margins || { top: 30, bottom: 30, left: 100, right: 100 }, verticalAlign: opt.va || VerticalAlign.CENTER,
     columnSpan: opt.span });
 }
-const cp = (text, opt = {}) => new Paragraph({ alignment: opt.align, spacing: { before: 0, after: 0, line: 260 },
+const cp = (text, opt = {}) => new Paragraph({ alignment: opt.align, spacing: { before: 0, after: 0, line: 250 }, keepNext: opt.keep,
   children: runs(text, { size: opt.size || 24, bold: opt.bold, color: opt.color, italics: opt.italics }) });
 
+// cột cuối bù cho tổng bề rộng đúng bằng vùng chữ
+const fitW = W => { const t = W.reduce((a, b) => a + b, 0); return t === TXT ? W : [...W.slice(0, -1), W[W.length - 1] + TXT - t]; };
 function table(widths, rows, opt = {}) {
   const total = widths.reduce((a, b) => a + b, 0);
   return new Table({ width: { size: total, type: WidthType.DXA }, columnWidths: widths, alignment: opt.align || AlignmentType.CENTER,
@@ -56,24 +58,25 @@ function imageBox(name, wcm, maxHcm = 20) {
   const s = pngSize(f);
   let w = cm2px(wcm), h = Math.round(w * s.h / s.w);
   if (h > cm2px(maxHcm)) { h = cm2px(maxHcm); w = Math.round(h * s.w / s.h); }
-  const img = new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 0 },
-    children: [new ImageRun({ type: 'png', data: s.buf, transformation: { width: w, height: h }, altText: { title: name, description: name, name } })] });
-  const wd = Math.round(w / 96 * 1440) + 40;
-  return table([wd], [new TableRow({ cantSplit: true, children: [cell([img], wd, { margins: { top: 20, bottom: 20, left: 20, right: 20 } })] })]);
+  return { h: h * 0.75, par: new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, keepLines: true, spacing: { before: 120, after: 0 },
+    children: [new ImageRun({ type: 'png', data: s.buf, transformation: { width: w, height: h }, altText: { title: name, description: name, name: 'shot-' + name } })] }) };
 }
 
-function makeDoc(k, pages) {
+function makeDoc(k, pages, FIT = {}, FIGS = []) {
   const role = ROLES[k], blocks = build(k);
   const numbering = [{ reference: 'bul', levels: [{ level: 0, format: LevelFormat.BULLET, text: '–', alignment: AlignmentType.LEFT,
     style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] }];
   let stepsN = 0, c1 = 0, c2 = 0, c3 = 0, fig = 0, tab = 0;
   const toc = [], body = [];
   const P = (children, opt = {}) => new Paragraph({ children, ...opt });
-  const para = text => P(runs(text), { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 567 }, spacing: { before: 60, after: 60, line: 312 } });
-  const caption = (lbl, text, before = 80) => P([new TextRun({ text: lbl + ' ', bold: true, italics: true, size: 24 }), new TextRun({ text, italics: true, size: 24 })],
-    { alignment: AlignmentType.CENTER, spacing: { before, after: 160 }, keepLines: true });
+  const para = text => P(runs(text), { alignment: AlignmentType.JUSTIFIED, indent: { firstLine: 567 }, spacing: { before: 40, after: 40, line: 300 } });
+  const caption = (lbl, text, before = 80, keep = false) => P([new TextRun({ text: lbl + ' ', bold: true, italics: true, size: 24 }), new TextRun({ text, italics: true, size: 24 })],
+    { alignment: AlignmentType.CENTER, spacing: { before, after: keep ? 100 : 160 }, keepLines: true, keepNext: keep });
+  // chiều cao ước tính (pt) của bảng chú giải đi kèm hình, để hình + chú thích + chú giải luôn nằm cùng trang
+  const legH = lg => !lg ? 0 : 18 + lg.legend.reduce((a, [, t]) => a + Math.ceil(t.replace(/\*\*/g, '').length / 86) * 13.2 + 6, 0) + 8;
 
-  for (const b of blocks) {
+  blocks.forEach((b, bi) => {
+    const nextLeg = blocks[bi + 1] && blocks[bi + 1].legend ? blocks[bi + 1] : null;
     if (b.h1) {
       c1++; c2 = 0; c3 = 0; fig = 0; tab = 0;
       const id = `c${c1}`, text = `${c1}. ${b.h1}`;
@@ -92,40 +95,45 @@ function makeDoc(k, pages) {
       const ref = 'st' + (++stepsN);
       numbering.push({ reference: ref, levels: [{ level: 0, format: LevelFormat.DECIMAL, text: 'Bước %1.', alignment: AlignmentType.LEFT,
         style: { run: { bold: true, color: NAVY }, paragraph: { indent: { left: 1134, hanging: 1134 } } } }] });
-      b.steps.forEach(s => body.push(P(runs(s), { numbering: { reference: ref, level: 0 }, alignment: AlignmentType.JUSTIFIED, spacing: { before: 40, after: 40, line: 300 } })));
-    } else if (b.bullets) b.bullets.forEach(s => body.push(P(runs(s), { numbering: { reference: 'bul', level: 0 }, alignment: AlignmentType.JUSTIFIED, spacing: { before: 30, after: 30, line: 300 } })));
+      b.steps.forEach(s => body.push(P(runs(s), { numbering: { reference: ref, level: 0 }, alignment: AlignmentType.JUSTIFIED, spacing: { before: 30, after: 30, line: 288 } })));
+    } else if (b.bullets) b.bullets.forEach(s => body.push(P(runs(s), { numbering: { reference: 'bul', level: 0 }, alignment: AlignmentType.JUSTIFIED, spacing: { before: 20, after: 20, line: 288 } })));
     else if (b.img) {
       fig++;
-      body.push(P([], { spacing: { before: 60, after: 0 }, keepNext: true }));
-      body.push(imageBox(b.img, b.w || 16, 21));
-      body.push(caption(`Hình ${c1}.${fig}.`, b.cap));
+      const id = `${c1}.${fig}`, sc = FIT[id] || 1, im = imageBox(b.img, (b.w || 16) * sc, 17 * sc);
+      FIGS.push({ id, h: im.h, leg: legH(nextLeg), w: (b.w || 16) * sc, min: im.h > (b.w || 16) * sc * 28.35 * 0.9 ? 9 : (b.w || 16) >= 14 ? 11 : 7.5 });
+      body.push(im.par);
+      body.push(caption(`Hình ${id}.`, b.cap, 80, !!nextLeg));
     } else if (b.imgs2) {
-      const wcm = b.mobile ? 5.4 : 7.6, colW = 4500;
-      const cells = b.imgs2.map((n, i) => { fig++; return cell([imageBox(n, wcm, 13), caption(`Hình ${c1}.${fig}.`, b.caps[i], 60)], colW, { borders: noBorders, va: VerticalAlign.TOP, margins: { top: 0, bottom: 0, left: 40, right: 40 } }); });
-      body.push(P([], { spacing: { before: 60, after: 0 } }));
-      body.push(table([colW, colW], [new TableRow({ cantSplit: true, children: cells })], { borders: noBorders }));
+      const id = `${c1}.${fig + 1}`, sc = FIT[id] || 1, wcm = (b.mobile ? 5.6 : 7.6) * sc, colW = 4535;
+      let hmax = 0;
+      const cells = b.imgs2.map((n, i) => { fig++; const im = imageBox(n, wcm, 12.5 * sc); hmax = Math.max(hmax, im.h);
+        return cell([im.par, caption(`Hình ${c1}.${fig}.`, b.caps[i], 60)], colW, { borders: noBorders, va: VerticalAlign.TOP, margins: { top: 0, bottom: 0, left: 40, right: 40 } }); });
+      FIGS.push({ id, h: hmax, pair: true, leg: legH(nextLeg), w: wcm, min: b.mobile ? 4.6 : 6.4 });
+      body.push(P([], { spacing: { before: 0, after: 0, line: 120 }, keepNext: true }));
+      body.push(table([colW, TXT - colW], [new TableRow({ cantSplit: true, children: cells })], { borders: noBorders }));
+      if (nextLeg) body.push(P([new TextRun({ text: '', size: 8 })], { spacing: { before: 0, after: 0, line: 120 }, keepNext: true }));
     } else if (b.legend) {
-      const W = [700, 8300];
-      const rows = [new TableRow({ tableHeader: true, children: [cell([cp('Số', { bold: true, align: AlignmentType.CENTER, color: 'FFFFFF' })], W[0], { fill: NAVY }), cell([cp('Ý nghĩa', { bold: true, color: 'FFFFFF' })], W[1], { fill: NAVY })] })];
-      b.legend.forEach(([n, t]) => rows.push(new TableRow({ cantSplit: true, children: [
-        cell([cp(String(n), { bold: true, color: RED, align: AlignmentType.CENTER })], W[0], { fill: 'FBEAEC' }), cell([cp(t)], W[1])] })));
+      const W = [700, TXT - 700];
+      const rows = [new TableRow({ tableHeader: true, cantSplit: true, children: [cell([cp('Số', { bold: true, align: AlignmentType.CENTER, color: 'FFFFFF', keep: true })], W[0], { fill: NAVY }), cell([cp('Ý nghĩa', { bold: true, color: 'FFFFFF', keep: true })], W[1], { fill: NAVY })] })];
+      b.legend.forEach(([n, t], i) => { const keep = i < b.legend.length - 1; rows.push(new TableRow({ cantSplit: true, children: [
+        cell([cp(String(n), { bold: true, color: RED, align: AlignmentType.CENTER, keep })], W[0], { fill: 'FBEAEC' }), cell([cp(t, { keep })], W[1])] })); });
       body.push(table(W, rows));
-      body.push(P([], { spacing: { before: 0, after: 120 } }));
+      body.push(P([new TextRun({ text: '', size: 12 })], { spacing: { before: 0, after: 80, line: 160 } }));
     } else if (b.table) {
       tab++;
       body.push(caption(`Bảng ${c1}.${tab}.`, b.cap || '', 120));
-      const W = b.table.widths;
+      const W = fitW(b.table.widths);
       const rows = [new TableRow({ tableHeader: true, children: b.table.head.map((h, i) => cell([cp(h, { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER })], W[i], { fill: NAVY })) })];
       b.table.rows.forEach((r, ri) => rows.push(new TableRow({ cantSplit: true, children: r.map((v, i) => cell([cp(String(v), { align: W[i] <= 900 ? AlignmentType.CENTER : AlignmentType.LEFT })], W[i], { fill: ri % 2 ? 'F3F5F9' : undefined })) })));
       body.push(table(W, rows));
-      body.push(P([], { spacing: { before: 0, after: 120 } }));
+      body.push(P([new TextRun({ text: '', size: 12 })], { spacing: { before: 0, after: 80, line: 160 } }));
     } else if (b.note) {
       const nb = { style: BorderStyle.SINGLE, size: 6, color: '9DB4DA' };
-      body.push(P([], { spacing: { before: 40, after: 0 } }));
+      body.push(P([new TextRun({ text: '', size: 12 })], { spacing: { before: 0, after: 40, line: 160 }, keepNext: true }));
       body.push(table([TXT], [new TableRow({ cantSplit: true, children: [cell([P([new TextRun({ text: 'Lưu ý: ', bold: true, italics: true, color: NAVY }), ...runs(b.note, { italics: true })], { alignment: AlignmentType.JUSTIFIED, spacing: { line: 300 } })], TXT, { fill: 'EEF3FB', borders: { top: nb, bottom: nb, left: nb, right: nb }, margins: { top: 100, bottom: 100, left: 160, right: 160 } })] })]));
-      body.push(P([], { spacing: { before: 0, after: 120 } }));
+      body.push(P([new TextRun({ text: '', size: 12 })], { spacing: { before: 0, after: 80, line: 160 } }));
     } else throw new Error('Khối lạ: ' + JSON.stringify(b).slice(0, 80));
-  }
+  });
 
   // ===== Bìa =====
   const drum = fs.readFileSync(path.join(DIR, 'drum.png'));
@@ -140,26 +148,26 @@ function makeDoc(k, pages) {
     cv('PHẦN MỀM QUẢN LÝ DỰ ÁN ĐẦU TƯ XÂY DỰNG', { bold: true, size: 28 }),
     cv('BAN QUẢN LÝ DỰ ÁN – TRUNG TÂM THỦY SẢN TP. HỒ CHÍ MINH', { size: 26, after: 600 }),
     P([new TextRun({ text: 'Dành cho: ', size: 28 }), new TextRun({ text: role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-    cv('Phiên bản 1.0', { italics: true, size: 26, after: 2000 }),
+    cv('Phiên bản 1.1', { italics: true, size: 26, after: 2000 }),
     cv('Đơn vị thực hiện: Công ty Cổ phần Tin học Tri Thức', { size: 24 }),
     cv('TP. Hồ Chí Minh, tháng 10 năm 2026', { bold: true, size: 26, before: 200 }),
   ];
 
   // ===== Thông tin tài liệu =====
-  const kv = rows => table([2800, 6200], rows.map(([a, b]) => new TableRow({ children: [cell([cp(a, { bold: true })], 2800, { fill: 'F3F5F9' }), cell([cp(b)], 6200)] })));
-  const hdr = (W, head, rows) => table(W, [new TableRow({ tableHeader: true, children: head.map((h, i) => cell([cp(h, { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER })], W[i], { fill: NAVY })) }),
+  const kv = rows => table([2800, TXT - 2800], rows.map(([a, b]) => new TableRow({ children: [cell([cp(a, { bold: true })], 2800, { fill: 'F3F5F9' }), cell([cp(b)], TXT - 2800)] })));
+  const hdr = (W0, head, rows, W = fitW(W0)) => table(W, [new TableRow({ tableHeader: true, children: head.map((h, i) => cell([cp(h, { bold: true, color: 'FFFFFF', align: AlignmentType.CENTER })], W[i], { fill: NAVY })) }),
     ...rows.map(r => new TableRow({ children: r.map((v, i) => cell([cp(v, { align: i === 0 && W[i] < 1800 ? AlignmentType.CENTER : AlignmentType.LEFT })], W[i])) }))]);
   const title = t => P([new TextRun({ text: t, bold: true, size: 28, color: NAVY })], { alignment: AlignmentType.CENTER, spacing: { before: 120, after: 200 } });
   const sub = t => P([new TextRun({ text: t, bold: true, size: 26 })], { spacing: { before: 280, after: 120 } });
   const info = [
     title('THÔNG TIN TÀI LIỆU'),
     kv([['Tên tài liệu', `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – dành cho ${role.name}`],
-      ['Mã tài liệu', `HDSD-QLDA-TTTS-${k.toUpperCase()}`], ['Phiên bản', '1.0'], ['Ngày ban hành', '27/10/2026'],
+      ['Mã tài liệu', `HDSD-QLDA-TTTS-${k.toUpperCase()}`], ['Phiên bản', '1.1'], ['Ngày ban hành', '27/10/2026'],
       ['Đối tượng sử dụng', `Cán bộ thuộc nhóm người dùng «${role.name}»`],
       ['Cơ quan sử dụng', 'Ban Quản lý dự án – Trung tâm Thủy sản Thành phố Hồ Chí Minh'],
       ['Đơn vị soạn thảo', 'Công ty Cổ phần Tin học Tri Thức']]),
     sub('Lịch sử thay đổi'),
-    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], [['1.0', '27/10/2026', 'Ban hành lần đầu', 'Công ty CP Tin học Tri Thức']]),
+    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], [['1.0', '27/10/2026', 'Ban hành lần đầu', 'Công ty CP Tin học Tri Thức'], ['1.1', '27/10/2026', 'Chỉnh dàn trang: hình, chú thích và bảng chú giải luôn liền trang; giảm khoảng trống; bảng đúng bề rộng trang', 'Công ty CP Tin học Tri Thức']]),
     sub('Thuật ngữ và từ viết tắt'),
     hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
       ['BC KTKT', 'Báo cáo kinh tế – kỹ thuật'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian']]),
@@ -168,9 +176,9 @@ function makeDoc(k, pages) {
   // ===== Mục lục tĩnh (số trang từ lượt 1) =====
   const tocP = [title('MỤC LỤC')];
   toc.forEach(t => tocP.push(P([new InternalHyperlink({ anchor: t.id, children: [
-      new TextRun({ text: t.text, bold: t.lvl === 1, size: 26 }),
-      new TextRun({ text: '\t' + String(pages[t.id] || 0), bold: t.lvl === 1, size: 26 })] })],
-    { tabStops: [{ type: D.TabStopType.RIGHT, position: 9060, leader: 'dot' }], indent: { left: t.lvl === 1 ? 0 : 400, right: 0 }, spacing: { before: t.lvl === 1 ? 140 : 30, after: 30 } })));
+      new TextRun({ text: t.text, bold: t.lvl === 1, size: 25 }),
+      new TextRun({ text: '\t' + String(pages[t.id] || 0), bold: t.lvl === 1, size: 25 })] })],
+    { tabStops: [{ type: D.TabStopType.RIGHT, position: 9060, leader: 'dot' }], indent: { left: t.lvl === 1 ? 0 : 400, right: 0 }, spacing: { before: t.lvl === 1 ? 100 : 0, after: 20, line: 264 } })));
 
   const header = new Header({ children: [P([new TextRun({ text: `HDSD Phần mềm QLDA đầu tư xây dựng – ${role.name}`, italics: true, size: 20, color: '5A6474' })],
     { alignment: AlignmentType.RIGHT, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY, space: 2 } } })] });
@@ -183,8 +191,8 @@ function makeDoc(k, pages) {
     styles: {
       default: { document: { run: { font: FONT, size: 26 } } },
       paragraphStyles: [
-        { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: FONT, size: 28, bold: true, color: NAVY }, paragraph: { spacing: { before: 120, after: 240 }, outlineLevel: 0, keepNext: true } },
-        { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: FONT, size: 26, bold: true }, paragraph: { spacing: { before: 240, after: 100 }, outlineLevel: 1, keepNext: true } },
+        { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: FONT, size: 28, bold: true, color: NAVY }, paragraph: { spacing: { before: 0, after: 200 }, outlineLevel: 0, keepNext: true } },
+        { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: FONT, size: 26, bold: true }, paragraph: { spacing: { before: 180, after: 80 }, outlineLevel: 1, keepNext: true } },
         { id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: FONT, size: 26, bold: true, italics: true }, paragraph: { spacing: { before: 160, after: 80 }, outlineLevel: 2, keepNext: true } },
       ],
     },
@@ -217,21 +225,33 @@ function pageMap(pdf, toc) {
   return map;
 }
 
+function h1Pages(pages) { return Object.entries(pages).filter(([id]) => /^c\d+$/.test(id)).map(([, p]) => p); }
+function tocOf(k) {
+  const toc = []; let a = 0, b2 = 0;
+  build(k).forEach(b => { if (b.h1) { a++; b2 = 0; toc.push({ id: `c${a}`, text: `${a}. ${b.h1}` }); } else if (b.h2) { b2++; toc.push({ id: `c${a}_${b2}`, text: `${a}.${b2}. ${b.h2}` }); } });
+  return toc;
+}
 (async () => {
   const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROLES);
   for (const k of keys) {
     const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA TTTS - ${ROLES[k].file} - ${VER}.docx`);
-    // lượt 1
-    fs.writeFileSync(fn, await Packer.toBuffer(makeDoc(k, {})));
-    const blocks = build(k); const toc = []; let a = 0, b2 = 0;
-    blocks.forEach(b => { if (b.h1) { a++; b2 = 0; toc.push({ id: `c${a}`, text: `${a}. ${b.h1}` }); } else if (b.h2) { b2++; toc.push({ id: `c${a}_${b2}`, text: `${a}.${b2}. ${b.h2}` }); } });
-    const pages = pageMap(toPdf(fn), toc);
-    const miss = toc.filter(t => !pages[t.id]).map(t => t.text);
-    // lượt 2
-    fs.writeFileSync(fn, await Packer.toBuffer(makeDoc(k, pages)));
-    const pdf = toPdf(fn);
-    const chk = pageMap(pdf, toc), diff = toc.filter(t => chk[t.id] !== pages[t.id]).length;
-    const n = execSync(`pdfinfo "${pdf}" | grep Pages`).toString().trim();
-    console.log(k, n, 'thiếu:', miss.length ? miss : 0, 'lệch sau lượt 2:', diff);
+    const toc = tocOf(k), FIT = {}, log = [];
+    let pages = {}, rep;
+    // dàn trang: thu nhỏ hình bị đẩy sang trang sau (mỗi lượt sửa hình sớm nhất) cho tới khi không còn
+    for (let pass = 0; pass < 30; pass++) {
+      const FIGS = [];
+      fs.writeFileSync(fn, await Packer.toBuffer(makeDoc(k, pages, FIT, FIGS)));
+      const pdf = toPdf(fn);
+      pages = pageMap(pdf, toc);
+      rep = JSON.parse(execSync(`python3 "${path.join(DIR, 'measure.py')}" "${pdf}" '${JSON.stringify(FIGS)}' '${JSON.stringify(h1Pages(pages))}'`).toString());
+      const ok = rep.props.filter(p => !(FIT[p.id] && p.scale > 0.97)).filter(p => p.scale < 1 && p.scale * p.w >= (p.min || 7.5));
+      if (!ok.length) break;
+      const p = ok[0]; FIT[p.id] = (FIT[p.id] || 1) * p.scale; log.push(`${p.id}×${FIT[p.id].toFixed(2)}`);
+    }
+    // lượt cuối: ghi số trang vào mục lục
+    fs.writeFileSync(fn, await Packer.toBuffer(makeDoc(k, pages, FIT, [])));
+    const pdf = toPdf(fn), chk = pageMap(pdf, toc), diff = toc.filter(t => chk[t.id] !== pages[t.id]).length;
+    const n = execSync(`pdfinfo "${pdf}" | grep Pages`).toString().trim().replace(/\s+/g, ' ');
+    console.log(k, n, '| thu nhỏ:', log.join(' ') || '-', '| lệch mục lục:', diff, '| trang còn trống nhiều:', JSON.stringify(rep.gaps), '| không sửa được:', JSON.stringify(rep.props));
   }
 })();

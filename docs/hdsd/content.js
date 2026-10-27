@@ -15,13 +15,13 @@ const PERM = {
   ke: [V, V, N, V, N, N, V, E, V, N],
   gs: [V, V, V, N, E, E, V, N, N, N],
 };
-const SCOPE = { qt: 'Tất cả dự án', ld: 'Tất cả dự án', kt: 'Tất cả dự án', ke: 'Tất cả dự án', gs: 'Chỉ các dự án được quản trị hệ thống giao (bộ dữ liệu mẫu: DA-TP01)' };
+const SCOPE = { qt: 'tất cả dự án', ld: 'tất cả dự án', kt: 'tất cả dự án', ke: 'tất cả dự án', gs: 'chỉ các dự án được quản trị hệ thống giao (dữ liệu mẫu: DA‑TP01)' };
 const PURPOSE = {
   qt: 'quản lý tài khoản người dùng, nhóm quyền, danh mục dùng chung, theo dõi nhật ký hoạt động, sao lưu và phục hồi dữ liệu, bảo đảm hệ thống vận hành ổn định và an toàn',
   ld: 'theo dõi tổng thể tình hình thực hiện các dự án, nắm bắt cảnh báo chậm tiến độ, chỉ đạo xử lý công việc, cập nhật thông tin dự án và khai thác báo cáo phục vụ điều hành',
   kt: 'quản lý thông tin dự án, tệp mô hình công trình, gói thầu và hợp đồng, lập và cập nhật tiến độ, ghi nhật ký thi công, quản lý khối lượng thực hiện và nghiệm thu',
   ke: 'lập kế hoạch thanh toán, lập và theo dõi hồ sơ thanh toán, xác nhận giá trị đã chi, đối chiếu khối lượng nghiệm thu và khai thác báo cáo giải ngân',
-  gs: 'ghi nhật ký thi công kèm hình ảnh hiện trường, cập nhật tiến độ thực tế các hạng mục, tra cứu thông tin dự án, mô hình và khối lượng trong phạm vi được giao, kể cả trên điện thoại',
+  gs: 'ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ thực tế, tra cứu dự án, mô hình và khối lượng trong phạm vi được giao, kể cả trên điện thoại',
 };
 
 const img = (name, cap, w) => ({ img: name, cap, w });
@@ -42,8 +42,8 @@ function common(k) {
   out.push({ bullets: [
     'Khung đỏ có số thứ tự trên hình minh họa chỉ vị trí cần thao tác; bảng chú giải ngay dưới hình giải thích ý nghĩa từng số.',
     'Tên nút, thẻ, mục chọn trên giao diện được in đậm, ví dụ: nhấn nút **Lưu**.',
-    'Ô nhập liệu có dấu * màu đỏ là thông tin bắt buộc; phần mềm không cho lưu khi còn bỏ trống.',
-    'Ngày tháng nhập theo định dạng ngày/tháng/năm; số tiền tính bằng đồng, phần mềm tự hiển thị dấu chấm ngăn cách hàng nghìn.',
+    'Ô nhập liệu có dấu * màu đỏ là thông tin bắt buộc, không được bỏ trống.',
+    'Ngày tháng nhập theo dạng ngày/tháng/năm; số tiền tính bằng đồng.',
   ] });
   out.push({ h2: 'Yêu cầu về thiết bị' });
   out.push({ bullets: [
@@ -469,17 +469,17 @@ function build(k) {
     out.push(...tail(k, false));
   }
   if (k === 'kt') {
-    out.push({ h1: 'THEO DÕI TỔNG QUAN' }, ...S.dashboard(k, 'kt-giao-dien-chinh').slice(0, 2), { p: 'Ý nghĩa các chỉ tiêu, biểu đồ và cách nhấn vào cảnh báo để xử lý giống như hướng dẫn tại trang Tổng quan dành cho Lãnh đạo Ban.' });
+    out.push({ h2: 'Trang Tổng quan' }, S.dashboard(k, 'kt-giao-dien-chinh')[1], { p: 'Ý nghĩa các chỉ tiêu, biểu đồ và cách nhấn vào cảnh báo để xử lý giống như hướng dẫn tại trang Tổng quan dành cho Lãnh đạo Ban.' });
     out.push(...S.projectView(true), ...S.projectEdit(), ...S.model(), ...S.packages(), ...S.schedule(), ...S.diary('kt-nhat-ky', 'kt-ghi-nhat-ky'), ...S.volume(), ...S.reports());
     out.push(...tail(k, true));
   }
   if (k === 'ke') {
-    out.push({ h1: 'THEO DÕI TỔNG QUAN' }, ...S.dashboard(k, 'ke-giao-dien-chinh').slice(0, 2), { p: 'Các chỉ tiêu «Giá trị hợp đồng» và «Đã giải ngân» trên trang Tổng quan được tính trực tiếp từ hồ sơ thanh toán do Kế toán xác nhận đã chi.' });
+    out.push({ h2: 'Trang Tổng quan' }, S.dashboard(k, 'ke-giao-dien-chinh')[1], { p: 'Các chỉ tiêu «Giá trị hợp đồng» và «Đã giải ngân» trên trang Tổng quan được tính trực tiếp từ hồ sơ thanh toán do Kế toán xác nhận đã chi.' });
     out.push(...S.payments(), { h1: 'TRA CỨU HỢP ĐỒNG' }, ...S.contractView().slice(1), ...S.reports());
     out.push(...tail(k, false));
   }
   if (k === 'gs') {
-    out.push({ h1: 'THEO DÕI TỔNG QUAN' }, { p: 'Tài khoản Tư vấn giám sát / Nhà thầu chỉ thấy số liệu của các dự án được giao. Trang **Tổng quan** hiển thị các chỉ tiêu, biểu đồ và cảnh báo trong phạm vi đó.' }, img('gs-tong-quan', 'Trang Tổng quan trong phạm vi dự án được giao', 14));
+    out.push({ h2: 'Trang Tổng quan' }, { p: 'Tài khoản Tư vấn giám sát / Nhà thầu chỉ thấy số liệu của các dự án được giao. Trang **Tổng quan** hiển thị các chỉ tiêu, biểu đồ và cảnh báo trong phạm vi đó.' }, img('gs-tong-quan', 'Trang Tổng quan trong phạm vi dự án được giao', 14));
     out.push(...S.diary('gs-nhat-ky', 'gs-ghi-nhat-ky'));
     out.push({ h1: 'CẬP NHẬT TIẾN ĐỘ' }, { steps: [
       'Chọn **Quản lý tiến độ**, kéo xuống **Biểu đồ tiến độ (Gantt)**.',

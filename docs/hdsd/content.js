@@ -5,6 +5,7 @@ const ROLES = {
   kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat' },
   ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan' },
   gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat' },
+  dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI', v1: true },
 };
 const MODS = ['Tổng quan', 'Quản lý dự án', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Quản lý thanh toán', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không truy cập';
@@ -462,6 +463,7 @@ S.admin = () => [
 
 // ===== Lắp ráp theo vai trò =====
 function build(k) {
+  if (k === 'dt') return require('./content-dt').build();
   const out = common(k);
   if (k === 'ld') {
     out.push({ h1: 'THEO DÕI, ĐIỀU HÀNH' }, ...S.dashboard(k, 'ld-tong-quan').slice(0), ...S.contractView(), ...S.paymentView());

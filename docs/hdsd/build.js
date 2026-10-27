@@ -104,13 +104,13 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
       body.push(im.par);
       body.push(caption(`Hình ${id}.`, b.cap, 80, !!nextLeg));
     } else if (b.imgs2) {
-      const id = `${c1}.${fig + 1}`, sc = FIT[id] || 1, wcm = (b.mobile ? 5.6 : 7.6) * sc, colW = 4535;
+      const n = b.imgs2.length, id = `${c1}.${fig + 1}`, sc = FIT[id] || 1, wcm = (b.mobile ? (n > 2 ? 4.8 : 5.6) : 7.6) * sc, colW = Math.floor(TXT / n);
       let hmax = 0;
       const cells = b.imgs2.map((n, i) => { fig++; const im = imageBox(n, wcm, 12.5 * sc); hmax = Math.max(hmax, im.h);
-        return cell([im.par, caption(`Hình ${c1}.${fig}.`, b.caps[i], 60)], colW, { borders: noBorders, va: VerticalAlign.TOP, margins: { top: 0, bottom: 0, left: 40, right: 40 } }); });
-      FIGS.push({ id, h: hmax, pair: true, leg: legH(nextLeg), w: wcm, min: b.mobile ? 4.6 : 6.4 });
+        return cell([im.par, caption(`Hình ${c1}.${fig}.`, b.caps[i], 60)], i === n - 1 ? TXT - colW * (n - 1) : colW, { borders: noBorders, va: VerticalAlign.TOP, margins: { top: 0, bottom: 0, left: 40, right: 40 } }); });
+      FIGS.push({ id, h: hmax, pair: true, leg: legH(nextLeg), w: wcm, min: b.mobile ? 4.1 : 6.4 });
       body.push(P([], { spacing: { before: 0, after: 0, line: 120 }, keepNext: true }));
-      body.push(table([colW, TXT - colW], [new TableRow({ cantSplit: true, children: cells })], { borders: noBorders }));
+      body.push(table([...Array(n - 1).fill(colW), TXT - colW * (n - 1)], [new TableRow({ cantSplit: true, children: cells })], { borders: noBorders }));
       if (nextLeg) body.push(P([new TextRun({ text: '', size: 8 })], { spacing: { before: 0, after: 0, line: 120 }, keepNext: true }));
     } else if (b.legend) {
       const W = [700, TXT - 700];
@@ -147,8 +147,8 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
     cv('HƯỚNG DẪN SỬ DỤNG', { bold: true, size: 40, color: NAVY, after: 240 }),
     cv('PHẦN MỀM QUẢN LÝ DỰ ÁN ĐẦU TƯ XÂY DỰNG', { bold: true, size: 28 }),
     cv('BAN QUẢN LÝ DỰ ÁN – TRUNG TÂM THỦY SẢN TP. HỒ CHÍ MINH', { size: 26, after: 600 }),
-    P([new TextRun({ text: 'Dành cho: ', size: 28 }), new TextRun({ text: role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-    cv('Phiên bản 1.1', { italics: true, size: 26, after: 2000 }),
+    P([new TextRun({ text: role.cover ? '' : 'Dành cho: ', size: 28 }), new TextRun({ text: role.cover || role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
+    cv(role.v1 ? 'Phiên bản 1.0' : 'Phiên bản 1.1', { italics: true, size: 26, after: 2000 }),
     cv('Đơn vị thực hiện: Công ty Cổ phần Tin học Tri Thức', { size: 24 }),
     cv('TP. Hồ Chí Minh, tháng 10 năm 2026', { bold: true, size: 26, before: 200 }),
   ];
@@ -161,13 +161,13 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   const sub = t => P([new TextRun({ text: t, bold: true, size: 26 })], { spacing: { before: 280, after: 120 } });
   const info = [
     title('THÔNG TIN TÀI LIỆU'),
-    kv([['Tên tài liệu', `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – dành cho ${role.name}`],
-      ['Mã tài liệu', `HDSD-QLDA-TTTS-${k.toUpperCase()}`], ['Phiên bản', '1.1'], ['Ngày ban hành', '27/10/2026'],
-      ['Đối tượng sử dụng', `Cán bộ thuộc nhóm người dùng «${role.name}»`],
+    kv([['Tên tài liệu', role.audience ? `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – ${role.name.toLowerCase()}` : `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – dành cho ${role.name}`],
+      ['Mã tài liệu', `HDSD-QLDA-TTTS-${k.toUpperCase()}`], ['Phiên bản', role.v1 ? '1.0' : '1.1'], ['Ngày ban hành', '27/10/2026'],
+      ['Đối tượng sử dụng', role.audience || `Cán bộ thuộc nhóm người dùng «${role.name}»`],
       ['Cơ quan sử dụng', 'Ban Quản lý dự án – Trung tâm Thủy sản Thành phố Hồ Chí Minh'],
       ['Đơn vị soạn thảo', 'Công ty Cổ phần Tin học Tri Thức']]),
     sub('Lịch sử thay đổi'),
-    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], [['1.0', '27/10/2026', 'Ban hành lần đầu', 'Công ty CP Tin học Tri Thức'], ['1.1', '27/10/2026', 'Chỉnh dàn trang: hình, chú thích và bảng chú giải luôn liền trang; giảm khoảng trống; bảng đúng bề rộng trang', 'Công ty CP Tin học Tri Thức']]),
+    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], [['1.0', '27/10/2026', 'Ban hành lần đầu', 'Công ty CP Tin học Tri Thức'], ...(role.v1 ? [] : [['1.1', '27/10/2026', 'Chỉnh dàn trang: hình, chú thích và bảng chú giải luôn liền trang; giảm khoảng trống; bảng đúng bề rộng trang', 'Công ty CP Tin học Tri Thức']])]),
     sub('Thuật ngữ và từ viết tắt'),
     hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
       ['BC KTKT', 'Báo cáo kinh tế – kỹ thuật'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian']]),
@@ -232,9 +232,9 @@ function tocOf(k) {
   return toc;
 }
 (async () => {
-  const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROLES);
+  const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROLES).filter(k => k !== 'dt');
   for (const k of keys) {
-    const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA TTTS - ${ROLES[k].file} - ${VER}.docx`);
+    const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA TTTS - ${ROLES[k].file} - ${ROLES[k].v1 ? 'V1' : VER}.docx`);
     const toc = tocOf(k), FIT = {}, log = [];
     let pages = {}, rep;
     // dàn trang: thu nhỏ hình bị đẩy sang trang sau (mỗi lượt sửa hình sớm nhất) cho tới khi không còn

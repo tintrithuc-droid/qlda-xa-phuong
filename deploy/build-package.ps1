@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS  Tạo gói cài đặt (chạy trên máy có .NET 8 SDK):  .\deploy\build-package.ps1
            Kết quả: dist\QLDA_TTTS_<ngày>.zip gồm app\, install.ps1, sql\, HUONG_DAN_CAI_DAT.md
 #>

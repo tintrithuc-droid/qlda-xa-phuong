@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Cài đặt Phần mềm QLDA Trung tâm Thủy sản TP.HCM lên IIS (Windows Server 2019+ / SQL Server 2019+).
 

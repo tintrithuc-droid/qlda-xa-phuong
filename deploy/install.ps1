@@ -96,8 +96,8 @@ IF USER_ID(N'$id') IS NULL CREATE USER [$id] FOR LOGIN [$id];
 ALTER ROLE db_owner ADD MEMBER [$id];
 "@
   if (Get-Command sqlcmd -ErrorAction SilentlyContinue) {
-    sqlcmd -S $SqlServer -E -b -Q $sql; if ($LASTEXITCODE) { throw "Không tạo được CSDL/login. Kiểm tra quyền sysadmin của tài khoản đang chạy script." }
-    sqlcmd -S $SqlServer -E -b -d $Database -Q $sql2; if ($LASTEXITCODE) { throw "Không cấp quyền được cho login." }
+    sqlcmd -S $SqlServer -E -C -b -Q $sql; if ($LASTEXITCODE) { throw "Không tạo được CSDL/login. Kiểm tra quyền sysadmin của tài khoản đang chạy script." }
+    sqlcmd -S $SqlServer -E -C -b -d $Database -Q $sql2; if ($LASTEXITCODE) { throw "Không cấp quyền được cho login." }
   } else {
     Write-Warning "Không có sqlcmd. Hãy chạy đoạn lệnh sau trong SQL Server Management Studio:`n$sql`nUSE [$Database];`n$sql2"
   }

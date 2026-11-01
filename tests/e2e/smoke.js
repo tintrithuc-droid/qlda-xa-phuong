@@ -226,8 +226,9 @@ async function login(p, u, pw = PW) {
   await go(p, 'quan-tri');
   await p.click('[data-act=add-user]'); await p.waitForTimeout(200);
   await p.fill('#f_username', 'canbo1'); await p.fill('#f_name', 'Cán bộ thử nghiệm'); await p.selectOption('#f_groupId', 'g-tech'); await p.fill('#f_pw', 'Canbo2026');
-  await p.click('#mform [type=submit]'); await p.waitForTimeout(600);
-  if (!await p.evaluate(() => Store.data.users.some(u => u.username === 'canbo1'))) errs.push('Không thêm được người dùng');
+  await p.click('#mform [type=submit]');
+  const userOk = await p.waitForFunction(() => Store.data.users.some(u => u.username === 'canbo1'), null, { timeout: 8000 }).then(() => true, () => false);
+  if (!userOk) errs.push('Không thêm được người dùng: ' + (await p.evaluate(() => { const t = document.querySelector('#toast'); const e = document.querySelector('#mform_err'); return [(e && e.textContent) || '', t && !t.hidden ? t.textContent : ''].join(' | '); })));
   if (await p.evaluate(() => Store.data.users.some(u => 'passwordHash' in u || 'pw' in u))) errs.push('Lộ mật khẩu băm ra giao diện');
   for (const t of ['groups', 'cats', 'logs', 'sys']) { await p.click(`[data-g=qt][data-id=${t}]`); await p.waitForTimeout(250); await p.screenshot({ path: `${SHOTS}/desk-qt-${t}.png`, fullPage: true }); }
   await p.click('[data-g=qt][data-id=groups]'); await p.click('[data-act=edit-groups]'); await p.waitForTimeout(200); await p.click('#mform [type=submit]'); await p.waitForTimeout(400);

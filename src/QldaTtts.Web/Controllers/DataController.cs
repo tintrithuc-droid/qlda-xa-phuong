@@ -31,7 +31,8 @@ public class DataController : ApiControllerBase
         var result = new Dictionary<string, object>();
         foreach (var def in Collections.All)
         {
-            var list = await def.Query(Db).AsNoTracking().ToListAsync();
+            // Sắp theo mã để thứ tự ổn định trên mọi CSDL (PostgreSQL không giữ thứ tự dòng sau khi cập nhật)
+            var list = await def.Query(Db).AsNoTracking().OrderBy(e => e.Id).ToListAsync();
             result[def.Name] = list.Where(Visible).Where(e => e is not Guide g || Uc.SeesGuide(g)).Cast<object>().ToList();
         }
         var hiddenGuides = (await Db.Guides.AsNoTracking().ToListAsync()).Where(g => !Uc.SeesGuide(g)).Select(g => g.Id).ToHashSet();

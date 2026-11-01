@@ -19,9 +19,7 @@ Công nghệ theo Báo cáo KTKT (phần VIII): ASP.NET Core 8 (C#), Microsoft S
 
 1. Cài **SQL Server** (chế độ xác thực Mixed hoặc Windows). Collation khuyến nghị `Vietnamese_CI_AS`.
 2. Tải và cài **ASP.NET Core 8.0 Hosting Bundle**: https://dotnet.microsoft.com/download/dotnet/8.0 (mục *Hosting Bundle*). Nếu cài trước IIS thì sau khi bật IIS cần chạy lại bộ cài (Repair).
-3. Lấy gói cài `QLDA_TTTS_<ngày>.zip`:
-   - trên GitHub: tab **Actions** → lần chạy CI mới nhất của nhánh `main` → mục *Artifacts* → `goi-cai-dat-QLDA_TTTS`;
-   - hoặc tự đóng gói trên máy có .NET 8 SDK: `.\deploy\build-package.ps1`.
+3. Lấy gói cài `QLDA_TTTS_GoiCaiDat_MayChu_v1.0.zip` trong thư mục phiên bản `PhienBan_1.0_<ngày>\1_GoiCaiDat_MayChu` do đơn vị phát triển bàn giao (hoặc tự đóng gói trên máy có .NET 8 SDK: `.\deploy\build-package.ps1`, chép các tệp PDF HDSD vào `src\QldaTtts.Web\hdsd` trước khi đóng gói).
 4. Giải nén vào thư mục bất kỳ trên máy chủ, ví dụ `C:\Setup\QLDA`.
 
 ## 3. Cài đặt
@@ -60,16 +58,28 @@ Script tự: bật IIS, chép ứng dụng, tạo Application Pool (No Managed C
 
 Phần hiện trường (UC54–62) chạy trên trình duyệt điện thoại. Trên Android (Chrome) chọn *Thêm vào màn hình chính*, trên iPhone (Safari) chọn *Chia sẻ → Thêm vào MH chính*: ứng dụng mở toàn màn hình như ứng dụng cài đặt. Chụp ảnh hiện trường cần website chạy **HTTPS**.
 
-## 6. Cập nhật phiên bản
+## 6. Cài lại, cập nhật phiên bản
 
-Giải nén gói mới và chạy lại `.\install.ps1` (không cần tham số SQL). Script dừng website, chép bản mới, giữ nguyên cấu hình, dữ liệu và khóa phiên đăng nhập; lược đồ CSDL tự nâng cấp khi khởi động.
+Phiên bản **1.0** là bản phát hành đầu tiên để cài đặt chính thức trên máy chủ. Góc dưới thanh bên trái của phần mềm hiện số phiên bản đang chạy.
 
-Nâng cấp từ bản 1.0 lên 1.1 (tệp đính kèm, thùng rác, sao lưu tự động):
+**Máy chủ đã cài bản chạy thử trước đây** (đã có IIS, website `QLDA_TTTS`, CSDL `QLDA_TTTS`):
 
-1. Trên máy chủ, vào **Quản trị hệ thống → Sao lưu, hệ thống**, nhấn **Tải tệp sao lưu (.json)** để giữ một bản trước khi nâng cấp.
-2. Giải nén gói 1.1 ra thư mục mới (ví dụ `C:\Setup\QLDA_v1.1`), mở PowerShell bằng quyền Administrator, `cd` vào thư mục đó và chạy `.\install.ps1`. Nếu lần cài trước có dùng `-DataPath` khác mặc định thì truyền lại đúng tham số đó.
-3. Script tự bổ sung `Storage:BackupPath` (`<DataPath>\backups`) vào cấu hình cũ. Khi website khởi động, CSDL được nâng cấp (bảng `Attachments`, cột hiệu lực bảo lãnh, văn bản) và các tệp đính kèm cũ của hồ sơ pháp lý, thanh toán được chuyển sang cơ chế đính kèm mới; không mất dữ liệu.
-4. Kiểm tra: mở `http://localhost/api/health` thấy `"status":"ok"`; đăng nhập, góc dưới thanh bên trái hiện **Phiên bản 1.1**; nhấn Ctrl+F5 trên các máy trạm để tải giao diện mới.
+1. Nếu bản cũ có dữ liệu cần giữ: đăng nhập quản trị, vào **Quản trị hệ thống → Sao lưu, hệ thống**, nhấn **Tải tệp sao lưu (.json)**.
+2. Giải nén gói 1.0 ra thư mục mới (ví dụ `C:\Setup\QLDA_v1.0`), mở PowerShell bằng quyền Administrator, `cd` vào thư mục đó và chạy `.\install.ps1` (truyền lại `-SqlServer ".\SQLEXPRESS"` hoặc `-DataPath` nếu lần trước có dùng). Script dừng website, chép bản mới, giữ nguyên cấu hình, dữ liệu và khóa phiên đăng nhập; lược đồ CSDL tự nâng cấp khi khởi động.
+3. Muốn **bắt đầu sạch** (bỏ toàn bộ dữ liệu chạy thử): trước bước 2, dừng website, xóa CSDL và thư mục dữ liệu, rồi cài như máy mới:
+   ```powershell
+   Stop-Website QLDA_TTTS; Stop-WebAppPool QLDA_TTTS
+   sqlcmd -S ".\SQLEXPRESS" -E -C -Q "ALTER DATABASE [QLDA_TTTS] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [QLDA_TTTS]"
+   Remove-Item -Recurse -Force D:\QLDA_TTTS_Data\files, C:\inetpub\QLDA_TTTS\App_Data\files -ErrorAction SilentlyContinue
+   ```
+   Lần mở website kế tiếp hiện màn hình **Khởi tạo hệ thống** (mục 4).
+4. Kiểm tra: mở `http://localhost/api/health` thấy `"status":"ok"`; đăng nhập, góc dưới thanh bên trái hiện **Phiên bản 1.0**; nhấn Ctrl+F5 trên các máy trạm để tải giao diện mới.
+
+**Sau khi cài**, quản trị hệ thống:
+- vào **Quản trị hệ thống → Thông tin đơn vị, giao diện** để đặt logo, tên phần mềm, tên đơn vị, banner trang đăng nhập, chân trang (dùng khi triển khai cho đơn vị khác, không cần sửa mã);
+- mở **Hướng dẫn sử dụng**: phần mềm đã tạo sẵn 6 hướng dẫn kèm tệp PDF theo từng vai trò (lấy từ thư mục `app\hdsd`); mỗi nhóm người dùng chỉ thấy hướng dẫn của mình, quản trị có thể thêm, sửa, xóa, đính kèm tài liệu hoặc video.
+
+Các phiên bản sau: giải nén gói mới và chạy lại `.\install.ps1` như bước 2.
 
 ## 7. Sao lưu
 
@@ -77,7 +87,7 @@ Nâng cấp từ bản 1.0 lên 1.1 (tệp đính kèm, thùng rác, sao lưu t�
   `BACKUP DATABASE [QLDA_TTTS] TO DISK = N'E:\Backup\QLDA_TTTS.bak' WITH INIT, COMPRESSION`
 - **Tệp đính kèm**: sao lưu thư mục `-DataPath\files` cùng lịch (robocopy sang ổ/máy khác).
 - **Khóa ứng dụng**: thư mục `<InstallPath>\App_Data\keys`. Khóa này mã hóa cả khóa xác thực 2 lớp: mất khóa thì mọi người phải đăng nhập lại và tài khoản quản trị phải thiết lập lại xác thực 2 lớp (mục 8a). Phục hồi CSDL sang máy chủ mới thì chép kèm thư mục này.
-- **Sao lưu tự động trong phần mềm** (từ bản 1.1): hằng đêm từ 1 giờ sáng, phần mềm tự ghi một tệp `SaoLuu_QLDA_*.json` (toàn bộ dữ liệu) và chép thêm các tệp đính kèm mới vào thư mục sao lưu, giữ 14 bản gần nhất. Thư mục mặc định `-DataPath\backups` (cài mới) hoặc `<InstallPath>\App_Data\backups` (bản cài trước). Nên đổi sang ổ khác hoặc ổ mạng trong `appsettings.Production.json`:
+- **Sao lưu tự động trong phần mềm**: hằng đêm từ 1 giờ sáng, phần mềm tự ghi một tệp `SaoLuu_QLDA_*.json` (toàn bộ dữ liệu) và chép thêm các tệp đính kèm mới vào thư mục sao lưu, giữ 14 bản gần nhất. Thư mục mặc định `-DataPath\backups` (cài mới) hoặc `<InstallPath>\App_Data\backups` (bản cài trước). Nên đổi sang ổ khác hoặc ổ mạng trong `appsettings.Production.json`:
   `"Storage": { "BackupPath": "E:\\SaoLuu\\QLDA" }, "Backup": { "Hour": 1, "Keep": 14, "Enabled": true }`
   (ổ mạng thì cấp quyền ghi cho `IIS APPPOOL\QLDA_TTTS`). Danh sách bản sao lưu xem tại *Quản trị hệ thống → Sao lưu, hệ thống*.
 - Trong phần mềm: *Quản trị hệ thống → Sao lưu, hệ thống* có *Tải tệp sao lưu dữ liệu (.json)* và *Tải bản sao lưu đầy đủ kèm tệp (.zip)*.

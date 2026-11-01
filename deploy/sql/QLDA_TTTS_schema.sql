@@ -682,3 +682,53 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101032652_GuidesAndBranding'
+)
+BEGIN
+    CREATE TABLE [Guides] (
+        [Id] nvarchar(64) NOT NULL,
+        [Title] nvarchar(300) NOT NULL,
+        [Category] nvarchar(200) NULL,
+        [Content] nvarchar(max) NULL,
+        [Groups] nvarchar(max) NOT NULL,
+        [Order] int NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_Guides] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101032652_GuidesAndBranding'
+)
+BEGIN
+    CREATE TABLE [Settings] (
+        [Key] nvarchar(64) NOT NULL,
+        [Value] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_Settings] PRIMARY KEY ([Key])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101032652_GuidesAndBranding'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261101032652_GuidesAndBranding', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+

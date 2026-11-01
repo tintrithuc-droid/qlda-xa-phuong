@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
@@ -139,6 +139,7 @@ public class AttachmentsController : ApiControllerBase
         used.UnionWith((await Db.ModelFiles.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
         used.UnionWith((await Db.Payments.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
         foreach (var d in await Db.Diaries.AsNoTracking().ToListAsync()) used.UnionWith(d.Photos.Select(p => p.AssetId).OfType<string>());
+        used.UnionWith((await Db.Settings.AsNoTracking().Where(s => s.Key == BrandingController.LogoKey).Select(s => s.Value).ToListAsync()).OfType<string>());
         var cutoff = DateTime.UtcNow.AddDays(-1);
         return files.Where(f => !used.Contains(f.Id) && f.UploadedAt < cutoff).ToList();
     }

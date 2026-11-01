@@ -18,6 +18,7 @@ const ICON = {
   key:'<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/>',
   shield:'<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
   cam:'<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
+  help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
 };
 const ic = (n)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||''}</svg>`;
@@ -56,9 +57,19 @@ const MODULES = [
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
-const EXTRA_ROUTES = ['hien-truong','doi-chieu'];
-const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','users','groups','catalogs','logs','attachments'];
-const COL_LABEL = {projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
+const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan'];
+const APP_VERSION = '1.0';
+/* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
+const BR_DEF = {appName:'QLDA đầu tư xây dựng', orgShort:'Trung tâm Thủy sản TP.HCM', orgName:'Trung tâm Thủy sản Thành phố Hồ Chí Minh', unitName:'Ban Quản lý dự án',
+  bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
+  address:'255 Trần Hưng Đạo, Phường Cầu Ông Lãnh, TP. Hồ Chí Minh', footer:'© {năm} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM',
+  reportOrg:'Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM', ownerDefault:'Ban QL Trung tâm Thủy sản TP.HCM', support:'Hỗ trợ: quản trị hệ thống của đơn vị', logo:null};
+let BR = {...BR_DEF};
+function setBrand(b){ BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; }
+const brandMark = () => BR.logo ? `<img src="${esc(BR.logo)}" alt="Logo ${esc(BR.orgShort)}">` : drumSVG();
+const brandFoot = () => esc(BR.footer.replace(/\{năm\}/g, new Date().getFullYear()));
+const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','users','groups','catalogs','logs','attachments','guides'];
+const COL_LABEL = {guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
 
 /* --- tiện ích --- */
 const $ = (s,el=document)=>el.querySelector(s);
@@ -107,7 +118,8 @@ const Store = {
   _timer:0,
   async init(){
     try{
-      const s=await api('GET','/api/auth/state');
+      const [s,b]=await Promise.all([api('GET','/api/auth/state'), api('GET','/api/branding',undefined,{auth:true}).catch(()=>null)]);
+      setBrand(b);
       this.initialized=s.initialized; this.sampleUsers=s.sampleUsers; S.user=s.user||null; S.mfa=s.mfa||null;
       if(S.user) await this.load();
       this.mode='server'; this.error='';
@@ -160,7 +172,7 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 /* --- phân quyền --- */
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
-  if(mod==='hien-truong'||mod==='doi-chieu') return !!S.user;
+  if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan') return !!S.user;
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   const p=(g.perms||{})[mod]||'none';
   return lvl==='view' ? p!=='none' : p==='edit';
@@ -346,6 +358,7 @@ const fileUrl = o => o.url || (o.assetId? '/api/files/'+o.assetId : '');
    - kind: loại tài liệu; ref / refFrom: tham chiếu phụ (đợt nghiệm thu, ngày cập nhật…)
    - Tệp mới được tải lên sau khi lưu bản ghi; tệp gỡ ra chuyển vào thùng rác (quản trị khôi phục được 30 ngày) */
 const ATT_ACCEPT = '.pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.zip,.rar,.7z,.mpp,.xml,.txt';
+const VIDEO_ACCEPT = 'video/*,.mp4,.webm,.mov';
 function atts(col, id, kind, ref){ if(!id) return []; return D('attachments').filter(a=>a.collection===col && a.recordId===id && (kind==null||a.kind===kind) && (ref==null||(a.ref||'')===ref)).sort(by('uploadedAt')); }
 const attUrl = a => '/api/files/'+encodeURIComponent(a.fileId);
 const AICO={"clip": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9\"/></svg>", "img": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><circle cx=\"9\" cy=\"10\" r=\"2\"/><path d=\"M21 16l-5-5-9 9\"/></svg>", "doc": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z\"/><path d=\"M14 3v6h6\"/></svg>", "cam": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 8h3l2-3h6l2 3h3v11H4z\"/><circle cx=\"12\" cy=\"13\" r=\"3.5\"/></svg>"};

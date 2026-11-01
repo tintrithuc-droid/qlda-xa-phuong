@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
@@ -79,10 +79,16 @@ using (var scope = app.Services.CreateScope())
             db.Database.ExecuteSqlRaw("CREATE INDEX IX_Attachments_Collection_RecordId ON Attachments (Collection, RecordId)");
             db.Database.ExecuteSqlRaw("CREATE INDEX IX_Attachments_FileId ON Attachments (FileId)");
         }
+        if (Cols("Guides").Count == 0)
+            db.Database.ExecuteSqlRaw(@"CREATE TABLE Guides (Id TEXT NOT NULL PRIMARY KEY, Title TEXT NOT NULL, Category TEXT NULL, Content TEXT NULL,
+                Groups TEXT NOT NULL, ""Order"" INTEGER NOT NULL, UpdatedAt TEXT NULL, UpdatedBy TEXT NULL)");
+        if (Cols("Settings").Count == 0)
+            db.Database.ExecuteSqlRaw("CREATE TABLE Settings (\"Key\" TEXT NOT NULL PRIMARY KEY, Value TEXT NULL, UpdatedAt TEXT NULL, UpdatedBy TEXT NULL)");
         conn.Close();
     }
 
     Upgrades.Run(db);
+    GuideSeed.Run(db, scope.ServiceProvider.GetRequiredService<FileStore>(), Path.Combine(app.Environment.ContentRootPath, "hdsd"));
 
     // Lệnh khẩn cấp khi quản trị duy nhất mất điện thoại: QldaTtts.Web.exe --reset-2fa <tên đăng nhập>
     var i = Array.IndexOf(args, "--reset-2fa");

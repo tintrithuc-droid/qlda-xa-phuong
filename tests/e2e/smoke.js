@@ -311,6 +311,68 @@ async function login(p, u, pw = PW) {
   if (ok2.status() !== 200 || d1 !== 200 || rs2 !== 200 || d2 !== 401) errs.push('Luồng đặt lại 2 lớp sai');
   await p.evaluate(() => { S.tab.qt = 'users'; return Store.load(); }); await go(p, 'quan-tri'); await p.screenshot({ path: `${SHOTS}/mfa-users.png` });
 
+  // ===== Bản 1.0: thông tin đơn vị, giao diện và hướng dẫn sử dụng theo vai trò =====
+  {
+    // các phiên cũ đã bị đặt lại mật khẩu/2 lớp: đóng lại để không ghi nhận lỗi 401 khi tự làm mới
+    m._expectFail = true; a2._expectFail = true; await m.context().close(); await a2.context().close();
+    await p.evaluate(() => Store.load());
+    const gd = await p.evaluate(() => Store.data.guides.map(g => ({ id: g.id, t: g.title, g: g.groups, n: Store.data.attachments.filter(a => a.collection === 'guides' && a.recordId === g.id).length })));
+    console.log('Hướng dẫn nạp sẵn:', gd.length, gd.map(x => x.n).join(','));
+    if (gd.length !== 6 || gd.some(x => x.n !== 1)) errs.push('Chưa nạp sẵn đủ 6 hướng dẫn kèm tệp PDF');
+    // Thông tin đơn vị
+    await p.evaluate(() => { S.tab.qt = 'org'; }); await go(p, 'quan-tri'); await p.waitForTimeout(300);
+    await p.fill('#br_appName', 'Phần mềm QLDA thử nghiệm'); await p.fill('#br_orgShort', 'Đơn vị thử'); await p.fill('#br_footer', '© {năm} Đơn vị thử');
+    await p.click('[data-act=brand-save]'); await p.waitForTimeout(600);
+    if ((await p.textContent('#brand_app')) !== 'Phần mềm QLDA thử nghiệm' || (await p.textContent('#brand_org')) !== 'Đơn vị thử') errs.push('Thanh bên chưa đổi tên phần mềm/đơn vị');
+    await p.setInputFiles('#br_logo', img); await p.waitForTimeout(1200);
+    if (!(await p.$('#brandmark img'))) errs.push('Logo chưa hiện trên thanh bên');
+    await p.screenshot({ path: `${SHOTS}/v10-don-vi.png`, fullPage: true });
+    const anon = await b.newContext(); const ar = anon.request;
+    const br = await (await ar.get(BASE + '/api/branding')).json(); const lg = (await ar.get(BASE + br.logo)).status();
+    console.log('Thông tin đơn vị (khách):', br.appName, '| logo', lg);
+    if (br.appName !== 'Phần mềm QLDA thử nghiệm' || lg !== 200) errs.push('Trang đăng nhập không lấy được thông tin đơn vị/logo');
+    const ap = await anon.newPage(); await ap.goto(BASE + '/'); await ap.waitForSelector('#login');
+    const foot = await ap.textContent('.auth-foot');
+    if (!foot.includes('Đơn vị thử') || !foot.includes(String(new Date().getFullYear())) || !(await ap.$('.seal img'))) errs.push('Trang đăng nhập chưa dùng chân trang/logo mới: ' + foot);
+    await ap.screenshot({ path: `${SHOTS}/v10-dang-nhap.png` });
+    const denyBr = (await ar.put(BASE + '/api/branding', { headers: { 'X-QLDA': '1' }, data: { appName: 'x' } })).status();
+    if (denyBr !== 401) errs.push('Khách sửa được thông tin đơn vị: ' + denyBr);
+    // Hướng dẫn mới cho Tư vấn giám sát kèm video
+    const mp4 = path.join(os.tmpdir(), 'Video-ghi-nhat-ky.mp4'); fs.writeFileSync(mp4, Buffer.alloc(2048, 1));
+    await go(p, 'huong-dan'); await p.click('[data-act=add-guide]'); await p.waitForTimeout(200);
+    await p.fill('#f_title', 'Video: ghi nhật ký trên điện thoại'); await p.fill('#f_category', 'Video hướng dẫn');
+    await p.check('#f_groups input[value="g-site"]'); await p.fill('#f_content', 'Xem video 3 phút.'); await putFiles('att', [mp4]); await submit();
+    const vg = await p.evaluate(() => Store.data.guides.find(g => g.title.startsWith('Video:')));
+    if (!vg || vg.groups.join() !== 'g-site' || await attOf('guides', vg.id) !== 1) errs.push('Không thêm được hướng dẫn kèm video');
+    if (!(await p.$('.guide-video video'))) errs.push('Trang hướng dẫn chưa hiện video');
+    await p.screenshot({ path: `${SHOTS}/v10-huong-dan-qt.png`, fullPage: true });
+    // Mỗi vai trò chỉ thấy hướng dẫn của mình
+    const roleView = async (u, pw = PW) => { const c = await b.newContext(); const r = c.request;
+      await r.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: u, password: pw } });
+      const d = await (await r.get(BASE + '/api/data')).json(); return { c, r, d }; };
+    const gs = await roleView('giamsat', 'Moi2026abc'), ke = await roleView('ketoan');
+    const gsT = gs.d.guides.map(g => g.title), keT = ke.d.guides.map(g => g.title);
+    console.log('TVGS thấy:', gsT.length, '| Kế toán thấy:', keT.length);
+    if (!gsT.some(t => t.includes('Tư vấn giám sát')) || !gsT.some(t => t.startsWith('Video:')) || gsT.some(t => t.includes('Kế toán') || t.includes('Quản trị'))) errs.push('TVGS thấy sai hướng dẫn: ' + gsT.join(' | '));
+    if (keT.length !== 1 || !keT[0].includes('Kế toán')) errs.push('Kế toán thấy sai hướng dẫn: ' + keT.join(' | '));
+    const keGuide = gd.find(x => x.t.includes('Kế toán')); const keFile = await p.evaluate(id => Store.data.attachments.find(a => a.collection === 'guides' && a.recordId === id).fileId, keGuide.id);
+    const gsFile = await p.evaluate(id => Store.data.attachments.find(a => a.collection === 'guides' && a.recordId === id).fileId, vg.id);
+    const s1 = (await gs.r.get(BASE + '/api/files/' + keFile)).status(), s2 = (await gs.r.get(BASE + '/api/files/' + gsFile)).status();
+    const s3 = (await gs.r.put(BASE + '/api/data/guides/' + vg.id, { headers: { 'X-QLDA': '1' }, data: { ...vg, title: 'sửa trái phép' } })).status();
+    console.log('TVGS mở tệp HDSD Kế toán:', s1, '| mở video của mình:', s2, '| sửa hướng dẫn:', s3);
+    if (s1 !== 403 || s2 !== 200 || s3 !== 403) errs.push('Phân quyền tệp/sửa hướng dẫn sai');
+    const gp = await gs.c.newPage(); await gp.goto(BASE + '/#huong-dan'); await gp.waitForSelector('.guide', { timeout: 15000 });
+    if (await gp.$('[data-act=add-guide]')) errs.push('TVGS thấy nút thêm hướng dẫn');
+    if ((await gp.$$('.guide-doc')).length !== 2 || !(await gp.$('.guide-video video'))) errs.push('TVGS không thấy tệp PDF/video của hướng dẫn');
+    await gp.screenshot({ path: `${SHOTS}/v10-huong-dan-gs.png`, fullPage: true });
+    await gs.c.close(); await ke.c.close(); await anon.close();
+    // Khôi phục mặc định, xóa logo
+    await p.evaluate(() => { S.tab.qt = 'org'; }); await go(p, 'quan-tri');
+    await p.evaluate(() => api('PUT', '/api/branding', {}).then(setBrand)); await p.evaluate(() => api('DELETE', '/api/branding/logo').then(setBrand));
+    const br2 = await p.evaluate(() => BR);
+    if (br2.logo || br2.appName !== 'QLDA đầu tư xây dựng') errs.push('Không khôi phục được thông tin mặc định');
+  }
+
   // Đăng nhập sai nhiều lần bị tạm khóa
   const ctx3 = await b.newContext(); const q = await ctx3.newPage(); q._expectFail = true;
   let last;

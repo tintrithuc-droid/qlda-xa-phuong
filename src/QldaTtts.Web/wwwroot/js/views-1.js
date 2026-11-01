@@ -38,7 +38,7 @@ function render(){
 }
 function buildShell(){
   $('#root').innerHTML=`<div class="app" id="app">
-    <aside class="side" id="side"><div class="brand"><div class="mark">${drumSVG()}</div><div><span>Trung tâm Thủy sản TP.HCM</span><b>QLDA đầu tư xây dựng</b></div></div><nav class="nav" id="nav"></nav><div class="foot" id="sidefoot"></div></aside>
+    <aside class="side" id="side"><div class="brand"><div class="mark${BR.logo?' logo':''}" id="brandmark">${brandMark()}</div><div><span id="brand_org">${esc(BR.orgShort)}</span><b id="brand_app">${esc(BR.appName)}</b></div></div><nav class="nav" id="nav"></nav><div class="foot" id="sidefoot"></div></aside>
     <div class="main"><header class="top" id="top"></header><main class="content" id="content"></main></div>
   </div><nav class="tabbar" id="tabbar"></nav>`;
 }
@@ -49,12 +49,13 @@ function renderNav(){
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`; }
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
   });
-  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Đối chiếu BC KTKT</span></a>`;
+  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Đối chiếu BC KTKT</span></a>`;
   $('#nav').innerHTML=html;
-  $('#sidefoot').innerHTML=`Phiên bản 1.1 · Máy chủ ứng dụng`;
+  $('#sidefoot').innerHTML=`Phiên bản ${APP_VERSION} · ${esc(BR.support)}`;
+  $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const m=MODULES.find(x=>x.key===S.route); const title=m?m.label: S.route==='hien-truong'?'Hiện trường':'Đối chiếu yêu cầu';
+  const m=MODULES.find(x=>x.key===S.route); const title=m?m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':'Đối chiếu yêu cầu';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
@@ -116,10 +117,10 @@ ACT.del=async(id,el)=>{
 
 /* ===== Thiết lập lần đầu & đăng nhập ===== */
 function authArt(){
-  return `<div class="art"><div class="drum-mark">${drumSVG()}</div>
-  <div class="art-head"><div class="seal">${drumSVG()}</div><div><div class="org1">Trung tâm Thủy sản Thành phố Hồ Chí Minh</div><div class="org2">Ban Quản lý dự án</div></div></div>
-  <div class="art-title"><h1>Phần mềm quản lý dự án đầu tư xây dựng</h1><p>Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.</p></div>
-  <div class="meta">255 Trần Hưng Đạo, Phường Cầu Ông Lãnh, TP. Hồ Chí Minh</div></div>`;
+  return `<div class="art">${BR.logo?'':`<div class="drum-mark">${drumSVG()}</div>`}
+  <div class="art-head"><div class="seal${BR.logo?' logo':''}">${brandMark()}</div><div><div class="org1">${esc(BR.orgName)}</div><div class="org2">${esc(BR.unitName)}</div></div></div>
+  <div class="art-title"><h1>${esc(BR.bannerTitle)}</h1><p>${esc(BR.bannerText)}</p></div>
+  <div class="meta">${esc(BR.address)}</div></div>`;
 }
 function renderSetup(){
   $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box"><form id="setup" autocomplete="off">
@@ -132,7 +133,7 @@ function renderSetup(){
     <div class="err" id="su_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Khởi tạo hệ thống</button>
     <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu SQL Server của máy chủ.</p>
-  </form><p class="auth-foot">© ${new Date().getFullYear()} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM</p></div></div>`;
+  </form><p class="auth-foot">${brandFoot()}</p></div></div>`;
   $('#setup').onsubmit=async e=>{
     e.preventDefault(); const err=$('#su_err');
     const name=$('#su_name').value.trim(), username=$('#su_user').value.trim().toLowerCase(), pw=$('#su_pw').value, pw2=$('#su_pw2').value;
@@ -162,7 +163,7 @@ function renderLogin(){
     <div class="err" id="lg_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Đăng nhập</button>
     <p class="small muted" style="margin:0">Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại. ${Store.sampleUsers?'Tài khoản mẫu: lanhdao, kythuat, ketoan, giamsat (mật khẩu như tài khoản quản trị lúc khởi tạo).':''}</p>
-  </form><p class="auth-foot">© ${new Date().getFullYear()} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM</p></div></div>`;
+  </form><p class="auth-foot">${brandFoot()}</p></div></div>`;
   $('#login').onsubmit=async e=>{
     e.preventDefault(); const err=$('#lg_err');
     const un=$('#lg_user').value.trim().toLowerCase(), pw=$('#lg_pw').value;
@@ -178,7 +179,7 @@ async function authDone(r){
   S.mfaStep=null; S.user=r.user; S.mfa=r.recoveryLeft!=null?{enabled:true, required:true, recoveryLeft:r.recoveryLeft}:S.mfa;
   await Store.load(); render();
 }
-function authBox(inner){ $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box">${inner}<p class="auth-foot">© ${new Date().getFullYear()} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM</p></div></div>`; }
+function authBox(inner){ $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box">${inner}<p class="auth-foot">${brandFoot()}</p></div></div>`; }
 const codeField=(label)=>`<div class="fld"><label for="mf_code">${label}</label><input id="mf_code" class="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required></div>`;
 function recoveryText(codes, user){ return `MÃ KHÔI PHỤC XÁC THỰC 2 LỚP – PHẦN MỀM QLDA TTTS\r\nTài khoản: ${user}\r\nTạo lúc: ${fmtDT(new Date().toISOString())}\r\n\r\nMỗi mã chỉ dùng được một lần, khi không có điện thoại để lấy mã 6 số.\r\nCất giữ nơi an toàn, không chia sẻ cho người khác.\r\n\r\n${codes.map((c,i)=>String(i+1).padStart(2,' ')+'. '+c).join('\r\n')}\r\n`; }
 function codesHtml(codes){ return `<ol class="rcodes">${codes.map(c=>`<li><code>${esc(c)}</code></li>`).join('')}</ol>`; }
@@ -300,7 +301,7 @@ const projFields=()=>[
   {key:'group',label:'Nhóm dự án',type:'select',options:()=>catalog('Nhóm dự án')},{key:'phase',label:'Giai đoạn',type:'select',options:()=>catalog('Giai đoạn')},
   {key:'tmdt',label:'Tổng mức đầu tư (đồng)',type:'money',req:true},{key:'capital',label:'Nguồn vốn',type:'select',options:()=>catalog('Nguồn vốn')},
   {key:'start',label:'Thời gian bắt đầu',type:'date'},{key:'end',label:'Thời gian hoàn thành',type:'date'},
-  {key:'owner',label:'Chủ đầu tư / Đại diện',def:'Ban QL Trung tâm Thủy sản TP.HCM'},{key:'location',label:'Địa điểm xây dựng'},
+  {key:'owner',label:'Chủ đầu tư / Đại diện',def:BR.ownerDefault},{key:'location',label:'Địa điểm xây dựng'},
   {key:'desc',label:'Quy mô, mô tả',type:'textarea'}];
 /* Văn bản pháp lý chính nhập ngay trong biểu mẫu (lưu thành hồ sơ pháp lý kèm tệp) */
 function findLegal(pid, kid, type){ return D('legal').filter(l=>l.projectId===pid && (l.packageId||'')===(kid||'') && l.type===type).sort(by('date'))[0]; }

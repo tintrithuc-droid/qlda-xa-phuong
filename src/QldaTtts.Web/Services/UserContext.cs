@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
 
@@ -47,6 +47,9 @@ public class UserContext
     public HashSet<string>? Scope => Group is null || Group.Admin || Group.Scope.Count == 0 ? null : Group.Scope.ToHashSet();
 
     public bool InScope(string? projectId) => Scope is null || (projectId is not null && Scope.Contains(projectId));
+
+    /// <summary>Hướng dẫn sử dụng dành cho nhóm của người dùng (quản trị cập nhật được thì xem tất cả).</summary>
+    public bool SeesGuide(Guide g) => Can("quan-tri", true) || g.Groups.Count == 0 || (User?.GroupId is { } gid && g.Groups.Contains(gid));
 
     public string Ip => _http.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "";
 

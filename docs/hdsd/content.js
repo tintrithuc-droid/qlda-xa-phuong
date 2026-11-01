@@ -1,15 +1,13 @@
 // Nội dung bộ HDSD theo vai trò. Mỗi khối: h1/h2/h3/p/steps/bullets/img/imgs2/legend/table/note
-const H0 = ['27/10/2026', 'Ban hành lần đầu'];
-const H1 = ['27/10/2026', 'Chỉnh dàn trang: hình, chú thích và bảng chú giải luôn liền trang; giảm khoảng trống; bảng đúng bề rộng trang'];
-const H_ATT = ['01/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: đính kèm tệp ở mọi màn hình nhập liệu (quyết định phê duyệt dự án, KHLCNT, KQLCNT, hợp đồng, bảo lãnh, nghiệm thu, thanh toán, nhật ký…), cảnh báo bảo lãnh và văn bản sắp hết hiệu lực'];
+const H10 = ['01/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.0 phát hành cài đặt trên máy chủ'];
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H0, H1, ['27/10/2026', 'Bổ sung chương Xác thực 2 lớp cho tài khoản quản trị'], [H_ATT[0], H_ATT[1] + '; bổ sung Kho tệp, thùng rác, sao lưu tự động hằng đêm và bản sao lưu đầy đủ kèm tệp']] },
-  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H0, H1, H_ATT] },
-  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H0, H1, H_ATT] },
-  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H0, H1, H_ATT] },
-  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H0, H1, H_ATT] },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10] },
+  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H10] },
+  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H10] },
+  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H10] },
+  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H10] },
   dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
-    hist: [H0, ['01/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: chú thích ảnh hiện trường, đính kèm trang nhật ký đã ký, ảnh và báo cáo khi cập nhật tiến độ']] },
+    hist: [H10] },
 };
 const MODS = ['Tổng quan', 'Quản lý dự án', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Quản lý thanh toán', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không truy cập';
@@ -88,10 +86,11 @@ function common(k) {
   out.push({ imgs2: ['chung-tai-khoan', 'chung-doi-mat-khau'], caps: ['Hộp thông tin tài khoản', 'Hộp đổi mật khẩu'] });
   out.push(legend([[1, 'Đổi mật khẩu'], [2, 'Đăng xuất khỏi hệ thống']]));
   out.push(...attachCommon(k));
+  if (k !== 'qt') out.push(...guideCommon(k));
   return out;
 }
 
-// Đính kèm tệp: cách dùng chung cho mọi hộp nhập liệu (phần mềm phiên bản 1.1)
+// Đính kèm tệp: cách dùng chung cho mọi hộp nhập liệu 
 function attachCommon(k) {
   const ro = k === 'ld';
   return [
@@ -108,6 +107,17 @@ function attachCommon(k) {
     { p: 'Trong các bảng danh sách, cột **Tệp** cho biết tệp đính kèm của từng dòng: nếu có một tệp, nhấn tên tệp để mở; nếu có nhiều tệp, nhấn nút **n tệp** để mở danh sách và chọn tệp cần xem. Tệp PDF và ảnh mở ngay trên trình duyệt; các loại khác (Word, Excel, bản vẽ…) được tải về máy.' },
     img('chung-ds-tep', 'Danh sách tệp đính kèm của một bản ghi', 10),
     { note: 'Mỗi tệp tối đa 500 MB; phần mềm không nhận tệp chương trình (.exe, .bat…). Tệp gỡ nhầm chưa mất ngay mà được chuyển vào thùng rác 30 ngày; đề nghị quản trị hệ thống khôi phục.' + (ro ? '' : ' Người dùng chỉ mở được tệp thuộc dự án trong phạm vi được giao.') },
+  ];
+}
+
+// Trang Hướng dẫn sử dụng trong phần mềm (các vai trò không phải quản trị)
+function guideCommon(k) {
+  return [
+    { h2: 'Xem hướng dẫn sử dụng trong phần mềm' },
+    { p: 'Chọn **Hướng dẫn sử dụng** ở cuối thanh chức năng bên trái (trên điện thoại: **Menu → Hướng dẫn**). Trang chỉ hiển thị tài liệu và video hướng dẫn dành cho nhóm người dùng của tài khoản đang đăng nhập; tài liệu này cũng có sẵn tại đây.' },
+    img('chung-huong-dan', 'Trang Hướng dẫn sử dụng theo nhóm người dùng', 16),
+    legend([[1, 'Mục Hướng dẫn sử dụng trên thanh chức năng'], [2, 'Ô tìm kiếm trong hướng dẫn'], [3, 'Tài liệu hướng dẫn: nhấn Mở để xem ngay, Tải về để lưu vào máy'], [4, 'Video hướng dẫn: nhấn nút phát để xem']]),
+    { note: 'Nội dung hướng dẫn do quản trị hệ thống cập nhật; khi phần mềm có chức năng mới, kiểm tra lại trang này để có tài liệu mới nhất.' },
   ];
 }
 
@@ -486,7 +496,7 @@ S.admin = () => [
   img('qt-2lop-dat-lai', 'Hộp xác nhận đặt lại xác thực 2 lớp', 9),
 
   { h1: 'QUẢN LÝ NGƯỜI DÙNG' },
-  { p: 'Chọn **Quản trị hệ thống**. Các thẻ (1) gồm: Người dùng, Nhóm và phân quyền, Danh mục dùng chung, Nhật ký hoạt động, Kho tệp – thùng rác, Sao lưu – hệ thống.' },
+  { p: 'Chọn **Quản trị hệ thống**. Các thẻ (1) gồm: Người dùng, Nhóm và phân quyền, Danh mục dùng chung, Nhật ký hoạt động, Thông tin đơn vị – giao diện, Kho tệp – thùng rác, Sao lưu – hệ thống.' },
   img('qt-nguoi-dung', 'Danh sách người dùng', 16),
   legend([[1, 'Các thẻ quản trị'], [2, 'Thêm người dùng'], [3, 'Sửa thông tin người dùng'], [4, 'Đặt lại mật khẩu'], [5, 'Khóa / mở khóa tài khoản'], [6, 'Trạng thái xác thực 2 lớp: Đã bật / Chờ thiết lập (quản trị mới chưa đăng nhập lần đầu) / Không bắt buộc'], [7, 'Đặt lại xác thực 2 lớp cho quản trị mất điện thoại']]),
   { h2: 'Thêm người dùng' },
@@ -560,6 +570,38 @@ S.admin = () => [
     'Phục hồi: nhấn **Phục hồi từ tệp sao lưu** (3), chọn tệp .json, xác nhận. Dữ liệu trong tệp được ghi đè lên bản ghi trùng mã; tài khoản trùng tên đăng nhập được giữ nguyên; danh sách tệp đính kèm được phục hồi cùng dữ liệu.',
   ] },
   { note: 'Nên đặt thư mục sao lưu tự động trên ổ đĩa khác hoặc ổ mạng (cấu hình Storage:BackupPath, xem «Hướng dẫn cài đặt»). Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu SQL Server định kỳ do cán bộ phụ trách hạ tầng thực hiện.' },
+
+  { h1: 'THÔNG TIN ĐƠN VỊ, GIAO DIỆN' },
+  { p: 'Thẻ **Thông tin đơn vị, giao diện** cho phép quản trị thay logo, tên phần mềm, tên đơn vị, banner trang đăng nhập, chân trang… mà không cần cài lại phần mềm. Dùng khi đơn vị đổi tên hoặc khi triển khai phần mềm cho đơn vị khác. Thay đổi áp dụng ngay cho mọi người dùng ở lần mở trang tiếp theo.' },
+  img('qt-don-vi', 'Thông tin đơn vị và nhận diện giao diện', 16),
+  legend([[1, 'Các ô thông tin: tên đơn vị rút gọn, tên phần mềm, cơ quan chủ quản, đơn vị sử dụng, tiêu đề và mô tả banner, địa chỉ, chân trang, tên đơn vị trên báo cáo, chủ đầu tư mặc định, thông tin hỗ trợ'], [2, 'Lưu thông tin'], [3, 'Đưa các ô thông tin về mặc định'], [4, 'Xem trước logo và tên phần mềm như trên thanh chức năng'], [5, 'Chọn ảnh logo mới']]),
+  { steps: [
+    'Chọn **Quản trị hệ thống** → thẻ **Thông tin đơn vị, giao diện**.',
+    'Sửa các ô thông tin (1). Ô **Chân trang** có thể ghi **{năm}**, phần mềm tự thay bằng năm hiện tại. Nhấn **Lưu thông tin** (2).',
+    'Thay logo: nhấn **Chọn ảnh logo** (5), chọn ảnh PNG, JPG hoặc WEBP tối đa 2 MB (nên dùng ảnh vuông, nền trong suốt). Logo hiện ngay ở khung xem trước (4), thanh chức năng và trang đăng nhập. Nhấn **Xóa logo** để dùng lại biểu tượng mặc định.',
+    'Muốn trở về thông tin ban đầu, nhấn **Khôi phục mặc định** (3) và xác nhận; logo được giữ nguyên.',
+  ] },
+  img('qt-dang-nhap-don-vi', 'Trang đăng nhập sau khi thay logo và thông tin đơn vị', 16),
+  { note: 'Mọi lần thay đổi được ghi vào Nhật ký hoạt động. Thông tin đơn vị và logo được lưu kèm trong tệp sao lưu dữ liệu.' },
+
+  { h1: 'QUẢN LÝ HƯỚNG DẪN SỬ DỤNG' },
+  { p: 'Trang **Hướng dẫn sử dụng** (cuối thanh chức năng bên trái) chứa tài liệu, video hướng dẫn cho từng nhóm người dùng. Quản trị hệ thống xem toàn bộ; mỗi nhóm khác chỉ thấy hướng dẫn dành cho nhóm mình. Khi cài đặt, phần mềm tự tạo sẵn 6 hướng dẫn kèm tệp PDF của bộ tài liệu này cho từng vai trò.' },
+  img('qt-huong-dan', 'Quản lý hướng dẫn sử dụng', 16),
+  legend([[1, 'Thêm hướng dẫn'], [2, 'Tìm kiếm trong hướng dẫn'], [3, 'Lọc hướng dẫn theo nhóm người dùng'], [4, 'Nhóm người dùng được xem hướng dẫn'], [5, 'Sửa hoặc xóa hướng dẫn'], [6, 'Tệp hướng dẫn: Mở hoặc Tải về']]),
+  { h2: 'Thêm, sửa hướng dẫn và đính kèm tệp, video' },
+  { steps: [
+    'Nhấn **+ Thêm hướng dẫn** (1), hoặc **Sửa** (5) trên hướng dẫn cần cập nhật.',
+    'Nhập **Tiêu đề**, **Nhóm nội dung** (ví dụ «Tài liệu hướng dẫn sử dụng», «Video hướng dẫn»; các hướng dẫn cùng nhóm nội dung hiển thị chung một mục) và **Thứ tự hiển thị**.',
+    'Tại **Dành cho nhóm người dùng**, đánh dấu các nhóm được xem; để trống nghĩa là mọi người dùng đều xem được.',
+    'Ghi nội dung, lưu ý (nếu có); tại ô đính kèm, chọn hoặc kéo thả tệp PDF, Word, ảnh hoặc video clip MP4 (tối đa 500 MB mỗi tệp). Muốn thay tài liệu cũ, nhấn **Gỡ** trên tệp cũ và chọn tệp mới.',
+    'Nhấn **Lưu**. Người dùng thuộc nhóm được chọn thấy ngay hướng dẫn mới.',
+  ] },
+  img('qt-them-huong-dan', 'Hộp thêm, sửa hướng dẫn sử dụng', 12),
+  { bullets: [
+    'Video hướng dẫn phát ngay trên trang (nên dùng định dạng MP4); tài liệu PDF mở trên trình duyệt; tệp Word, Excel được tải về máy.',
+    'Xóa hướng dẫn: nhấn **Xóa** (5) và xác nhận. Tệp kèm theo được chuyển vào thùng rác 30 ngày, có thể khôi phục tại thẻ **Kho tệp, thùng rác**.',
+    'Phần mềm kiểm tra quyền trên máy chủ: người dùng không mở được tệp của hướng dẫn không dành cho nhóm mình, kể cả khi biết đường dẫn.',
+  ] },
 
   { h1: 'ĐỐI CHIẾU YÊU CẦU BÁO CÁO KINH TẾ – KỸ THUẬT' },
   { p: 'Trang **Đối chiếu BC KTKT** (nhóm Tiện ích) liệt kê 62 use case thuộc mục VI của Báo cáo kinh tế – kỹ thuật, ánh xạ tới chức năng tương ứng trong phần mềm và tình trạng đáp ứng; dùng khi kiểm tra, nghiệm thu.' },

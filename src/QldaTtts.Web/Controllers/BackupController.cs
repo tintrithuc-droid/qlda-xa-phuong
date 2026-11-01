@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -89,6 +89,14 @@ public class BackupController : ApiControllerBase
                     var ex = await Db.Attachments.FirstOrDefaultAsync(x => x.Id == a.Id);
                     if (ex is null) Db.Attachments.Add(a); else Db.Entry(ex).CurrentValues.SetValues(a);
                     n++;
+                }
+            if (data.TryGetProperty("settings", out var sa) && sa.ValueKind == JsonValueKind.Array)
+                foreach (var el in sa.EnumerateArray())
+                {
+                    var st = el.Deserialize<AppSetting>(JsonConfig.Options)!;
+                    if (!ValidId(st.Key)) continue;
+                    var ex = await Db.Settings.FirstOrDefaultAsync(x => x.Key == st.Key);
+                    if (ex is null) Db.Settings.Add(st); else Db.Entry(ex).CurrentValues.SetValues(st);
                 }
         }
         catch (JsonException ex) { return Error(400, "Tệp sao lưu bị lỗi: " + ex.Message); }

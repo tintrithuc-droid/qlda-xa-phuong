@@ -73,7 +73,7 @@ function build() {
     [1, 'Nút mở menu chức năng đầy đủ (hình bên phải).'],
     [2, 'Ô chọn dự án làm việc: chọn một dự án để mọi trang chỉ hiển thị số liệu của dự án đó.'],
     [3, 'Tài khoản đang đăng nhập: đổi mật khẩu, đăng xuất.'],
-    [4, 'Các ô thao tác nhanh: tra cứu dự án, cập nhật tiến độ, ghi nhật ký, khối lượng, tổng quan, đổi mật khẩu, đăng xuất (chỉ hiện các ô được phân quyền).'],
+    [4, 'Các ô thao tác nhanh: tra cứu dự án, cập nhật tiến độ, ghi nhật ký, khối lượng, tổng quan, hướng dẫn, đổi mật khẩu, đăng xuất (chỉ hiện các ô được phân quyền).'],
     [5, 'Thanh điều hướng dưới cùng: Tổng quan, Dự án, Hiện trường, Nhật ký, Menu.'],
     [6, 'Danh sách phân hệ được phép sử dụng; chạm vào vùng tối bên phải để đóng menu.'],
   ]));
@@ -86,6 +86,9 @@ function build() {
   ] });
   out.push({ imgs2: ['dt-tai-khoan', 'dt-doi-mk'], caps: ['Hộp Tài khoản', 'Hộp Đổi mật khẩu'], mobile: true });
   out.push(legend([[1, 'Đổi mật khẩu'], [2, 'Đăng xuất']]));
+  out.push({ h2: 'Xem hướng dẫn sử dụng' });
+  out.push({ p: 'Chạm ô **Hướng dẫn** trên trang Hiện trường (hoặc **Menu → Hướng dẫn sử dụng**) để xem tài liệu, video hướng dẫn dành cho nhóm người dùng của mình. Tài liệu PDF mở ngay trên điện thoại; video phát trực tiếp, nên xem khi có Wi‑Fi.' });
+  out.push(img('dt-huong-dan', 'Trang Hướng dẫn sử dụng trên điện thoại', 6.5));
 
   out.push({ h1: 'GHI NHẬT KÝ THI CÔNG TẠI HIỆN TRƯỜNG' });
   out.push({ h2: 'Ghi nhật ký kèm ảnh hiện trường' });

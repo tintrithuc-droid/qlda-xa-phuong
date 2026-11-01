@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Controllers;
@@ -33,6 +33,7 @@ public class BackupService
         data["users"] = users;
         data["files"] = await db.Files.AsNoTracking().ToListAsync();
         data["attachments"] = await db.Attachments.AsNoTracking().ToListAsync();
+        data["settings"] = await db.Settings.AsNoTracking().ToListAsync();
         var payload = new { app = "qlda-ttts", version = 3, exportedAt = DateTime.UtcNow, data, passwords = users.ToDictionary(u => u.Id, u => u.PasswordHash) };
         return JsonSerializer.SerializeToUtf8Bytes(payload, JsonConfig.Options);
     }

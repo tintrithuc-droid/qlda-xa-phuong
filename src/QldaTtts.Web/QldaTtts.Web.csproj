@@ -17,4 +17,9 @@
     <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 
+  <!-- Tệp PDF HDSD theo vai trò: phần mềm tự tạo trang Hướng dẫn sử dụng từ thư mục này ở lần chạy đầu -->
+  <ItemGroup>
+    <None Include="hdsd\*.pdf" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

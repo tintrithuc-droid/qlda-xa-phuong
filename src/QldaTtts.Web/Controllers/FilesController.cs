@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
@@ -32,8 +32,15 @@ public class FilesController : ApiControllerBase
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         var sf = await Db.Files.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
         if (sf is null) return Error(404, "Tệp không còn tồn tại.");
+        var guideIds = await Db.Attachments.AsNoTracking().Where(a => a.FileId == id && a.Collection == "guides").Select(a => a.RecordId).ToListAsync();
+        if (guideIds.Count > 0)
+        {
+            // Tệp của hướng dẫn sử dụng: chỉ nhóm người dùng được giao hướng dẫn đó mới xem được
+            var gs = await Db.Guides.AsNoTracking().Where(g => guideIds.Contains(g.Id)).ToListAsync();
+            if (sf.UploadedBy != Uc.User.Username && !gs.Any(Uc.SeesGuide)) return Denied("Hướng dẫn này không dành cho nhóm người dùng của bạn.");
+        }
         // Tài khoản bị giới hạn phạm vi chỉ xem được tệp của dự án được giao (hoặc tệp do chính mình tải lên)
-        if (Uc.Scope is not null && sf.UploadedBy != Uc.User.Username)
+        else if (Uc.Scope is not null && sf.UploadedBy != Uc.User.Username)
         {
             var pids = await ProjectScope.ProjectsOfFile(Db, id);
             if (!pids.Any(Uc.InScope)) return Denied("Tệp này thuộc dự án nằm ngoài phạm vi dữ liệu được giao.");
@@ -42,7 +49,7 @@ public class FilesController : ApiControllerBase
         if (full is null || !System.IO.File.Exists(full)) return Error(404, "Tệp không còn tồn tại trên máy chủ.");
         Response.Headers["X-Content-Type-Options"] = "nosniff";
         Response.Headers["Cache-Control"] = "private, max-age=86400";
-        var inline = !download && (sf.ContentType.StartsWith("image/") || sf.ContentType == "application/pdf");
+        var inline = !download && (sf.ContentType.StartsWith("image/") || sf.ContentType.StartsWith("video/") || sf.ContentType == "application/pdf");
         return PhysicalFile(full, sf.ContentType, inline ? null : sf.FileName, enableRangeProcessing: true);
     }
 }

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.StaticFiles;
+﻿using Microsoft.AspNetCore.StaticFiles;
 using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
@@ -39,6 +39,19 @@ public class FileStore
         await using (var fs = File.Create(full)) await file.CopyToAsync(fs);
         var ct = Types.TryGetContentType(name, out var t) ? t : "application/octet-stream";
         return new StoredFile { Id = id, FileName = name.Length > 300 ? name[^300..] : name, ContentType = ct, Size = file.Length, RelPath = rel, UploadedBy = by, UploadedAt = DateTime.UtcNow };
+    }
+
+    /// <summary>Chép một tệp có sẵn trên máy chủ (ví dụ tài liệu HDSD đi kèm gói cài) vào kho tệp.</summary>
+    public StoredFile SaveFromPath(string path, string? by)
+    {
+        var name = Path.GetFileName(path);
+        var id = "f" + Guid.NewGuid().ToString("N");
+        var rel = Path.Combine(DateTime.UtcNow.ToString("yyyy"), DateTime.UtcNow.ToString("MM"), id + Path.GetExtension(name).ToLowerInvariant());
+        var full = Path.Combine(Root, rel);
+        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+        File.Copy(path, full);
+        var ct = Types.TryGetContentType(name, out var t) ? t : "application/octet-stream";
+        return new StoredFile { Id = id, FileName = name.Length > 300 ? name[^300..] : name, ContentType = ct, Size = new FileInfo(full).Length, RelPath = rel, UploadedBy = by, UploadedAt = DateTime.UtcNow };
     }
 
     /// <summary>Đường dẫn đầy đủ của tệp, null nếu đường dẫn không hợp lệ.</summary>

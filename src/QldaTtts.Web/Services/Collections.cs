@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
@@ -32,6 +32,7 @@ public static class Collections
         new("payments", typeof(Payment), "thanh-toan", "Hồ sơ thanh toán", Q<Payment>, Array.Empty<(string,string)>()),
         new("groups", typeof(UserGroup), "quan-tri", "Nhóm người dùng", Q<UserGroup>, new[] { ("users","GroupId") }),
         new("catalogs", typeof(Catalog), "quan-tri", "Danh mục", Q<Catalog>, Array.Empty<(string,string)>()),
+        new("guides", typeof(Guide), "quan-tri", "Hướng dẫn sử dụng", Q<Guide>, Array.Empty<(string,string)>()),
     };
 
     public static CollectionDef? Find(string name) => All.FirstOrDefault(c => c.Name == name);
@@ -46,7 +47,7 @@ public static class Collections
 
     public static string LabelOf(object e)
     {
-        foreach (var p in new[] { "Name", "Code", "Number", "Value", "Phase", "Username" })
+        foreach (var p in new[] { "Name", "Title", "Code", "Number", "Value", "Phase", "Username" })
         {
             var v = e.GetType().GetProperty(p)?.GetValue(e) as string;
             if (!string.IsNullOrWhiteSpace(v)) return v;

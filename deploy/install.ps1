@@ -62,7 +62,7 @@ if (-not (Test-Path $cfgFile) -or $PSBoundParameters.ContainsKey("SqlServer") -o
     ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $cfgFile
 } else {
   Write-Host "Giữ nguyên cấu hình đang có."
-  # Nâng cấp từ bản 1.0: bổ sung thư mục sao lưu tự động nếu cấu hình cũ chưa có
+  # Cấu hình cũ chưa có thư mục sao lưu tự động: bổ sung
   $old = Get-Content -Raw -Encoding UTF8 $cfgFile | ConvertFrom-Json
   if (-not $old.Storage) { $old | Add-Member -NotePropertyName Storage -NotePropertyValue ([pscustomobject]@{}) }
   if (-not $old.Storage.BackupPath) {

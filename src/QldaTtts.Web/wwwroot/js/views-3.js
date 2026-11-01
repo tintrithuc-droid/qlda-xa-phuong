@@ -129,7 +129,7 @@ ACT['export-report']=()=>{
   const type=S.f.bct||'tonghop'; const f={pid:S.pid||S.f.bcp||'', kid:S.f.bck||'', from:S.f.bcf||'', to:S.f.bctt||''};
   const R=buildReport(type,f); const q=S.f.bcq||''; const rows=R.rows.filter(r=>!q||norm(r.join(' ')).includes(norm(q)));
   const title=REPORTS.find(r=>r[0]===type)[1].toUpperCase();
-  const sub='Ban Quản lý Trung tâm Thủy sản TP.HCM · Lập ngày '+fmtDate(TODAY)+(f.pid?' · '+(projOf(f.pid)||{}).code:'')+(f.from||f.to?' · Kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):'');
+  const sub=BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(f.pid?' · '+(projOf(f.pid)||{}).code:'')+(f.from||f.to?' · Kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):'');
   const money=R.money||[]; const tot=R.head.map((h,i)=>i===0?'Tổng cộng':money.includes(i)?sum(rows,r=>r[i]):'');
   exportXlsx(`BaoCao_${type}_${TODAY}.xlsx`, [{name:'Bao cao', title, sub, head:R.head, rows:[...rows, ...(money.length?[tot]:[])]}]);
   log('Xuất báo cáo','logs',REPORTS.find(r=>r[0]===type)[1]);
@@ -138,7 +138,7 @@ ACT['export-report']=()=>{
 /* ===== QUẢN TRỊ HỆ THỐNG (UC49–53) ===== */
 VIEWS['quan-tri']=()=>{
   const t=S.tab.qt||'users';
-  const tabs=[['users','Người dùng'],['groups','Nhóm và phân quyền'],['cats','Danh mục dùng chung'],['logs','Nhật ký hoạt động'],['files','Kho tệp, thùng rác'],['sys','Sao lưu, hệ thống']];
+  const tabs=[['users','Người dùng'],['groups','Nhóm và phân quyền'],['cats','Danh mục dùng chung'],['logs','Nhật ký hoạt động'],['org','Thông tin đơn vị, giao diện'],['files','Kho tệp, thùng rác'],['sys','Sao lưu, hệ thống']];
   let body='';
   if(t==='users'){ const q=S.f.uq||'';
     const rows=D('users').filter(u=>has(u,q)).sort(by('username'));
@@ -158,6 +158,7 @@ VIEWS['quan-tri']=()=>{
     ${table([{h:'Thời gian',f:r=>`<span class="num small">${fmtDT(r.ts)}</span>`},{h:'Người dùng',f:r=>`${esc(r.fullname||'')} <span class="small muted num">${esc(r.username)}</span>`},{h:'Thao tác',f:r=>pill(r.action, r.action==='Xóa'?'bad':r.action==='Thêm mới'?'ok':r.action==='Đăng nhập'?'info':'')},{h:'Phân hệ',k:'module'},{h:'Đối tượng',k:'target'}], rows.slice(0,300), {empty:'Chưa có hoạt động.'})}
     <p class="small muted" style="margin:8px 0 0">Hiển thị tối đa 300 hoạt động gần nhất.</p></div>`; }
   else if(t==='files') body=storageView();
+  else if(t==='org') body=brandView();
   else { const cnt=COLS.filter(c=>c!=='logs').map(c=>[COL_LABEL[c], D(c).length]);
     body=`<div class="grid g2"><div class="card"><h2>Thông tin hệ thống</h2><dl class="kv"><dt>Chế độ lưu trữ</dt><dd>Cơ sở dữ liệu SQL Server tập trung trên máy chủ</dd><dt>Kho tệp đính kèm</dt><dd>Thư mục App_Data/files trên máy chủ (tối đa 500 MB mỗi tệp)</dd><dt>Ngày hệ thống</dt><dd>${fmtDate(TODAY)}</dd></dl>
       <h3 style="margin-top:14px">Số bản ghi</h3>${table([{h:'Loại dữ liệu',f:r=>esc(r[0])},{h:'Số bản ghi',r:1,f:r=>r[1]}], cnt.map(x=>Object.assign(x,{id:x[0]})))}</div>
@@ -230,13 +231,14 @@ VIEWS['hien-truong']=()=>{
   const tiles=[
     ['du-an','proj','Tra cứu dự án','Thông tin, hồ sơ, tình trạng'],['upd-quick','gantt','Cập nhật tiến độ','Nhập % hoàn thành hạng mục','tien-do'],['add-diary','book','Ghi nhật ký thi công','Kèm hình ảnh hiện trường','nhat-ky'],
     ['goi-thau','doc','Hợp đồng','Tra cứu hợp đồng, phụ lục'],['khoi-luong','ruler','Khối lượng','Thực hiện và nghiệm thu'],['thanh-toan','coin','Thanh toán','Giá trị đã thanh toán'],
-    ['tong-quan','dash','Tổng quan','Dashboard điều hành'],['bao-cao','chart','Báo cáo','Xem, xuất báo cáo'],['chpw','key','Đổi mật khẩu','Bảo mật tài khoản'],['logout','out','Đăng xuất','Thoát khỏi hệ thống']];
+    ['tong-quan','dash','Tổng quan','Dashboard điều hành'],['bao-cao','chart','Báo cáo','Xem, xuất báo cáo'],['huong-dan','help','Hướng dẫn','Tài liệu, video hướng dẫn'],['chpw','key','Đổi mật khẩu','Bảo mật tài khoản'],['logout','out','Đăng xuất','Thoát khỏi hệ thống']];
   const my=D('diaries').filter(d=>inFilter(d.projectId)).sort(by('date',-1)).slice(0,3);
   return `<div class="head"><div class="grow"><div class="eyebrow">Xin chào</div><h1>${esc(S.user.name)}</h1><p>${esc((myGroup()||{}).name||'')} · ${fmtDate(TODAY)}</p></div></div>
   <div class="tiles">${tiles.filter(t=>{ const mod=t[4]||t[0]; return ['chpw','logout'].includes(t[0]) || (t[4]? can(t[4],'edit') : can(mod)); }).map(([k,i,l,s,m])=>`<button class="tile" ${MODULES.some(x=>x.key===k)?`data-act="go" data-id="${k}"`:`data-act="${k}"`}>${ic(i)}<b>${l}</b><span>${s}</span></button>`).join('')}</div>
   ${my.length?`<div class="card"><h2>Nhật ký gần đây</h2><div class="list">${my.map(d=>`<div class="small"><b class="num">${fmtDate(d.date)}</b> · ${esc((pkgOf(d.packageId)||{}).code||'')} · ${esc(parseWorks(d.works)[0]?.name||'')}</div>`).join('')}</div></div>`:''}
   <p class="small muted">Trang này tối ưu cho điện thoại: mở địa chỉ phần mềm trên trình duyệt điện thoại hoặc ứng dụng QLDA TTTS (Android), đăng nhập bằng tài khoản được cấp.</p>`;
 };
+ACT['huong-dan']=()=>{ location.hash='huong-dan'; };
 ACT['upd-quick']=()=>openForm({title:'Cập nhật tiến độ hiện trường', narrow:true, fields:[{key:'sid',label:'Hạng mục tiến độ',type:'select',req:true,full:true,options:()=>D('schedule').filter(s=>inFilter(s.projectId)&&N(s.progress)<100).sort(by('planEnd')).map(s=>[s.id,(pkgOf(s.packageId)||{}).code+' · '+s.name+' ('+N(s.progress)+'%)'])},{key:'progress',label:'Tiến độ thực tế lũy kế (%)',type:'percent',req:true,full:true},{key:'note',label:'Ghi chú',type:'textarea'},{...PROG_ATT(null), rid:(r,v)=>v.sid, ref:TODAY, refFrom:null}],
   onSave:v=>{ const s=get('schedule',v.sid); const h=[...(s.history||[]).filter(x=>x.date!==TODAY), {date:TODAY, progress:v.progress, note:v.note||'', by:S.user.name}].sort(by('date')); return save('schedule',{...s, progress:v.progress, history:h, actualStart:s.actualStart||TODAY, actualEnd:v.progress>=100?TODAY:''}, s.name+' → '+v.progress+'%'); }});
 
@@ -274,6 +276,69 @@ VIEWS['doi-chieu']=()=>{
   <div class="grid g4"><div class="card kpi"><div class="eyebrow">Use case</div><div class="v">${rows.length}/62</div><div class="s">Đáp ứng đầy đủ</div></div><div class="card kpi"><div class="eyebrow">Phân hệ nghiệp vụ</div><div class="v">7/7</div><div class="s">Theo quy mô tại Phần II mục 6</div></div><div class="card kpi"><div class="eyebrow">Nhóm chức năng</div><div class="v">12</div><div class="s">Kể cả Dashboard, biểu đồ, báo cáo</div></div><div class="card kpi"><div class="eyebrow">Giao diện</div><div class="v" style="font-size:1.05rem;font-family:var(--f-ui)">Web + di động</div><div class="s">Tự thích ứng màn hình</div></div></div>
   ${table([{h:'STT',r:1,k:'n'},{h:'Nhóm chức năng',k:'g'},{h:'Use case / Chức năng',k:'u'},{h:'Hiện thực trong phần mềm',k:'w'},{h:'Đáp ứng',f:()=>pill('Đã đáp ứng','ok')},{h:'',f:r=>can(r.mod)?`<a href="#${r.mod}">Mở</a>`:''}], rows)}`;
 };
+
+
+/* ===== THÔNG TIN ĐƠN VỊ, GIAO DIỆN (triển khai cho nhiều đơn vị) ===== */
+const BR_FIELDS=[['orgShort','Tên đơn vị rút gọn (thanh bên trái, phía trên tên phần mềm)'],['appName','Tên phần mềm (thanh bên trái, tiêu đề trình duyệt)'],
+  ['orgName','Tên cơ quan chủ quản (trang đăng nhập, dòng 1)'],['unitName','Tên đơn vị sử dụng (trang đăng nhập, dòng 2)'],
+  ['bannerTitle','Tiêu đề banner trang đăng nhập'],['bannerText','Mô tả dưới tiêu đề banner'],['address','Địa chỉ (cuối banner)'],
+  ['footer','Chân trang ({năm} tự thay bằng năm hiện tại)'],['reportOrg','Tên đơn vị trên báo cáo xuất Excel'],['ownerDefault','Chủ đầu tư / cơ quan ban hành mặc định khi nhập liệu'],
+  ['support','Thông tin hỗ trợ (cuối thanh bên trái)']];
+function brandView(){
+  const ed=can('quan-tri','edit'); S.after.push(_brWire);
+  return `<div class="grid g3"><div class="card span2"><div class="ch"><h2>Thông tin đơn vị và nhận diện giao diện</h2></div>
+    <p class="muted small" style="margin-top:0">Dùng khi triển khai phần mềm cho đơn vị khác: thay logo, tên phần mềm, banner trang đăng nhập, chân trang… Thay đổi áp dụng ngay cho mọi người dùng, không cần cài lại.</p>
+    <form id="brform" class="fgrid">${BR_FIELDS.map(([k,l])=>`<div class="fld ${/bannerText|footer/.test(k)?'full':''}"><label for="br_${k}">${esc(l)}</label>${k==='bannerText'?`<textarea id="br_${k}" rows="2" ${ed?'':'disabled'}>${esc(BR[k])}</textarea>`:`<input id="br_${k}" value="${esc(BR[k])}" ${ed?'':'disabled'}>`}</div>`).join('')}</form>
+    ${ed?`<div class="toolbar" style="margin-top:12px"><button class="btn primary" data-act="brand-save">Lưu thông tin</button><button class="btn ghost" data-act="brand-reset">Khôi phục mặc định</button></div>`:''}</div>
+    <div class="card"><h2>Logo đơn vị</h2><div class="brand-prev"><div class="side-prev"><div class="mark${BR.logo?' logo':''}">${brandMark()}</div><div><span>${esc(BR.orgShort)}</span><b>${esc(BR.appName)}</b></div></div></div>
+    <p class="muted small">Ảnh PNG, JPG hoặc WEBP, tối đa 2 MB, nên dùng ảnh vuông nền trong suốt. Chưa có logo thì phần mềm dùng biểu tượng mặt trống đồng.</p>
+    ${ed?`<div class="toolbar"><label class="btn primary" style="cursor:pointer">${AICO.clip} Chọn ảnh logo<input type="file" id="br_logo" accept=".png,.jpg,.jpeg,.webp,.gif" hidden></label>${BR.logo?`<button class="btn ghost danger" data-act="brand-logo-del">Xóa logo</button>`:''}</div>`:''}
+    <h3 style="margin-top:16px">Xem trước chân trang</h3><p class="small">${brandFoot()}</p></div></div>`;
+}
+const _brWire=()=>{ const f=$('#br_logo'); if(!f||f._w) return; f._w=1; f.onchange=async()=>{ const file=f.files[0]; if(!file) return;
+  if(file.size>2*1024*1024) return toast('Logo tối đa 2 MB','err');
+  const fd=new FormData(); fd.append('file',file);
+  try{ const r=await fetch('/api/branding/logo',{method:'POST',headers:{'X-QLDA':'1'},body:fd}); const d=await r.json(); if(!r.ok) throw new Error(d.message||'Lỗi tải logo');
+    setBrand(d); toast('Đã cập nhật logo'); render(); }catch(ex){ toast(ex.message,'err'); } }; };
+ACT['brand-save']=async()=>{ const b={}; BR_FIELDS.forEach(([k])=>b[k]=$('#br_'+k).value.trim());
+  try{ setBrand(await api('PUT','/api/branding',b)); toast('Đã lưu thông tin đơn vị'); render(); }catch(ex){ toast(errText(ex),'err'); } };
+ACT['brand-reset']=async()=>{ if(!await confirmBox('Đưa toàn bộ thông tin đơn vị, tên phần mềm, banner, chân trang về mặc định? Logo giữ nguyên.','Khôi phục')) return;
+  try{ setBrand(await api('PUT','/api/branding',{})); toast('Đã khôi phục mặc định'); render(); }catch(ex){ toast(errText(ex),'err'); } };
+ACT['brand-logo-del']=async()=>{ if(!await confirmBox('Xóa logo đơn vị và dùng lại biểu tượng mặc định?')) return;
+  try{ setBrand(await api('DELETE','/api/branding/logo')); toast('Đã xóa logo'); render(); }catch(ex){ toast(errText(ex),'err'); } };
+
+/* ===== HƯỚNG DẪN SỬ DỤNG: mỗi nhóm người dùng xem hướng dẫn của mình, quản trị cập nhật ===== */
+const isVideo=a=>/^video\//.test(a.contentType)||/\.(mp4|webm|mov|m4v)$/i.test(a.fileName);
+function guideFiles(g){
+  const list=atts('guides',g.id); if(!list.length) return '';
+  const vids=list.filter(isVideo), imgs=list.filter(a=>!isVideo(a)&&/^image\//.test(a.contentType)), docs=list.filter(a=>!isVideo(a)&&!/^image\//.test(a.contentType));
+  return `${docs.length?`<div class="guide-docs">${docs.map(a=>`<div class="guide-doc">${attIcon(a)}<div class="grow"><b>${esc(a.fileName)}</b><div class="small muted">${attMeta(a)}</div></div>
+      <a class="btn sm" href="${attUrl(a)}" target="_blank" rel="noopener">Mở</a><a class="btn sm ghost" href="${attUrl(a)}?download=true">Tải về</a></div>`).join('')}</div>`:''}
+    ${vids.map(a=>`<figure class="guide-video"><video controls preload="metadata" src="${attUrl(a)}"></video><figcaption class="small muted">${esc(a.fileName)} · ${fmtSize(a.size)}</figcaption></figure>`).join('')}
+    ${imgs.length?`<div class="guide-imgs">${imgs.map(a=>`<a href="${attUrl(a)}" data-act="att-view" data-id="${esc(a.id)}"><img src="${attUrl(a)}" alt="${esc(a.fileName)}" loading="lazy"></a>`).join('')}</div>`:''}`;
+}
+VIEWS['huong-dan']=()=>{
+  const ed=can('quan-tri','edit'), q=S.f.hq||'', gf=ed?(S.f.hg||''):'';
+  const gname=id=>(get('groups',id)||{}).name||id;
+  const rows=D('guides').filter(g=>(!gf||!(g.groups||[]).length||(g.groups||[]).includes(gf)) && (!q||has({t:g.title,c:g.content,k:g.category},q))).sort((a,b)=>(a.order||0)-(b.order||0)||a.title.localeCompare(b.title));
+  const cats=[...new Set(rows.map(g=>g.category||'Hướng dẫn khác'))];
+  return `<div class="head"><div class="grow"><h1>Hướng dẫn sử dụng</h1><p>${ed?'Quản trị hệ thống xem toàn bộ hướng dẫn và cập nhật nội dung, tệp, video cho từng nhóm người dùng.':`Tài liệu và video hướng dẫn dành cho nhóm «${esc((myGroup()||{}).name||'')}».`}</p></div>
+    ${ed?'<button class="btn primary" data-act="add-guide">+ Thêm hướng dẫn</button>':''}</div>
+  <div class="toolbar"><input type="search" data-f="hq" value="${esc(q)}" placeholder="Tìm trong hướng dẫn…" aria-label="Tìm hướng dẫn" style="max-width:320px">
+    ${ed?`<select data-f="hg" aria-label="Nhóm người dùng">${opts(D('groups').map(g=>[g.id,g.name]),gf,'Mọi nhóm người dùng')}</select>`:''}</div>
+  ${rows.length?cats.map(c=>`<h3 class="guide-cat">${esc(c)}</h3>${rows.filter(g=>(g.category||'Hướng dẫn khác')===c).map(g=>`<article class="card guide">
+    <div class="ch"><h2>${esc(g.title)}</h2>${ed?`<span class="guide-groups">${(g.groups||[]).length?(g.groups||[]).map(id=>pill(gname(id),'info')).join(''):pill('Mọi người dùng','ok')}</span>
+      <button class="btn sm ghost" data-act="edit-guides" data-id="${g.id}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="guides" data-id="${g.id}">Xóa</button>`:''}</div>
+    ${g.content?`<div class="guide-text">${esc(g.content)}</div>`:''}${guideFiles(g)}
+    <div class="small muted" style="margin-top:8px">Cập nhật ${fmtDT(g.updatedAt)}</div></article>`).join('')}`).join('')
+   : emptyBox(ed?'Chưa có hướng dẫn nào.':'Chưa có hướng dẫn dành cho nhóm của bạn. Liên hệ quản trị hệ thống.', ed?'<button class="btn primary" data-act="add-guide">+ Thêm hướng dẫn</button>':'')}`;
+};
+const guideFields=()=>[{key:'title',label:'Tiêu đề hướng dẫn',req:true,full:true},{key:'category',label:'Nhóm nội dung (ví dụ: Tài liệu hướng dẫn sử dụng, Video hướng dẫn)',def:'Tài liệu hướng dẫn sử dụng'},{key:'order',label:'Thứ tự hiển thị',type:'number',def:D('guides').length+1},
+  {key:'groups',label:'Dành cho nhóm người dùng (để trống = mọi người dùng)',type:'checks',options:()=>D('groups').map(g=>[g.id,g.name])},
+  {key:'content',label:'Nội dung, ghi chú hướng dẫn',type:'textarea',rows:6},
+  {key:'att',label:'Tệp hướng dẫn, video clip (PDF, Word, ảnh, MP4…)',type:'attach',col:'guides',accept:ATT_ACCEPT+','+VIDEO_ACCEPT}];
+ACT['add-guide']=()=>openForm({title:'Thêm hướng dẫn sử dụng', fields:guideFields(), onSave:v=>save('guides',{...v, order:N(v.order)})});
+ACT['edit-guides']=(id)=>openForm({title:'Cập nhật hướng dẫn sử dụng', fields:guideFields(), value:get('guides',id), onSave:v=>save('guides',{...v, order:N(v.order)})});
 
 /* ===== Khởi động ===== */
 render();

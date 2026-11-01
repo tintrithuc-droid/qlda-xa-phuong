@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
@@ -33,6 +33,7 @@ public static class ProjectScope
         ["volumes"] = new[] { "khoi-luong" },
         ["payplans"] = new[] { "thanh-toan" },
         ["payments"] = new[] { "thanh-toan" },
+        ["guides"] = new[] { "quan-tri" },
     };
 
     /// <summary>

@@ -259,6 +259,29 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await go(p, 'doi-chieu'); await shot(p, 'qt-doi-chieu');
   await p.context().close();
 
+  // ===== Bản 1.0: thông tin đơn vị, logo, hướng dẫn sử dụng =====
+  { const T = '/tmp/hdsd-them/';
+    p = await newPage(DESK); await login(p, 'admin');
+    // hướng dẫn dạng video cho Cán bộ kỹ thuật và TVGS
+    await p.evaluate(async v => { const bin = Uint8Array.from(atob(v), c => c.charCodeAt(0));
+      const g = await Store.put('guides', { title: 'Video: Ghi nhật ký thi công tại hiện trường', category: 'Video hướng dẫn', order: 10, groups: ['g-tech', 'g-site'], content: 'Video 9 giây minh họa các bước ghi nhật ký thi công trên điện thoại: chọn gói thầu, nhập công việc, chụp ảnh hiện trường và lưu.' });
+      const fd = new FormData(); fd.append('file', new File([bin], 'Video-ghi-nhat-ky-thi-cong.mp4', { type: 'video/mp4' })); fd.append('collection', 'guides'); fd.append('recordId', g.id); fd.append('kind', 'Video');
+      const r = await fetch('/api/attachments', { method: 'POST', headers: { 'X-QLDA': '1' }, body: fd }); if (!r.ok) throw new Error('upload video ' + r.status); await Store.load();
+    }, fs.readFileSync(T + 'Video-ghi-nhat-ky-thi-cong.mp4').toString('base64'));
+    await go(p, 'quan-tri'); await tab(p, 'Thông tin đơn vị, giao diện');
+    await p.setInputFiles('#br_logo', T + 'Logo-don-vi-mau.png'); await wait(1200); await p.evaluate(() => { $('#toast').hidden = true; });
+    await shot(p, 'qt-don-vi', 'full', [{ sel: '#brform', n: 1 }, { sel: '[data-act=brand-save]', n: 2 }, { sel: '[data-act=brand-reset]', n: 3 }, { sel: '.brand-prev', n: 4 }, { sel: 'label:has(#br_logo)', n: 5 }]);
+    { const q = await newPage(DESK); await q.goto(BASE + '/'); await q.waitForSelector('#login'); await wait(800); await shot(q, 'qt-dang-nhap-don-vi'); await q.context().close(); }
+    await go(p, 'huong-dan'); await wait(800);
+    await shot(p, 'qt-huong-dan', undefined, [{ sel: '[data-act=add-guide]', n: 1 }, { sel: '.toolbar input[type=search]', n: 2 }, { sel: '.toolbar select', n: 3 }, { sel: '.guide-groups', n: 4 }, { sel: '[data-act=edit-guides]', n: 5 }, { sel: '.guide-doc', n: 6 }]);
+    await click(p, '[data-act=add-guide]'); await shot(p, 'qt-them-huong-dan', '#ov .mform'); await closeModal(p);
+    await p.evaluate(() => fetch('/api/branding/logo', { method: 'DELETE', headers: { 'X-QLDA': '1' } }));
+    await p.context().close();
+    p = await newPage(DESK); await login(p, 'kythuat'); await go(p, 'huong-dan'); await wait(1200);
+    await p.evaluate(() => { const v = document.querySelector('.guide-video video'); if (v) v.currentTime = 4; }); await wait(800);
+    await shot(p, 'chung-huong-dan', 'full', [{ sel: '.side .nav a[href="#huong-dan"]', n: 1 }, { sel: '.toolbar input[type=search]', n: 2 }, { sel: '.guide-doc', n: 3 }, { sel: '.guide-video', n: 4 }]);
+    await p.context().close(); }
+
   // ===== Điện thoại =====
   for (const [k, u] of [['gs', 'giamsat'], ['kt', 'kythuat']]) {
     p = await newPage(MOB);

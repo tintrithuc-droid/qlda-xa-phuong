@@ -62,7 +62,7 @@ function pkgForm(k){
   openForm({title:k?'Cập nhật gói thầu':'Thêm gói thầu', fields, value, onSave:async v=>{
     const pv={...v}; ['kh','kq'].forEach(p=>['No','Date','Issuer','Att'].forEach(x=>delete pv[p+x]));
     const r=await save('packages',pv); if(!k) S.sel.pkg=r.id;
-    const base={projectId:r.projectId, packageId:r.id, issuer:'Ban QL Trung tâm Thủy sản TP.HCM'};
+    const base={projectId:r.projectId, packageId:r.id, issuer:BR.ownerDefault};
     ctx.kh=await legalInlineSave('kh', v, kh, {...base, type:'Kế hoạch lựa chọn nhà thầu', title:(kh&&kh.title)||'Phê duyệt KHLCNT gói '+r.code, ...(kh?{issuer:kh.issuer}:{})});
     ctx.kq=await legalInlineSave('kq', v, kq, {...base, type:'Kết quả lựa chọn nhà thầu', title:(kq&&kq.title)||'Phê duyệt kết quả LCNT gói '+r.code, ...(kq?{issuer:kq.issuer}:{})});
     return r; }});

@@ -42,6 +42,7 @@ const intoView = (p, sel, text) => p.evaluate(([s, t]) => { const e = [...docume
   await p.mouse.click(370, 600); await wait(300); await go(p, 'hien-truong');
   await click(p, '#top [data-act=account]'); await shot(p, 'dt-tai-khoan', undefined, [{ sel: '#ov [data-act=chpw]', n: 1 }, { sel: '#ov [data-act=logout]', n: 2 }]);
   await click(p, '#ov [data-act=chpw]'); await shot(p, 'dt-doi-mk'); await closeModal(p);
+  await go(p, 'huong-dan'); await wait(800); await shot(p, 'dt-huong-dan');
   await p.context().close();
   // Lãnh đạo xem trên điện thoại
   p = await newPage(MOB); await login(p, 'lanhdao'); await go(p, 'tong-quan'); await shot(p, 'dt-ld-tong-quan');

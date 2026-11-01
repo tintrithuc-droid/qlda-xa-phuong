@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Design;
@@ -29,6 +29,8 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog> Logs => Set<AuditLog>();
     public DbSet<StoredFile> Files => Set<StoredFile>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<Guide> Guides => Set<Guide>();
+    public DbSet<AppSetting> Settings => Set<AppSetting>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -51,6 +53,7 @@ public class AppDbContext : DbContext
         JsonColumn<Diary, List<Photo>>(b, x => x.Photos);
         JsonColumn<UserGroup, Dictionary<string, string>>(b, x => x.Perms);
         JsonColumn<UserGroup, List<string>>(b, x => x.Scope);
+        JsonColumn<Guide, List<string>>(b, x => x.Groups);
 
         b.Entity<AppUser>().HasIndex(x => x.Username).IsUnique();
         b.Entity<Project>().HasIndex(x => x.Code);

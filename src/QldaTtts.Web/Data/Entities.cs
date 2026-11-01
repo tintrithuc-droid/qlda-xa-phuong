@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
@@ -273,6 +273,28 @@ public class UserGroup : EntityBase
     public bool Admin { get; set; }
     public Dictionary<string, string> Perms { get; set; } = new();
     public List<string> Scope { get; set; } = new();
+}
+
+/// <summary>Hướng dẫn sử dụng trong phần mềm: nội dung, tệp/video đính kèm; mỗi hướng dẫn dành cho một số nhóm người dùng.</summary>
+[Table("Guides")]
+public class Guide : EntityBase
+{
+    [MaxLength(300)] public string Title { get; set; } = "";
+    [MaxLength(200)] public string? Category { get; set; }
+    public string? Content { get; set; }
+    /// <summary>Mã các nhóm người dùng được xem; để trống = mọi người dùng.</summary>
+    public List<string> Groups { get; set; } = new();
+    public int Order { get; set; }
+}
+
+/// <summary>Thiết lập hệ thống dạng khóa – giá trị (thông tin đơn vị, nhận diện giao diện…).</summary>
+[Table("Settings")]
+public class AppSetting
+{
+    [Key, MaxLength(64)] public string Key { get; set; } = "";
+    public string? Value { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    [MaxLength(64)] public string? UpdatedBy { get; set; }
 }
 
 [Table("Catalogs")]

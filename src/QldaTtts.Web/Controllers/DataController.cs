@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -32,11 +32,12 @@ public class DataController : ApiControllerBase
         foreach (var def in Collections.All)
         {
             var list = await def.Query(Db).AsNoTracking().ToListAsync();
-            result[def.Name] = list.Where(Visible).Cast<object>().ToList();
+            result[def.Name] = list.Where(Visible).Where(e => e is not Guide g || Uc.SeesGuide(g)).Cast<object>().ToList();
         }
+        var hiddenGuides = (await Db.Guides.AsNoTracking().ToListAsync()).Where(g => !Uc.SeesGuide(g)).Select(g => g.Id).ToHashSet();
         // Tệp đính kèm (không gồm thùng rác) trong phạm vi dự án được giao
         result["attachments"] = (await Db.Attachments.AsNoTracking().Where(a => a.DeletedAt == null).OrderBy(a => a.UploadedAt).ToListAsync())
-            .Where(a => Uc.InScope(a.ProjectId)).Cast<object>().ToList();
+            .Where(a => a.Collection == "guides" ? !hiddenGuides.Contains(a.RecordId) : Uc.InScope(a.ProjectId)).Cast<object>().ToList();
         if (Uc.Can("quan-tri"))
         {
             result["users"] = await Db.Users.AsNoTracking().OrderBy(u => u.Username).Cast<object>().ToListAsync();

@@ -70,7 +70,11 @@ Giải nén gói mới và chạy lại `.\install.ps1` (không cần tham số 
   `BACKUP DATABASE [QLDA_TTTS] TO DISK = N'E:\Backup\QLDA_TTTS.bak' WITH INIT, COMPRESSION`
 - **Tệp đính kèm**: sao lưu thư mục `-DataPath\files` cùng lịch (robocopy sang ổ/máy khác).
 - **Khóa ứng dụng**: thư mục `<InstallPath>\App_Data\keys`. Khóa này mã hóa cả khóa xác thực 2 lớp: mất khóa thì mọi người phải đăng nhập lại và tài khoản quản trị phải thiết lập lại xác thực 2 lớp (mục 8a). Phục hồi CSDL sang máy chủ mới thì chép kèm thư mục này.
-- Trong phần mềm: *Quản trị hệ thống → Hệ thống → Tải tệp sao lưu* xuất toàn bộ dữ liệu nghiệp vụ dạng JSON.
+- **Sao lưu tự động trong phần mềm** (từ bản 1.1): hằng đêm từ 1 giờ sáng, phần mềm tự ghi một tệp `SaoLuu_QLDA_*.json` (toàn bộ dữ liệu) và chép thêm các tệp đính kèm mới vào thư mục sao lưu, giữ 14 bản gần nhất. Thư mục mặc định `-DataPath\backups` (cài mới) hoặc `<InstallPath>\App_Data\backups` (bản cài trước). Nên đổi sang ổ khác hoặc ổ mạng trong `appsettings.Production.json`:
+  `"Storage": { "BackupPath": "E:\\SaoLuu\\QLDA" }, "Backup": { "Hour": 1, "Keep": 14, "Enabled": true }`
+  (ổ mạng thì cấp quyền ghi cho `IIS APPPOOL\QLDA_TTTS`). Danh sách bản sao lưu xem tại *Quản trị hệ thống → Sao lưu, hệ thống*.
+- Trong phần mềm: *Quản trị hệ thống → Sao lưu, hệ thống* có *Tải tệp sao lưu dữ liệu (.json)* và *Tải bản sao lưu đầy đủ kèm tệp (.zip)*.
+- **Thùng rác tệp đính kèm**: tệp người dùng gỡ hoặc tệp của bản ghi bị xóa được giữ 30 ngày, quản trị khôi phục tại *Quản trị hệ thống → Kho tệp, thùng rác*; quá 30 ngày phần mềm tự xóa hẳn.
 
 ## 8. Bảo mật đã có
 

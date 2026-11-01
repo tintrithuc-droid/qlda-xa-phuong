@@ -57,8 +57,8 @@ const MODULES = [
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
 const EXTRA_ROUTES = ['hien-truong','doi-chieu'];
-const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','users','groups','catalogs','logs'];
-const COL_LABEL = {projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống'};
+const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','users','groups','catalogs','logs','attachments'];
+const COL_LABEL = {projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
 
 /* --- tiện ích --- */
 const $ = (s,el=document)=>el.querySelector(s);
@@ -135,7 +135,9 @@ const Store = {
   },
   async del(col,id){
     await api('DELETE',(col==='users'?'/api/users/':'/api/data/'+col+'/')+encodeURIComponent(id));
-    this.data[col]=this.data[col].filter(x=>x.id!==id); onData(); this.soon();
+    this.data[col]=this.data[col].filter(x=>x.id!==id);
+    this.data.attachments=this.data.attachments.filter(a=>!(a.collection===col && a.recordId===id)); /* tệp của bản ghi đã chuyển vào thùng rác */
+    onData(); this.soon();
   }
 };
 const D = c => Store.data[c];
@@ -218,6 +220,15 @@ function alerts(){
     if(left<0 && done<100) out.push({lvl:'bad', mod:'goi-thau', text:`Hợp đồng <b>${esc(c.number)}</b> đã hết hạn ${-left} ngày, khối lượng thực hiện ${fmtP(done)}.`});
     else if(left>=0 && left<=60 && done<90) out.push({lvl:'warn', mod:'goi-thau', text:`Hợp đồng <b>${esc(c.number)}</b> còn ${left} ngày đến hạn (${fmtDate(e)}), khối lượng thực hiện ${fmtP(done)}.`});
   });
+  /* Bảo lãnh hợp đồng, giấy phép… sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực */
+  const expiry=(until, label, mod)=>{ if(!until) return; const left=days(TODAY,until);
+    if(left<0 && left>=-90) out.push({lvl:'bad', mod, text:`${label} đã hết hiệu lực từ ${fmtDate(until)} (${-left} ngày).`});
+    else if(left>=0 && left<=30) out.push({lvl:'warn', mod, text:`${label} sắp hết hiệu lực: còn ${left} ngày (đến ${fmtDate(until)}).`}); };
+  D('contracts').filter(c=>inFilter(contractPid(c))).forEach(c=>{ const k=pkgOf(c.packageId); if(k && /thanh lý/i.test(k.status||'')) return;
+    expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${esc(c.number)}</b>`, 'goi-thau');
+    if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${esc(c.number)}</b>`, 'goi-thau'); });
+  D('legal').filter(l=>l.validUntil && inFilter(l.projectId)).forEach(l=>{ const p=projOf(l.projectId); if(p && /hoàn thành|quyết toán/i.test(p.status||'')) return;
+    const k=l.packageId&&pkgOf(l.packageId); expiry(l.validUntil, `${esc(l.type)} <b>${esc(l.number)}</b> (${esc(k?k.code:(p?p.code:''))})`, k?'goi-thau':'du-an'); });
   D('payplans').forEach(p=>{
     const c=get('contracts',p.contractId); if(!c||!inFilter(contractPid(c))) return;
     if(p.planDate<TODAY && p.planDate>addDays(TODAY,-60)){
@@ -256,9 +267,9 @@ function table(cols, rows, o={}){
 const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>` : extra;
 
 /* Hộp thoại biểu mẫu */
-function fieldHTML(f, v){
+function fieldHTML(f, v, rec={}){
   const id='f_'+f.key, req=f.req?' <span class="req">*</span>':'';
-  const cls='fld'+(f.full||f.type==='textarea'||f.type==='checks'||f.type==='files'?' full':'');
+  const cls='fld'+(f.full||f.type==='textarea'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'');
   let input='';
   const val = v ?? f.def ?? '';
   switch(f.type){
@@ -270,6 +281,7 @@ function fieldHTML(f, v){
     case 'password': input=`<input id="${id}" type="password" autocomplete="new-password" value="">`; break;
     case 'checks': { const list=typeof f.options==='function'?f.options():f.options; const cur=Array.isArray(val)?val:[]; input=`<div class="checks" id="${id}">${list.map(o=>{const [ov,ol]=Array.isArray(o)?o:[o,o]; return `<label><input type="checkbox" value="${esc(ov)}" ${cur.includes(ov)?'checked':''}> ${esc(ol)}</label>`;}).join('')}</div>`; break; }
     case 'files': input=`<input id="${id}" type="file" ${f.multiple?'multiple':''} accept="${esc(f.accept||'')}">${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break;
+    case 'attach': input=attachHTML(f, rec); break;
     case 'html': input=f.html; break;
     default: input=`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(f.ph||'')}">`;
   }
@@ -282,15 +294,17 @@ function openModal(html, narrow){
 }
 function closeModal(){ const ov=$('#ov'); ov.hidden=true; ov.innerHTML=''; if(S.dirty){ S.dirty=false; render(); } }
 function openForm({title, fields, value={}, onSave, narrow, submit='Lưu'}){
-  const ov=openModal(`<form class="mform ${narrow?'narrow':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key])).join('')}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn primary" type="submit">${esc(submit)}</button></footer></form>`);
+  const ov=openModal(`<form class="mform ${narrow?'narrow':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key], value)).join('')}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn primary" type="submit">${esc(submit)}</button></footer></form>`);
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
+  fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
   form.onsubmit=async e=>{
     e.preventDefault();
     const v={...value}; const err=$('#mform_err'); err.textContent='';
     for(const f of fields){
       if(f.type==='html') continue;
       const el=$('#f_'+f.key);
+      if(f.type==='attach'){ const n=el._keep()+el._files.length; if(f.req && !n){ err.textContent='Vui lòng đính kèm "'+f.label+'".'; return; } continue; }
       if(f.type==='checks') v[f.key]=$$('input:checked',el).map(i=>i.value);
       else if(f.type==='files') v[f.key]=[...el.files];
       else if(f.type==='password') v[f.key]=el.value;
@@ -300,7 +314,10 @@ function openForm({title, fields, value={}, onSave, narrow, submit='Lưu'}){
       if(f.type==='percent' && v[f.key]!=null && (v[f.key]<0||v[f.key]>100)){ err.textContent='"'+f.label+'" phải từ 0 đến 100.'; return; }
     }
     const btn=form.querySelector('[type=submit]'); btn.disabled=true; btn.textContent='Đang lưu…';
-    try{ const r=await onSave(v); if(r===false){ btn.disabled=false; btn.textContent=submit; return; } closeModal(); toast('Đã lưu'); }
+    try{ const r=await onSave(v); if(r===false){ btn.disabled=false; btn.textContent=submit; return; }
+      const atf=fields.filter(f=>f.type==='attach');
+      if(atf.length){ const failed=await attachApply(atf, r, v, btn); if(failed){ closeModal(); toast('Đã lưu dữ liệu nhưng '+failed,'err'); return; } }
+      closeModal(); toast('Đã lưu'); }
     catch(ex){ console.error(ex); err.textContent=errText(ex); btn.disabled=false; btn.textContent=submit; }
   };
 }
@@ -322,6 +339,79 @@ async function storePhoto(file){
 }
 async function storeFile(file){ const r=await uploadFile(file); return {assetId:r.id, url:r.url}; }
 const fileUrl = o => o.url || (o.assetId? '/api/files/'+o.assetId : '');
+
+/* ===== Tệp đính kèm dùng chung cho mọi màn hình nhập liệu =====
+   Trường biểu mẫu {type:'attach', col, kind?, ref?/refFrom?, rid?, photo?, accept?}:
+   - col: loại bản ghi nhận tệp (mặc định là bản ghi của biểu mẫu); rid(r,v): mã bản ghi nhận tệp sau khi lưu
+   - kind: loại tài liệu; ref / refFrom: tham chiếu phụ (đợt nghiệm thu, ngày cập nhật…)
+   - Tệp mới được tải lên sau khi lưu bản ghi; tệp gỡ ra chuyển vào thùng rác (quản trị khôi phục được 30 ngày) */
+const ATT_ACCEPT = '.pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.dwg,.zip,.rar,.7z,.mpp,.xml,.txt';
+function atts(col, id, kind, ref){ if(!id) return []; return D('attachments').filter(a=>a.collection===col && a.recordId===id && (kind==null||a.kind===kind) && (ref==null||(a.ref||'')===ref)).sort(by('uploadedAt')); }
+const attUrl = a => '/api/files/'+encodeURIComponent(a.fileId);
+const AICO={"clip": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9\"/></svg>", "img": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><circle cx=\"9\" cy=\"10\" r=\"2\"/><path d=\"M21 16l-5-5-9 9\"/></svg>", "doc": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z\"/><path d=\"M14 3v6h6\"/></svg>", "cam": "<svg class=\"aico\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 8h3l2-3h6l2 3h3v11H4z\"/><circle cx=\"12\" cy=\"13\" r=\"3.5\"/></svg>"};
+const attIcon = a => /^image\//.test(a.contentType)?AICO.img:/pdf|word|sheet|excel|text/.test(a.contentType)?AICO.doc:AICO.clip;
+function attMeta(a){ return `${fmtSize(a.size)} · ${esc(a.uploadedBy||'')} · ${fmtDT(a.uploadedAt)}`; }
+/* Danh sách tệp gọn để hiển thị trong trang (bấm để xem; ảnh mở khung xem nhanh) */
+function attLinks(list, opt={}){
+  if(!list.length) return opt.empty ?? '<span class="muted small">Chưa đính kèm</span>';
+  const max=opt.max||99; const shown=list.slice(0,max);
+  return `<span class="attl">${shown.map(a=>`<a href="${attUrl(a)}" target="_blank" rel="noopener" ${/^image\//.test(a.contentType)?`data-act="att-view" data-id="${esc(a.id)}"`:''} title="${esc(a.fileName)} · ${attMeta(a)}">${attIcon(a)} ${esc(a.fileName)}</a>`).join('')}${list.length>max?`<button class="btn sm ghost" data-act="att-all" data-id="${esc(list.map(a=>a.id).join(','))}">+${list.length-max} tệp</button>`:''}</span>`;
+}
+/* Ô "Tệp" trong bảng: 1 tệp hiện tên, nhiều tệp hiện số lượng (bấm xem danh sách) */
+function attCell(list, btnOnly){ if(!list.length) return '<span class="muted small">—</span>'; if(list.length===1 && !btnOnly) return attLinks(list); return `<button class="btn sm ghost" data-act="att-all" data-id="${esc(list.map(a=>a.id).join(','))}">${AICO.clip} ${list.length} tệp</button>`; }
+function attachHTML(f, rec){
+  const rid=f.cur!==undefined? f.cur : rec.id;
+  const ref=f.ref!=null? f.ref : (f.refFrom? (rec[f.refFrom]||'') : null);
+  const cur=rid? atts(f.col, rid, f.kind, ref) : [];
+  return `<div class="attbox" id="f_${f.key}"><ul class="attlist">${cur.map(a=>`<li data-aid="${esc(a.id)}"><a href="${attUrl(a)}" target="_blank" rel="noopener">${attIcon(a)} ${esc(a.fileName)}</a><span class="small muted">${attMeta(a)}</span><button type="button" class="btn sm ghost" data-attdel title="Gỡ tệp này">Gỡ</button></li>`).join('')}</ul>
+    <label class="attdrop"><input type="file" multiple accept="${esc(f.accept||ATT_ACCEPT)}"><span>${f.photo?AICO.cam+' Chụp ảnh / chọn ảnh':AICO.clip+' Chọn tệp'} hoặc kéo thả vào đây</span></label><ul class="attlist attnew"></ul>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}</div>`;
+}
+function attachWire(box){
+  box._files=[]; box._del=new Set();
+  box._keep=()=>$$('li[data-aid]',box).filter(li=>!box._del.has(li.dataset.aid)).length;
+  const inp=$('input[type=file]',box), lst=$('.attnew',box);
+  const draw=()=>{ lst.innerHTML=box._files.map((f,i)=>`<li><span>${/^image\//.test(f.type)?AICO.img:AICO.clip} ${esc(f.name)}</span><span class="small muted">${fmtSize(f.size)} · sẽ tải lên khi lưu</span><button type="button" class="btn sm ghost" data-i="${i}">Bỏ</button></li>`).join(''); };
+  const add=fl=>{ for(const f of fl){ if(f.size>500*1024*1024){ toast('Tệp '+f.name+' vượt quá 500 MB.','err'); continue; } box._files.push(f); } draw(); };
+  inp.onchange=()=>{ add([...inp.files]); inp.value=''; };
+  const drop=$('.attdrop',box);
+  drop.addEventListener('dragover',e=>{ e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('over'); add([...e.dataTransfer.files]); });
+  box.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.i!=null){ box._files.splice(+b.dataset.i,1); draw(); }
+    else if(b.hasAttribute('data-attdel')){ const li=b.closest('li'); const id=li.dataset.aid;
+      if(box._del.has(id)){ box._del.delete(id); li.classList.remove('del'); b.textContent='Gỡ'; } else { box._del.add(id); li.classList.add('del'); b.textContent='Hoàn tác'; } }
+  });
+}
+async function uploadAttachment(file, col, rid, kind, ref, photo){
+  let f=file; if(photo){ try{ if(/^image\/(jpeg|png|webp)/.test(file.type)) f=await downscale(file); }catch{} }
+  const fd=new FormData(); fd.append('file',f, photo&&f!==file? f.name : file.name); fd.append('collection',col); fd.append('recordId',rid); if(kind) fd.append('kind',kind); if(ref) fd.append('ref',ref);
+  const a=await api('POST','/api/attachments',fd); Store.data.attachments.push(a); return a;
+}
+/* Sau khi lưu bản ghi: gỡ tệp đánh dấu và tải tệp mới. Trả về thông báo lỗi (nếu có) */
+async function attachApply(fields, r, v, btn){
+  const errs=[]; let total=0, done=0;
+  fields.forEach(f=>{ total+=$('#f_'+f.key)._files.length; });
+  for(const f of fields){
+    const box=$('#f_'+f.key);
+    for(const id of box._del){ try{ await api('DELETE','/api/attachments/'+encodeURIComponent(id)); Store.data.attachments=Store.data.attachments.filter(a=>a.id!==id); }catch(ex){ errs.push(errText(ex)); } }
+    if(!box._files.length) continue;
+    const rid=typeof f.rid==='function'? f.rid(r,v) : (f.rid || (r&&r.id) || v.id);
+    if(!rid){ errs.push('chưa xác định được bản ghi để đính kèm tệp'); continue; }
+    const ref=f.ref!=null? f.ref : (f.refFrom? (v[f.refFrom]||'') : '');
+    for(const file of box._files){
+      if(btn) btn.textContent=`Đang tải tệp ${++done}/${total}…`;
+      try{ await uploadAttachment(file, f.col, rid, f.kind, ref, f.photo); }catch(ex){ errs.push(file.name+': '+errText(ex)); }
+    }
+  }
+  onData(); Store.soon();
+  return errs.length? 'có '+errs.length+' tệp lỗi ('+errs[0]+')' : '';
+}
+/* Biểu mẫu nhỏ chỉ để đính kèm tệp vào một bản ghi có sẵn */
+function attachForm(title, col, rid, kind, opt={}){
+  openForm({title, narrow:true, value:{id:rid}, fields:[{key:'att',label:opt.label||'Tệp đính kèm',type:'attach',col,kind,ref:opt.ref,photo:opt.photo,accept:opt.accept,full:true,rid}], onSave:()=>({id:rid})});
+}
 
 /* Xuất tệp (Excel/JSON) */
 async function saveFile(filename, data){

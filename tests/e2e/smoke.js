@@ -95,6 +95,133 @@ async function login(p, u, pw = PW) {
     if (nm1 !== nm0 + 1) errs.push('Không thêm được tệp mô hình');
   } else errs.push('Không thấy nút thêm tệp mô hình');
 
+  // ===== Đợt 1: tệp đính kèm ở mọi màn hình nhập liệu =====
+  const pdf = path.join(os.tmpdir(), 'QD-phe-duyet.pdf'); fs.writeFileSync(pdf, '%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+  const pdf2 = path.join(os.tmpdir(), 'Bao-lanh.pdf'); fs.copyFileSync(pdf, pdf2);
+  const attN = () => p.evaluate(() => Store.data.attachments.length);
+  const attOf = (col, id, kind) => p.evaluate(([c, i, k]) => Store.data.attachments.filter(a => a.collection === c && a.recordId === i && (!k || a.kind === k)).length, [col, id, kind]);
+  const submit = async () => { await p.click('#mform [type=submit]'); try { await p.waitForSelector('#mform', { state: 'detached', timeout: 15000 }); } catch (e) { throw new Error('Biểu mẫu không đóng: ' + (await p.textContent('#mform_err').catch(() => '?'))); } await p.waitForTimeout(300); };
+  const putFiles = (key, files) => p.setInputFiles(`#f_${key} input[type=file]`, files);
+  const openP = async id => { await go(p, 'du-an'); await p.evaluate(i => { S.sel.project = i; S.tab.proj = 'info'; render(); }, id); await p.waitForTimeout(200); };
+  // A1: Quyết định phê duyệt dự án kèm tệp ngay trong biểu mẫu dự án
+  await openP('p1'); await p.click('[data-act=edit-projects]'); await p.waitForTimeout(200);
+  if (!(await p.inputValue('#f_decNo')).includes('1021')) errs.push('A1: không nạp số QĐ phê duyệt hiện có');
+  await p.fill('#f_decDate', '2025-01-20'); await putFiles('decAtt', [pdf]); await submit();
+  if (await attOf('legal', 'l2') !== 1) errs.push('A1: tệp QĐ phê duyệt chưa gắn vào hồ sơ pháp lý l2');
+  if (!(await p.textContent('#content')).includes('QD-phe-duyet.pdf')) errs.push('A1: Thông tin chung chưa hiện tệp QĐ');
+  await p.screenshot({ path: `${SHOTS}/dot1-du-an-thong-tin.png`, fullPage: true });
+  // A1: dự án mới nhập số QĐ + tệp → tự tạo hồ sơ pháp lý
+  await p.evaluate(() => ACT['add-project']()); await p.waitForTimeout(200);
+  await p.fill('#f_code', 'DA-TEST'); await p.fill('#f_name', 'Dự án kiểm thử đính kèm'); await p.fill('#f_tmdt', '1000000000');
+  await p.fill('#f_decNo', '99/QĐ-UBND'); await p.fill('#f_decDate', '2026-10-01'); await putFiles('decAtt', [pdf, img]); await submit();
+  const newP = await p.evaluate(() => Store.data.projects.find(x => x.code === 'DA-TEST'));
+  const newL = await p.evaluate(id => Store.data.legal.find(l => l.projectId === id && l.type === 'Quyết định phê duyệt dự án'), newP && newP.id);
+  if (!newL || await attOf('legal', newL.id) !== 2 || !newP.decision.includes('99/QĐ-UBND')) errs.push('A1: dự án mới không tạo được QĐ phê duyệt kèm 2 tệp');
+  // A2: công việc + hoàn thành kèm kết quả
+  await openP('p1'); await p.click('[data-g=proj][data-id=tasks]'); await p.waitForTimeout(200);
+  await p.click('[data-act=add-task]'); await p.waitForTimeout(200); await p.fill('#f_name', 'Công việc thử đính kèm'); await p.fill('#f_due', '2026-12-31'); await putFiles('att', [pdf]); await submit();
+  const tk = await p.evaluate(() => Store.data.tasks.find(t => t.name === 'Công việc thử đính kèm'));
+  await p.click(`[data-act=task-done][data-id="${tk.id}"]`); await p.waitForTimeout(200); await putFiles('att', [pdf2]); await submit();
+  if (await attOf('tasks', tk.id, 'Văn bản giao việc') !== 1 || await attOf('tasks', tk.id, 'Kết quả') !== 1) errs.push('A2: thiếu tệp giao việc / kết quả');
+  if ((await p.evaluate(id => Store.data.tasks.find(t => t.id === id).status, tk.id)) !== 'Hoàn thành') errs.push('A2: chưa chuyển Hoàn thành');
+  // Hồ sơ pháp lý nhiều tệp + hiệu lực
+  await p.click('[data-g=proj][data-id=legal]'); await p.waitForTimeout(200); await p.click('[data-act=add-legal]'); await p.waitForTimeout(200);
+  await p.selectOption('#f_type', 'Giấy phép xây dựng'); await p.fill('#f_number', 'GPXD-TEST'); await p.fill('#f_date', '2026-01-01'); await p.fill('#f_title', 'Giấy phép thử');
+  await p.fill('#f_validUntil', await p.evaluate(() => addDays(TODAY, 20))); await putFiles('att', [pdf, pdf2, img]); await submit();
+  const gp = await p.evaluate(() => Store.data.legal.find(l => l.number === 'GPXD-TEST'));
+  if (await attOf('legal', gp.id) !== 3) errs.push('A0: hồ sơ pháp lý không nhận 3 tệp');
+  // A3: hạng mục
+  await go(p, 'mo-hinh'); const it = await p.evaluate(() => Store.data.items[0].id);
+  await p.evaluate(id => ACT['edit-items'](id), it); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
+  if (await attOf('items', it) !== 1) errs.push('A3: hạng mục chưa có tệp');
+  // A4: gói thầu: QĐ KHLCNT (đã có l6) + QĐ KQLCNT
+  await go(p, 'goi-thau'); await p.evaluate(() => { S.sel.pkg = 'k1'; render(); }); await p.waitForTimeout(200);
+  await p.click('[data-act=edit-packages]'); await p.waitForTimeout(200);
+  if (!(await p.inputValue('#f_khNo')).includes('61/QĐ-BQL')) errs.push('A4: không nạp số QĐ KHLCNT');
+  await putFiles('khAtt', [pdf]); await putFiles('kqAtt', [pdf2]); await submit();
+  if (await attOf('legal', 'l6') !== 1 || await attOf('legal', 'l7') !== 1) errs.push('A4: tệp KHLCNT/KQLCNT chưa gắn');
+  // A5: hợp đồng: bản ký + bảo lãnh, hiệu lực bảo lãnh sắp hết → cảnh báo
+  const cid = await p.evaluate(() => Store.data.contracts.find(c => c.packageId === 'k1').id);
+  await p.click(`[data-act=edit-contracts]`); await p.waitForTimeout(200);
+  await p.fill('#f_guaranteeUntil', await p.evaluate(() => addDays(TODAY, 15))); await putFiles('att0', [pdf]); await putFiles('att1', [pdf2]); await submit();
+  if (await attOf('contracts', cid, 'Hợp đồng đã ký') !== 1 || await attOf('contracts', cid, 'Bảo lãnh thực hiện hợp đồng') !== 1) errs.push('A5: tệp hợp đồng/bảo lãnh chưa gắn');
+  if (!(await p.evaluate(() => alerts().some(a => a.text.includes('Bảo lãnh thực hiện HĐ') && a.text.includes('sắp hết hiệu lực'))))) errs.push('B5: không cảnh báo bảo lãnh sắp hết hạn');
+  if (!(await p.evaluate(() => alerts().some(a => a.text.includes('GPXD-TEST'))))) errs.push('B5: không cảnh báo giấy phép sắp hết hạn');
+  await p.click('[data-act=edit-contracts]'); await p.waitForTimeout(300); await putFiles('att2', [img]); await p.screenshot({ path: `${SHOTS}/dot1-form-hop-dong.png` }); await p.click('#mform [data-close]'); await p.waitForTimeout(200);
+  // A6: phụ lục
+  await p.click('[data-act=add-addendum]'); await p.waitForTimeout(200); await p.fill('#f_number', 'PL-TEST'); await p.fill('#f_date', '2026-10-01'); await p.fill('#f_content', 'Điều chỉnh thử'); await putFiles('att', [pdf]); await submit();
+  const ad = await p.evaluate(() => Store.data.addenda.find(a => a.number === 'PL-TEST'));
+  if (await attOf('addenda', ad.id) !== 1) errs.push('A6: phụ lục chưa có tệp');
+  await p.screenshot({ path: `${SHOTS}/dot1-hop-dong.png`, fullPage: true });
+  // A7, A8: tiến độ được duyệt + ảnh cập nhật tiến độ
+  await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100).id);
+  await p.evaluate(id => ACT['edit-schedule'](id), sid); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
+  await p.evaluate(id => ACT['upd-sched'](id), sid); await p.waitForTimeout(200); await p.fill('#f_progress', '55'); await putFiles('att', [img]); await submit();
+  if (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1) errs.push('A7/A8: tệp tiến độ chưa gắn');
+  const today = await p.evaluate(() => TODAY);
+  if ((await p.evaluate(id => Store.data.attachments.find(a => a.recordId === id && a.kind === 'Cập nhật tiến độ').ref, sid)) !== today) errs.push('A8: ảnh cập nhật chưa gắn theo ngày');
+  // A9: nhật ký: trang đã ký + chú thích ảnh, bỏ ảnh
+  await go(p, 'nhat-ky');
+  await p.evaluate(id => ACT['edit-diaries'](id), diary.id); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
+  await p.evaluate(id => ACT['diary-photo'](id), diary.id); await p.waitForTimeout(300);
+  await p.fill('[data-cap="0"]', 'Móng M1 sau khi đổ'); await submit();
+  const dph = await p.evaluate(id => Store.data.diaries.find(d => d.id === id).photos, diary.id);
+  if (await attOf('diaries', diary.id) !== 1 || dph[0].caption !== 'Móng M1 sau khi đổ') errs.push('A9: thiếu trang nhật ký đã ký hoặc chú thích ảnh');
+  // A10, A11: bảng khối lượng gốc + biên bản nghiệm thu theo đợt
+  await p.evaluate(() => { S.tab.kl = 'hd'; }); await go(p, 'khoi-luong'); const kcid = await p.evaluate(() => pickContract('klc'));
+  await p.click('[data-act=att-boq]'); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
+  await p.click('[data-act=add-vol]'); await p.waitForTimeout(200); await p.selectOption('#f_boqId', { index: 0 }); await p.fill('#f_period', 'Đợt thử'); await p.fill('#f_doneQty', '1'); await putFiles('att', [pdf]); await submit();
+  if (await attOf('contracts', kcid, 'Bảng khối lượng hợp đồng') !== 1) errs.push('A10: bảng khối lượng gốc chưa gắn');
+  if ((await p.evaluate(c => Store.data.attachments.filter(a => a.recordId === c && a.kind === 'Biên bản nghiệm thu' && a.ref === 'Đợt thử').length, kcid)) !== 1) errs.push('A11: biên bản nghiệm thu đợt chưa gắn');
+  // A12, A13: kế hoạch thanh toán, hồ sơ thanh toán nhiều tệp, chứng từ Kho bạc khi xác nhận đã chi
+  await go(p, 'thanh-toan'); await p.click('[data-g=tt][data-id=kh]'); await p.waitForTimeout(200);
+  const pp = await p.evaluate(() => Store.data.payplans[0].id);
+  await p.evaluate(id => ACT['edit-payplans'](id), pp); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
+  await p.click('[data-g=tt][data-id=hs]'); await p.waitForTimeout(200);
+  await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); await p.selectOption('#f_contractId', await p.evaluate(() => Store.data.contracts.find(c => contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
+  const pay = await p.evaluate(() => Store.data.payments.find(x => x.number === 'TT-TEST'));
+  await p.evaluate(id => ACT['pay-done'](id), pay.id); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
+  if (await attOf('payplans', pp) !== 1 || await attOf('payments', pay.id, 'Hồ sơ đề nghị thanh toán') !== 2 || await attOf('payments', pay.id, 'Chứng từ Kho bạc') !== 1) errs.push('A12/A13: tệp thanh toán chưa đủ');
+  if ((await p.evaluate(id => Store.data.payments.find(x => x.id === id).status, pay.id)) !== 'Đã thanh toán') errs.push('A13: chưa chuyển Đã thanh toán');
+  await p.screenshot({ path: `${SHOTS}/dot1-thanh-toan.png`, fullPage: true });
+  // B2: gỡ tệp trong biểu mẫu → thùng rác → khôi phục; xóa bản ghi → tệp vào thùng rác
+  await p.evaluate(id => ACT['edit-payments'](id), pay.id); await p.waitForTimeout(200);
+  await p.click('#f_att li[data-aid] [data-attdel]'); await submit();
+  if (await attOf('payments', pay.id, 'Hồ sơ đề nghị thanh toán') !== 1) errs.push('B2: gỡ tệp không được');
+  await p.evaluate(id => { ACT.del(id, { dataset: { col: 'addenda' } }); }, ad.id); await p.waitForTimeout(300); await p.click('#cf_ok'); await p.waitForTimeout(800);
+  if (await attOf('addenda', ad.id) !== 0) errs.push('B2: xóa bản ghi nhưng tệp còn hiện');
+  console.log('Tệp đính kèm sau đợt 1:', await attN());
+  await go(p, 'quan-tri'); await p.click('[data-g=qt][data-id=files]'); await p.waitForTimeout(1200);
+  await p.screenshot({ path: `${SHOTS}/dot1-kho-tep.png`, fullPage: true });
+  const trash = await p.evaluate(() => ADM.storage && ADM.storage.trash.length);
+  if (trash !== 2) errs.push('B2: thùng rác có ' + trash + ' tệp (mong đợi 2)');
+  const n0 = await attOf('payments', pay.id);
+  const trPay = await p.evaluate(id => ADM.storage.trash.find(a => a.recordId === id).id, pay.id);
+  await p.click(`[data-act=att-restore][data-id="${trPay}"]`); await p.waitForTimeout(1500);
+  if (await attOf('payments', pay.id) !== n0 + 1) errs.push('B2: khôi phục tệp từ thùng rác không được');
+  p._expectFail = true;
+  const trAd = await p.evaluate(() => ADM.storage.trash.find(a => a.collection === 'addenda').id);
+  const rr = await p.evaluate(async id => (await fetch('/api/attachments/' + id + '/restore', { method: 'POST', headers: { 'X-QLDA': '1' } })).status, trAd);
+  p._expectFail = false;
+  if (rr !== 409) errs.push('B2: khôi phục tệp của bản ghi đã xóa phải báo 409, nhận ' + rr);
+  // B3: sao lưu lên máy chủ + bản đầy đủ .zip
+  await p.click('[data-g=qt][data-id=sys]'); await p.waitForTimeout(800);
+  await p.click('[data-act=backup-now]'); await p.waitForTimeout(2000);
+  const nb = await p.evaluate(() => ADM.auto && ADM.auto.items.length);
+  if (!nb) errs.push('B3: chưa có bản sao lưu trên máy chủ');
+  await p.screenshot({ path: `${SHOTS}/dot1-sao-luu.png`, fullPage: true });
+  const [zdl] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('[data-act=backup-full]')]);
+  const zbuf = fs.readFileSync(await zdl.path());
+  const zfiles = (zbuf.toString('latin1').match(/files\/\d{4}\//g) || []).length;
+  console.log('Sao lưu đầy đủ:', zdl.suggestedFilename(), Math.round(zbuf.length / 1024) + ' KB,', zfiles, 'mục tệp; bản tự động:', nb);
+  if (zbuf.readUInt32LE(0) !== 0x04034b50 || zfiles < 10) errs.push('B3: tệp .zip không đúng');
+  // B1: lấy mã tệp của dự án p2 để kiểm tra tài khoản giới hạn phạm vi (p1)
+  await go(p, 'du-an'); await p.evaluate(() => { S.sel.project = 'p2'; S.tab.proj = 'info'; render(); }); await p.waitForTimeout(200);
+  await p.click('[data-act=edit-projects]'); await p.waitForTimeout(200); await putFiles('decAtt', [pdf]); await submit();
+  var fileP2 = await p.evaluate(() => Store.data.attachments.find(a => a.projectId === 'p2').fileId);
+  var fileP1 = await p.evaluate(() => Store.data.attachments.find(a => a.recordId === 'l2').fileId);
+  await p.evaluate(() => { S.tab.qt = 'users'; S.sel.project = null; });
+
   // Quản trị: thêm người dùng, phân quyền nhóm, nhật ký
   await go(p, 'quan-tri');
   await p.click('[data-act=add-user]'); await p.waitForTimeout(200);
@@ -134,6 +261,15 @@ async function login(p, u, pw = PW) {
   const denied = await m.evaluate(async () => (await fetch('/api/data/catalogs/c-x', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: '{"type":"x","value":"y"}' })).status);
   if (denied !== 403) errs.push('Giám sát ghi được danh mục: ' + denied);
   m._expectFail = false;
+  m._expectFail = true;
+  const f2 = await m.evaluate(async id => (await fetch('/api/files/' + id)).status, fileP2);
+  const f1 = await m.evaluate(async id => (await fetch('/api/files/' + id)).status, fileP1);
+  const up2 = await m.evaluate(async () => { const fd = new FormData(); fd.append('file', new Blob(['x'], { type: 'text/plain' }), 'a.txt'); fd.append('collection', 'schedule'); fd.append('recordId', Store.data.schedule[0].id); return (await fetch('/api/attachments', { method: 'POST', headers: { 'X-QLDA': '1' }, body: fd })).status; });
+  const up3 = await m.evaluate(async () => { const fd = new FormData(); fd.append('file', new Blob(['x'], { type: 'text/plain' }), 'a.txt'); fd.append('collection', 'payments'); fd.append('recordId', 'x'); return (await fetch('/api/attachments', { method: 'POST', headers: { 'X-QLDA': '1' }, body: fd })).status; });
+  m._expectFail = false;
+  console.log('B1 giám sát: tệp dự án ngoài phạm vi', f2, '; trong phạm vi', f1, '; đính kèm tiến độ', up2, '; đính kèm thanh toán', up3);
+  if (f2 !== 403 || f1 !== 200 || up2 !== 200 || up3 !== 403) errs.push('B1: phân quyền tệp sai');
+  if (await m.evaluate(() => Store.data.attachments.some(a => a.projectId && a.projectId !== 'p1'))) errs.push('B1: giám sát thấy tệp đính kèm dự án khác');
   console.log('Giám sát thấy', await m.evaluate(() => Store.data.projects.length), 'dự án, logs', await m.evaluate(() => Store.data.logs.length));
 
   // Quản trị đặt lại mật khẩu: phiên đang mở của giám sát phải hết hiệu lực

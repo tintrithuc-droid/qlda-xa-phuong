@@ -328,3 +328,23 @@ tfoot td{font-weight:600; background:var(--panel2)}
   .rt tfoot td:empty{display:none}
 }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important} }
+
+/* Tệp đính kèm dùng chung */
+.attbox{display:flex; flex-direction:column; gap:6px}
+.attlist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px}
+.attlist li{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:5px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel)}
+.attlist li > a, .attlist li > span:first-child{flex:1 1 220px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.attlist li.del{opacity:.55}
+.attlist li.del > a{text-decoration:line-through}
+.attdrop{display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; border:1.5px dashed var(--line); border-radius:8px; cursor:pointer; color:var(--muted); font-size:13px; text-align:center; position:relative}
+.attdrop:hover, .attdrop.over{border-color:var(--accent); color:var(--accent)}
+.attdrop input[type=file]{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+.attl{display:inline-flex; flex-wrap:wrap; gap:4px 10px; align-items:center}
+.attl a{white-space:nowrap; max-width:260px; overflow:hidden; text-overflow:ellipsis; display:inline-block; vertical-align:bottom}
+.thumbs figure{margin:0; display:flex; flex-direction:column; gap:2px; max-width:84px}
+.thumbs figcaption{font-size:11px; color:var(--muted); line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.photo-edit{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px}
+.photo-edit figure{margin:0; display:flex; flex-direction:column; gap:4px; border:1px solid var(--line); border-radius:6px; padding:6px}
+.photo-edit img{width:100%; height:96px; object-fit:cover; border-radius:4px}
+.photo-edit figure.del{opacity:.45}
+.aico{vertical-align:-2px; flex:none}

@@ -22,6 +22,9 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddSingleton<TwoFactor>();
+builder.Services.AddSingleton<FileStore>();
+builder.Services.AddSingleton<BackupService>();
+builder.Services.AddHostedService<MaintenanceService>();
 builder.Services.AddControllersWithViews().AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
 
 var keysDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
@@ -57,12 +60,29 @@ using (var scope = app.Services.CreateScope())
         db.Database.EnsureCreated();
         // CSDL SQLite tạo từ bản trước: bổ sung cột mới (EnsureCreated không tự thêm cột)
         var conn = db.Database.GetDbConnection(); conn.Open();
-        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        using (var cmd = conn.CreateCommand()) { cmd.CommandText = "PRAGMA table_info(Users)"; using var rd = cmd.ExecuteReader(); while (rd.Read()) cols.Add(rd.GetString(1)); }
-        foreach (var (col, type) in new[] { ("TotpSecret", "TEXT NULL"), ("TotpLastStep", "INTEGER NOT NULL DEFAULT 0"), ("RecoveryCodes", "TEXT NULL") })
-            if (!cols.Contains(col)) db.Database.ExecuteSqlRaw($"ALTER TABLE Users ADD COLUMN {col} {type}");
+        HashSet<string> Cols(string table)
+        {
+            var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using var cmd = conn.CreateCommand(); cmd.CommandText = $"PRAGMA table_info({table})";
+            using var rd = cmd.ExecuteReader(); while (rd.Read()) cols.Add(rd.GetString(1));
+            return cols;
+        }
+        foreach (var (table, col, type) in new[] {
+            ("Users", "TotpSecret", "TEXT NULL"), ("Users", "TotpLastStep", "INTEGER NOT NULL DEFAULT 0"), ("Users", "RecoveryCodes", "TEXT NULL"),
+            ("LegalDocuments", "ValidUntil", "TEXT NULL"), ("Contracts", "GuaranteeUntil", "TEXT NULL"), ("Contracts", "AdvanceGuaranteeUntil", "TEXT NULL") })
+            if (!Cols(table).Contains(col)) db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {col} {type}");
+        if (Cols("Attachments").Count == 0)
+        {
+            db.Database.ExecuteSqlRaw(@"CREATE TABLE Attachments (Id TEXT NOT NULL PRIMARY KEY, Collection TEXT NOT NULL, RecordId TEXT NOT NULL, ProjectId TEXT NULL,
+                Kind TEXT NULL, Ref TEXT NULL, FileId TEXT NOT NULL, FileName TEXT NOT NULL, ContentType TEXT NOT NULL, Size INTEGER NOT NULL,
+                UploadedBy TEXT NULL, UploadedAt TEXT NOT NULL, DeletedAt TEXT NULL, DeletedBy TEXT NULL)");
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_Attachments_Collection_RecordId ON Attachments (Collection, RecordId)");
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_Attachments_FileId ON Attachments (FileId)");
+        }
         conn.Close();
     }
+
+    Upgrades.Run(db);
 
     // Lệnh khẩn cấp khi quản trị duy nhất mất điện thoại: QldaTtts.Web.exe --reset-2fa <tên đăng nhập>
     var i = Array.IndexOf(args, "--reset-2fa");

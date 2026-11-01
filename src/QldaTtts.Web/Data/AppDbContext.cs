@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<Catalog> Catalogs => Set<Catalog>();
     public DbSet<AuditLog> Logs => Set<AuditLog>();
     public DbSet<StoredFile> Files => Set<StoredFile>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -62,6 +63,8 @@ public class AppDbContext : DbContext
         b.Entity<Payment>().HasIndex(x => x.ContractId);
         b.Entity<AuditLog>().HasIndex(x => x.Ts);
         b.Entity<Catalog>().HasIndex(x => x.Type);
+        b.Entity<Attachment>().HasIndex(x => new { x.Collection, x.RecordId });
+        b.Entity<Attachment>().HasIndex(x => x.FileId);
     }
 }
 

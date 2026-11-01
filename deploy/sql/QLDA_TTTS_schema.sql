@@ -596,3 +596,89 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101021414_AttachmentsAndValidity'
+)
+BEGIN
+    ALTER TABLE [LegalDocuments] ADD [ValidUntil] date NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101021414_AttachmentsAndValidity'
+)
+BEGIN
+    ALTER TABLE [Contracts] ADD [AdvanceGuaranteeUntil] date NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101021414_AttachmentsAndValidity'
+)
+BEGIN
+    ALTER TABLE [Contracts] ADD [GuaranteeUntil] date NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101021414_AttachmentsAndValidity'
+)
+BEGIN
+    CREATE TABLE [Attachments] (
+        [Id] nvarchar(64) NOT NULL,
+        [Collection] nvarchar(40) NOT NULL,
+        [RecordId] nvarchar(64) NOT NULL,
+        [ProjectId] nvarchar(64) NULL,
+        [Kind] nvarchar(200) NULL,
+        [Ref] nvarchar(100) NULL,
+        [FileId] nvarchar(64) NOT NULL,
+        [FileName] nvarchar(300) NOT NULL,
+        [ContentType] nvarchar(200) NOT NULL,
+        [Size] bigint NOT NULL,
+        [UploadedBy] nvarchar(200) NULL,
+        [UploadedAt] datetime2 NOT NULL,
+        [DeletedAt] datetime2 NULL,
+        [DeletedBy] nvarchar(200) NULL,
+        CONSTRAINT [PK_Attachments] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101021414_AttachmentsAndValidity'
+)
+BEGIN
+    CREATE INDEX [IX_Attachments_Collection_RecordId] ON [Attachments] ([Collection], [RecordId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101021414_AttachmentsAndValidity'
+)
+BEGIN
+    CREATE INDEX [IX_Attachments_FileId] ON [Attachments] ([FileId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261101021414_AttachmentsAndValidity'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261101021414_AttachmentsAndValidity', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+

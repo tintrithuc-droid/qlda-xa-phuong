@@ -165,7 +165,7 @@ function defaultCatalogs(){
     'Nhóm dự án':['Quan trọng quốc gia','Nhóm A','Nhóm B','Nhóm C'],
     'Giai đoạn':['Chuẩn bị dự án','Thực hiện dự án','Kết thúc dự án'],
     'Nguồn vốn':['Ngân sách Thành phố','Ngân sách Trung ương','Vốn khác'],
-    'Loại hồ sơ pháp lý':['Quyết định chủ trương đầu tư','Quyết định phê duyệt dự án','Thiết kế, dự toán','Giấy phép xây dựng','Kế hoạch lựa chọn nhà thầu','Hồ sơ mời thầu','Kết quả lựa chọn nhà thầu','Bảo lãnh thực hiện hợp đồng','Biên bản nghiệm thu','Văn bản khác'],
+    'Loại hồ sơ pháp lý':['Quyết định chủ trương đầu tư','Quyết định phê duyệt dự án','Quyết định điều chỉnh dự án','Thiết kế, dự toán','Giấy phép xây dựng','Kế hoạch lựa chọn nhà thầu','Hồ sơ mời thầu','Kết quả lựa chọn nhà thầu','Bảo lãnh thực hiện hợp đồng','Bảo lãnh tạm ứng','Biên bản nghiệm thu','Văn bản khác'],
     'Loại gói thầu':['Xây lắp','Tư vấn','Mua sắm hàng hóa','Phi tư vấn','Hỗn hợp'],
     'Hình thức lựa chọn nhà thầu':['Đấu thầu rộng rãi','Đấu thầu hạn chế','Chỉ định thầu','Chỉ định thầu rút gọn','Chào hàng cạnh tranh','Tự thực hiện'],
     'Trạng thái gói thầu':['Chưa lựa chọn nhà thầu','Đang lựa chọn nhà thầu','Đang thực hiện hợp đồng','Đã nghiệm thu','Đã thanh lý hợp đồng'],

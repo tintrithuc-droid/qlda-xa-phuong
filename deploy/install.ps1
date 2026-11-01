@@ -58,7 +58,7 @@ $cfgFile = Join-Path $InstallPath "appsettings.Production.json"
 if ($SqlUser) { $cs = "Server=$SqlServer;Database=$Database;User Id=$SqlUser;Password=$SqlPassword;TrustServerCertificate=True;Encrypt=True" }
 else { $cs = "Server=$SqlServer;Database=$Database;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=True" }
 if (-not (Test-Path $cfgFile) -or $PSBoundParameters.ContainsKey("SqlServer") -or $SqlUser) {
-  @{ Database = @{ Provider = "SqlServer" }; ConnectionStrings = @{ SqlServer = $cs }; Storage = @{ FilesPath = (Join-Path $DataPath "files") }; Https = @{ Redirect = [bool]$CertThumbprint } } |
+  @{ Database = @{ Provider = "SqlServer" }; ConnectionStrings = @{ SqlServer = $cs }; Storage = @{ FilesPath = (Join-Path $DataPath "files"); BackupPath = (Join-Path $DataPath "backups") }; Https = @{ Redirect = [bool]$CertThumbprint } } |
     ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $cfgFile
 } else { Write-Host "Giữ nguyên cấu hình đang có." }
 

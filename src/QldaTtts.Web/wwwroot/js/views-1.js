@@ -51,7 +51,7 @@ function renderNav(){
   });
   html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Đối chiếu BC KTKT</span></a>`;
   $('#nav').innerHTML=html;
-  $('#sidefoot').innerHTML=`Phiên bản 1.0 · Máy chủ ứng dụng`;
+  $('#sidefoot').innerHTML=`Phiên bản 1.1 · Máy chủ ứng dụng`;
 }
 function renderTop(){
   const m=MODULES.find(x=>x.key===S.route); const title=m?m.label: S.route==='hien-truong'?'Hiện trường':'Đối chiếu yêu cầu';
@@ -88,9 +88,15 @@ function onFilter(e){
 document.addEventListener('input', e=>{ if(e.target.matches('input[type=search][data-f]')) onFilter(e); });
 document.addEventListener('change', e=>{ if(e.target.matches('[data-f]') && !e.target.matches('input[type=search]')) onFilter(e); });
 ACT.menu=()=>$('#side').classList.toggle('open');
-ACT.tab=(id,el)=>{ S.tab[el.dataset.g]=id; render(); };
+ACT.tab=(id,el)=>{ S.tab[el.dataset.g]=id; if(el.dataset.g==='qt' && typeof ADM!=='undefined'){ delete ADM.storage; delete ADM.auto; } render(); };
 ACT.go=(id)=>{ location.hash=id; };
 ACT.photo=(id,el)=>{ openModal(`<div class="lightbox" style="display:grid;gap:8px;justify-items:center"><img src="${esc(el.getAttribute('src'))}" alt=""><button class="btn" data-close>Đóng</button></div>`); };
+
+/* Xem nhanh ảnh đính kèm, danh sách tệp đính kèm */
+ACT['att-view']=(id,el,e)=>{ const a=get('attachments',id); if(!a) return; e&&e.preventDefault&&e.preventDefault();
+  openModal(`<div class="lightbox" style="display:grid;gap:8px;justify-items:center"><img src="${attUrl(a)}" alt="${esc(a.fileName)}"><div class="small" style="color:#fff">${esc(a.fileName)} · ${attMeta(a)}</div><div class="toolbar"><a class="btn" href="${attUrl(a)}?download=true">Tải về</a><button class="btn" data-close>Đóng</button></div></div>`); };
+ACT['att-all']=(ids)=>{ const list=String(ids).split(',').map(id=>get('attachments',id)).filter(Boolean);
+  openModal(`<div class="mform narrow"><header><h3>Tệp đính kèm (${list.length})</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;overflow:auto"><ul class="attlist">${list.map(a=>`<li><a href="${attUrl(a)}" target="_blank" rel="noopener">${attIcon(a)} ${esc(a.fileName)}</a>${a.kind?` <span class="pill">${esc(a.kind)}</span>`:''}<span class="small muted">${attMeta(a)}</span></li>`).join('')}</ul></div></div>`); };
 
 const DEPS = {projects:[['packages','projectId'],['tasks','projectId'],['legal','projectId'],['items','projectId'],['schedule','projectId'],['diaries','projectId'],['models','projectId']],
   packages:[['contracts','packageId'],['schedule','packageId'],['diaries','packageId'],['legal','packageId']], contracts:[['boq','contractId'],['payments','contractId'],['payplans','contractId'],['addenda','contractId']],
@@ -295,9 +301,39 @@ const projFields=()=>[
   {key:'tmdt',label:'Tổng mức đầu tư (đồng)',type:'money',req:true},{key:'capital',label:'Nguồn vốn',type:'select',options:()=>catalog('Nguồn vốn')},
   {key:'start',label:'Thời gian bắt đầu',type:'date'},{key:'end',label:'Thời gian hoàn thành',type:'date'},
   {key:'owner',label:'Chủ đầu tư / Đại diện',def:'Ban QL Trung tâm Thủy sản TP.HCM'},{key:'location',label:'Địa điểm xây dựng'},
-  {key:'decision',label:'Quyết định phê duyệt',full:true},{key:'desc',label:'Quy mô, mô tả',type:'textarea'}];
-ACT['add-project']=()=>openForm({title:'Thêm dự án', fields:projFields(), onSave:async v=>{ if(D('projects').some(p=>p.code===v.code)){ $('#mform_err').textContent='Mã dự án đã tồn tại.'; return false; } const r=await save('projects',v); S.sel.project=r.id; }});
-ACT['edit-projects']=(id)=>openForm({title:'Cập nhật thông tin dự án', fields:projFields(), value:get('projects',id), onSave:v=>save('projects',v)});
+  {key:'desc',label:'Quy mô, mô tả',type:'textarea'}];
+/* Văn bản pháp lý chính nhập ngay trong biểu mẫu (lưu thành hồ sơ pháp lý kèm tệp) */
+function findLegal(pid, kid, type){ return D('legal').filter(l=>l.projectId===pid && (l.packageId||'')===(kid||'') && l.type===type).sort(by('date'))[0]; }
+function legalInline(prefix, label, ctx, cur, opt={}){
+  return [{key:prefix+'No',label:'Số '+label},{key:prefix+'Date',label:'Ngày ban hành',type:'date'},
+    ...(opt.issuer?[{key:prefix+'Issuer',label:'Cơ quan ban hành',full:true}]:[]),
+    {key:prefix+'Att',label:'Tệp '+label+' (bản scan PDF, ảnh…)',type:'attach',col:'legal',cur:cur?cur.id:null,rid:()=>ctx[prefix]}];
+}
+function legalInlineValue(prefix, l, v){ if(l){ v[prefix+'No']=l.number; v[prefix+'Date']=l.date; v[prefix+'Issuer']=l.issuer; } return v; }
+/* Tạo/cập nhật hồ sơ pháp lý từ các ô nhập; trả về mã hồ sơ (hoặc '' nếu không nhập gì) */
+async function legalInlineSave(prefix, v, cur, base){
+  const no=(v[prefix+'No']||'').trim(), date=v[prefix+'Date']||'', issuer=v[prefix+'Issuer'];
+  const box=$('#f_'+prefix+'Att'); const hasFiles=box && box._files.length;
+  ['No','Date','Issuer','Att'].forEach(k=>delete v[prefix+k]);
+  if(!cur && !no && !hasFiles) return '';
+  const l={...(cur||{}), ...base, number:no||(cur&&cur.number)||'(chưa nhập số)', date:date||(cur&&cur.date)||TODAY, ...(issuer!==undefined?{issuer}:{})};
+  const r=await save('legal', l); return r.id;
+}
+function projForm(p){
+  const ctx={}; const cur=p&&findLegal(p.id,'','Quyết định phê duyệt dự án');
+  const fields=[...projFields(), ...legalInline('dec','quyết định phê duyệt dự án',ctx,cur,{issuer:true})];
+  const value=legalInlineValue('dec', cur, {...(p||{})}); if(p && !cur && p.decision) value.decNo=p.decision;
+  openForm({title:p?'Cập nhật thông tin dự án':'Thêm dự án', fields, value, onSave:async v=>{
+    if(!p && D('projects').some(x=>x.code===v.code)){ $('#mform_err').textContent='Mã dự án đã tồn tại.'; return false; }
+    const no=(v.decNo||'').trim(), dt=v.decDate;
+    v.decision = no ? no+(dt?' ngày '+fmtDate(dt):'') : (p?p.decision:'');
+    const pv={...v}; ['decNo','decDate','decIssuer','decAtt'].forEach(k=>delete pv[k]);
+    const r=await save('projects',pv); if(!p) S.sel.project=r.id;
+    ctx.dec=await legalInlineSave('dec', v, cur, {projectId:r.id, packageId:'', type:'Quyết định phê duyệt dự án', title:(cur&&cur.title)||'Phê duyệt dự án '+r.name});
+    return r; }});
+}
+ACT['add-project']=()=>projForm(null);
+ACT['edit-projects']=(id)=>projForm(get('projects',id));
 ACT['back-project']=()=>{ S.sel.project=null; render(); };
 VIEWS['du-an']=()=>{
   const sel=S.sel.project && get('projects',S.sel.project);
@@ -318,12 +354,13 @@ function projectDetail(p){
     body=`<div class="grid g2"><div class="card"><dl class="kv">
       <dt>Mã dự án</dt><dd class="num">${esc(p.code)}</dd><dt>Nhóm dự án</dt><dd>${esc(p.group||'—')}</dd><dt>Giai đoạn</dt><dd>${esc(p.phase||'—')}</dd><dt>Trạng thái</dt><dd>${statusPill(p.status)}</dd>
       <dt>Tổng mức đầu tư</dt><dd class="num">${fmtVND(p.tmdt)} đồng</dd><dt>Nguồn vốn</dt><dd>${esc(p.capital||'—')}</dd><dt>Chủ đầu tư</dt><dd>${esc(p.owner||'—')}</dd>
-      <dt>Địa điểm</dt><dd>${esc(p.location||'—')}</dd><dt>Thời gian</dt><dd class="num">${fmtDate(p.start)} – ${fmtDate(p.end)}</dd><dt>Quyết định phê duyệt</dt><dd>${esc(p.decision||'—')}</dd><dt>Quy mô</dt><dd>${esc(p.desc||'—')}</dd></dl></div>
+      <dt>Địa điểm</dt><dd>${esc(p.location||'—')}</dd><dt>Thời gian</dt><dd class="num">${fmtDate(p.start)} – ${fmtDate(p.end)}</dd><dt>Quyết định phê duyệt</dt><dd>${(()=>{ const l=findLegal(p.id,'','Quyết định phê duyệt dự án'); return l? `<span class="num">${esc(l.number)}</span> ngày ${fmtDate(l.date)}${l.issuer?' · '+esc(l.issuer):''}<div style="margin-top:4px">${attLinks(atts('legal',l.id))}</div>` : esc(p.decision||'—'); })()}</dd><dt>Quy mô</dt><dd>${esc(p.desc||'—')}</dd></dl></div>
+      ${keyLegalCard(p)}
       <div class="card"><h2>Gói thầu thuộc dự án</h2>${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên gói thầu',k:'name'},{h:'Giá gói thầu',r:1,f:r=>fmtTy(r.estimate)},{h:'Trạng thái',f:r=>statusPill(r.status)}], D('packages').filter(k=>k.projectId===p.id).sort(by('code')), {rowAct:'open-pkg', empty:'Chưa có gói thầu.'})}</div></div>`;
   } else if(t==='tasks'){
     const rows=D('tasks').filter(x=>x.projectId===p.id).sort(by('due'));
     body=`<div class="card"><div class="ch"><h2>Công việc thuộc dự án</h2>${can('du-an','edit')?`<button class="btn primary sm" data-act="add-task" data-id="${p.id}">+ Thêm công việc</button>`:''}</div>
-    ${table([{h:'Công việc',k:'name'},{h:'Phụ trách',k:'assignee'},{h:'Ưu tiên',f:r=>pill(r.priority||'—', r.priority==='Cao'?'warn':'')},{h:'Hạn',f:r=>`<span class="num" style="${r.due<TODAY&&r.status!=='Hoàn thành'?'color:var(--red);font-weight:600':''}">${fmtDate(r.due)}</span>`},{h:'Trạng thái',f:r=>statusPill(r.status)}], rows, {actions:r=>editBtns('du-an','tasks',r.id, r.status!=='Hoàn thành'&&can('du-an','edit')?`<button class="btn sm ghost" data-act="task-done" data-id="${r.id}">Hoàn thành</button>`:''), empty:'Chưa có công việc.'})}</div>`;
+    ${table([{h:'Công việc',k:'name'},{h:'Phụ trách',k:'assignee'},{h:'Ưu tiên',f:r=>pill(r.priority||'—', r.priority==='Cao'?'warn':'')},{h:'Hạn',f:r=>`<span class="num" style="${r.due<TODAY&&r.status!=='Hoàn thành'?'color:var(--red);font-weight:600':''}">${fmtDate(r.due)}</span>`},{h:'Trạng thái',f:r=>statusPill(r.status)},{h:'Tệp',f:r=>attCell(atts('tasks',r.id))}], rows, {actions:r=>editBtns('du-an','tasks',r.id, r.status!=='Hoàn thành'&&can('du-an','edit')?`<button class="btn sm ghost" data-act="task-done" data-id="${r.id}">Hoàn thành</button>`:''), empty:'Chưa có công việc.'})}</div>`;
   } else if(t==='legal'){
     body=legalCard(D('legal').filter(l=>l.projectId===p.id && !l.packageId), p.id, null, 'du-an', 'Hồ sơ pháp lý dự án');
   } else {
@@ -341,17 +378,27 @@ function projectDetail(p){
   return `<div class="head"><div class="grow"><button class="btn ghost sm" data-act="back-project">← Danh sách dự án</button><h1 style="margin-top:8px">${esc(p.name)}</h1><p><span class="num">${esc(p.code)}</span> · ${statusPill(p.status)}</p></div>${can('du-an','edit')?`<button class="btn" data-act="edit-projects" data-id="${p.id}">Sửa thông tin</button><button class="btn ghost danger" data-act="del" data-col="projects" data-id="${p.id}">Xóa</button>`:''}</div>
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="proj" data-id="${k}">${l}</button>`).join('')}</div>${body}`;
 }
-const taskFields=()=>[{key:'name',label:'Tên công việc',req:true,full:true},{key:'assignee',label:'Đơn vị / người phụ trách'},{key:'due',label:'Hạn hoàn thành',type:'date',req:true},{key:'priority',label:'Mức ưu tiên',type:'select',options:['Cao','Trung bình','Thấp'],def:'Trung bình'},{key:'status',label:'Trạng thái',type:'select',options:['Chưa bắt đầu','Đang thực hiện','Hoàn thành','Tạm dừng'],def:'Chưa bắt đầu',req:true},{key:'note',label:'Ghi chú',type:'textarea'}];
+const taskFields=()=>[{key:'name',label:'Tên công việc',req:true,full:true},{key:'assignee',label:'Đơn vị / người phụ trách'},{key:'due',label:'Hạn hoàn thành',type:'date',req:true},{key:'priority',label:'Mức ưu tiên',type:'select',options:['Cao','Trung bình','Thấp'],def:'Trung bình'},{key:'status',label:'Trạng thái',type:'select',options:['Chưa bắt đầu','Đang thực hiện','Hoàn thành','Tạm dừng'],def:'Chưa bắt đầu',req:true},{key:'note',label:'Ghi chú',type:'textarea'},{key:'att',label:'Văn bản giao việc, tài liệu liên quan',type:'attach',col:'tasks',kind:'Văn bản giao việc'}];
 ACT['add-task']=(pid)=>openForm({title:'Thêm công việc', fields:taskFields(), onSave:v=>save('tasks',{...v, projectId:pid})});
 ACT['edit-tasks']=(id)=>openForm({title:'Cập nhật công việc', fields:taskFields(), value:get('tasks',id), onSave:v=>save('tasks',v)});
-ACT['task-done']=async(id)=>{ await save('tasks',{...get('tasks',id), status:'Hoàn thành', doneDate:TODAY}); toast('Đã đánh dấu hoàn thành'); };
+ACT['task-done']=(id)=>{ const t=get('tasks',id); openForm({title:'Hoàn thành: '+t.name, narrow:true, submit:'Xác nhận hoàn thành', value:{...t, doneDate:TODAY},
+  fields:[{key:'doneDate',label:'Ngày hoàn thành',type:'date',req:true,full:true},{key:'note',label:'Kết quả, ghi chú',type:'textarea'},{key:'att',label:'Tệp kết quả (văn bản, báo cáo, biên bản…)',type:'attach',col:'tasks',kind:'Kết quả',full:true}],
+  onSave:v=>save('tasks',{...v, status:'Hoàn thành'})}); };
 
 /* Hồ sơ pháp lý dùng chung cho dự án (UC4) và gói thầu (UC11) */
 function legalCard(rows, pid, kid, mod, title){
   return `<div class="card"><div class="ch"><h2>${esc(title)}</h2>${can(mod,'edit')?`<button class="btn primary sm" data-act="add-legal" data-id="${pid}" data-k="${kid||''}" data-m="${mod}">+ Thêm hồ sơ</button>`:''}</div>
-  ${table([{h:'Loại hồ sơ',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Cơ quan ban hành',k:'issuer'},{h:'Trích yếu',k:'title'},{h:'Tệp',f:r=>r.fileName?`<a href="${esc(fileUrl(r))}" target="_blank" rel="noopener">${esc(r.fileName)}</a>`:'<span class="muted small">Chưa đính kèm</span>'}], rows.sort(by('date')), {actions:r=>editBtns(mod,'legal',r.id), empty:'Chưa có hồ sơ pháp lý.'})}</div>`;
+  ${table([{h:'Loại hồ sơ',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Cơ quan ban hành',k:'issuer'},{h:'Trích yếu',k:'title'},{h:'Hiệu lực đến',f:r=>r.validUntil?`<span class="num" style="${r.validUntil<TODAY?'color:var(--red);font-weight:600':r.validUntil<=addDays(TODAY,30)?'color:var(--amber);font-weight:600':''}">${fmtDate(r.validUntil)}</span>`:'<span class="muted small">—</span>'},{h:'Tệp',f:r=>attCell(atts('legal',r.id))}], rows.sort(by('date')), {actions:r=>editBtns(mod,'legal',r.id), empty:'Chưa có hồ sơ pháp lý.'})}</div>`;
 }
-const legalFields=()=>[{key:'type',label:'Loại hồ sơ',type:'select',options:()=>catalog('Loại hồ sơ pháp lý'),req:true},{key:'number',label:'Số hiệu văn bản',req:true},{key:'date',label:'Ngày ban hành',type:'date',req:true},{key:'issuer',label:'Cơ quan ban hành'},{key:'title',label:'Trích yếu nội dung',full:true,req:true},{key:'file',label:'Tệp đính kèm (PDF, ảnh scan)',type:'files',accept:'.pdf,image/*,.doc,.docx,.xls,.xlsx'}];
-async function attachLegal(v){ if(v.file&&v.file.length){ const f=v.file[0]; const r=await storeFile(f); Object.assign(v,{fileName:f.name, fileSize:f.size, ...r}); } delete v.file; return v; }
-ACT['add-legal']=(pid,el)=>openForm({title:'Thêm hồ sơ pháp lý', fields:legalFields(), onSave:async v=>save('legal',{...(await attachLegal(v)), projectId:pid, packageId:el.dataset.k||''})});
-ACT['edit-legal']=(id)=>openForm({title:'Cập nhật hồ sơ pháp lý', fields:legalFields(), value:get('legal',id), onSave:async v=>save('legal',await attachLegal(v))});
+const legalFields=()=>[{key:'type',label:'Loại hồ sơ',type:'select',options:()=>catalog('Loại hồ sơ pháp lý'),req:true},{key:'number',label:'Số hiệu văn bản',req:true},{key:'date',label:'Ngày ban hành',type:'date',req:true},{key:'issuer',label:'Cơ quan ban hành'},{key:'title',label:'Trích yếu nội dung',full:true,req:true},
+  {key:'validUntil',label:'Hiệu lực đến (bảo lãnh, giấy phép… để cảnh báo trước 30 ngày)',type:'date'},{key:'att',label:'Tệp đính kèm (PDF, ảnh scan, Word, Excel…)',type:'attach',col:'legal'}];
+ACT['add-legal']=(pid,el)=>openForm({title:'Thêm hồ sơ pháp lý', fields:legalFields(), value:{type:el.dataset.t||''}, onSave:v=>save('legal',{...v, projectId:pid, packageId:el.dataset.k||''})});
+ACT['edit-legal']=(id)=>openForm({title:'Cập nhật hồ sơ pháp lý', fields:legalFields(), value:get('legal',id), onSave:v=>save('legal',v)});
+/* Văn bản pháp lý chính của dự án (chủ trương, phê duyệt, điều chỉnh) kèm tệp, hiển thị ở Thông tin chung */
+const KEY_LEGAL=['Quyết định chủ trương đầu tư','Quyết định phê duyệt dự án','Quyết định điều chỉnh dự án'];
+function keyLegalCard(p){
+  const rows=D('legal').filter(l=>l.projectId===p.id && !l.packageId && KEY_LEGAL.includes(l.type)).sort(by('date'));
+  const ed=can('du-an','edit');
+  return `<div class="card"><div class="ch"><h2>Văn bản pháp lý chính</h2>${ed?`<button class="btn sm" data-act="add-legal" data-id="${p.id}" data-k="" data-t="Quyết định chủ trương đầu tư">+ QĐ chủ trương</button><button class="btn sm" data-act="add-legal" data-id="${p.id}" data-k="" data-t="Quyết định điều chỉnh dự án">+ QĐ điều chỉnh</button>`:''}</div>
+  ${table([{h:'Loại',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Tệp',f:r=>attCell(atts('legal',r.id))}], rows, {actions:r=>editBtns('du-an','legal',r.id), empty:'Chưa có quyết định chủ trương, phê duyệt hoặc điều chỉnh dự án.'})}</div>`;
+}

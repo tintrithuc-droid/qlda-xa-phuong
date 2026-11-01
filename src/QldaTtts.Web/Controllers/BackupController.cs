@@ -7,11 +7,12 @@ using QldaTtts.Web.Services;
 
 namespace QldaTtts.Web.Controllers;
 
-/// <summary>Sao lưu / phục hồi toàn bộ dữ liệu nghiệp vụ dạng JSON (chỉ quản trị hệ thống). Tệp đính kèm sao lưu riêng theo thư mục App_Data/files.</summary>
+/// <summary>Sao lưu / phục hồi dữ liệu (chỉ quản trị hệ thống): tệp JSON, bản sao lưu tự động hằng đêm, bản .zip đầy đủ kèm tệp đính kèm.</summary>
 [Authorize, Route("api/backup")]
 public class BackupController : ApiControllerBase
 {
-    public BackupController(AppDbContext db, UserContext uc) : base(db, uc) { }
+    private readonly BackupService _bk;
+    public BackupController(AppDbContext db, UserContext uc, BackupService bk) : base(db, uc) { _bk = bk; }
 
     private record UserBackup(AppUser User, string PasswordHash);
 
@@ -20,15 +21,9 @@ public class BackupController : ApiControllerBase
     {
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được sao lưu dữ liệu.");
-        var data = new Dictionary<string, object>();
-        foreach (var def in Collections.All) data[def.Name] = await def.Query(Db).AsNoTracking().Cast<object>().ToListAsync();
-        var users = await Db.Users.AsNoTracking().ToListAsync();
-        data["users"] = users;
-        data["files"] = await Db.Files.AsNoTracking().ToListAsync();
-        var payload = new { app = "qlda-ttts", version = 2, exportedAt = DateTime.UtcNow, data, passwords = users.ToDictionary(u => u.Id, u => u.PasswordHash) };
         Uc.Log("Sao lưu dữ liệu", "Hệ thống", "Toàn bộ dữ liệu");
         await Db.SaveChangesAsync();
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(payload, JsonConfig.Options);
+        var bytes = await BackupService.ExportJson(Db);
         return File(bytes, "application/json", $"SaoLuu_QLDA_{DateTime.Now:yyyy-MM-dd_HHmm}.json");
     }
 
@@ -86,6 +81,15 @@ public class BackupController : ApiControllerBase
                     if (await Db.Files.AnyAsync(x => x.Id == f.Id)) continue;
                     Db.Files.Add(f);
                 }
+            if (data.TryGetProperty("attachments", out var aa) && aa.ValueKind == JsonValueKind.Array)
+                foreach (var el in aa.EnumerateArray())
+                {
+                    var a = el.Deserialize<Attachment>(JsonConfig.Options)!;
+                    if (!ValidId(a.Id)) continue;
+                    var ex = await Db.Attachments.FirstOrDefaultAsync(x => x.Id == a.Id);
+                    if (ex is null) Db.Attachments.Add(a); else Db.Entry(ex).CurrentValues.SetValues(a);
+                    n++;
+                }
         }
         catch (JsonException ex) { return Error(400, "Tệp sao lưu bị lỗi: " + ex.Message); }
         // Nhóm quản trị hệ thống luôn giữ toàn quyền, kể cả khi tệp sao lưu ghi khác
@@ -93,5 +97,47 @@ public class BackupController : ApiControllerBase
         Uc.Log("Phục hồi dữ liệu", "Hệ thống", n + " bản ghi");
         await Db.SaveChangesAsync();
         return Ok(new { restored = n });
+    }
+
+    /// <summary>Danh sách bản sao lưu tự động trên máy chủ và cấu hình.</summary>
+    [HttpGet("auto")]
+    public async Task<IActionResult> AutoList()
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.IsAdmin) return Denied();
+        return Ok(new { enabled = _bk.Enabled, hour = _bk.Hour, keep = _bk.Keep, dir = _bk.Dir, items = _bk.List() });
+    }
+
+    [HttpPost("auto")]
+    public async Task<IActionResult> AutoRun()
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.IsAdmin) return Denied();
+        var (name, copied) = await _bk.RunAsync(Db);
+        Uc.Log("Sao lưu lên máy chủ", "Hệ thống", $"{name}; chép thêm {copied} tệp");
+        await Db.SaveChangesAsync();
+        return Ok(new { name, copied });
+    }
+
+    [HttpGet("auto/{name}")]
+    public async Task<IActionResult> AutoDownload(string name)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.IsAdmin) return Denied();
+        var p = _bk.PathOf(name);
+        if (p is null) return Error(404, "Không tìm thấy bản sao lưu.");
+        return PhysicalFile(p, "application/json", name);
+    }
+
+    /// <summary>Tải bản sao lưu đầy đủ: dữ liệu + toàn bộ tệp đính kèm (.zip).</summary>
+    [HttpGet("full")]
+    public async Task<IActionResult> Full()
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được sao lưu dữ liệu.");
+        Uc.Log("Sao lưu đầy đủ (dữ liệu + tệp)", "Hệ thống", "Tải về .zip");
+        await Db.SaveChangesAsync();
+        var fs = await _bk.FullZipAsync(Db);
+        return File(fs, "application/zip", $"SaoLuuDayDu_QLDA_{DateTime.Now:yyyy-MM-dd_HHmm}.zip");
     }
 }

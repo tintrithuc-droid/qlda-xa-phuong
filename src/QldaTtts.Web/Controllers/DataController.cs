@@ -13,15 +13,8 @@ public class DataController : ApiControllerBase
 {
     public DataController(AppDbContext db, UserContext uc) : base(db, uc) { }
 
-    private async Task<string?> ProjectOf(EntityBase e) => e switch
-    {
-        Project p => p.Id,
-        IHasProject hp => hp.ProjectId,
-        IHasContract hc => hc.ContractId is null ? null :
-            await Db.Contracts.AsNoTracking().Where(c => c.Id == hc.ContractId).Select(c => c.ProjectId).FirstOrDefaultAsync(),
-        _ => null
-    };
-    private static bool Scoped(EntityBase e) => e is Project or IHasProject or IHasContract;
+    private Task<string?> ProjectOf(EntityBase e) => ProjectScope.ProjectOf(Db, e);
+    private static bool Scoped(EntityBase e) => ProjectScope.Scoped(e);
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -41,6 +34,9 @@ public class DataController : ApiControllerBase
             var list = await def.Query(Db).AsNoTracking().ToListAsync();
             result[def.Name] = list.Where(Visible).Cast<object>().ToList();
         }
+        // Tệp đính kèm (không gồm thùng rác) trong phạm vi dự án được giao
+        result["attachments"] = (await Db.Attachments.AsNoTracking().Where(a => a.DeletedAt == null).OrderBy(a => a.UploadedAt).ToListAsync())
+            .Where(a => Uc.InScope(a.ProjectId)).Cast<object>().ToList();
         if (Uc.Can("quan-tri"))
         {
             result["users"] = await Db.Users.AsNoTracking().OrderBy(u => u.Username).Cast<object>().ToListAsync();
@@ -105,6 +101,9 @@ public class DataController : ApiControllerBase
             if (n > 0) return Error(409, $"Không xóa được: còn {n} bản ghi \"{(Collections.Find(dc)?.Label ?? "Người dùng")}\" liên quan. Hãy xử lý các bản ghi đó trước.");
         }
         Db.Remove(existing);
+        // Tệp đính kèm của bản ghi chuyển vào thùng rác (quản trị khôi phục/xóa hẳn trong 30 ngày)
+        foreach (var a in await Db.Attachments.Where(a => a.Collection == collection && a.RecordId == id && a.DeletedAt == null).ToListAsync())
+        { a.DeletedAt = DateTime.UtcNow; a.DeletedBy = Uc.User.Name + " (xóa bản ghi)"; }
         Uc.Log("Xóa", def.Label, Collections.LabelOf(existing));
         await Db.SaveChangesAsync();
         return Ok(new { deleted = true });

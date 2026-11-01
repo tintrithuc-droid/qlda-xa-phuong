@@ -62,6 +62,8 @@ public class LegalDocument : EntityBase, IHasProject
     public long? FileSize { get; set; }
     [MaxLength(64)] public string? AssetId { get; set; }
     [MaxLength(300)] public string? Url { get; set; }
+    /// <summary>Hiệu lực đến (bảo lãnh, giấy phép…) để cảnh báo sắp hết hạn.</summary>
+    public DateOnly? ValidUntil { get; set; }
 }
 
 [Table("ConstructionItems")]
@@ -120,6 +122,8 @@ public class Contract : EntityBase, IHasProject
     public DateOnly? End { get; set; }
     [MaxLength(100)] public string? Ctype { get; set; }
     [MaxLength(100)] public string? Guarantee { get; set; }
+    public DateOnly? GuaranteeUntil { get; set; }
+    public DateOnly? AdvanceGuaranteeUntil { get; set; }
     public double? AdvanceRate { get; set; }
     public string? Note { get; set; }
 }
@@ -166,6 +170,7 @@ public class Photo
     public string? Name { get; set; }
     public string? Date { get; set; }
     public string? By { get; set; }
+    public string? Caption { get; set; }
 }
 
 [Table("ConstructionDiaries")]
@@ -301,4 +306,26 @@ public class StoredFile
     [MaxLength(300)] public string RelPath { get; set; } = "";
     [MaxLength(64)] public string? UploadedBy { get; set; }
     public DateTime UploadedAt { get; set; }
+}
+
+/// <summary>Tệp đính kèm của một bản ghi nghiệp vụ (dùng chung cho mọi màn hình). Xóa = chuyển vào thùng rác 30 ngày.</summary>
+[Table("Attachments")]
+public class Attachment
+{
+    [Key, MaxLength(64)] public string Id { get; set; } = "";
+    [MaxLength(40)] public string Collection { get; set; } = "";
+    [MaxLength(64)] public string RecordId { get; set; } = "";
+    [MaxLength(64)] public string? ProjectId { get; set; }
+    /// <summary>Loại tài liệu (vd: Hợp đồng đã ký, Biên bản nghiệm thu).</summary>
+    [MaxLength(200)] public string? Kind { get; set; }
+    /// <summary>Tham chiếu phụ trong bản ghi (vd: đợt nghiệm thu, ngày cập nhật tiến độ).</summary>
+    [MaxLength(100)] public string? Ref { get; set; }
+    [MaxLength(64)] public string FileId { get; set; } = "";
+    [MaxLength(300)] public string FileName { get; set; } = "";
+    [MaxLength(200)] public string ContentType { get; set; } = "application/octet-stream";
+    public long Size { get; set; }
+    [MaxLength(200)] public string? UploadedBy { get; set; }
+    public DateTime UploadedAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    [MaxLength(200)] public string? DeletedBy { get; set; }
 }

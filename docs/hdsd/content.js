@@ -18,7 +18,7 @@ const PERM = {
   ke: [V, V, N, V, N, N, V, E, V, N],
   gs: [V, V, V, N, E, E, V, N, N, N],
 };
-const SCOPE = { qt: 'tất cả dự án', ld: 'tất cả dự án', kt: 'tất cả dự án', ke: 'tất cả dự án', gs: 'chỉ các dự án được quản trị hệ thống giao (dữ liệu mẫu: DA‑TP01)' };
+const SCOPE = { qt: 'tất cả dự án', ld: 'tất cả dự án', kt: 'tất cả dự án', ke: 'tất cả dự án', gs: 'chỉ các dự án được quản trị hệ thống giao (dữ liệu mẫu: DA‑01)' };
 const PURPOSE = {
   qt: 'quản lý tài khoản người dùng, nhóm quyền, danh mục dùng chung, theo dõi nhật ký hoạt động, quản lý kho tệp đính kèm, sao lưu và phục hồi dữ liệu, bảo đảm hệ thống vận hành ổn định và an toàn',
   ld: 'theo dõi tổng thể tình hình thực hiện các dự án, nắm bắt cảnh báo chậm tiến độ, chỉ đạo xử lý công việc, cập nhật thông tin dự án và khai thác báo cáo phục vụ điều hành',
@@ -35,7 +35,7 @@ function common(k) {
   const r = ROLES[k], out = [];
   out.push({ h1: 'GIỚI THIỆU CHUNG' });
   out.push({ h2: 'Mục đích tài liệu' });
-  out.push({ p: `Tài liệu này hướng dẫn cán bộ thuộc nhóm người dùng «${r.name}» sử dụng Phần mềm quản lý dự án đầu tư xây dựng của Ban Quản lý dự án – Trung tâm Thủy sản Thành phố Hồ Chí Minh (sau đây gọi là «phần mềm») để ${PURPOSE[k]}.` });
+  out.push({ p: `Tài liệu này hướng dẫn cán bộ thuộc nhóm người dùng «${r.name}» sử dụng Phần mềm quản lý dự án đầu tư xây dựng của Ban Quản lý dự án đầu tư xây dựng xã/phường (sau đây gọi là «phần mềm») để ${PURPOSE[k]}.` });
   out.push({ p: 'Nội dung được trình bày theo trình tự thao tác thực tế. Mỗi thao tác có hình minh họa chụp trực tiếp từ giao diện phần mềm; số liệu trên hình là dữ liệu mẫu dùng để chạy thử, được đánh dấu «(mẫu)».' });
   out.push({ h2: 'Đối tượng sử dụng và phạm vi quyền' });
   out.push({ p: `Tài khoản thuộc nhóm «${r.name}» được phân quyền mặc định như bảng dưới đây. Quản trị hệ thống có thể điều chỉnh quyền theo yêu cầu thực tế của Ban; khi đó phần mềm tự ẩn các chức năng không được phép sử dụng.` });
@@ -51,7 +51,7 @@ function common(k) {
   out.push({ h2: 'Yêu cầu về thiết bị' });
   out.push({ bullets: [
     'Máy tính: trình duyệt Google Chrome, Microsoft Edge hoặc Cốc Cốc phiên bản mới; độ phân giải màn hình khuyến nghị từ 1366 × 768 trở lên.',
-    'Điện thoại: Android 7.0 trở lên (cài ứng dụng QLDA TTTS hoặc dùng trình duyệt Chrome); iPhone dùng trình duyệt Safari.',
+    'Điện thoại: Android 7.0 trở lên (cài ứng dụng QLDA Xã Phường hoặc dùng trình duyệt Chrome); iPhone dùng trình duyệt Safari.',
     'Kết nối: mạng nội bộ của Ban hoặc kết nối Internet/VPN theo hướng dẫn của quản trị hệ thống. Địa chỉ truy cập do quản trị hệ thống cung cấp.',
   ] });
 
@@ -146,7 +146,7 @@ function mobileSection(k) {
   out.push({ h1: 'SỬ DỤNG TRÊN ĐIỆN THOẠI' });
   out.push({ p: 'Phần mềm tự điều chỉnh giao diện cho màn hình điện thoại, phù hợp với cán bộ làm việc tại hiện trường. Có hai cách sử dụng:' });
   out.push({ bullets: [
-    'Điện thoại Android: cài tệp ứng dụng QLDA_TTTS_v1.0.1.apk theo «Hướng dẫn cài ứng dụng trên điện thoại»; lần đầu mở ứng dụng, nhập địa chỉ máy chủ do quản trị hệ thống cung cấp.',
+    'Điện thoại Android: cài tệp ứng dụng QLDA_XaPhuong_v1.0.apk theo «Hướng dẫn cài ứng dụng trên điện thoại»; lần đầu mở ứng dụng, nhập địa chỉ máy chủ do quản trị hệ thống cung cấp.',
     'iPhone: mở Safari, truy cập địa chỉ phần mềm, nhấn nút Chia sẻ → **Thêm vào MH chính** để tạo biểu tượng như một ứng dụng.',
   ] });
   out.push({ h2: 'Trang Hiện trường' });
@@ -563,13 +563,13 @@ S.admin = () => [
   img('qt-sao-luu', 'Sao lưu và phục hồi dữ liệu', 15),
   legend([[1, 'Tải tệp sao lưu dữ liệu (.json): dữ liệu nghiệp vụ, danh mục, nhóm, người dùng và danh sách tệp đính kèm'], [2, 'Tải bản sao lưu đầy đủ (.zip): dữ liệu kèm toàn bộ tệp đính kèm'], [3, 'Phục hồi dữ liệu từ tệp sao lưu'], [4, 'Sao lưu lên máy chủ ngay'], [5, 'Danh sách bản sao lưu tự động; nhấn tên để tải về']]),
   { h2: 'Sao lưu tự động hằng đêm' },
-  { p: 'Máy chủ tự sao lưu lúc 1 giờ sáng mỗi ngày: ghi một tệp dữ liệu .json và chép thêm các tệp đính kèm mới vào thư mục sao lưu (mặc định **D:\\QLDA_TTTS_Data\\backups**), giữ 14 bản gần nhất. Cùng lúc, phần mềm xóa hẳn các tệp đã nằm trong thùng rác quá 30 ngày. Nhấn **Sao lưu lên máy chủ ngay** (4) trước khi nâng cấp hoặc thao tác dữ liệu lớn.' },
+  { p: 'Máy chủ tự sao lưu lúc 1 giờ sáng mỗi ngày: ghi một tệp dữ liệu .json và chép thêm các tệp đính kèm mới vào thư mục sao lưu (do người cài đặt cấu hình; máy chủ Linux: volume appdata của từng xã), giữ 14 bản gần nhất. Cùng lúc, phần mềm xóa hẳn các tệp đã nằm trong thùng rác quá 30 ngày. Nhấn **Sao lưu lên máy chủ ngay** (4) trước khi nâng cấp hoặc thao tác dữ liệu lớn.' },
   { h2: 'Tải bản sao lưu về máy và phục hồi' },
   { steps: [
     'Sao lưu dữ liệu: nhấn **Tải tệp sao lưu dữ liệu (.json)** (1). Muốn có cả tệp đính kèm, nhấn **Tải bản sao lưu đầy đủ kèm tệp (.zip)** (2); thời gian đóng gói tùy dung lượng kho tệp. Lưu tệp vào nơi an toàn, tách biệt với máy chủ.',
     'Phục hồi: nhấn **Phục hồi từ tệp sao lưu** (3), chọn tệp .json, xác nhận. Dữ liệu trong tệp được ghi đè lên bản ghi trùng mã; tài khoản trùng tên đăng nhập được giữ nguyên; danh sách tệp đính kèm được phục hồi cùng dữ liệu.',
   ] },
-  { note: 'Nên đặt thư mục sao lưu tự động trên ổ đĩa khác hoặc ổ mạng (cấu hình Storage:BackupPath, xem «Hướng dẫn cài đặt»). Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu SQL Server định kỳ do cán bộ phụ trách hạ tầng thực hiện.' },
+  { note: 'Nên đặt thư mục sao lưu tự động trên ổ đĩa khác hoặc ổ mạng (cấu hình Storage:BackupPath, xem «Hướng dẫn cài đặt»). Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu định kỳ (PostgreSQL hoặc SQL Server) do cán bộ phụ trách hạ tầng thực hiện.' },
 
   { h1: 'THÔNG TIN ĐƠN VỊ, GIAO DIỆN' },
   { p: 'Thẻ **Thông tin đơn vị, giao diện** cho phép quản trị thay logo, tên phần mềm, tên đơn vị, banner trang đăng nhập, chân trang… mà không cần cài lại phần mềm. Dùng khi đơn vị đổi tên hoặc khi triển khai phần mềm cho đơn vị khác. Thay đổi áp dụng ngay cho mọi người dùng ở lần mở trang tiếp theo.' },

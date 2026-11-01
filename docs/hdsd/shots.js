@@ -73,7 +73,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
 
 (async () => {
   b = await chromium.launch({ args: ['--lang=vi-VN'] });
-  const img = path.join(os.tmpdir(), 'anh-hien-truong.png'); fs.copyFileSync('/home/claude/qlda-ttts-hcm/src/QldaTtts.Web/wwwroot/icons/icon-512.png', img);
+  const img = path.join(os.tmpdir(), 'anh-hien-truong.png'); fs.copyFileSync(path.join(__dirname, '../../src/QldaTtts.Web/wwwroot/icons/icon-512.png'), img);
 
   // ===== Khởi tạo hệ thống (CSDL trống) =====
   let p = await newPage(DESK);
@@ -107,11 +107,11 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
         const r = await fetch('/api/attachments', { method: 'POST', headers: { 'X-QLDA': '1' }, body: fd }); if (!r.ok) throw new Error('upload ' + n + ' ' + r.status); return r.json(); };
       const add = d => Days => { const x = new Date(TODAY); x.setDate(x.getDate() + Days); return x.toISOString().slice(0, 10); };
       const plus = add();
-      const pr = D('projects').find(x => x.name.includes('Dự án thành phần 1')) || D('projects')[0];
+      const pr = D('projects').find(x => x.name.includes('đường giao thông liên ấp')) || D('projects')[0];
       // văn bản pháp lý chính của dự án
       const L = t => D('legal').find(l => l.projectId === pr.id && !l.packageId && l.type === t);
-      let qd = L('Quyết định phê duyệt dự án'); if (!qd) qd = await Store.put('legal', { projectId: pr.id, packageId: '', type: 'Quyết định phê duyệt dự án', number: '1245/QĐ-TTTS', date: pr.start || TODAY, issuer: 'Trung tâm Thủy sản TP.HCM', title: 'Phê duyệt dự án ' + pr.name });
-      await up('legal', qd.id, 'QD-phe-duyet-du-an-so-1245-QD-TTTS.pdf');
+      let qd = L('Quyết định phê duyệt dự án'); if (!qd) qd = await Store.put('legal', { projectId: pr.id, packageId: '', type: 'Quyết định phê duyệt dự án', number: '1245/QĐ-UBND', date: pr.start || TODAY, issuer: 'Trung tâm Thủy sản TP.HCM', title: 'Phê duyệt dự án ' + pr.name });
+      await up('legal', qd.id, 'QD-phe-duyet-du-an-so-1245-QD-UBND.pdf');
       let ct = L('Quyết định chủ trương đầu tư'); if (!ct) ct = await Store.put('legal', { projectId: pr.id, packageId: '', type: 'Quyết định chủ trương đầu tư', number: '312/QĐ-UBND', date: '2025-03-12', issuer: 'UBND Thành phố Hồ Chí Minh', title: 'Chủ trương đầu tư ' + pr.name });
       await up('legal', ct.id, 'QD-chu-truong-dau-tu-so-312-QD-UBND.pdf'); await up('legal', ct.id, 'Giay-phep-xay-dung.pdf');
       const gp = await Store.put('legal', { projectId: pr.id, packageId: '', type: (catalog('Loại hồ sơ pháp lý').find(x => /giấy phép/i.test(x)) || 'Giấy phép xây dựng'), number: '86/GPXD', date: '2025-08-20', issuer: 'Sở Xây dựng TP.HCM', title: 'Giấy phép xây dựng ' + pr.code, validUntil: plus(18) });
@@ -120,7 +120,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
       const k = D('packages').find(x => x.projectId === pr.id && /XL01/.test(x.code)) || D('packages').find(x => /XL01/.test(x.code));
       const c = D('contracts').find(x => x.packageId === k.id);
       for (const [t, n] of [['Kế hoạch lựa chọn nhà thầu', 'QD-phe-duyet-KHLCNT.pdf'], ['Kết quả lựa chọn nhà thầu', 'QD-phe-duyet-KQLCNT-XL01.pdf']]) {
-        let l = D('legal').find(x => x.packageId === k.id && x.type === t); if (!l) l = await Store.put('legal', { projectId: k.projectId, packageId: k.id, type: t, number: (t.startsWith('Kế') ? '58' : '97') + '/QĐ-BQL', date: '2025-06-10', issuer: 'Ban QL Trung tâm Thủy sản TP.HCM', title: 'Phê duyệt ' + (t.startsWith('Kế') ? 'KHLCNT' : 'kết quả LCNT gói ') + k.code });
+        let l = D('legal').find(x => x.packageId === k.id && x.type === t); if (!l) l = await Store.put('legal', { projectId: k.projectId, packageId: k.id, type: t, number: (t.startsWith('Kế') ? '58' : '97') + '/QĐ-BQL', date: '2025-06-10', issuer: 'Ban QLDA xã Mẫu', title: 'Phê duyệt ' + (t.startsWith('Kế') ? 'KHLCNT' : 'kết quả LCNT gói ') + k.code });
         await up('legal', l.id, n); }
       await Store.put('contracts', { ...c, guaranteeUntil: plus(21), advanceGuaranteeUntil: plus(75), guarantee: c.guarantee || 'BL 0215/2025 – Vietcombank CN TP.HCM' });
       await up('contracts', c.id, 'Hop-dong-XL01-da-ky.pdf', 'Hợp đồng đã ký'); await up('contracts', c.id, 'Bao-lanh-thuc-hien-hop-dong.pdf', 'Bảo lãnh thực hiện hợp đồng'); await up('contracts', c.id, 'Bao-lanh-tam-ung.pdf', 'Bảo lãnh tạm ứng');
@@ -161,7 +161,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   // ===== Lãnh đạo =====
   p = await newPage(DESK); await login(p, 'lanhdao');
   await go(p, 'du-an'); await shot(p, 'ld-du-an', undefined, [{ sel: '.toolbar input[type=search]', n: 1 }, { sel: '.toolbar select', n: 2 }, { sel: '.head .btn.primary', n: 3 }, { sel: '.content tr.click', n: 4, nth: 2 }]);
-  await click(p, '.content tr.click', 'Dự án thành phần 1'); await shot(p, 'ld-du-an-chi-tiet', undefined, [{ sel: '.tabs', n: 1 }, { sel: '[data-act=edit-projects]', n: 2 }, { sel: '[data-act=back-project]', n: 3 }]);
+  await click(p, '.content tr.click', 'đường giao thông liên ấp'); await shot(p, 'ld-du-an-chi-tiet', undefined, [{ sel: '.tabs', n: 1 }, { sel: '[data-act=edit-projects]', n: 2 }, { sel: '[data-act=back-project]', n: 3 }]);
   await tab(p, 'Tình trạng thực hiện'); await shot(p, 'ld-du-an-tinh-trang');
   await tab(p, 'Hồ sơ pháp lý'); await shot(p, 'ld-du-an-phap-ly', undefined, [{ sel: '[data-act=add-legal]', n: 1 }]);
   await click(p, '[data-act=add-legal]'); await shot(p, 'chung-them-ho-so-phap-ly', '#ov .mform'); await closeModal(p);
@@ -181,7 +181,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
 
   // ===== Cán bộ kỹ thuật =====
   p = await newPage(DESK); await login(p, 'kythuat');
-  await go(p, 'du-an'); await click(p, '.content tr.click', 'Dự án thành phần 1');
+  await go(p, 'du-an'); await click(p, '.content tr.click', 'đường giao thông liên ấp');
   await scrollTo(p, '.card', 'Văn bản pháp lý chính'); await shot(p, 'kt-van-ban-chinh', undefined, [{ sel: '.card', text: 'Văn bản pháp lý chính', n: 1 }, { sel: '.card [data-act=add-legal]', n: 2 }]);
   await click(p, '[data-act=edit-projects]'); await shot(p, 'kt-them-du-an', '#ov .mform', [{ sel: '#ov .fld', text: 'Số quyết định phê duyệt dự án', n: 1 }, { sel: '#f_decAtt', n: 2 }]); await closeModal(p);
   await go(p, 'mo-hinh'); await shot(p, 'kt-mo-hinh', undefined, [{ sel: '.content select', n: 1 }, { sel: '[data-act=add-model]', n: 2 }, { sel: '[data-act=model-ver]', n: 3 }, { sel: '[data-act=model-hist]', n: 4 }]);

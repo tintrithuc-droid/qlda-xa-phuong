@@ -144,14 +144,14 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   const drum = fs.readFileSync(path.join(DIR, 'drum.png'));
   const cv = (text, o = {}) => P([new TextRun({ text, bold: o.bold, size: o.size || 26, color: o.color, italics: o.italics })], { alignment: AlignmentType.CENTER, spacing: { before: o.before || 0, after: o.after || 0 } });
   const cover = [
-    cv('TRUNG TÂM THỦY SẢN THÀNH PHỐ HỒ CHÍ MINH', { size: 26 }),
+    cv('ỦY BAN NHÂN DÂN XÃ/PHƯỜNG', { size: 26 }),
     cv('BAN QUẢN LÝ DỰ ÁN', { bold: true, size: 26 }),
     P([new TextRun({ text: '', size: 8 })], { alignment: AlignmentType.CENTER, indent: { left: 3600, right: 3600 }, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } }, spacing: { after: 0 } }),
     P([new ImageRun({ type: 'png', data: drum, transformation: { width: cm2px(5.2), height: cm2px(5.2) }, altText: { title: 'Trống đồng', description: 'Hoa văn mặt trống đồng', name: 'drum' } })], { alignment: AlignmentType.CENTER, spacing: { before: 1300, after: 900 } }),
     cv('TÀI LIỆU', { bold: true, size: 32, color: NAVY }),
     cv('HƯỚNG DẪN SỬ DỤNG', { bold: true, size: 40, color: NAVY, after: 240 }),
     cv('PHẦN MỀM QUẢN LÝ DỰ ÁN ĐẦU TƯ XÂY DỰNG', { bold: true, size: 28 }),
-    cv('BAN QUẢN LÝ DỰ ÁN – TRUNG TÂM THỦY SẢN TP. HỒ CHÍ MINH', { size: 26, after: 600 }),
+    cv('BẢN DÙNG CHUNG CHO CÁC XÃ, PHƯỜNG', { size: 26, after: 600 }),
     P([new TextRun({ text: role.cover ? '' : 'Dành cho: ', size: 28 }), new TextRun({ text: role.cover || role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
     cv('Phiên bản ' + verNo(role), { italics: true, size: 26, after: 2000 }),
     cv('Đơn vị thực hiện: Công ty Cổ phần Tin học Tri Thức', { size: 24 }),
@@ -167,14 +167,14 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   const info = [
     title('THÔNG TIN TÀI LIỆU'),
     kv([['Tên tài liệu', role.audience ? `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – ${role.name.toLowerCase()}` : `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – dành cho ${role.name}`],
-      ['Mã tài liệu', `HDSD-QLDA-TTTS-${k.toUpperCase()}`], ['Phiên bản', verNo(role)], ['Ngày ban hành', DATE_VN],
+      ['Mã tài liệu', `HDSD-QLDA-XP-${k.toUpperCase()}`], ['Phiên bản', verNo(role)], ['Ngày ban hành', DATE_VN],
       ['Đối tượng sử dụng', role.audience || `Cán bộ thuộc nhóm người dùng «${role.name}»`],
-      ['Cơ quan sử dụng', 'Ban Quản lý dự án – Trung tâm Thủy sản Thành phố Hồ Chí Minh'],
+      ['Cơ quan sử dụng', 'Ban Quản lý dự án đầu tư xây dựng xã/phường'],
       ['Đơn vị soạn thảo', 'Công ty Cổ phần Tin học Tri Thức']]),
     sub('Lịch sử thay đổi'),
     hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], hist(role).map(([v, d, t]) => [v, d, t, TT])),
     sub('Thuật ngữ và từ viết tắt'),
-    hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
+    hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án đầu tư xây dựng xã/phường'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
       ['BC KTKT', 'Báo cáo kinh tế – kỹ thuật'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian']]),
   ];
 
@@ -239,7 +239,7 @@ function tocOf(k) {
 (async () => {
   const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROLES).filter(k => k !== 'dt');
   for (const k of keys) {
-    const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA TTTS - ${ROLES[k].file} - ${vFile(ROLES[k])}.docx`);
+    const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA Xa Phuong - ${ROLES[k].file} - ${vFile(ROLES[k])}.docx`);
     const toc = tocOf(k), FIT = {}, log = [];
     let pages = {}, rep;
     // dàn trang: thu nhỏ hình bị đẩy sang trang sau (mỗi lượt sửa hình sớm nhất) cho tới khi không còn

@@ -11,9 +11,11 @@ Trang **Danh mục chức năng** trong phần mềm ánh xạ từng use case v
 
 ## Công nghệ
 
-- ASP.NET Core 8 (C#), Entity Framework Core 8
-- Microsoft SQL Server 2019+ (đã kiểm thử trên SQL Server 2022)
-- Windows Server 2019+ / IIS (ASP.NET Core Hosting Bundle)
+- ASP.NET Core 8 (C#), Entity Framework Core 8, chạy trên Linux hoặc Windows
+- Cơ sở dữ liệu chọn theo `Database:Provider`:
+  - `PostgreSQL` (khuyến nghị cho xã/phường, chi phí thấp): máy chủ Linux + Docker, xem [docs/HUONG_DAN_CAI_DAT_LINUX.md](docs/HUONG_DAN_CAI_DAT_LINUX.md); migration ở `Data/MigrationsPg`
+  - `SqlServer`: máy chủ Windows/IIS có sẵn SQL Server, xem [docs/HUONG_DAN_CAI_DAT.md](docs/HUONG_DAN_CAI_DAT.md); migration ở `Data/Migrations`
+  - `Sqlite`: bản demo trên máy cá nhân, đơn vị rất nhỏ
 - Giao diện web một trang, đáp ứng máy tính và điện thoại, cài được lên màn hình chính (PWA)
 
 ## Cấu trúc
@@ -25,6 +27,8 @@ src/QldaTtts.Web/
   Services/      Phân quyền người dùng, danh sách tập dữ liệu, mật khẩu
   wwwroot/       Giao diện (js/, css/), service worker, manifest
 deploy/          install.ps1 (cài IIS), build-package.ps1, sql/ (lược đồ CSDL)
+deploy/linux/    install.sh, docker-compose.yml, sao-luu-csdl.sh, build-package.sh (Docker + PostgreSQL)
+Dockerfile       ảnh chạy trên Linux
 docs/            HUONG_DAN_CAI_DAT.md
 tests/e2e/       Kiểm thử đầu-cuối Playwright
 ```
@@ -40,9 +44,10 @@ Dùng SQL Server: đặt `Database:Provider=SqlServer` và `ConnectionStrings:Sq
 
 Kiểm thử: `npm i --no-save playwright && npx playwright install chromium && node tests/e2e/smoke.js http://127.0.0.1:5080` (trên CSDL trống).
 
-Thêm migration khi đổi mô hình dữ liệu: `dotnet tool restore && cd src/QldaTtts.Web && dotnet ef migrations add <Ten> -o Data/Migrations`,
-sau đó cập nhật `deploy/sql/QLDA_TTTS_schema.sql` bằng `dotnet ef migrations script --idempotent -o ../../deploy/sql/QLDA_TTTS_schema.sql`.
+Thêm migration khi đổi mô hình dữ liệu (làm cho cả hai CSDL): `dotnet tool restore && cd src/QldaTtts.Web`, rồi
+`dotnet ef migrations add <Ten> --context AppDbContext -o Data/Migrations` và `dotnet ef migrations add <Ten> --context PgDbContext -o Data/MigrationsPg`;
+sau đó cập nhật `deploy/sql/QLDA_TTTS_schema.sql` bằng `dotnet ef migrations script --idempotent --context AppDbContext -o ../../deploy/sql/QLDA_TTTS_schema.sql`.
 
 ## Triển khai
 
-Xem [docs/HUONG_DAN_CAI_DAT.md](docs/HUONG_DAN_CAI_DAT.md). Gói cài đặt được CI tạo tự động (Actions → Artifacts → `goi-cai-dat-QLDA_TTTS`).
+Máy chủ Linux (khuyến nghị): [docs/HUONG_DAN_CAI_DAT_LINUX.md](docs/HUONG_DAN_CAI_DAT_LINUX.md). Máy chủ Windows/IIS: [docs/HUONG_DAN_CAI_DAT.md](docs/HUONG_DAN_CAI_DAT.md). Gói cài đặt Windows được CI tạo tự động (Actions → Artifacts → `goi-cai-dat-QLDA_TTTS`).

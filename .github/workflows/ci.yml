@@ -31,7 +31,7 @@ jobs:
         run: |
           mkdir -p hdsd
           for r in "Quan tri he thong" "Lanh dao Ban" "Can bo ky thuat" "Ke toan" "Tu van giam sat - Nha thau" "Su dung tren dien thoai"; do
-            printf '%%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%%%EOF\n' > "hdsd/01.11.2026 - HDSD Phan mem QLDA TTTS - $r - V1.pdf"
+            printf '%%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%%%EOF\n' > "hdsd/01.11.2026 - HDSD Phan mem QLDA Xa Phuong - $r - V1.pdf"
           done
           ls -l hdsd
       - name: Chạy ứng dụng với SQL Server
@@ -55,6 +55,26 @@ jobs:
         with:
           name: anh-chup-man-hinh
           path: tests/e2e/shots/
+
+  test-linux:
+    name: Docker + PostgreSQL (máy chủ Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Dựng ảnh Docker
+        run: docker build -t qlda-xa-phuong:latest .
+      - name: Cài như trên máy chủ xã (install.sh)
+        run: sudo bash deploy/linux/install.sh xa-ci 8080
+      - name: Kiểm thử đầu-cuối (Playwright)
+        run: |
+          npm install --no-save playwright@1.48.2
+          npx playwright install --with-deps chromium
+          node tests/e2e/smoke.js http://127.0.0.1:8080
+      - if: failure()
+        run: sudo docker compose -f /opt/qlda/xa-ci/docker-compose.yml logs
 
   package:
     name: Gói cài đặt Windows/IIS

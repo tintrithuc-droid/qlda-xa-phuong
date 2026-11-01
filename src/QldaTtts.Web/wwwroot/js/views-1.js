@@ -132,7 +132,7 @@ function renderSetup(){
     <label class="checks"><input type="checkbox" id="su_sample" checked> Nạp dữ liệu mẫu để chạy thử (4 dự án, 7 gói thầu, 6 hợp đồng và tài khoản mẫu)</label>
     <div class="err" id="su_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Khởi tạo hệ thống</button>
-    <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu SQL Server của máy chủ.</p>
+    <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu trên máy chủ của đơn vị.</p>
   </form><p class="auth-foot">${brandFoot()}</p></div></div>`;
   $('#setup').onsubmit=async e=>{
     e.preventDefault(); const err=$('#su_err');

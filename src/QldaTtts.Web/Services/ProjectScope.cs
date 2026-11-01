@@ -51,7 +51,7 @@ public static class ProjectScope
             res.AddRange(await db.Contracts.AsNoTracking().Where(c => payContracts.Contains(c.Id)).Select(c => c.ProjectId).ToListAsync());
         // Ảnh nhật ký lưu trong cột JSON: lọc thô theo chuỗi rồi kiểm tra chính xác
         var like = "%" + fileId + "%";
-        var diaries = await db.Diaries.FromSqlInterpolated($"SELECT * FROM ConstructionDiaries WHERE Photos LIKE {like}").AsNoTracking().ToListAsync();
+        var diaries = await db.Diaries.FromSqlInterpolated($"SELECT * FROM \"ConstructionDiaries\" WHERE \"Photos\" LIKE {like}").AsNoTracking().ToListAsync();
         res.AddRange(diaries.Where(d => d.Photos.Any(p => p.AssetId == fileId)).Select(d => d.ProjectId));
         return res;
     }

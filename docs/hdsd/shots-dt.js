@@ -5,7 +5,7 @@ const { newPage, login, go, closeModal, click, shot, wait, MOB, BASE } = H;
 const intoView = (p, sel, text) => p.evaluate(([s, t]) => { const e = [...document.querySelectorAll(s)].find(e => !t || e.innerText.includes(t)); if (e) e.scrollIntoView({ block: 'center' }); }, [sel, text]).then(() => wait(350));
 (async () => {
   H.b = await chromium.launch({ args: ['--lang=vi-VN'] });
-  const img = path.join(os.tmpdir(), 'anh-hien-truong.png'); fs.copyFileSync('/home/claude/qlda-ttts-hcm/src/QldaTtts.Web/wwwroot/icons/icon-512.png', img);
+  const img = path.join(os.tmpdir(), 'anh-hien-truong.png'); fs.copyFileSync(path.join(__dirname, '../../src/QldaTtts.Web/wwwroot/icons/icon-512.png'), img);
   let p = await newPage(MOB);
   await p.goto(BASE + '/'); await p.waitForSelector('#login');
   await shot(p, 'dt-dang-nhap-so', undefined, [{ sel: '#lg_user', n: 1 }, { sel: '#lg_pw', n: 2 }, { sel: '#login button[type=submit]', n: 3 }]);

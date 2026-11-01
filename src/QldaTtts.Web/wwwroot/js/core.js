@@ -100,7 +100,7 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch{ return
 function ssGet(k){ try{ return sessionStorage.getItem(k); }catch{ return null; } }
 function ssSet(k,v){ try{ v==null? sessionStorage.removeItem(k) : sessionStorage.setItem(k,v); }catch{} }
 
-/* --- lưu trữ: máy chủ ứng dụng ASP.NET Core + SQL Server, giao tiếp qua API --- */
+/* --- lưu trữ: máy chủ ứng dụng ASP.NET Core + CSDL (PostgreSQL / SQL Server / SQLite), giao tiếp qua API --- */
 class ApiError extends Error{ constructor(status,message){ super(message); this.status=status; } }
 async function api(method, url, body, opts={}){
   const init={method, headers:{'X-QLDA':'1'}, credentials:'same-origin'};

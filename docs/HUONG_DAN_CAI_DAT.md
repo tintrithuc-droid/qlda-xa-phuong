@@ -1,6 +1,7 @@
 # Hướng dẫn cài đặt Phần mềm QLDA đầu tư xây dựng, bản dùng chung cho Ban QLDA xã/phường
 
-Công nghệ theo Báo cáo KTKT (phần VIII): ASP.NET Core 8 (C#), Microsoft SQL Server 2019 trở lên, Windows Server 2019 trở lên, IIS.
+Phương án máy chủ Windows: ASP.NET Core 8 (C#), Microsoft SQL Server 2019 trở lên (Express miễn phí dùng được), Windows Server 2019 trở lên, IIS.
+Phương án chi phí thấp hơn (Linux, Docker, PostgreSQL): xem [HUONG_DAN_CAI_DAT_LINUX.md](HUONG_DAN_CAI_DAT_LINUX.md).
 
 ## 1. Yêu cầu máy chủ
 

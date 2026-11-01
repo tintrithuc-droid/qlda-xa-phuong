@@ -64,6 +64,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Tệp PDF HDSD mẫu (ảnh thật đóng gói kèm bộ HDSD; thư mục này không đưa vào git)
+        working-directory: src/QldaTtts.Web
+        run: |
+          mkdir -p hdsd
+          for r in "Quan tri he thong" "Lanh dao Ban" "Can bo ky thuat" "Ke toan" "Tu van giam sat - Nha thau" "Su dung tren dien thoai"; do
+            printf '%%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%%%EOF\n' > "hdsd/01.11.2026 - HDSD Phan mem QLDA Xa Phuong - $r - V1.pdf"
+          done
       - name: Dựng ảnh Docker
         run: docker build -t qlda-xa-phuong:latest .
       - name: Cài như trên máy chủ xã (install.sh)

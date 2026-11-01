@@ -26,6 +26,14 @@ jobs:
         with:
           node-version: "20"
       - run: dotnet build -c Release
+      - name: Tệp PDF HDSD mẫu (gói cài thật chứa bộ HDSD trong app/hdsd; thư mục này không đưa vào git)
+        working-directory: src/QldaTtts.Web
+        run: |
+          mkdir -p hdsd
+          for r in "Quan tri he thong" "Lanh dao Ban" "Can bo ky thuat" "Ke toan" "Tu van giam sat - Nha thau" "Su dung tren dien thoai"; do
+            printf '%%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%%%EOF\n' > "hdsd/01.11.2026 - HDSD Phan mem QLDA TTTS - $r - V1.pdf"
+          done
+          ls -l hdsd
       - name: Chạy ứng dụng với SQL Server
         working-directory: src/QldaTtts.Web
         env:

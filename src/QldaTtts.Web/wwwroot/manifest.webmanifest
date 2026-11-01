@@ -1,7 +1,7 @@
 {
-  "name": "QLDA Trung tâm Thủy sản TP. HCM",
-  "short_name": "QLDA TTTS",
-  "description": "Phần mềm quản lý dự án đầu tư xây dựng - Ban QLDA Trung tâm Thủy sản TP. Hồ Chí Minh",
+  "name": "QLDA đầu tư xây dựng xã/phường",
+  "short_name": "QLDA Xã/Phường",
+  "description": "Phần mềm quản lý dự án đầu tư xây dựng - Ban QLDA xã/phường",
   "lang": "vi",
   "start_url": "/#hien-truong",
   "scope": "/",

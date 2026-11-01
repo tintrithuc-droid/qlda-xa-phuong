@@ -1,4 +1,4 @@
-# Hướng dẫn cài đặt Phần mềm QLDA đầu tư xây dựng, Ban QLDA Trung tâm Thủy sản TP.HCM
+# Hướng dẫn cài đặt Phần mềm QLDA đầu tư xây dựng, bản dùng chung cho Ban QLDA xã/phường
 
 Công nghệ theo Báo cáo KTKT (phần VIII): ASP.NET Core 8 (C#), Microsoft SQL Server 2019 trở lên, Windows Server 2019 trở lên, IIS.
 

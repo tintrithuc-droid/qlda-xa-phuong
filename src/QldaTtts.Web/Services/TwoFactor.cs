@@ -30,7 +30,7 @@ public class TwoFactor
 
     /// <summary>Bắt buộc xác thực 2 lớp với nhóm có toàn quyền (mặc định bật).</summary>
     public bool RequiredForAdmins => _cfg.GetValue("Security:RequireTwoFactorForAdmins", true);
-    public string Issuer => _cfg["Security:TwoFactorIssuer"] is { Length: > 0 } s ? s : "QLDA TTTS HCM";
+    public string Issuer => _cfg["Security:TwoFactorIssuer"] is { Length: > 0 } s ? s : "QLDA Xa Phuong";
 
     public bool Required(AppUser u, UserGroup? g) => u.TotpSecret is not null || (RequiredForAdmins && g?.Admin == true);
 

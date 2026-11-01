@@ -105,7 +105,7 @@ async function login(p, u, pw = PW) {
   const openP = async id => { await go(p, 'du-an'); await p.evaluate(i => { S.sel.project = i; S.tab.proj = 'info'; render(); }, id); await p.waitForTimeout(200); };
   // A1: Quyết định phê duyệt dự án kèm tệp ngay trong biểu mẫu dự án
   await openP('p1'); await p.click('[data-act=edit-projects]'); await p.waitForTimeout(200);
-  if (!(await p.inputValue('#f_decNo')).includes('1021')) errs.push('A1: không nạp số QĐ phê duyệt hiện có');
+  if (!(await p.inputValue('#f_decNo')).includes('215/QĐ')) errs.push('A1: không nạp số QĐ phê duyệt hiện có');
   await p.fill('#f_decDate', '2025-01-20'); await putFiles('decAtt', [pdf]); await submit();
   if (await attOf('legal', 'l2') !== 1) errs.push('A1: tệp QĐ phê duyệt chưa gắn vào hồ sơ pháp lý l2');
   if (!(await p.textContent('#content')).includes('QD-phe-duyet.pdf')) errs.push('A1: Thông tin chung chưa hiện tệp QĐ');
@@ -137,7 +137,7 @@ async function login(p, u, pw = PW) {
   // A4: gói thầu: QĐ KHLCNT (đã có l6) + QĐ KQLCNT
   await go(p, 'goi-thau'); await p.evaluate(() => { S.sel.pkg = 'k1'; render(); }); await p.waitForTimeout(200);
   await p.click('[data-act=edit-packages]'); await p.waitForTimeout(200);
-  if (!(await p.inputValue('#f_khNo')).includes('61/QĐ-BQL')) errs.push('A4: không nạp số QĐ KHLCNT');
+  if (!(await p.inputValue('#f_khNo')).includes('61/QĐ-UBND')) errs.push('A4: không nạp số QĐ KHLCNT');
   await putFiles('khAtt', [pdf]); await putFiles('kqAtt', [pdf2]); await submit();
   if (await attOf('legal', 'l6') !== 1 || await attOf('legal', 'l7') !== 1) errs.push('A4: tệp KHLCNT/KQLCNT chưa gắn');
   // A5: hợp đồng: bản ký + bảo lãnh, hiệu lực bảo lãnh sắp hết → cảnh báo

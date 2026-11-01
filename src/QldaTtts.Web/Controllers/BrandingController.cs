@@ -19,19 +19,19 @@ public class BrandingController : ApiControllerBase
     public const long LogoMaxBytes = 2 * 1024 * 1024;
     private static readonly HashSet<string> LogoTypes = new(StringComparer.OrdinalIgnoreCase) { ".png", ".jpg", ".jpeg", ".webp", ".gif" };
 
-    /// <summary>Các mục được phép cấu hình và giá trị mặc định (Trung tâm Thủy sản TP.HCM).</summary>
+    /// <summary>Các mục được phép cấu hình và giá trị mặc định (bản dùng chung cho xã/phường).</summary>
     public static readonly (string Key, string Default, int Max)[] Fields =
     {
         ("appName", "QLDA đầu tư xây dựng", 120),
-        ("orgShort", "Trung tâm Thủy sản TP.HCM", 120),
-        ("orgName", "Trung tâm Thủy sản Thành phố Hồ Chí Minh", 200),
-        ("unitName", "Ban Quản lý dự án", 200),
+        ("orgShort", "Ban QLDA xã/phường …", 120),
+        ("orgName", "Ủy ban nhân dân xã/phường …", 200),
+        ("unitName", "Ban Quản lý dự án đầu tư xây dựng", 200),
         ("bannerTitle", "Phần mềm quản lý dự án đầu tư xây dựng", 200),
         ("bannerText", "Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.", 500),
-        ("address", "255 Trần Hưng Đạo, Phường Cầu Ông Lãnh, TP. Hồ Chí Minh", 300),
-        ("footer", "© {năm} Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM", 300),
-        ("reportOrg", "Ban Quản lý dự án – Trung tâm Thủy sản TP.HCM", 200),
-        ("ownerDefault", "Ban QL Trung tâm Thủy sản TP.HCM", 200),
+        ("address", "Địa chỉ: …", 300),
+        ("footer", "© {năm} Ban Quản lý dự án đầu tư xây dựng xã/phường …", 300),
+        ("reportOrg", "Ban QLDA đầu tư xây dựng xã/phường …", 200),
+        ("ownerDefault", "UBND xã/phường …", 200),
         ("support", "Hỗ trợ: quản trị hệ thống của đơn vị", 200),
     };
 

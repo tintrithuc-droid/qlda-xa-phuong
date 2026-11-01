@@ -1,11 +1,15 @@
-# Phần mềm quản lý dự án đầu tư xây dựng: Ban QLDA Trung tâm Thủy sản TP.HCM
+# Phần mềm quản lý dự án đầu tư xây dựng: bản dùng chung cho Ban QLDA xã/phường
 
-Xây dựng theo Báo cáo kinh tế kỹ thuật "Phần mềm QLDA đầu tư XD - BQL TTTS HCM" (62 use case, 7 phân hệ):
+Sản phẩm của Công ty Cổ phần Tin học Tri Thức. Phát triển từ phần mềm QLDA của Ban QLDA Trung tâm Thủy sản TP.HCM
+(kho `tintrithuc-droid/qlda-ttts-hcm`, phiên bản 1.0 ngày 01/11/2026), đổi sang nhận diện trung tính và dữ liệu mẫu cấp xã.
+Mỗi đơn vị tự đặt logo, tên đơn vị, banner, chân trang tại Quản trị hệ thống → Thông tin đơn vị, giao diện.
+
+62 chức năng, 7 phân hệ:
 quản lý dự án, mô hình hóa công trình (lưu trữ tệp mô hình theo phiên bản), gói thầu và hợp đồng, tiến độ (Gantt, đường cong S),
 nhật ký thi công, khối lượng, thanh toán, báo cáo thống kê, quản trị hệ thống và ứng dụng hiện trường trên điện thoại.
-Trang **Đối chiếu BC KTKT** trong phần mềm ánh xạ từng use case với chức năng đã làm.
+Trang **Danh mục chức năng** trong phần mềm ánh xạ từng use case với chức năng đã làm.
 
-## Công nghệ (theo BC KTKT, phần VIII)
+## Công nghệ
 
 - ASP.NET Core 8 (C#), Entity Framework Core 8
 - Microsoft SQL Server 2019+ (đã kiểm thử trên SQL Server 2022)

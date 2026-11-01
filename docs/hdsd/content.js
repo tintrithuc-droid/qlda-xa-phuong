@@ -462,7 +462,7 @@ S.admin = () => [
   legend([[1, 'Mã QR để quét bằng ứng dụng xác thực'], [2, 'Khóa thiết lập (dùng khi không quét được mã QR)'], [3, 'Ô nhập mã 6 số'], [4, 'Nút Xác nhận và bật']]),
   { steps: [
     'Cài ứng dụng Google Authenticator hoặc Microsoft Authenticator trên điện thoại.',
-    'Trong ứng dụng, nhấn nút **+** → **Quét mã QR** và quét mã QR (1) trên màn hình. Ứng dụng thêm mục «QLDA TTTS HCM» kèm tên đăng nhập.',
+    'Trong ứng dụng, nhấn nút **+** → **Quét mã QR** và quét mã QR (1) trên màn hình. Ứng dụng thêm mục «QLDA Xa Phuong» kèm tên đăng nhập.',
     'Nếu không quét được, chọn **Nhập khóa thiết lập** trong ứng dụng, nhập tên tài khoản và dãy khóa (2) hiển thị bên dưới mã QR.',
     'Nhập mã 6 số đang hiển thị trên ứng dụng vào ô (3), nhấn **Xác nhận và bật** (4).',
   ] },
@@ -477,7 +477,7 @@ S.admin = () => [
   { h2: 'Đăng nhập hằng ngày' },
   { steps: [
     'Nhập tên đăng nhập và mật khẩu như bình thường, nhấn **Đăng nhập**.',
-    'Mở ứng dụng xác thực, nhập mã 6 số của mục «QLDA TTTS HCM» vào ô (1), nhấn **Xác nhận** (2).',
+    'Mở ứng dụng xác thực, nhập mã 6 số của mục «QLDA Xa Phuong» vào ô (1), nhấn **Xác nhận** (2).',
     'Không có điện thoại bên cạnh: nhấn **Dùng mã khôi phục** (3) và nhập một mã khôi phục chưa dùng (dạng xxxxx-xxxxx).',
   ] },
   { imgs2: ['qt-2lop-dang-nhap', 'qt-2lop-ma-khoi-phuc-dang-nhap'], caps: ['Nhập mã 6 số khi đăng nhập', 'Nhập mã khôi phục thay cho mã 6 số'] },

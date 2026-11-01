@@ -87,7 +87,7 @@ public class AuthController : ApiControllerBase
             su.PasswordHash = Passwords.Hash(su, r.Password);
             Db.Users.Add(su);
         }
-        var u = new AppUser { Id = "u-admin", Username = username, Name = r.Name.Trim(), GroupId = "g-admin", Unit = "Ban QL Trung tâm Thủy sản", Active = true, CreatedAt = now, LastLogin = now, UpdatedAt = now, UpdatedBy = username };
+        var u = new AppUser { Id = "u-admin", Username = username, Name = r.Name.Trim(), GroupId = "g-admin", Unit = "Ban QLDA", Active = true, CreatedAt = now, LastLogin = now, UpdatedAt = now, UpdatedBy = username };
         u.PasswordHash = Passwords.Hash(u, r.Password);
         Db.Users.Add(u);
         Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = now, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Khởi tạo hệ thống", Module = "Người dùng", Target = "Tài khoản quản trị " + username, Ip = Uc.Ip });

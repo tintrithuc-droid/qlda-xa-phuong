@@ -95,12 +95,13 @@ function build() {
     'Nhập **Công việc thực hiện** (5), mỗi dòng một công việc theo mẫu «Nội dung | Khối lượng | Đơn vị», ví dụ: «Đổ bê tông lót móng | 2,4 | m3». Ghi **Vướng mắc, sự cố, kiến nghị** (6) nếu có.',
     'Tại ô **Hình ảnh hiện trường** (7), chọn máy ảnh để chụp hoặc chọn ảnh có sẵn; có thể chọn nhiều ảnh.',
     'Chạm **Lưu** (8). Nhật ký và ảnh được gửi ngay về máy chủ.',
+    'Sau khi các bên ký trang nhật ký giấy, mở lại trang nhật ký bằng nút **Sửa**, chụp trang đã ký tại ô **Trang nhật ký đã ký** cuối hộp nhập và chạm **Lưu**.',
   ] });
   out.push({ imgs2: ['dt-nk-1', 'dt-nk-2', 'dt-nk-3'], caps: ['Thông tin chung', 'Công việc thực hiện', 'Ảnh hiện trường và Lưu'], mobile: true });
   out.push(legend([[1, 'Gói thầu'], [2, 'Ngày ghi nhật ký'], [3, 'Thời tiết'], [4, 'Số nhân công'], [5, 'Công việc thực hiện, mỗi dòng một công việc'], [6, 'Vướng mắc, sự cố, kiến nghị'], [7, 'Hình ảnh hiện trường'], [8, 'Lưu nhật ký']]));
   out.push({ note: 'Ảnh chụp được tự thu nhỏ còn tối đa 1920 điểm ảnh trước khi gửi để tiết kiệm dung lượng 3G/4G mà vẫn đủ rõ. Trên hình minh họa, nút chọn ảnh hiển thị theo trình duyệt máy tính; trên điện thoại, nút này mở hộp chọn máy ảnh hoặc thư viện ảnh.' });
   out.push({ h2: 'Xem lại nhật ký' });
-  out.push({ p: 'Chạm **Nhật ký** ở thanh điều hướng dưới cùng để xem các trang nhật ký đã ghi, mới nhất ở trên. Chạm **+ Ghi nhật ký** (1) để ghi trang mới; lọc theo gói thầu (2), khoảng ngày hoặc nội dung. Mỗi thẻ nhật ký có nút **Thêm ảnh** để bổ sung ảnh, **Sửa** và **Xóa** (theo quyền).' });
+  out.push({ p: 'Chạm **Nhật ký** ở thanh điều hướng dưới cùng để xem các trang nhật ký đã ghi, mới nhất ở trên. Chạm **+ Ghi nhật ký** (1) để ghi trang mới; lọc theo gói thầu (2), khoảng ngày hoặc nội dung. Mỗi thẻ nhật ký có nút **Thêm ảnh**, **Sửa** và **Xóa** (theo quyền). Nút **Thêm ảnh** mở hộp quản lý ảnh: ghi chú thích cho từng ảnh (vị trí, nội dung chụp), đánh dấu **Bỏ ảnh này** với ảnh chụp nhầm và chụp thêm ảnh mới.' });
   out.push(img('dt-nhat-ky-ds', 'Danh sách nhật ký thi công', 6.4));
   out.push(legend([[1, 'Ghi trang nhật ký mới'], [2, 'Lọc theo gói thầu']]));
 
@@ -109,7 +110,7 @@ function build() {
   out.push({ steps: [
     'Trên trang **Hiện trường**, chạm ô **Cập nhật tiến độ**.',
     'Chọn **Hạng mục tiến độ** (1); danh sách hiện mã gói thầu, tên hạng mục và phần trăm hiện tại, chỉ gồm hạng mục chưa hoàn thành.',
-    'Nhập **Tiến độ thực tế lũy kế (%)** (2), ghi chú hoặc nguyên nhân chậm nếu có, chạm **Lưu** (3).',
+    'Nhập **Tiến độ thực tế lũy kế (%)** (2), ghi chú hoặc nguyên nhân chậm nếu có; tại ô **Ảnh hiện trường, báo cáo tuần** có thể chụp ảnh làm căn cứ (không bắt buộc). Chạm **Lưu** (3).',
   ] });
   out.push({ h2: 'Cập nhật trên biểu đồ tiến độ' });
   out.push({ p: 'Chạm **Menu** → **Quản lý tiến độ**, kéo xuống **Biểu đồ tiến độ (Gantt)**. Thanh màu xanh là hạng mục đúng tiến độ, vàng là chậm, đỏ là quá hạn. Chạm **Cập nhật** (4) trên dòng hạng mục để nhập phần trăm thực hiện như cách cập nhật nhanh.' });
@@ -136,6 +137,7 @@ function build() {
     ['Lưu nhật ký báo lỗi', 'Thường do mất sóng. Kiểm tra kết nối rồi chạm Lưu lại; nhật ký chỉ được ghi nhận khi phần mềm báo lưu thành công.'],
     ['Không tìm thấy tệp đã tải', 'Android: thư mục Tải xuống/QLDA TTTS. iPhone: ứng dụng Tệp, mục Tải về.'],
     ['Không cài được bản mới', 'Chỉ cài tệp do quản trị hệ thống cung cấp. Nếu máy báo xung đột gói, gỡ ứng dụng cũ rồi cài lại và nhập lại địa chỉ máy chủ.'],
+    ['Chụp nhầm ảnh hoặc tệp', 'Ảnh nhật ký: chạm Thêm ảnh, đánh dấu Bỏ ảnh này rồi Lưu. Tệp đính kèm: mở lại hộp nhập, chạm Gỡ rồi Lưu; tệp gỡ nhầm được quản trị hệ thống khôi phục trong 30 ngày.'],
     ['Không thấy một chức năng', 'Tài khoản chưa được phân quyền chức năng đó; đề nghị quản trị hệ thống xem lại.'],
     ['Tài khoản bị tạm khóa', 'Do nhập sai mật khẩu 5 lần; chờ 15 phút hoặc đề nghị quản trị hệ thống đặt lại mật khẩu.'],
   ] }, cap: 'Một số tình huống thường gặp trên điện thoại' });

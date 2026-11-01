@@ -64,6 +64,13 @@ Phần hiện trường (UC54–62) chạy trên trình duyệt điện thoại.
 
 Giải nén gói mới và chạy lại `.\install.ps1` (không cần tham số SQL). Script dừng website, chép bản mới, giữ nguyên cấu hình, dữ liệu và khóa phiên đăng nhập; lược đồ CSDL tự nâng cấp khi khởi động.
 
+Nâng cấp từ bản 1.0 lên 1.1 (tệp đính kèm, thùng rác, sao lưu tự động):
+
+1. Trên máy chủ, vào **Quản trị hệ thống → Sao lưu, hệ thống**, nhấn **Tải tệp sao lưu (.json)** để giữ một bản trước khi nâng cấp.
+2. Giải nén gói 1.1 ra thư mục mới (ví dụ `C:\Setup\QLDA_v1.1`), mở PowerShell bằng quyền Administrator, `cd` vào thư mục đó và chạy `.\install.ps1`. Nếu lần cài trước có dùng `-DataPath` khác mặc định thì truyền lại đúng tham số đó.
+3. Script tự bổ sung `Storage:BackupPath` (`<DataPath>\backups`) vào cấu hình cũ. Khi website khởi động, CSDL được nâng cấp (bảng `Attachments`, cột hiệu lực bảo lãnh, văn bản) và các tệp đính kèm cũ của hồ sơ pháp lý, thanh toán được chuyển sang cơ chế đính kèm mới; không mất dữ liệu.
+4. Kiểm tra: mở `http://localhost/api/health` thấy `"status":"ok"`; đăng nhập, góc dưới thanh bên trái hiện **Phiên bản 1.1**; nhấn Ctrl+F5 trên các máy trạm để tải giao diện mới.
+
 ## 7. Sao lưu
 
 - **CSDL**: lập SQL Server Agent job (hoặc Task Scheduler + `sqlcmd`) sao lưu `QLDA_TTTS` hằng ngày, ví dụ:

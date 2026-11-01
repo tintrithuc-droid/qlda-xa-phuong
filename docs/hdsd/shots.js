@@ -57,6 +57,8 @@ async function ann(p, a) {
 async function clearAnn(p) { await p.evaluate(() => document.querySelectorAll('.hd-ann').forEach(x => x.remove())); }
 // clip: undefined = khung nhìn; 'full' = cả trang; selector = vùng phần tử (+ lề 18px)
 async function shot(p, name, clip, a) {
+  const vp = p.viewportSize(), tall = typeof clip === 'string' && clip.startsWith('#ov') && vp.width > 1000;
+  if (tall) { await p.setViewportSize({ width: vp.width, height: 1900 }); await wait(300); }
   if (a) await ann(p, a);
   const file = path.join(OUT, name + '.png');
   if (clip === 'full') await p.screenshot({ path: file, fullPage: true });
@@ -65,7 +67,7 @@ async function shot(p, name, clip, a) {
     if (!r) throw new Error('Không thấy vùng ' + clip);
     const m = 18; await p.screenshot({ path: file, fullPage: true, clip: { x: Math.max(0, r.x - m), y: Math.max(0, r.y - m), width: r.w + 2 * m, height: r.h + 2 * m } });
   } else await p.screenshot({ path: file });
-  await clearAnn(p); console.log('✓', name);
+  await clearAnn(p); if (tall) await p.setViewportSize(vp); console.log('✓', name);
 }
 async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e = [...document.querySelectorAll(s)].find(e => !t || e.innerText.includes(t)); if (e) e.scrollIntoView({ block: 'start' }); window.scrollBy(0, -80); }, [sel, text]); await wait(300); }
 
@@ -95,6 +97,53 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await p.click('#mf_alt'); await wait(200); await shot(p, 'qt-2lop-ma-khoi-phuc-dang-nhap', '#mfa');
   await p.context().close();
 
+  // ===== Tệp đính kèm mẫu, hạn bảo lãnh, ảnh nhật ký có chú thích =====
+  { const M = '/tmp/hdsd-mau/'; const f64 = n => ({ name: n, b64: fs.readFileSync(M + n).toString('base64') });
+    p = await newPage(DESK); await login(p, 'admin');
+    await p.evaluate(async F => {
+      const up = async (col, rid, n, kind, ref) => { const f = F[n]; const bin = Uint8Array.from(atob(f.b64), c => c.charCodeAt(0));
+        const fd = new FormData(); fd.append('file', new File([bin], n, { type: n.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg' }));
+        fd.append('collection', col); fd.append('recordId', rid); if (kind) fd.append('kind', kind); if (ref) fd.append('ref', ref);
+        const r = await fetch('/api/attachments', { method: 'POST', headers: { 'X-QLDA': '1' }, body: fd }); if (!r.ok) throw new Error('upload ' + n + ' ' + r.status); return r.json(); };
+      const add = d => Days => { const x = new Date(TODAY); x.setDate(x.getDate() + Days); return x.toISOString().slice(0, 10); };
+      const plus = add();
+      const pr = D('projects').find(x => x.name.includes('Dự án thành phần 1')) || D('projects')[0];
+      // văn bản pháp lý chính của dự án
+      const L = t => D('legal').find(l => l.projectId === pr.id && !l.packageId && l.type === t);
+      let qd = L('Quyết định phê duyệt dự án'); if (!qd) qd = await Store.put('legal', { projectId: pr.id, packageId: '', type: 'Quyết định phê duyệt dự án', number: '1245/QĐ-TTTS', date: pr.start || TODAY, issuer: 'Trung tâm Thủy sản TP.HCM', title: 'Phê duyệt dự án ' + pr.name });
+      await up('legal', qd.id, 'QD-phe-duyet-du-an-so-1245-QD-TTTS.pdf');
+      let ct = L('Quyết định chủ trương đầu tư'); if (!ct) ct = await Store.put('legal', { projectId: pr.id, packageId: '', type: 'Quyết định chủ trương đầu tư', number: '312/QĐ-UBND', date: '2025-03-12', issuer: 'UBND Thành phố Hồ Chí Minh', title: 'Chủ trương đầu tư ' + pr.name });
+      await up('legal', ct.id, 'QD-chu-truong-dau-tu-so-312-QD-UBND.pdf'); await up('legal', ct.id, 'Giay-phep-xay-dung.pdf');
+      const gp = await Store.put('legal', { projectId: pr.id, packageId: '', type: (catalog('Loại hồ sơ pháp lý').find(x => /giấy phép/i.test(x)) || 'Giấy phép xây dựng'), number: '86/GPXD', date: '2025-08-20', issuer: 'Sở Xây dựng TP.HCM', title: 'Giấy phép xây dựng ' + pr.code, validUntil: plus(18) });
+      await up('legal', gp.id, 'Giay-phep-xay-dung.pdf');
+      // gói thầu XL01: KHLCNT, KQLCNT, hợp đồng, bảo lãnh, BOQ, nghiệm thu, thanh toán
+      const k = D('packages').find(x => x.projectId === pr.id && /XL01/.test(x.code)) || D('packages').find(x => /XL01/.test(x.code));
+      const c = D('contracts').find(x => x.packageId === k.id);
+      for (const [t, n] of [['Kế hoạch lựa chọn nhà thầu', 'QD-phe-duyet-KHLCNT.pdf'], ['Kết quả lựa chọn nhà thầu', 'QD-phe-duyet-KQLCNT-XL01.pdf']]) {
+        let l = D('legal').find(x => x.packageId === k.id && x.type === t); if (!l) l = await Store.put('legal', { projectId: k.projectId, packageId: k.id, type: t, number: (t.startsWith('Kế') ? '58' : '97') + '/QĐ-BQL', date: '2025-06-10', issuer: 'Ban QL Trung tâm Thủy sản TP.HCM', title: 'Phê duyệt ' + (t.startsWith('Kế') ? 'KHLCNT' : 'kết quả LCNT gói ') + k.code });
+        await up('legal', l.id, n); }
+      await Store.put('contracts', { ...c, guaranteeUntil: plus(21), advanceGuaranteeUntil: plus(75), guarantee: c.guarantee || 'BL 0215/2025 – Vietcombank CN TP.HCM' });
+      await up('contracts', c.id, 'Hop-dong-XL01-da-ky.pdf', 'Hợp đồng đã ký'); await up('contracts', c.id, 'Bao-lanh-thuc-hien-hop-dong.pdf', 'Bảo lãnh thực hiện hợp đồng'); await up('contracts', c.id, 'Bao-lanh-tam-ung.pdf', 'Bảo lãnh tạm ứng');
+      await up('contracts', c.id, 'Bien-ban-nghiem-thu-dot-1.pdf', 'Bảng khối lượng hợp đồng');
+      for (const per of [...new Set(D('volumes').filter(v => v.contractId === c.id).map(v => v.period))].slice(0, 2)) await up('contracts', c.id, 'Bien-ban-nghiem-thu-dot-1.pdf', 'Biên bản nghiệm thu', per);
+      for (const pay of D('payments').filter(x => x.contractId === c.id).slice(0, 3)) { await up('payments', pay.id, 'Ho-so-de-nghi-thanh-toan-dot-1.pdf', 'Hồ sơ đề nghị thanh toán'); if (pay.status === 'Đã thanh toán') await up('payments', pay.id, 'Uy-nhiem-chi-KBNN.pdf', 'Chứng từ Kho bạc'); }
+      // nhật ký: trang đã ký + ảnh có chú thích
+      for (const d of D('diaries').filter(x => x.packageId === k.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 2)) {
+        await up('diaries', d.id, 'Trang-nhat-ky-da-ky.pdf', 'Trang nhật ký đã ký');
+        const ph = [...(d.photos || [])];
+        for (const [n, cap] of [['Anh-hien-truong-mong-M1.jpg', 'Bê tông móng M1, nhìn từ trục 1'], ['Anh-hien-truong-cot-truc-A.jpg', 'Cốp pha cột trục A']]) {
+          const f = F[n]; const bin = Uint8Array.from(atob(f.b64), c => c.charCodeAt(0)); const ph1 = await storePhoto(new File([bin], n, { type: 'image/jpeg' })); ph.push({ ...ph1, caption: cap, date: d.date, by: 'Nguyễn Văn Giám Sát' }); }
+        await Store.put('diaries', { ...d, photos: ph }); }
+      // tiến độ: ảnh và báo cáo khi cập nhật
+      const sc = D('schedule').find(x => x.packageId === k.id && x.progress > 0); if (sc) await up('schedule', sc.id, 'Bao-cao-tuan-44.pdf', 'Cập nhật tiến độ', TODAY);
+      // công việc: văn bản giao việc
+      const tk = D('tasks').find(x => x.projectId === pr.id); if (tk) await up('tasks', tk.id, 'QD-phe-duyet-KHLCNT.pdf', 'Văn bản giao việc');
+      // một tệp gỡ nhầm nằm trong thùng rác
+      const tr = await up('legal', gp.id, 'Bao-cao-tuan-44.pdf'); await fetch('/api/attachments/' + tr.id, { method: 'DELETE', headers: { 'X-QLDA': '1' } });
+      await fetch('/api/backup/auto', { method: 'POST', headers: { 'X-QLDA': '1' } });
+    }, Object.fromEntries(fs.readdirSync(M).map(n => [n, f64(n)])));
+    await p.context().close(); }
+
   // ===== Các ảnh chung theo từng vai trò =====
   const roles = { qt: 'admin', ld: 'lanhdao', kt: 'kythuat', ke: 'ketoan', gs: 'giamsat' };
   for (const [k, u] of Object.entries(roles)) {
@@ -116,6 +165,10 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await tab(p, 'Tình trạng thực hiện'); await shot(p, 'ld-du-an-tinh-trang');
   await tab(p, 'Hồ sơ pháp lý'); await shot(p, 'ld-du-an-phap-ly', undefined, [{ sel: '[data-act=add-legal]', n: 1 }]);
   await click(p, '[data-act=add-legal]'); await shot(p, 'chung-them-ho-so-phap-ly', '#ov .mform'); await closeModal(p);
+  await click(p, '.content [data-act=att-all]'); await shot(p, 'chung-ds-tep', '#ov .mform'); await closeModal(p);
+  { const rows = await p.$$('.content tr'); for (const r of rows) { if ((await r.innerText()).includes('Giấy phép')) { await (await r.$('[data-act=edit-legal]')).click(); break; } } await wait(400);
+    await p.setInputFiles('#ov .attdrop input[type=file]', '/tmp/hdsd-mau/Giay-phep-xay-dung.pdf'); await wait(300);
+    await shot(p, 'chung-dinh-kem', '#ov .mform', [{ sel: '#ov .attbox > .attlist li', n: 1 }, { sel: '#ov .attdrop', n: 2 }, { sel: '#ov .attnew li', n: 3 }]); await closeModal(p); }
   await tab(p, 'Công việc'); await shot(p, 'ld-du-an-cong-viec', undefined, [{ sel: '[data-act=add-task]', n: 1 }, { sel: '[data-act=task-done]', n: 2 }]);
   await click(p, '[data-act=add-task]'); await shot(p, 'ld-them-cong-viec', '#ov .mform'); await closeModal(p);
   await go(p, 'tien-do'); await shot(p, 'ld-tien-do', undefined, [{ sel: '.card', text: 'Cảnh báo chậm tiến độ', n: 1 }]);
@@ -128,7 +181,9 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
 
   // ===== Cán bộ kỹ thuật =====
   p = await newPage(DESK); await login(p, 'kythuat');
-  await go(p, 'du-an'); await click(p, '.head .btn.primary'); await shot(p, 'kt-them-du-an', '#ov .mform'); await closeModal(p);
+  await go(p, 'du-an'); await click(p, '.content tr.click', 'Dự án thành phần 1');
+  await scrollTo(p, '.card', 'Văn bản pháp lý chính'); await shot(p, 'kt-van-ban-chinh', undefined, [{ sel: '.card', text: 'Văn bản pháp lý chính', n: 1 }, { sel: '.card [data-act=add-legal]', n: 2 }]);
+  await click(p, '[data-act=edit-projects]'); await shot(p, 'kt-them-du-an', '#ov .mform', [{ sel: '#ov .fld', text: 'Số quyết định phê duyệt dự án', n: 1 }, { sel: '#f_decAtt', n: 2 }]); await closeModal(p);
   await go(p, 'mo-hinh'); await shot(p, 'kt-mo-hinh', undefined, [{ sel: '.content select', n: 1 }, { sel: '[data-act=add-model]', n: 2 }, { sel: '[data-act=model-ver]', n: 3 }, { sel: '[data-act=model-hist]', n: 4 }]);
   await click(p, '[data-act=add-model]'); await shot(p, 'kt-tai-mo-hinh', '#ov .mform'); await closeModal(p);
   await click(p, '[data-act=model-hist]'); await shot(p, 'kt-lich-su-mo-hinh', '#ov .mform'); await closeModal(p);
@@ -138,7 +193,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await click(p, '.head .btn.primary'); await shot(p, 'kt-them-goi-thau', '#ov .mform'); await closeModal(p);
   await click(p, '.content tr.click', 'XL01'); await shot(p, 'kt-chi-tiet-goi-thau', 'full', [{ sel: '[data-act=edit-packages]', n: 1 }, { sel: '.card', text: 'Thông tin hợp đồng', n: 2 }, { sel: '[data-act=goto-kl]', n: 3 }, { sel: '.card', text: 'Điều chỉnh, phụ lục', n: 4 }, { sel: '.card', text: 'Hồ sơ pháp lý gói thầu', n: 5 }]);
   await click(p, '[data-act=add-addendum]'); await shot(p, 'kt-them-phu-luc', '#ov .mform'); await closeModal(p);
-  await click(p, '[data-act=edit-contracts]'); await shot(p, 'kt-sua-hop-dong', '#ov .mform'); await closeModal(p);
+  await click(p, '[data-act=edit-contracts]'); await shot(p, 'kt-sua-hop-dong', '#ov .mform', [{ sel: '#ov .fld', text: 'Bảo lãnh thực hiện HĐ hiệu lực đến', n: 1 }, { sel: '#f_att0', n: 2 }]); await closeModal(p);
   await go(p, 'tien-do'); await scrollTo(p, '.card', 'Theo dõi tiến độ'); await tab(p, 'Theo gói thầu');
   await scrollTo(p, '.card', 'Biểu đồ tiến độ'); await shot(p, 'kt-gantt', undefined, [{ sel: '[data-act=upd-sched]', n: 1 }, { sel: '[data-act=sched-more]', n: 2 }, { sel: '.gtoday', n: 3, pad: 6 }]);
   await click(p, '[data-act=upd-sched]'); await shot(p, 'kt-cap-nhat-tien-do', '#ov .mform'); await closeModal(p);
@@ -146,8 +201,9 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await go(p, 'tien-do'); await click(p, '[data-act=add-sched]'); await shot(p, 'kt-lap-ke-hoach', '#ov .mform'); await closeModal(p);
   await go(p, 'nhat-ky'); await shot(p, 'kt-nhat-ky', undefined, [{ sel: '.toolbar', n: 1 }, { sel: '.head .btn.primary', n: 2 }, { sel: '[data-act=diary-photo]', n: 3 }, { sel: '[data-act=edit-diaries]', n: 4 }]);
   await click(p, '.head .btn.primary'); await shot(p, 'kt-ghi-nhat-ky', '#ov .mform'); await closeModal(p);
+  await click(p, '[data-act=diary-photo]'); await shot(p, 'kt-anh-nhat-ky', '#ov .mform', [{ sel: '#ov [data-cap]', n: 1 }, { sel: '#ov figure label', n: 2 }, { sel: '#ov .fld', text: 'Thêm ảnh', n: 3 }]); await closeModal(p);
   await go(p, 'khoi-luong'); await p.selectOption('.content select >> nth=0', { index: 2 }).catch(() => { }); await wait(400);
-  await shot(p, 'kt-khoi-luong', undefined, [{ sel: '.content select', n: 1 }, { sel: '.content .tabs', n: 2 }, { sel: '[data-act=add-boq]', n: 3 }, { sel: '.card [data-act=add-vol]', n: 4 }]);
+  await shot(p, 'kt-khoi-luong', undefined, [{ sel: '.content select', n: 1 }, { sel: '.content .tabs', n: 2 }, { sel: '[data-act=add-boq]', n: 3 }, { sel: '.card [data-act=add-vol]', n: 4 }, { sel: '[data-act=att-boq]', n: 5 }]);
   await click(p, '[data-act=add-boq]'); await shot(p, 'kt-them-boq', '#ov .mform'); await closeModal(p);
   await click(p, '.card [data-act=add-vol]'); await shot(p, 'kt-cap-nhat-khoi-luong', '#ov .mform'); await closeModal(p);
   await tab(p, 'Theo dõi nghiệm thu'); await shot(p, 'kt-nghiem-thu');
@@ -161,6 +217,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await click(p, '[data-act=add-plan]'); await shot(p, 'ke-them-ke-hoach', '#ov .mform'); await closeModal(p);
   await tab(p, 'Hồ sơ thanh toán'); await shot(p, 'ke-ho-so', undefined, [{ sel: '[data-act=add-pay]', n: 1 }, { sel: '[data-act=pay-done]', n: 2 }, { sel: '[data-act=edit-payments]', n: 3 }]);
   await click(p, '[data-act=add-pay]'); await shot(p, 'ke-lap-ho-so', '#ov .mform'); await closeModal(p);
+  await click(p, '[data-act=pay-done]'); await shot(p, 'ke-xac-nhan-chi', '#ov .mform'); await closeModal(p);
   await tab(p, 'Tổng hợp'); await shot(p, 'ke-tong-hop', 'full');
   await go(p, 'khoi-luong'); await p.selectOption('.content select >> nth=0', { index: 2 }).catch(() => { }); await wait(300); await tab(p, 'Theo dõi nghiệm thu'); await shot(p, 'ke-nghiem-thu');
   await p.context().close();
@@ -173,6 +230,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await p.fill('#ov textarea >> nth=0', 'Đổ bê tông móng M1–M4 | 18,5 | m3\nLắp dựng cốp pha cột trục A | 42 | m2').catch(() => { });
   await p.setInputFiles('#ov input[type=file]', img).catch(() => { }); await wait(500);
   await shot(p, 'gs-ghi-nhat-ky', '#ov .mform'); await closeModal(p);
+  await click(p, '[data-act=diary-photo]'); await shot(p, 'gs-anh-nhat-ky', '#ov .mform', [{ sel: '#ov [data-cap]', n: 1 }, { sel: '#ov figure label', n: 2 }, { sel: '#ov .fld', text: 'Thêm ảnh', n: 3 }]); await closeModal(p);
   await go(p, 'tien-do'); await scrollTo(p, '.card', 'Biểu đồ tiến độ'); await shot(p, 'gs-tien-do', undefined, [{ sel: '[data-act=upd-sched]', n: 1 }]);
   await p.context().close();
 
@@ -194,7 +252,10 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   const eg = await p.$$('[data-act=edit-groups]'); await eg[2].click(); await wait(400); await shot(p, 'qt-phan-quyen', '#ov .mform'); await closeModal(p);
   await tab(p, 'Danh mục dùng chung'); await shot(p, 'qt-danh-muc', undefined, [{ sel: '.card', text: 'Loại danh mục', n: 1 }, { sel: '[data-act=add-cat]', n: 2 }]);
   await tab(p, 'Nhật ký hoạt động'); await shot(p, 'qt-nhat-ky-he-thong', undefined, [{ sel: '.card select', n: 1 }, { sel: '[data-act=export-logs]', n: 2 }]);
-  await tab(p, 'Sao lưu, hệ thống'); await shot(p, 'qt-sao-luu', 'full', [{ sel: '[data-act=backup]', n: 1 }, { sel: '[data-act=restore]', n: 2 }]);
+  await tab(p, 'Kho tệp, thùng rác'); await wait(800);
+  await shot(p, 'qt-kho-tep', 'full', [{ sel: '.content .grid.g4', n: 1 }, { sel: '.card', text: 'Tệp đính kèm theo loại dữ liệu', n: 2 }, { sel: '.card', text: 'Tệp không còn sử dụng', n: 3 }, { sel: '[data-act=att-restore]', n: 4 }, { sel: '[data-act=att-purge]', n: 5 }]);
+  await tab(p, 'Sao lưu, hệ thống'); await wait(800);
+  await shot(p, 'qt-sao-luu', 'full', [{ sel: '[data-act=backup]', n: 1 }, { sel: '[data-act=backup-full]', n: 2 }, { sel: '[data-act=restore]', n: 3 }, { sel: '[data-act=backup-now]', n: 4 }, { sel: '.card:has([data-act=backup-now]) table', n: 5 }]);
   await go(p, 'doi-chieu'); await shot(p, 'qt-doi-chieu');
   await p.context().close();
 

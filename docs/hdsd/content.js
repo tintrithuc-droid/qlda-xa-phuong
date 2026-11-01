@@ -1,11 +1,15 @@
 // Nội dung bộ HDSD theo vai trò. Mỗi khối: h1/h2/h3/p/steps/bullets/img/imgs2/legend/table/note
+const H0 = ['27/10/2026', 'Ban hành lần đầu'];
+const H1 = ['27/10/2026', 'Chỉnh dàn trang: hình, chú thích và bảng chú giải luôn liền trang; giảm khoảng trống; bảng đúng bề rộng trang'];
+const H_ATT = ['01/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: đính kèm tệp ở mọi màn hình nhập liệu (quyết định phê duyệt dự án, KHLCNT, KQLCNT, hợp đồng, bảo lãnh, nghiệm thu, thanh toán, nhật ký…), cảnh báo bảo lãnh và văn bản sắp hết hiệu lực'];
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', rev: 3 },
-  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao' },
-  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat' },
-  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan' },
-  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat' },
-  dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI', v1: true },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H0, H1, ['27/10/2026', 'Bổ sung chương Xác thực 2 lớp cho tài khoản quản trị'], [H_ATT[0], H_ATT[1] + '; bổ sung Kho tệp, thùng rác, sao lưu tự động hằng đêm và bản sao lưu đầy đủ kèm tệp']] },
+  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H0, H1, H_ATT] },
+  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H0, H1, H_ATT] },
+  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H0, H1, H_ATT] },
+  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H0, H1, H_ATT] },
+  dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
+    hist: [H0, ['01/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: chú thích ảnh hiện trường, đính kèm trang nhật ký đã ký, ảnh và báo cáo khi cập nhật tiến độ']] },
 };
 const MODS = ['Tổng quan', 'Quản lý dự án', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Quản lý thanh toán', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không truy cập';
@@ -18,7 +22,7 @@ const PERM = {
 };
 const SCOPE = { qt: 'tất cả dự án', ld: 'tất cả dự án', kt: 'tất cả dự án', ke: 'tất cả dự án', gs: 'chỉ các dự án được quản trị hệ thống giao (dữ liệu mẫu: DA‑TP01)' };
 const PURPOSE = {
-  qt: 'quản lý tài khoản người dùng, nhóm quyền, danh mục dùng chung, theo dõi nhật ký hoạt động, sao lưu và phục hồi dữ liệu, bảo đảm hệ thống vận hành ổn định và an toàn',
+  qt: 'quản lý tài khoản người dùng, nhóm quyền, danh mục dùng chung, theo dõi nhật ký hoạt động, quản lý kho tệp đính kèm, sao lưu và phục hồi dữ liệu, bảo đảm hệ thống vận hành ổn định và an toàn',
   ld: 'theo dõi tổng thể tình hình thực hiện các dự án, nắm bắt cảnh báo chậm tiến độ, chỉ đạo xử lý công việc, cập nhật thông tin dự án và khai thác báo cáo phục vụ điều hành',
   kt: 'quản lý thông tin dự án, tệp mô hình công trình, gói thầu và hợp đồng, lập và cập nhật tiến độ, ghi nhật ký thi công, quản lý khối lượng thực hiện và nghiệm thu',
   ke: 'lập kế hoạch thanh toán, lập và theo dõi hồ sơ thanh toán, xác nhận giá trị đã chi, đối chiếu khối lượng nghiệm thu và khai thác báo cáo giải ngân',
@@ -83,7 +87,28 @@ function common(k) {
   ] });
   out.push({ imgs2: ['chung-tai-khoan', 'chung-doi-mat-khau'], caps: ['Hộp thông tin tài khoản', 'Hộp đổi mật khẩu'] });
   out.push(legend([[1, 'Đổi mật khẩu'], [2, 'Đăng xuất khỏi hệ thống']]));
+  out.push(...attachCommon(k));
   return out;
+}
+
+// Đính kèm tệp: cách dùng chung cho mọi hộp nhập liệu (phần mềm phiên bản 1.1)
+function attachCommon(k) {
+  const ro = k === 'ld';
+  return [
+    { h2: 'Đính kèm và xem tệp' },
+    { p: 'Các hộp nhập liệu có ô **đính kèm tệp** để lưu bản scan văn bản, hợp đồng, biên bản, chứng từ ngay cùng thông tin nhập: quyết định phê duyệt dự án, quyết định phê duyệt kế hoạch và kết quả lựa chọn nhà thầu, hợp đồng đã ký, bảo lãnh, phụ lục, kế hoạch tiến độ, nhật ký thi công, biên bản nghiệm thu, hồ sơ và chứng từ thanh toán, công việc được giao…' },
+    { steps: [
+      'Trong hộp nhập liệu, tại ô đính kèm, nhấn **Chọn tệp** (2) và chọn một hoặc nhiều tệp trên máy; hoặc kéo thả tệp từ thư mục vào ô này. Trên điện thoại, nút này mở máy ảnh hoặc thư viện ảnh.',
+      'Tệp mới chọn hiện ngay bên dưới (3), chưa được gửi lên máy chủ. Nhấn **Bỏ** để bỏ tệp chọn nhầm.',
+      'Nhấn **Lưu**. Thông tin và tệp được lưu cùng lúc; phần mềm ghi nhận người tải lên, thời điểm và dung lượng.',
+      'Tệp đã lưu trước đó hiện phía trên (1): nhấn tên tệp để mở; muốn gỡ, nhấn **Gỡ** trên dòng tệp rồi nhấn **Lưu**.',
+    ] },
+    img('chung-dinh-kem', 'Ô đính kèm tệp trong hộp nhập liệu', 12),
+    legend([[1, 'Tệp đã lưu: tên tệp, dung lượng, người tải lên, thời điểm; nút Gỡ để gỡ tệp'], [2, 'Chọn tệp hoặc kéo thả tệp vào đây'], [3, 'Tệp mới chọn, sẽ tải lên khi nhấn Lưu']]),
+    { p: 'Trong các bảng danh sách, cột **Tệp** cho biết tệp đính kèm của từng dòng: nếu có một tệp, nhấn tên tệp để mở; nếu có nhiều tệp, nhấn nút **n tệp** để mở danh sách và chọn tệp cần xem. Tệp PDF và ảnh mở ngay trên trình duyệt; các loại khác (Word, Excel, bản vẽ…) được tải về máy.' },
+    img('chung-ds-tep', 'Danh sách tệp đính kèm của một bản ghi', 10),
+    { note: 'Mỗi tệp tối đa 500 MB; phần mềm không nhận tệp chương trình (.exe, .bat…). Tệp gỡ nhầm chưa mất ngay mà được chuyển vào thùng rác 30 ngày; đề nghị quản trị hệ thống khôi phục.' + (ro ? '' : ' Người dùng chỉ mở được tệp thuộc dự án trong phạm vi được giao.') },
+  ];
 }
 
 const tail = (k, mobile) => {
@@ -99,6 +124,8 @@ const tail = (k, mobile) => {
     ['Không xóa được một bản ghi', 'Bản ghi còn dữ liệu liên quan (ví dụ gói thầu còn hợp đồng, hợp đồng còn khối lượng). Xử lý các bản ghi liên quan trước.'],
     ['Màn hình báo mất kết nối', 'Kiểm tra mạng; phần mềm tự kết nối lại. Thông tin đang nhập dở trong hộp nhập liệu chưa được lưu cho đến khi nhấn Lưu thành công.'],
     ['Tải tệp đính kèm không được', 'Mỗi tệp tối đa 500 MB; phần mềm không nhận tệp chương trình (.exe, .bat…) vì lý do an toàn.'],
+    ['Gỡ nhầm tệp đính kèm hoặc xóa nhầm bản ghi có tệp', k === 'qt' ? 'Mở Quản trị hệ thống → thẻ Kho tệp, thùng rác, nhấn Khôi phục trên dòng tệp (trong 30 ngày). Bản ghi đã xóa: phục hồi từ bản sao lưu tự động.' : 'Báo quản trị hệ thống trong vòng 30 ngày để khôi phục tệp từ thùng rác.'],
+    ['Không mở được tệp, báo «không có quyền»', 'Tệp thuộc dự án nằm ngoài phạm vi được giao cho tài khoản. Đề nghị quản trị hệ thống kiểm tra phạm vi dữ liệu của nhóm.'],
   ] }, cap: 'Một số tình huống thường gặp' });
   out.push({ p: 'Đầu mối hỗ trợ kỹ thuật: quản trị hệ thống của Ban Quản lý dự án; đơn vị phát triển phần mềm: Công ty Cổ phần Tin học Tri Thức. Khi báo lỗi, đề nghị ghi rõ tên đăng nhập, thời điểm, trang đang thao tác và chụp màn hình thông báo lỗi (nếu có).' });
   return out;
@@ -144,7 +171,7 @@ S.dashboard = (k, shotName) => [
   ...(shotName === 'ld-tong-quan' ? [legend([
     [1, 'Các chỉ tiêu chính: số dự án, tổng mức đầu tư, giá trị hợp đồng, giá trị đã giải ngân và số cảnh báo (ô đỏ khi có cảnh báo nghiêm trọng).'],
     [2, 'Biểu đồ: dự án theo trạng thái; tiến độ kế hoạch và thực tế từng gói thầu; giá trị hợp đồng; khối lượng thực hiện – nghiệm thu – thanh toán; đường cong S so sánh kế hoạch và thực tế.'],
-    [3, 'Cảnh báo và việc cần xử lý: hạng mục quá hạn, chậm so với kế hoạch, công việc sắp đến hạn. Nhấn **Xem** để mở ngay nội dung cần xử lý.'],
+    [3, 'Cảnh báo và việc cần xử lý: hạng mục quá hạn, chậm so với kế hoạch, công việc sắp đến hạn; bảo lãnh hợp đồng, giấy phép và văn bản pháp lý sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực. Nhấn **Xem** để mở ngay nội dung cần xử lý.'],
     [4, 'Bảng tình hình thực hiện các dự án; nhấn tên dự án để mở chi tiết.'],
   ])] : []),
   { p: 'Muốn xem riêng một dự án, chọn dự án tại ô chọn dự án trên thanh công cụ phía trên; toàn bộ chỉ tiêu và biểu đồ tự tính lại theo dự án đã chọn.' },
@@ -183,14 +210,20 @@ S.projectEdit = () => [
   { h2: 'Thêm mới, cập nhật thông tin dự án' },
   { steps: [
     'Tại danh sách dự án, nhấn **+ Thêm dự án**; hoặc tại trang chi tiết dự án, nhấn **Sửa thông tin**.',
-    'Nhập mã dự án, tên dự án, trạng thái, tổng mức đầu tư (bắt buộc) và các thông tin: nhóm dự án, giai đoạn, nguồn vốn, thời gian, chủ đầu tư, địa điểm, quyết định phê duyệt, quy mô.',
-    'Nhấn **Lưu**. Phần mềm ghi nhận người cập nhật và thời điểm vào nhật ký hoạt động.',
+    'Nhập mã dự án, tên dự án, trạng thái, tổng mức đầu tư (bắt buộc) và các thông tin: nhóm dự án, giai đoạn, nguồn vốn, thời gian, chủ đầu tư, địa điểm, quy mô.',
+    'Tại phần **Quyết định phê duyệt dự án** (1), nhập số quyết định, ngày ban hành, cơ quan ban hành và đính kèm bản scan quyết định (2).',
+    'Nhấn **Lưu**. Quyết định được lưu thành hồ sơ pháp lý của dự án (loại «Quyết định phê duyệt dự án») kèm tệp; phần mềm ghi nhận người cập nhật và thời điểm vào nhật ký hoạt động.',
   ] },
   img('kt-them-du-an', 'Hộp nhập thông tin dự án', 12),
+  legend([[1, 'Số, ngày, cơ quan ban hành quyết định phê duyệt dự án'], [2, 'Đính kèm bản scan quyết định phê duyệt dự án']]),
+  { p: 'Thẻ **Thông tin chung** của dự án có khung **Văn bản pháp lý chính** (1) liệt kê quyết định chủ trương đầu tư, quyết định phê duyệt và các quyết định điều chỉnh dự án kèm tệp. Nhấn **+ QĐ chủ trương** hoặc **+ QĐ điều chỉnh** (2) để bổ sung nhanh.' },
+  img('kt-van-ban-chinh', 'Văn bản pháp lý chính của dự án', 16),
+  legend([[1, 'Văn bản pháp lý chính và tệp đính kèm'], [2, 'Thêm quyết định chủ trương đầu tư, quyết định điều chỉnh dự án']]),
   { h2: 'Quản lý hồ sơ pháp lý dự án' },
   { steps: [
     'Mở chi tiết dự án, chọn thẻ **Hồ sơ pháp lý**, nhấn **+ Thêm hồ sơ** (1).',
-    'Chọn loại hồ sơ (quyết định chủ trương đầu tư, quyết định phê duyệt dự án, giấy phép xây dựng…), nhập số hiệu, ngày ban hành, cơ quan ban hành, trích yếu; đính kèm tệp PDF hoặc ảnh scan.',
+    'Chọn loại hồ sơ (quyết định chủ trương đầu tư, quyết định phê duyệt dự án, giấy phép xây dựng…), nhập số hiệu, ngày ban hành, cơ quan ban hành, trích yếu; đính kèm một hoặc nhiều tệp (PDF, ảnh scan, Word, Excel).',
+    'Văn bản có thời hạn (giấy phép, bảo lãnh, chứng thư…): nhập **Hiệu lực đến**. Phần mềm cảnh báo trên trang Tổng quan từ 30 ngày trước khi hết hạn; ngày hiệu lực tô vàng khi sắp hết hạn, tô đỏ khi đã hết hạn.',
     'Nhấn **Lưu**. Tệp đính kèm được lưu trên máy chủ; nhấn tên tệp trong danh sách để mở hoặc tải về.',
   ] },
   img('ld-du-an-phap-ly', 'Danh sách hồ sơ pháp lý của dự án', 16),
@@ -199,8 +232,8 @@ S.projectEdit = () => [
   { h2: 'Giao và theo dõi công việc' },
   { steps: [
     'Mở chi tiết dự án, chọn thẻ **Công việc**, nhấn **+ Thêm công việc** (1).',
-    'Nhập tên công việc, đơn vị hoặc người phụ trách, hạn hoàn thành, mức ưu tiên, trạng thái và ghi chú; nhấn **Lưu**.',
-    'Khi công việc xong, nhấn **Hoàn thành** (2) trên dòng công việc. Công việc quá hạn được tô đỏ và đưa vào mục cảnh báo trên trang Tổng quan.',
+    'Nhập tên công việc, đơn vị hoặc người phụ trách, hạn hoàn thành, mức ưu tiên, trạng thái và ghi chú; đính kèm văn bản giao việc (nếu có); nhấn **Lưu**.',
+    'Khi công việc xong, nhấn **Hoàn thành** (2) trên dòng công việc, nhập ngày hoàn thành, kết quả và đính kèm tệp kết quả (văn bản, báo cáo, biên bản…); nhấn **Xác nhận hoàn thành**. Công việc quá hạn được tô đỏ và đưa vào mục cảnh báo trên trang Tổng quan.',
   ] },
   img('ld-du-an-cong-viec', 'Danh sách công việc của dự án', 16),
   legend([[1, 'Thêm công việc'], [2, 'Đánh dấu hoàn thành công việc']]),
@@ -219,7 +252,7 @@ S.scheduleView = () => [
 
 S.contractView = () => [
   { h2: 'Tra cứu gói thầu và hợp đồng' },
-  { p: 'Chọn **Gói thầu và hợp đồng**, nhấn vào một gói thầu để xem: thông tin hợp đồng (1) gồm số hợp đồng, nhà thầu, giá trị, thời gian, bảo lãnh, tạm ứng; theo dõi tiến độ thực hiện hợp đồng (2) so sánh tiến độ thời gian với tiến độ thi công, giá trị thực hiện, nghiệm thu và thanh toán; các phụ lục điều chỉnh và hồ sơ pháp lý của gói thầu.' },
+  { p: 'Chọn **Gói thầu và hợp đồng**, nhấn vào một gói thầu để xem: thông tin hợp đồng (1) gồm số hợp đồng, nhà thầu, giá trị, thời gian, bảo lãnh, tạm ứng, thời hạn bảo lãnh và tệp bản hợp đồng đã ký, bảo lãnh thực hiện hợp đồng, bảo lãnh tạm ứng; theo dõi tiến độ thực hiện hợp đồng (2) so sánh tiến độ thời gian với tiến độ thi công, giá trị thực hiện, nghiệm thu và thanh toán; các phụ lục điều chỉnh và hồ sơ pháp lý của gói thầu (quyết định phê duyệt kế hoạch, kết quả lựa chọn nhà thầu) kèm tệp.' },
   img('ld-hop-dong', 'Chi tiết gói thầu và hợp đồng', 16),
   legend([[1, 'Thông tin hợp đồng'], [2, 'Theo dõi tiến độ thực hiện hợp đồng và cảnh báo']]),
 ];
@@ -253,7 +286,7 @@ S.model = () => [
   { h2: 'Quản lý thông tin hạng mục công trình' },
   { steps: [
     'Tại phần **Thông tin các hạng mục công trình**, nhấn **+ Thêm hạng mục** (1) hoặc **Sửa** (2) trên dòng hạng mục.',
-    'Nhập mã, tên hạng mục, kết cấu/vật liệu, diện tích, số tầng, quy mô; tiến độ (%) chỉ nhập khi hạng mục chưa gắn với kế hoạch tiến độ. Nhấn **Lưu**.',
+    'Nhập mã, tên hạng mục, kết cấu/vật liệu, diện tích, số tầng, quy mô; tiến độ (%) chỉ nhập khi hạng mục chưa gắn với kế hoạch tiến độ; đính kèm hồ sơ của hạng mục (bản vẽ, thuyết minh) nếu cần. Nhấn **Lưu**.',
   ] },
   img('kt-hang-muc', 'Danh sách hạng mục công trình', 16),
   legend([[1, 'Thêm hạng mục'], [2, 'Sửa hạng mục']]),
@@ -268,7 +301,9 @@ S.packages = () => [
   { h2: 'Thêm gói thầu' },
   { steps: [
     'Nhấn **+ Thêm gói thầu** (2).',
-    'Chọn dự án, nhập ký hiệu, loại gói thầu (xây lắp, tư vấn, thiết bị…), tên gói thầu, hình thức lựa chọn nhà thầu, giá gói thầu, trạng thái và thời gian thực hiện; nhấn **Lưu**.',
+    'Chọn dự án, nhập ký hiệu, loại gói thầu (xây lắp, tư vấn, thiết bị…), tên gói thầu, hình thức lựa chọn nhà thầu, giá gói thầu, trạng thái và thời gian thực hiện.',
+    'Tại phần **QĐ phê duyệt KHLCNT** và **QĐ phê duyệt kết quả LCNT**, nhập số, ngày quyết định và đính kèm bản scan. Có thể bỏ trống và bổ sung sau khi có quyết định.',
+    'Nhấn **Lưu**. Các quyết định được lưu thành hồ sơ pháp lý của gói thầu kèm tệp.',
   ] },
   img('kt-them-goi-thau', 'Hộp thêm gói thầu', 12),
   { h2: 'Nhập và cập nhật hợp đồng' },
@@ -277,13 +312,16 @@ S.packages = () => [
   legend([[1, 'Sửa thông tin gói thầu'], [2, 'Thông tin hợp đồng'], [3, 'Liên kết nhanh tới khối lượng, thanh toán, tiến độ của hợp đồng'], [4, 'Điều chỉnh, phụ lục hợp đồng'], [5, 'Hồ sơ pháp lý của gói thầu']]),
   { steps: [
     'Nhập số hợp đồng, ngày ký, nhà thầu/liên danh, loại hợp đồng, giá trị hợp đồng, ngày bắt đầu, ngày kết thúc, tỷ lệ bảo lãnh thực hiện và tạm ứng.',
+    'Nhập **Bảo lãnh thực hiện HĐ hiệu lực đến** và **Bảo lãnh tạm ứng hiệu lực đến** (1); phần mềm cảnh báo trước 30 ngày để yêu cầu nhà thầu gia hạn bảo lãnh.',
+    'Đính kèm **bản hợp đồng đã ký**, **bảo lãnh thực hiện hợp đồng** và **bảo lãnh tạm ứng** (2) vào đúng ô tương ứng.',
     'Nhấn **Lưu**. Giá trị và thời gian hợp đồng là căn cứ để phần mềm theo dõi tiến độ, khối lượng và thanh toán.',
   ] },
   img('kt-sua-hop-dong', 'Hộp cập nhật hợp đồng', 12),
+  legend([[1, 'Thời hạn hiệu lực của bảo lãnh thực hiện hợp đồng và bảo lãnh tạm ứng'], [2, 'Tệp bản hợp đồng đã ký, bảo lãnh thực hiện hợp đồng, bảo lãnh tạm ứng']]),
   { h2: 'Thêm phụ lục, điều chỉnh hợp đồng' },
   { steps: [
     'Trong khung **Điều chỉnh, phụ lục hợp đồng** (4), nhấn **+ Thêm phụ lục**.',
-    'Nhập số phụ lục, ngày ký, nội dung điều chỉnh, giá trị điều chỉnh (số dương là tăng, số âm là giảm) và số ngày gia hạn; nhấn **Lưu**. Giá trị và thời hạn hợp đồng sau điều chỉnh được tính tự động.',
+    'Nhập số phụ lục, ngày ký, nội dung điều chỉnh, giá trị điều chỉnh (số dương là tăng, số âm là giảm) và số ngày gia hạn; đính kèm bản phụ lục đã ký; nhấn **Lưu**. Giá trị và thời hạn hợp đồng sau điều chỉnh được tính tự động.',
   ] },
   img('kt-them-phu-luc', 'Hộp thêm phụ lục hợp đồng', 12),
 ];
@@ -293,15 +331,15 @@ S.schedule = () => [
   { h2: 'Lập kế hoạch tiến độ' },
   { steps: [
     'Chọn **Quản lý tiến độ**, nhấn **+ Lập kế hoạch tiến độ**.',
-    'Chọn gói thầu, nhập tên hạng mục/công việc, ngày bắt đầu và kết thúc kế hoạch, trọng số (tỷ trọng giá trị trong gói thầu, %); có thể gắn với hạng mục công trình.',
+    'Chọn gói thầu, nhập tên hạng mục/công việc, ngày bắt đầu và kết thúc kế hoạch, trọng số (tỷ trọng giá trị trong gói thầu, %); có thể gắn với hạng mục công trình và đính kèm bảng tiến độ được duyệt.',
     'Nhấn **Lưu**. Tiến độ gói thầu được tính bình quân theo trọng số các hạng mục.',
   ] },
   img('kt-lap-ke-hoach', 'Hộp lập kế hoạch tiến độ', 12),
   { h2: 'Cập nhật tiến độ thực tế' },
   { steps: [
     'Tại **Biểu đồ tiến độ (Gantt)**, nhấn **Cập nhật** (1) trên dòng hạng mục.',
-    'Nhập tiến độ thực tế lũy kế (%), ngày cập nhật và ghi chú hoặc nguyên nhân chậm; nhấn **Lưu**. Thanh tiến độ đổi màu: xanh – đạt, vàng – chậm, đỏ – quá hạn.',
-    'Nhấn **⋯** (2) để xem chi tiết hạng mục và lịch sử các lần cập nhật; tại đây có nút **Điều chỉnh kế hoạch** và **Xóa hạng mục**.',
+    'Nhập tiến độ thực tế lũy kế (%), ngày cập nhật và ghi chú hoặc nguyên nhân chậm; có thể đính kèm ảnh hiện trường, báo cáo tuần làm căn cứ. Nhấn **Lưu**. Thanh tiến độ đổi màu: xanh – đạt, vàng – chậm, đỏ – quá hạn.',
+    'Nhấn **⋯** (2) để xem chi tiết hạng mục và lịch sử các lần cập nhật kèm tệp của từng lần; tại đây có nút **Điều chỉnh kế hoạch** và **Xóa hạng mục**.',
   ] },
   img('kt-gantt', 'Biểu đồ tiến độ (Gantt)', 16),
   legend([[1, 'Cập nhật tiến độ thực tế'], [2, 'Xem chi tiết, lịch sử, điều chỉnh kế hoạch'], [3, 'Đường ngày hiện tại']]),
@@ -319,9 +357,14 @@ S.diary = (shot, addShot) => [
     'Chọn gói thầu, ngày, ca làm việc, thời tiết; nhập số nhân công, máy móc thiết bị.',
     'Nhập công việc thực hiện, mỗi dòng một công việc theo mẫu «Nội dung | Khối lượng | Đơn vị», ví dụ: «Đổ bê tông móng M1–M4 | 18,5 | m3».',
     'Ghi vướng mắc, sự cố, kiến nghị (nếu có) và họ tên cán bộ giám sát xác nhận.',
-    'Tại **Hình ảnh hiện trường**, chọn một hoặc nhiều ảnh; nhấn **Lưu**.',
+    'Tại **Hình ảnh hiện trường**, chọn một hoặc nhiều ảnh.',
+    'Sau khi các bên ký trang nhật ký giấy, đính kèm bản scan tại ô **Trang nhật ký đã ký** (có thể bổ sung sau bằng nút **Sửa**); nhấn **Lưu**.',
   ] },
   img(addShot, 'Hộp ghi nhật ký thi công', 12),
+  { h2: 'Quản lý ảnh hiện trường' },
+  { p: 'Nhấn **Thêm ảnh** trên trang nhật ký để mở hộp **Hình ảnh hiện trường**: ghi **chú thích** (1) cho từng ảnh (vị trí, nội dung chụp), đánh dấu **Bỏ ảnh này** (2) với ảnh tải nhầm và chọn thêm ảnh mới (3); nhấn **Lưu**. Chú thích hiện dưới ảnh trên trang nhật ký.' },
+  img(shot === 'kt-nhat-ky' ? 'kt-anh-nhat-ky' : 'gs-anh-nhat-ky', 'Hộp quản lý ảnh hiện trường', 12),
+  legend([[1, 'Chú thích ảnh'], [2, 'Bỏ ảnh tải nhầm'], [3, 'Thêm ảnh mới']]),
   { note: 'Nhấn vào ảnh thu nhỏ trên trang nhật ký để xem ảnh cỡ lớn. Vướng mắc, sự cố được làm nổi bật màu vàng để lãnh đạo dễ theo dõi.' },
 ];
 
@@ -329,21 +372,22 @@ S.volume = () => [
   { h1: 'QUẢN LÝ KHỐI LƯỢNG' },
   { p: 'Phân hệ **Quản lý khối lượng** quản lý bảng khối lượng theo hợp đồng, các lần cập nhật khối lượng thực hiện và nghiệm thu, tổng hợp giá trị theo kỳ.' },
   img('kt-khoi-luong', 'Bảng khối lượng hợp đồng', 16),
-  legend([[1, 'Chọn hợp đồng'], [2, 'Các thẻ: Khối lượng theo hợp đồng – Theo dõi nghiệm thu – Tổng hợp'], [3, 'Thêm công việc vào bảng khối lượng hợp đồng'], [4, 'Cập nhật khối lượng thực hiện']]),
+  legend([[1, 'Chọn hợp đồng'], [2, 'Các thẻ: Khối lượng theo hợp đồng – Theo dõi nghiệm thu – Tổng hợp'], [3, 'Thêm công việc vào bảng khối lượng hợp đồng'], [4, 'Cập nhật khối lượng thực hiện'], [5, 'Đính kèm tệp bảng khối lượng, dự toán gốc của hợp đồng']]),
   { h2: 'Lập bảng khối lượng hợp đồng' },
   { steps: [
     'Chọn hợp đồng (1), tại thẻ **Khối lượng theo hợp đồng** nhấn **+ Thêm công việc** (3).',
     'Nhập mã hiệu, đơn vị tính, nội dung công việc, khối lượng hợp đồng và đơn giá; phần mềm tự tính thành tiền. Nhấn **Lưu**.',
+    'Lưu tệp bảng khối lượng, dự toán gốc của hợp đồng (Excel, PDF): nhấn **Đính kèm / gỡ tệp** (5) ở dòng **Bảng khối lượng, dự toán gốc của hợp đồng** phía trên bảng.',
   ] },
   img('kt-them-boq', 'Hộp thêm công việc vào bảng khối lượng', 12),
   { h2: 'Cập nhật khối lượng thực hiện và nghiệm thu' },
   { steps: [
     'Nhấn **+ Cập nhật khối lượng thực hiện** (4).',
-    'Chọn công việc, ngày, đợt/kỳ; nhập khối lượng thực hiện trong kỳ, khối lượng được nghiệm thu và số biên bản nghiệm thu; nhấn **Lưu**.',
+    'Chọn công việc, ngày, đợt/kỳ; nhập khối lượng thực hiện trong kỳ, khối lượng được nghiệm thu và số biên bản nghiệm thu; đính kèm bản scan **biên bản nghiệm thu** của đợt; nhấn **Lưu**. Biên bản gắn theo đợt/kỳ nên các công việc cùng đợt dùng chung một biên bản.',
     'Phần mềm cộng dồn khối lượng lũy kế, tính % thực hiện và giá trị nghiệm thu. Khi khối lượng lũy kế vượt khối lượng hợp đồng, phần mềm hiển thị cảnh báo để kiểm tra (không chặn việc nhập).',
   ] },
   img('kt-cap-nhat-khoi-luong', 'Hộp cập nhật khối lượng thực hiện', 12),
-  { p: 'Thẻ **Theo dõi nghiệm thu** liệt kê từng lần cập nhật kèm trạng thái và biên bản; thẻ **Tổng hợp** thể hiện giá trị thực hiện, nghiệm thu theo tháng và lũy kế.' },
+  { p: 'Thẻ **Theo dõi nghiệm thu** liệt kê từng lần cập nhật kèm trạng thái, số biên bản và tệp biên bản nghiệm thu; thẻ **Tổng hợp** thể hiện giá trị thực hiện, nghiệm thu theo tháng và lũy kế.' },
   img('kt-nghiem-thu', 'Theo dõi nghiệm thu', 16),
   img('kt-tong-hop-khoi-luong', 'Tổng hợp khối lượng theo kỳ', 16),
 ];
@@ -358,7 +402,7 @@ S.payments = () => [
   { h2: 'Lập kế hoạch thanh toán' },
   { steps: [
     'Chọn thẻ **Kế hoạch thanh toán**, nhấn **+ Thêm kế hoạch** (1).',
-    'Chọn hợp đồng, nhập đợt thanh toán, thời gian dự kiến, giá trị kế hoạch và ghi chú; nhấn **Lưu**.',
+    'Chọn hợp đồng, nhập đợt thanh toán, thời gian dự kiến, giá trị kế hoạch và ghi chú; đính kèm quyết định giao kế hoạch vốn hoặc văn bản đăng ký kế hoạch (nếu có); nhấn **Lưu**.',
     'Nhấn **Sửa** (2) để điều chỉnh kế hoạch. Tình trạng từng đợt (đã thực hiện, đến hạn, quá hạn) được phần mềm tự xác định.',
   ] },
   img('ke-ke-hoach', 'Kế hoạch thanh toán', 16),
@@ -367,13 +411,14 @@ S.payments = () => [
   { h2: 'Lập và theo dõi hồ sơ thanh toán' },
   { steps: [
     'Chọn thẻ **Hồ sơ thanh toán**, nhấn **+ Lập hồ sơ thanh toán** (1).',
-    'Chọn hợp đồng, nhập số hồ sơ, ngày, loại thanh toán (tạm ứng, thanh toán khối lượng…), trạng thái, giá trị và nội dung; đính kèm bảng xác định giá trị, giấy đề nghị thanh toán; nhấn **Lưu**.',
-    'Khi Kho bạc đã chi, nhấn **Xác nhận đã chi** (2); hồ sơ chuyển sang trạng thái «Đã thanh toán» và được cộng vào giá trị giải ngân.',
+    'Chọn hợp đồng, nhập số hồ sơ, ngày, loại thanh toán (tạm ứng, thanh toán khối lượng…), trạng thái, giá trị và nội dung; đính kèm bộ hồ sơ thanh toán (giấy đề nghị, bảng xác định giá trị, biên bản nghiệm thu…); nhấn **Lưu**.',
+    'Khi Kho bạc đã chi, nhấn **Xác nhận đã chi** (2), nhập ngày Kho bạc chi và đính kèm **chứng từ Kho bạc** (giấy rút vốn, ủy nhiệm chi…); nhấn **Xác nhận đã chi**. Hồ sơ chuyển sang trạng thái «Đã thanh toán» và được cộng vào giá trị giải ngân.',
     'Nhấn **Sửa** (3) để cập nhật trạng thái trung gian (đề nghị, trình Kho bạc…).',
   ] },
   img('ke-ho-so', 'Danh sách hồ sơ thanh toán', 16),
   legend([[1, 'Lập hồ sơ thanh toán'], [2, 'Xác nhận đã chi'], [3, 'Sửa hồ sơ']]),
-  img('ke-lap-ho-so', 'Hộp lập hồ sơ thanh toán', 12),
+  { imgs2: ['ke-lap-ho-so', 'ke-xac-nhan-chi'], caps: ['Hộp lập hồ sơ thanh toán', 'Hộp xác nhận đã chi kèm chứng từ Kho bạc'] },
+  { p: 'Cột **Tệp** trong danh sách hồ sơ thanh toán gồm cả bộ hồ sơ đề nghị và chứng từ Kho bạc; nhấn để mở khi cần đối chiếu, kiểm tra.' },
   { h2: 'Tổng hợp thanh toán theo quý và theo dự án' },
   { p: 'Thẻ **Tổng hợp** so sánh kế hoạch và thực tế thanh toán theo quý, tổng hợp giá trị thanh toán theo dự án (tỷ lệ giải ngân so với tổng mức đầu tư) và lũy kế theo quý.' },
   img('ke-tong-hop', 'Tổng hợp thanh toán', 15),
@@ -441,7 +486,7 @@ S.admin = () => [
   img('qt-2lop-dat-lai', 'Hộp xác nhận đặt lại xác thực 2 lớp', 9),
 
   { h1: 'QUẢN LÝ NGƯỜI DÙNG' },
-  { p: 'Chọn **Quản trị hệ thống**. Các thẻ (1) gồm: Người dùng, Nhóm và phân quyền, Danh mục dùng chung, Nhật ký hoạt động, Sao lưu – hệ thống.' },
+  { p: 'Chọn **Quản trị hệ thống**. Các thẻ (1) gồm: Người dùng, Nhóm và phân quyền, Danh mục dùng chung, Nhật ký hoạt động, Kho tệp – thùng rác, Sao lưu – hệ thống.' },
   img('qt-nguoi-dung', 'Danh sách người dùng', 16),
   legend([[1, 'Các thẻ quản trị'], [2, 'Thêm người dùng'], [3, 'Sửa thông tin người dùng'], [4, 'Đặt lại mật khẩu'], [5, 'Khóa / mở khóa tài khoản'], [6, 'Trạng thái xác thực 2 lớp: Đã bật / Chờ thiết lập (quản trị mới chưa đăng nhập lần đầu) / Không bắt buộc'], [7, 'Đặt lại xác thực 2 lớp cho quản trị mất điện thoại']]),
   { h2: 'Thêm người dùng' },
@@ -493,15 +538,28 @@ S.admin = () => [
   img('qt-nhat-ky-he-thong', 'Nhật ký hoạt động', 16),
   legend([[1, 'Lọc theo người dùng'], [2, 'Xuất nhật ký ra Excel']]),
 
-  { h1: 'SAO LƯU VÀ PHỤC HỒI DỮ LIỆU' },
-  { p: 'Thẻ **Sao lưu, hệ thống** hiển thị thông tin hệ thống, số bản ghi từng loại dữ liệu và chức năng sao lưu, phục hồi.' },
-  img('qt-sao-luu', 'Sao lưu và phục hồi dữ liệu', 15),
-  legend([[1, 'Tải tệp sao lưu toàn bộ dữ liệu nghiệp vụ, danh mục, nhóm và người dùng (.json)'], [2, 'Phục hồi dữ liệu từ tệp sao lưu']]),
-  { steps: [
-    'Sao lưu: nhấn **Tải tệp sao lưu (.json)** (1); lưu tệp vào nơi an toàn, tách biệt với máy chủ. Khuyến nghị sao lưu tối thiểu hằng tuần và trước mỗi lần nâng cấp.',
-    'Phục hồi: nhấn **Phục hồi từ tệp sao lưu** (2), chọn tệp .json, xác nhận. Dữ liệu trong tệp được ghi đè lên bản ghi trùng mã; tài khoản trùng tên đăng nhập được giữ nguyên.',
+  { h1: 'KHO TỆP VÀ THÙNG RÁC' },
+  { p: 'Thẻ **Kho tệp, thùng rác** giúp quản trị theo dõi dung lượng tệp đính kèm, khôi phục tệp người dùng gỡ nhầm và dọn tệp không còn sử dụng.' },
+  img('qt-kho-tep', 'Kho tệp và thùng rác', 16),
+  legend([[1, 'Tổng số tệp, dung lượng kho tệp, số tệp trong thùng rác và tệp không còn sử dụng'], [2, 'Số tệp và dung lượng theo loại dữ liệu (hồ sơ pháp lý, hợp đồng, thanh toán, nhật ký…)'], [3, 'Dọn tệp không còn sử dụng'], [4, 'Khôi phục tệp từ thùng rác'], [5, 'Xóa hẳn tệp khỏi máy chủ']]),
+  { bullets: [
+    '**Thùng rác**: tệp do người dùng gỡ khỏi bản ghi, hoặc tệp của bản ghi bị xóa, được giữ 30 ngày rồi tự xóa hẳn. Nhấn **Khôi phục** (4) để gắn tệp trở lại bản ghi cũ (bản ghi phải còn tồn tại); nhấn **Xóa hẳn** (5) để giải phóng dung lượng ngay.',
+    '**Tệp không còn sử dụng**: tệp đã bị thay bằng phiên bản khác hoặc ảnh đã bỏ khỏi nhật ký, không còn bản ghi nào dùng tới. Nhấn **Dọn** (3) để xóa các tệp này (chỉ tính tệp tải lên quá 1 ngày).',
+    'Theo dõi dung lượng (1) để chủ động mở rộng ổ đĩa máy chủ; mỗi tệp tải lên tối đa 500 MB.',
   ] },
-  { note: 'Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu SQL Server và thư mục tệp đính kèm trên máy chủ. Cán bộ phụ trách hạ tầng thực hiện sao lưu định kỳ theo «Hướng dẫn cài đặt».' },
+
+  { h1: 'SAO LƯU VÀ PHỤC HỒI DỮ LIỆU' },
+  { p: 'Thẻ **Sao lưu, hệ thống** hiển thị thông tin hệ thống, số bản ghi từng loại dữ liệu, chức năng sao lưu, phục hồi và danh sách bản sao lưu tự động trên máy chủ.' },
+  img('qt-sao-luu', 'Sao lưu và phục hồi dữ liệu', 15),
+  legend([[1, 'Tải tệp sao lưu dữ liệu (.json): dữ liệu nghiệp vụ, danh mục, nhóm, người dùng và danh sách tệp đính kèm'], [2, 'Tải bản sao lưu đầy đủ (.zip): dữ liệu kèm toàn bộ tệp đính kèm'], [3, 'Phục hồi dữ liệu từ tệp sao lưu'], [4, 'Sao lưu lên máy chủ ngay'], [5, 'Danh sách bản sao lưu tự động; nhấn tên để tải về']]),
+  { h2: 'Sao lưu tự động hằng đêm' },
+  { p: 'Máy chủ tự sao lưu lúc 1 giờ sáng mỗi ngày: ghi một tệp dữ liệu .json và chép thêm các tệp đính kèm mới vào thư mục sao lưu (mặc định **D:\\QLDA_TTTS_Data\\backups**), giữ 14 bản gần nhất. Cùng lúc, phần mềm xóa hẳn các tệp đã nằm trong thùng rác quá 30 ngày. Nhấn **Sao lưu lên máy chủ ngay** (4) trước khi nâng cấp hoặc thao tác dữ liệu lớn.' },
+  { h2: 'Tải bản sao lưu về máy và phục hồi' },
+  { steps: [
+    'Sao lưu dữ liệu: nhấn **Tải tệp sao lưu dữ liệu (.json)** (1). Muốn có cả tệp đính kèm, nhấn **Tải bản sao lưu đầy đủ kèm tệp (.zip)** (2); thời gian đóng gói tùy dung lượng kho tệp. Lưu tệp vào nơi an toàn, tách biệt với máy chủ.',
+    'Phục hồi: nhấn **Phục hồi từ tệp sao lưu** (3), chọn tệp .json, xác nhận. Dữ liệu trong tệp được ghi đè lên bản ghi trùng mã; tài khoản trùng tên đăng nhập được giữ nguyên; danh sách tệp đính kèm được phục hồi cùng dữ liệu.',
+  ] },
+  { note: 'Nên đặt thư mục sao lưu tự động trên ổ đĩa khác hoặc ổ mạng (cấu hình Storage:BackupPath, xem «Hướng dẫn cài đặt»). Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu SQL Server định kỳ do cán bộ phụ trách hạ tầng thực hiện.' },
 
   { h1: 'ĐỐI CHIẾU YÊU CẦU BÁO CÁO KINH TẾ – KỸ THUẬT' },
   { p: 'Trang **Đối chiếu BC KTKT** (nhóm Tiện ích) liệt kê 62 use case thuộc mục VI của Báo cáo kinh tế – kỹ thuật, ánh xạ tới chức năng tương ứng trong phần mềm và tình trạng đáp ứng; dùng khi kiểm tra, nghiệm thu.' },
@@ -532,7 +590,7 @@ function build(k) {
     out.push(...S.diary('gs-nhat-ky', 'gs-ghi-nhat-ky'));
     out.push({ h1: 'CẬP NHẬT TIẾN ĐỘ' }, { steps: [
       'Chọn **Quản lý tiến độ**, kéo xuống **Biểu đồ tiến độ (Gantt)**.',
-      'Nhấn **Cập nhật** (1) trên dòng hạng mục, nhập tiến độ thực tế lũy kế (%), ngày cập nhật và ghi chú hoặc nguyên nhân chậm; nhấn **Lưu**.',
+      'Nhấn **Cập nhật** (1) trên dòng hạng mục, nhập tiến độ thực tế lũy kế (%), ngày cập nhật và ghi chú hoặc nguyên nhân chậm; đính kèm ảnh hiện trường, báo cáo tuần làm căn cứ (không bắt buộc); nhấn **Lưu**.',
     ] }, img('gs-tien-do', 'Cập nhật tiến độ trên biểu đồ Gantt', 16), legend([[1, 'Cập nhật tiến độ thực tế']]), img('kt-cap-nhat-tien-do', 'Hộp cập nhật tiến độ', 11),
     { note: 'Tư vấn giám sát / Nhà thầu chỉ xem thông tin dự án, mô hình và khối lượng; không sửa được hợp đồng, khối lượng hợp đồng và thanh toán.' });
     out.push(...tail(k, true));

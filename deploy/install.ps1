@@ -60,7 +60,17 @@ else { $cs = "Server=$SqlServer;Database=$Database;Trusted_Connection=True;Trust
 if (-not (Test-Path $cfgFile) -or $PSBoundParameters.ContainsKey("SqlServer") -or $SqlUser) {
   @{ Database = @{ Provider = "SqlServer" }; ConnectionStrings = @{ SqlServer = $cs }; Storage = @{ FilesPath = (Join-Path $DataPath "files"); BackupPath = (Join-Path $DataPath "backups") }; Https = @{ Redirect = [bool]$CertThumbprint } } |
     ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $cfgFile
-} else { Write-Host "Giữ nguyên cấu hình đang có." }
+} else {
+  Write-Host "Giữ nguyên cấu hình đang có."
+  # Nâng cấp từ bản 1.0: bổ sung thư mục sao lưu tự động nếu cấu hình cũ chưa có
+  $old = Get-Content -Raw -Encoding UTF8 $cfgFile | ConvertFrom-Json
+  if (-not $old.Storage) { $old | Add-Member -NotePropertyName Storage -NotePropertyValue ([pscustomobject]@{}) }
+  if (-not $old.Storage.BackupPath) {
+    $old.Storage | Add-Member -Force -NotePropertyName BackupPath -NotePropertyValue (Join-Path $DataPath "backups")
+    $old | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 $cfgFile
+    Write-Host "Đã thêm thư mục sao lưu tự động: $(Join-Path $DataPath 'backups')"
+  }
+}
 
 Step "Tạo Application Pool và Website"
 if (-not (Test-Path "IIS:\AppPools\$SiteName")) { New-WebAppPool $SiteName | Out-Null }

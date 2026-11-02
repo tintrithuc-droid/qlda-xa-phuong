@@ -253,7 +253,7 @@ ACT.chpw=()=>{
 };
 
 /* ===== TỔNG QUAN (UC32–42) ===== */
-const STATUS_COL = {'Chuẩn bị đầu tư':'var(--c3)','Đang lựa chọn nhà thầu':'var(--c4)','Đang thi công':'var(--c1)','Tạm dừng':'var(--red)','Hoàn thành':'var(--c2)','Đã quyết toán':'var(--c5)'};
+const STATUS_COL = {'Chuẩn bị đầu tư':'var(--c3)','Đang lựa chọn nhà thầu':'var(--c4)','Đang thi công':'var(--c1)','Đang thực hiện':'var(--c4)','Tạm dừng':'var(--red)','Hoàn thành':'var(--c2)','Đã quyết toán':'var(--c5)'};
 VIEWS['tong-quan']=()=>{
   const ps=projects().filter(p=>!S.pid||p.id===S.pid); const pids=ps.map(p=>p.id);
   const cs=D('contracts').filter(c=>pids.includes(contractPid(c)));
@@ -267,7 +267,7 @@ VIEWS['tong-quan']=()=>{
   const pjRows=ps.map(p=>{ const c=D('contracts').filter(c=>contractPid(c)===p.id); return {...p, cv:sum(c,contractValue), paid:sum(c,x=>contractPaid(x.id)), prog:projProgress(p.id), exp:projExpected(p.id)}; });
   return `<div class="head"><div class="grow"><h1>Tổng quan tình hình thực hiện</h1><p>Số liệu đến ngày ${fmtDate(TODAY)}${S.pid?' · '+esc(projOf(S.pid)?.code):' · tất cả dự án được phân quyền'}</p></div></div>
   <div class="grid g5 kpis" style="grid-template-columns:repeat(5,minmax(0,1fr))">
-    <div class="card kpi"><div class="eyebrow">Dự án</div><div class="v">${ps.length}</div><div class="s">${ps.filter(p=>p.status==='Đang thi công').length} đang thi công</div></div>
+    <div class="card kpi"><div class="eyebrow">Dự án</div><div class="v">${ps.length}</div><div class="s">${ps.filter(p=>p.status==='Đang thi công'||p.status==='Đang thực hiện').length} đang thực hiện</div></div>
     <div class="card kpi"><div class="eyebrow">Tổng mức đầu tư</div><div class="v">${fmtTy(tm)}</div><div class="s">${D('packages').filter(k=>pids.includes(k.projectId)).length} gói thầu</div></div>
     <div class="card kpi"><div class="eyebrow">Giá trị hợp đồng</div><div class="v">${fmtTy(cv)}</div><div class="s">${cs.length} hợp đồng · thực hiện ${fmtP(pct(done,cv))}</div></div>
     <div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,tm))} tổng mức đầu tư</div></div>

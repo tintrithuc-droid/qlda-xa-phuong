@@ -371,7 +371,7 @@ async function login(p, u, pw = PW) {
     await p.evaluate(() => { S.tab.qt = 'org'; }); await go(p, 'quan-tri');
     await p.evaluate(() => api('PUT', '/api/branding', {}).then(setBrand)); await p.evaluate(() => api('DELETE', '/api/branding/logo').then(setBrand));
     const br2 = await p.evaluate(() => BR);
-    if (br2.logo || br2.appName !== 'QLDA đầu tư xây dựng') errs.push('Không khôi phục được thông tin mặc định');
+    if (br2.logo || br2.appName !== 'Quản lý dự án, nhiệm vụ') errs.push('Không khôi phục được thông tin mặc định');
   }
 
   // Đăng nhập sai nhiều lần bị tạm khóa

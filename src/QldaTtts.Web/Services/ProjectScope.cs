@@ -34,6 +34,10 @@ public static class ProjectScope
         ["payplans"] = new[] { "thanh-toan" },
         ["payments"] = new[] { "thanh-toan" },
         ["guides"] = new[] { "quan-tri" },
+        ["capitals"] = new[] { "von" },
+        ["acceptances"] = new[] { "nghiem-thu" },
+        ["settlements"] = new[] { "quyet-toan" },
+        ["clearances"] = new[] { "gpmb" },
     };
 
     /// <summary>

@@ -19,7 +19,11 @@ const ICON = {
   shield:'<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="m9 12 2 2 4-4"/>',
   cam:'<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
   help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/>',
-  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  wallet:'<path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l12-4 2 4M16 13.5h2"/>',
+  stamp:'<path d="M9 3h6l-1 7h4l1 4H5l1-4h4zM5 18h14M7 21h10"/>',
+  seal:'<circle cx="12" cy="9" r="6"/><path d="m9 9 2 2 4-4M8.5 14 7 22l5-3 5 3-1.5-8"/>',
+  map:'<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/>'
 };
 const ic = (n)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||''}</svg>`;
 /* Hoa văn mặt trống đồng Đông Sơn (vẽ cách điệu): ngôi sao 14 cánh, vành tròn chấm, vành vạch, vành chim Lạc bay ngược chiều kim đồng hồ, vành răng cưa */
@@ -48,17 +52,21 @@ const drumSVG = (()=>{ let cache=null; return ()=>{ if(cache) return cache;
 const MODULES = [
   {key:'tong-quan', label:'Tổng quan', icon:'dash', grp:'Điều hành'},
   {key:'du-an', label:'Quản lý dự án', icon:'proj', grp:'Điều hành'},
+  {key:'von', label:'Kế hoạch vốn, giải ngân', icon:'wallet', grp:'Điều hành'},
+  {key:'gpmb', label:'Giải phóng mặt bằng', icon:'map', grp:'Nghiệp vụ'},
   {key:'mo-hinh', label:'Mô hình hóa công trình', icon:'cube', grp:'Nghiệp vụ'},
   {key:'goi-thau', label:'Gói thầu và hợp đồng', icon:'doc', grp:'Nghiệp vụ'},
   {key:'tien-do', label:'Quản lý tiến độ', icon:'gantt', grp:'Nghiệp vụ'},
   {key:'nhat-ky', label:'Nhật ký thi công', icon:'book', grp:'Nghiệp vụ'},
   {key:'khoi-luong', label:'Quản lý khối lượng', icon:'ruler', grp:'Nghiệp vụ'},
+  {key:'nghiem-thu', label:'Nghiệm thu, bàn giao, bảo hành', icon:'stamp', grp:'Nghiệp vụ'},
   {key:'thanh-toan', label:'Quản lý thanh toán', icon:'coin', grp:'Nghiệp vụ'},
+  {key:'quyet-toan', label:'Quyết toán dự án', icon:'seal', grp:'Nghiệp vụ'},
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
 const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan'];
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -68,8 +76,8 @@ let BR = {...BR_DEF};
 function setBrand(b){ BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; }
 const brandMark = () => BR.logo ? `<img src="${esc(BR.logo)}" alt="Logo ${esc(BR.orgShort)}">` : drumSVG();
 const brandFoot = () => esc(BR.footer.replace(/\{năm\}/g, new Date().getFullYear()));
-const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','users','groups','catalogs','logs','attachments','guides'];
-const COL_LABEL = {guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
+const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','capitals','acceptances','settlements','clearances','users','groups','catalogs','logs','attachments','guides'];
+const COL_LABEL = {guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',capitals:'Kế hoạch vốn',acceptances:'Nghiệm thu, bàn giao',settlements:'Quyết toán dự án',clearances:'Giải phóng mặt bằng',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
 
 /* --- tiện ích --- */
 const $ = (s,el=document)=>el.querySelector(s);
@@ -214,6 +222,33 @@ function projExpected(pid){ return wavg(D('schedule').filter(s=>s.projectId===pi
 function pkgProgress(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>N(s.progress)); }
 function pkgExpected(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>expectedPct(s)); }
 function itemProgress(it){ const ss=D('schedule').filter(s=>s.itemId===it.id); return ss.length? wavg(ss,s=>N(s.progress)) : N(it.progress); }
+/* --- vốn đầu tư công, giải ngân (phân hệ Kế hoạch vốn) --- */
+const CAP_MINUS = 'Điều chỉnh giảm kế hoạch năm';
+const isAnnualCap = c => c.kind && !/trung hạn/i.test(c.kind);
+/** Kế hoạch vốn năm của dự án (vốn năm + bổ sung − điều chỉnh giảm). */
+function capPlan(pid, year){ return sum(D('capitals').filter(c=>c.projectId===pid && N(c.year)===N(year) && isAnnualCap(c)), c=>c.kind===CAP_MINUS? -N(c.amount) : N(c.amount)); }
+function capMidTerm(pid){ return sum(D('capitals').filter(c=>c.projectId===pid && /trung hạn/i.test(c.kind||'')),'amount'); }
+/** Ngày Kho bạc chi (giải ngân) của hồ sơ thanh toán. */
+const payDay = p => p.paidDate || p.date || '';
+/** Giá trị giải ngân trong năm của dự án đến ngày upto (hồ sơ đã thanh toán, không tính thu hồi tạm ứng). */
+function disbursed(pid, year, upto){ const y=String(year); return sum(D('payments').filter(p=>p.status==='Đã thanh toán' && p.kind!=='Thu hồi tạm ứng' && payDay(p).startsWith(y) && (!upto||payDay(p)<=upto) && contractPid(get('contracts',p.contractId)||{})===pid),'amount'); }
+/** Kịch bản giải ngân lũy kế (%) đến hết quý q (1–4) của dự án trong năm; mặc định 20/45/70/100. */
+function capTarget(pid, year, q){ if(q>=4) return 100; const c=D('capitals').find(x=>x.projectId===pid && N(x.year)===N(year) && x.kind==='Kế hoạch vốn năm'); const d=[20,45,70][q-1]; const v=c&&c['targetQ'+q]; return v==null||v===''? d : N(v); }
+/** Kịch bản giải ngân đến ngày date: nội suy tuyến tính trong quý. */
+function capTargetAt(pid, year, date=TODAY){ const y=N(year); if(N(date.slice(0,4))<y) return 0; if(N(date.slice(0,4))>y) return 100;
+  const m=N(date.slice(5,7)), q=Math.floor((m-1)/3)+1; const qs=y+'-'+pad((q-1)*3+1)+'-01', qe=q<4? y+'-'+pad(q*3+1)+'-01' : (y+1)+'-01-01';
+  const a=q>1? capTarget(pid,y,q-1) : 0, b=capTarget(pid,y,q); return a+(b-a)*Math.min(1,days(qs,date)/Math.max(1,days(qs,qe))); }
+/* --- nghiệm thu, quyết toán, GPMB --- */
+function warrantyEnd(a){ return a.warrantyUntil || (a.date && N(a.warrantyMonths)? isoLocal(new Date(new Date(a.date).setMonth(new Date(a.date).getMonth()+N(a.warrantyMonths)))) : ''); }
+function settleState(x){
+  if(x.closedDate) return {k:'ok', t:'Đã tất toán'};
+  if(x.approvalDate) return {k:'acc', t:'Đã phê duyệt, chưa tất toán'};
+  if(x.submittedDate) return {k:'info', t:'Đã trình thẩm tra'};
+  if(x.deadline && x.deadline<TODAY) return {k:'bad', t:'Quá hạn lập quyết toán '+days(x.deadline,TODAY)+' ngày'};
+  if(x.deadline && days(TODAY,x.deadline)<=30) return {k:'warn', t:'Còn '+days(TODAY,x.deadline)+' ngày đến hạn'};
+  return {k:'', t:'Đang lập hồ sơ'};
+}
+function clearPct(c){ return N(c.area)? pct(N(c.handedArea),N(c.area)) : N(c.households)? pct(N(c.householdsPaid),N(c.households)) : 0; }
 function catalog(type){ return D('catalogs').filter(c=>c.type===type).sort(by('order')).map(c=>c.value); }
 
 /* --- cảnh báo (UC19, UC37) --- */
@@ -248,6 +283,22 @@ function alerts(){
       if(!paid) out.push({lvl:'warn', mod:'thanh-toan', text:`Kế hoạch thanh toán <b>${esc(p.phase)}</b> HĐ ${esc(c.number)} (${fmtTy(p.amount)}) đến hạn ${fmtDate(p.planDate)} chưa có hồ sơ đã thanh toán.`});
     }
   });
+  /* Giải ngân năm hiện tại thấp hơn kịch bản */
+  const Y=TODAY.slice(0,4);
+  projects().filter(p=>inFilter(p.id)).forEach(p=>{ const plan=capPlan(p.id,Y); if(!plan) return;
+    const done=pct(disbursed(p.id,Y),plan), tg=capTargetAt(p.id,Y);
+    if(tg-done>10) out.push({lvl:tg-done>25?'bad':'warn', mod:'von', text:`Dự án <b>${esc(p.code)}</b> giải ngân năm ${Y} mới đạt ${fmtP(done)} kế hoạch vốn (kịch bản đến nay ${fmtP(tg)}).`}); });
+  /* Bảo hành, bảo lãnh bảo hành sắp hết hoặc đã hết */
+  D('acceptances').filter(a=>inFilter(a.projectId)).forEach(a=>{ const p=projOf(a.projectId)||{}; const k=a.packageId&&pkgOf(a.packageId);
+    const w=warrantyEnd(a); if(w) expiry(w, `Thời hạn bảo hành ${esc(k?k.code:p.code||'')} (${esc(a.number||a.kind||'')})`, 'nghiem-thu');
+    expiry(a.warrantyGuaranteeUntil, `Bảo lãnh bảo hành ${esc(k?k.code:p.code||'')}`, 'nghiem-thu'); });
+  /* Quyết toán quá hạn, đã phê duyệt mà chưa tất toán */
+  D('settlements').filter(x=>inFilter(x.projectId)).forEach(x=>{ const p=projOf(x.projectId)||{}; const st=settleState(x);
+    if(st.k==='bad'||st.k==='warn') out.push({lvl:st.k, mod:'quyet-toan', text:`Quyết toán dự án <b>${esc(p.code||'')}</b>: ${st.t.toLowerCase()} (hạn ${fmtDate(x.deadline)}).`});
+    else if(st.k==='acc' && days(x.approvalDate,TODAY)>60) out.push({lvl:'warn', mod:'quyet-toan', text:`Dự án <b>${esc(p.code||'')}</b> đã phê duyệt quyết toán ${days(x.approvalDate,TODAY)} ngày nhưng chưa tất toán tài khoản.`}); });
+  /* Mặt bằng chưa bàn giao đúng hạn */
+  D('clearances').filter(c=>inFilter(c.projectId) && !c.handoverDate && c.handoverDue && c.handoverDue<TODAY).forEach(c=>{ const p=projOf(c.projectId)||{};
+    out.push({lvl:'bad', mod:'gpmb', text:`Mặt bằng <b>${esc(c.name)}</b> (${esc(p.code||'')}) chậm bàn giao ${days(c.handoverDue,TODAY)} ngày, đạt ${fmtP(clearPct(c))}.`}); });
   D('tasks').filter(t=>inFilter(t.projectId) && t.status!=='Hoàn thành' && t.due && t.due<TODAY).forEach(t=>{
     out.push({lvl:'bad', mod:'du-an', text:`Công việc <b>${esc(t.name)}</b> quá hạn ${days(t.due,TODAY)} ngày (${esc(t.assignee||'')}).`});
   });

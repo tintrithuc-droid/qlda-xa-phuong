@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
@@ -37,5 +37,60 @@ public static class Upgrades
                     db.Catalogs.Add(new Catalog { Id = "cat-" + Guid.NewGuid().ToString("N")[..12], Type = type, Value = v, Order = ++order, UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
         }
         db.SaveChanges();
+
+        // 3) Phiên bản 1.1: chức năng Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026), chạy một lần
+        CapXa(db);
     }
+
+    /// <summary>Danh mục và quyền cho 4 phân hệ mới (kế hoạch vốn, nghiệm thu bàn giao, quyết toán, GPMB) trên hệ thống đã khởi tạo.</summary>
+    private static void CapXa(AppDbContext db)
+    {
+        const string key = "upgrade:1.1-cap-xa";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        if (!db.Catalogs.Any()) return; // chưa khởi tạo: danh mục mặc định do bước khởi tạo nạp đủ
+        foreach (var (type, values) in NewCatalogValues)
+        {
+            var cats = db.Catalogs.Where(c => c.Type == type).ToList();
+            var order = cats.Count > 0 ? cats.Max(c => c.Order) : -1;
+            foreach (var v in values)
+                if (!cats.Any(c => c.Value == v))
+                    db.Catalogs.Add(new Catalog { Id = "cat-" + Guid.NewGuid().ToString("N")[..12], Type = type, Value = v, Order = ++order, UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        }
+        // Kế hoạch vốn, quyết toán: cùng quyền với phân hệ thanh toán (kế toán cập nhật, lãnh đạo xem).
+        // Nhóm cập nhật tiến độ/khối lượng (kỹ thuật) được cập nhật nghiệm thu, GPMB; nhóm xem dự án được xem các phân hệ mới.
+        foreach (var g in db.Groups.ToList())
+        {
+            if (g.Admin) continue;
+            var p = new Dictionary<string, string>(g.Perms);
+            string Get(string m) => p.TryGetValue(m, out var v) ? v : "none";
+            void Set(string m, string v) { if (!p.ContainsKey(m)) p[m] = v; }
+            var pay = Get("thanh-toan"); var tech = Get("khoi-luong") == "edit" || Get("tien-do") == "edit"; var proj = Get("du-an");
+            Set("von", pay);
+            Set("quyet-toan", pay);
+            Set("nghiem-thu", tech && Get("khoi-luong") == "edit" ? "edit" : proj != "none" ? "view" : "none");
+            Set("gpmb", tech && Get("khoi-luong") == "edit" ? "edit" : proj != "none" ? "view" : "none");
+            g.Perms = p;
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
+    }
+
+    private static readonly (string Type, string[] Values)[] NewCatalogValues =
+    {
+        ("Vai trò của Ban", new[] { "Chủ đầu tư", "Quản lý dự án được giao", "Tư vấn quản lý dự án" }),
+        ("Hình thức quản lý dự án", new[] { "Ban QLDA đầu tư xây dựng", "Chủ đầu tư thuê tư vấn quản lý dự án", "Chủ đầu tư thành lập ban trực thuộc", "Chủ đầu tư tự quản lý" }),
+        ("Loại dự án", new[] { "Xây dựng mới", "Sửa chữa, cải tạo, nâng cấp", "Mua sắm", "Nhiệm vụ khác" }),
+        ("Hồ sơ dự án", new[] { "Báo cáo nghiên cứu khả thi", "Báo cáo kinh tế - kỹ thuật", "Không yêu cầu (mua sắm, nhiệm vụ)" }),
+        ("Nguồn vốn", new[] { "Ngân sách thành phố đầu tư trên địa bàn" }),
+        ("Trạng thái dự án", new[] { "Đã bàn giao đưa vào sử dụng", "Đang quyết toán" }),
+        ("Loại hồ sơ pháp lý", new[] { "Quyết định giao chủ đầu tư, giao quản lý dự án", "Quyết định giao kế hoạch vốn", "Báo cáo nghiên cứu khả thi / kinh tế - kỹ thuật",
+            "Kết quả thẩm định", "Phương án bồi thường, giải phóng mặt bằng", "Biên bản nghiệm thu giai đoạn", "Biên bản nghiệm thu hoàn thành, bàn giao",
+            "Báo cáo quyết toán", "Quyết định phê duyệt quyết toán" }),
+        ("Hình thức lựa chọn nhà thầu", new[] { "Mua sắm trực tuyến", "Đàm phán giá", "Lựa chọn nhà thầu trong trường hợp đặc biệt", "Tham gia thực hiện của cộng đồng" }),
+        ("Loại kế hoạch vốn", new[] { "Kế hoạch trung hạn 2026–2030", "Kế hoạch vốn năm", "Bổ sung kế hoạch năm", "Điều chỉnh giảm kế hoạch năm" }),
+        ("Loại nghiệm thu, bàn giao", new[] { "Nghiệm thu giai đoạn thi công", "Nghiệm thu hoàn thành hạng mục", "Nghiệm thu hoàn thành công trình",
+            "Kiểm tra công tác nghiệm thu (cơ quan chuyên môn)", "Bàn giao đưa vào sử dụng" }),
+        ("Kết quả nghiệm thu", new[] { "Đạt", "Đạt, có tồn tại phải khắc phục", "Không đạt" }),
+        ("Trạng thái quyết toán", new[] { "Đang lập hồ sơ", "Đã trình thẩm tra", "Đã phê duyệt", "Đã tất toán tài khoản" }),
+    };
 }

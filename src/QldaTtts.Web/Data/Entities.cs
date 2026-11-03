@@ -33,6 +33,16 @@ public class Project : EntityBase
     [MaxLength(100)] public string? Phase { get; set; }
     [MaxLength(500)] public string? Decision { get; set; }
     public string? Desc { get; set; }
+    /// <summary>Vai trò của Ban đối với dự án: chủ đầu tư, quản lý dự án được giao, tư vấn quản lý dự án.</summary>
+    [MaxLength(100)] public string? BoardRole { get; set; }
+    /// <summary>Người quyết định đầu tư (Luật Xây dựng 2025, Điều 9).</summary>
+    [MaxLength(300)] public string? DecisionMaker { get; set; }
+    /// <summary>Hình thức tổ chức quản lý dự án (Luật Xây dựng 2025, Điều 32).</summary>
+    [MaxLength(200)] public string? MgmtForm { get; set; }
+    /// <summary>Loại dự án: xây dựng mới, sửa chữa cải tạo, mua sắm, nhiệm vụ khác.</summary>
+    [MaxLength(100)] public string? ProjectKind { get; set; }
+    /// <summary>Hồ sơ dự án: báo cáo nghiên cứu khả thi hoặc báo cáo kinh tế - kỹ thuật.</summary>
+    [MaxLength(100)] public string? ReportType { get; set; }
 }
 
 [Table("ProjectTasks")]
@@ -238,6 +248,79 @@ public class Payment : EntityBase, IHasContract
     public long? FileSize { get; set; }
     [MaxLength(64)] public string? AssetId { get; set; }
     [MaxLength(300)] public string? Url { get; set; }
+}
+
+/// <summary>Kế hoạch vốn đầu tư công của dự án: trung hạn, giao năm, bổ sung, điều chỉnh; kèm kịch bản giải ngân lũy kế theo quý.</summary>
+[Table("CapitalPlans")]
+public class CapitalPlan : EntityBase, IHasProject
+{
+    [MaxLength(64)] public string? ProjectId { get; set; }
+    public int Year { get; set; }
+    [MaxLength(100)] public string? Kind { get; set; }
+    [MaxLength(200)] public string? Source { get; set; }
+    [Column(TypeName = "decimal(20,0)")] public decimal? Amount { get; set; }
+    [MaxLength(200)] public string? Number { get; set; }
+    public DateOnly? Date { get; set; }
+    /// <summary>Kịch bản giải ngân lũy kế (% kế hoạch năm) đến hết quý I, II, III; quý IV là 100%.</summary>
+    public double? TargetQ1 { get; set; }
+    public double? TargetQ2 { get; set; }
+    public double? TargetQ3 { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>Nghiệm thu theo giai đoạn, nghiệm thu hoàn thành, bàn giao đưa vào sử dụng và theo dõi bảo hành.</summary>
+[Table("Acceptances")]
+public class Acceptance : EntityBase, IHasProject
+{
+    [MaxLength(64)] public string? ProjectId { get; set; }
+    [MaxLength(64)] public string? PackageId { get; set; }
+    [MaxLength(200)] public string? Kind { get; set; }
+    [MaxLength(200)] public string? Number { get; set; }
+    public DateOnly? Date { get; set; }
+    public string? Content { get; set; }
+    [MaxLength(100)] public string? Result { get; set; }
+    [MaxLength(300)] public string? Receiver { get; set; }
+    public int? WarrantyMonths { get; set; }
+    public DateOnly? WarrantyUntil { get; set; }
+    public DateOnly? WarrantyGuaranteeUntil { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>Quyết toán dự án hoàn thành và tất toán tài khoản.</summary>
+[Table("Settlements")]
+public class Settlement : EntityBase, IHasProject
+{
+    [MaxLength(64)] public string? ProjectId { get; set; }
+    public DateOnly? CompletedDate { get; set; }
+    public DateOnly? Deadline { get; set; }
+    public DateOnly? SubmittedDate { get; set; }
+    [Column(TypeName = "decimal(20,0)")] public decimal? ProposedValue { get; set; }
+    [Column(TypeName = "decimal(20,0)")] public decimal? AuditedValue { get; set; }
+    [Column(TypeName = "decimal(20,0)")] public decimal? ApprovedValue { get; set; }
+    [MaxLength(200)] public string? Number { get; set; }
+    public DateOnly? ApprovalDate { get; set; }
+    public DateOnly? ClosedDate { get; set; }
+    [MaxLength(100)] public string? Status { get; set; }
+    public string? Note { get; set; }
+}
+
+/// <summary>Bồi thường, hỗ trợ, tái định cư và bàn giao mặt bằng theo từng khu vực, đoạn tuyến.</summary>
+[Table("Clearances")]
+public class Clearance : EntityBase, IHasProject
+{
+    [MaxLength(64)] public string? ProjectId { get; set; }
+    [MaxLength(300)] public string Name { get; set; } = "";
+    public int? Households { get; set; }
+    public double? Area { get; set; }
+    [Column(TypeName = "decimal(20,0)")] public decimal? Budget { get; set; }
+    [MaxLength(200)] public string? Number { get; set; }
+    public DateOnly? PlanDate { get; set; }
+    public int? HouseholdsPaid { get; set; }
+    [Column(TypeName = "decimal(20,0)")] public decimal? AmountPaid { get; set; }
+    public double? HandedArea { get; set; }
+    public DateOnly? HandoverDue { get; set; }
+    public DateOnly? HandoverDate { get; set; }
+    public string? Issues { get; set; }
 }
 
 [Table("Users")]

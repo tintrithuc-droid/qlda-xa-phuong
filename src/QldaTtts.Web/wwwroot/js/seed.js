@@ -1,16 +1,16 @@
 /* ===== Dữ liệu mẫu cấp xã/phường (chỉ nạp khi người quản trị chọn "Kèm dữ liệu mẫu" lúc khởi tạo) ===== */
 function makeSampleData(){
   const T = 1e9, M = 1e6;
-  const D = {projects:[],tasks:[],legal:[],items:[],models:[],packages:[],contracts:[],addenda:[],schedule:[],diaries:[],boq:[],volumes:[],payplans:[],payments:[]};
+  const D = {projects:[],tasks:[],legal:[],items:[],models:[],packages:[],contracts:[],addenda:[],schedule:[],diaries:[],boq:[],volumes:[],payplans:[],payments:[],capitals:[],acceptances:[],settlements:[],clearances:[]};
   const mark = '(mẫu)';
   const OWNER = 'UBND xã Mẫu';
   D.projects = [
-    {id:'p1', code:'DA-01', name:'Nâng cấp, mở rộng đường giao thông liên ấp Tân Hòa – Tân Lợi', group:'Nhóm C', tmdt:28.5*T, capital:'Ngân sách Thành phố hỗ trợ có mục tiêu', owner:OWNER, location:'Xã Mẫu', start:'2025-03-01', end:'2027-03-31', status:'Đang thi công', phase:'Thực hiện dự án', decision:'QĐ phê duyệt dự án số 215/QĐ-UBND '+mark, desc:'Dự án mẫu: nâng cấp 4,2 km đường bê tông nhựa, cống thoát nước dọc, chiếu sáng.'},
-    {id:'p2', code:'DA-02', name:'Xây dựng Trường Mầm non xã Mẫu (12 phòng học)', group:'Nhóm C', tmdt:24.8*T, capital:'Ngân sách Thành phố hỗ trợ có mục tiêu', owner:OWNER, location:'Xã Mẫu', start:'2025-06-01', end:'2027-01-31', status:'Đang thi công', phase:'Thực hiện dự án', decision:'QĐ phê duyệt dự án số 238/QĐ-UBND '+mark, desc:'Dự án mẫu: khối phòng học 2 tầng, nhà bếp, sân chơi, hàng rào.'},
-    {id:'p3', code:'DA-03', name:'Nạo vét, kè gia cố kênh thủy lợi ấp Tân Thạnh', group:'Nhóm C', tmdt:9.6*T, capital:'Ngân sách xã/phường', owner:OWNER, location:'Xã Mẫu', start:'2026-08-01', end:'2027-09-30', status:'Chuẩn bị đầu tư', phase:'Chuẩn bị dự án', decision:'', desc:'Dự án mẫu ở giai đoạn chuẩn bị đầu tư, đang lập báo cáo kinh tế - kỹ thuật.'},
-    {id:'p4', code:'DA-04', name:'Sửa chữa Nhà văn hóa – Trung tâm học tập cộng đồng xã', group:'Nhóm C', tmdt:3.2*T, capital:'Ngân sách xã/phường', owner:OWNER, location:'Xã Mẫu', start:'2024-09-01', end:'2025-04-30', status:'Đã quyết toán', phase:'Kết thúc dự án', decision:'QĐ phê duyệt quyết toán số 88/QĐ-UBND '+mark, desc:'Dự án mẫu đã hoàn thành và quyết toán.'},
-    {id:'p5', code:'DA-05', name:'Mua sắm trang thiết bị Bộ phận Tiếp nhận và trả kết quả xã', group:'Nhóm C', tmdt:1.05*T, capital:'Ngân sách xã/phường', owner:OWNER, location:'Xã Mẫu', start:'2026-07-01', end:'2026-12-31', status:'Đang thực hiện', phase:'Thực hiện dự án', decision:'QĐ phê duyệt dự toán mua sắm số 142/QĐ-UBND '+mark, desc:'Việc mẫu không phải xây dựng: mua sắm máy tính, máy quét, màn hình tra cứu, ki-ốt lấy số cho Bộ phận một cửa.'},
-    {id:'p6', code:'DA-06', name:'Số hóa hồ sơ, tài liệu lưu trữ của UBND xã (nhiệm vụ chuyển đổi số năm 2026)', group:'Nhóm C', tmdt:0.86*T, capital:'Ngân sách xã/phường', owner:OWNER, location:'Xã Mẫu', start:'2026-05-01', end:'2026-12-15', status:'Đang thực hiện', phase:'Thực hiện dự án', decision:'Kế hoạch chuyển đổi số năm 2026 số 35/KH-UBND '+mark, desc:'Nhiệm vụ mẫu: số hóa hồ sơ lưu trữ giai đoạn 2015–2025, tạo lập dữ liệu phục vụ tra cứu và giải quyết thủ tục.'}
+    {boardRole:'Chủ đầu tư', decisionMaker:'Chủ tịch UBND xã Mẫu', mgmtForm:'Ban QLDA đầu tư xây dựng', projectKind:'Xây dựng mới', reportType:'Báo cáo nghiên cứu khả thi', id:'p1', code:'DA-01', name:'Nâng cấp, mở rộng đường giao thông liên ấp Tân Hòa – Tân Lợi', group:'Nhóm C', tmdt:28.5*T, capital:'Ngân sách Thành phố hỗ trợ có mục tiêu', owner:OWNER, location:'Xã Mẫu', start:'2025-03-01', end:'2027-03-31', status:'Đang thi công', phase:'Thực hiện dự án', decision:'QĐ phê duyệt dự án số 215/QĐ-UBND '+mark, desc:'Dự án mẫu: nâng cấp 4,2 km đường bê tông nhựa, cống thoát nước dọc, chiếu sáng.'},
+    {boardRole:'Chủ đầu tư', decisionMaker:'Chủ tịch UBND xã Mẫu', mgmtForm:'Ban QLDA đầu tư xây dựng', projectKind:'Xây dựng mới', reportType:'Báo cáo nghiên cứu khả thi', id:'p2', code:'DA-02', name:'Xây dựng Trường Mầm non xã Mẫu (12 phòng học)', group:'Nhóm C', tmdt:24.8*T, capital:'Ngân sách Thành phố hỗ trợ có mục tiêu', owner:OWNER, location:'Xã Mẫu', start:'2025-06-01', end:'2027-01-31', status:'Đang thi công', phase:'Thực hiện dự án', decision:'QĐ phê duyệt dự án số 238/QĐ-UBND '+mark, desc:'Dự án mẫu: khối phòng học 2 tầng, nhà bếp, sân chơi, hàng rào.'},
+    {boardRole:'Chủ đầu tư', decisionMaker:'Chủ tịch UBND xã Mẫu', mgmtForm:'Ban QLDA đầu tư xây dựng', projectKind:'Xây dựng mới', reportType:'Báo cáo kinh tế - kỹ thuật', id:'p3', code:'DA-03', name:'Nạo vét, kè gia cố kênh thủy lợi ấp Tân Thạnh', group:'Nhóm C', tmdt:9.6*T, capital:'Ngân sách xã/phường', owner:OWNER, location:'Xã Mẫu', start:'2026-08-01', end:'2027-09-30', status:'Chuẩn bị đầu tư', phase:'Chuẩn bị dự án', decision:'', desc:'Dự án mẫu ở giai đoạn chuẩn bị đầu tư, đang lập báo cáo kinh tế - kỹ thuật.'},
+    {boardRole:'Tư vấn quản lý dự án', decisionMaker:'Chủ tịch UBND xã Mẫu', mgmtForm:'Chủ đầu tư thuê tư vấn quản lý dự án', projectKind:'Sửa chữa, cải tạo, nâng cấp', reportType:'Báo cáo kinh tế - kỹ thuật', id:'p4', code:'DA-04', name:'Sửa chữa Nhà văn hóa – Trung tâm học tập cộng đồng xã', group:'Nhóm C', tmdt:3.2*T, capital:'Ngân sách xã/phường', owner:'Trung tâm Văn hóa - Thể thao xã Mẫu (đơn vị quản lý sử dụng)', location:'Xã Mẫu', start:'2024-09-01', end:'2025-04-30', status:'Đã quyết toán', phase:'Kết thúc dự án', decision:'QĐ phê duyệt quyết toán số 88/QĐ-UBND '+mark, desc:'Dự án mẫu đã hoàn thành và quyết toán.'},
+    {boardRole:'Quản lý dự án được giao', decisionMaker:'Chủ tịch UBND xã Mẫu', mgmtForm:'Ban QLDA đầu tư xây dựng', projectKind:'Mua sắm', reportType:'Không yêu cầu (mua sắm, nhiệm vụ)', id:'p5', code:'DA-05', name:'Mua sắm trang thiết bị Bộ phận Tiếp nhận và trả kết quả xã', group:'Nhóm C', tmdt:1.05*T, capital:'Ngân sách xã/phường', owner:OWNER, location:'Xã Mẫu', start:'2026-07-01', end:'2026-12-31', status:'Đang thực hiện', phase:'Thực hiện dự án', decision:'QĐ phê duyệt dự toán mua sắm số 142/QĐ-UBND '+mark, desc:'Việc mẫu không phải xây dựng: mua sắm máy tính, máy quét, màn hình tra cứu, ki-ốt lấy số cho Bộ phận một cửa.'},
+    {boardRole:'Quản lý dự án được giao', decisionMaker:'Chủ tịch UBND xã Mẫu', mgmtForm:'Ban QLDA đầu tư xây dựng', projectKind:'Nhiệm vụ khác', reportType:'Không yêu cầu (mua sắm, nhiệm vụ)', id:'p6', code:'DA-06', name:'Số hóa hồ sơ, tài liệu lưu trữ của UBND xã (nhiệm vụ chuyển đổi số năm 2026)', group:'Nhóm C', tmdt:0.86*T, capital:'Ngân sách xã/phường', owner:OWNER, location:'Xã Mẫu', start:'2026-05-01', end:'2026-12-15', status:'Đang thực hiện', phase:'Thực hiện dự án', decision:'Kế hoạch chuyển đổi số năm 2026 số 35/KH-UBND '+mark, desc:'Nhiệm vụ mẫu: số hóa hồ sơ lưu trữ giai đoạn 2015–2025, tạo lập dữ liệu phục vụ tra cứu và giải quyết thủ tục.'}
   ];
   D.tasks = [
     {id:'t1', projectId:'p1', name:'Trình thẩm định điều chỉnh dự toán gói XL01', assignee:'Bộ phận Kỹ thuật', due:'2026-11-05', status:'Đang thực hiện', priority:'Cao'},
@@ -183,17 +183,57 @@ function makeSampleData(){
     {id:'d4', projectId:'p2', packageId:'k4', date:'2026-10-26', shift:'Cả ngày', weather:'Nắng', workers:35, machines:'1 vận thăng, 1 xe bơm bê tông', works:'Đổ bê tông sàn tầng 2 khối phòng học | 96 | m3\nGia công lắp dựng cốt thép cột tầng 2 | 4.5 | tấn\nCốp pha sàn khối hiệu bộ | 220 | m2', issues:'Khối hiệu bộ chậm khoảng 2 tuần so với kế hoạch do điều chỉnh móng.', supervisor:'Ban QLDA', photos:[]},
     {id:'d5', projectId:'p2', packageId:'k4', date:'2026-10-24', shift:'Cả ngày', weather:'Âm u', workers:31, machines:'1 vận thăng', works:'Lắp dựng cốp pha sàn tầng 2 | 480 | m2\nNghiệm thu cốt thép sàn tầng 2 | 1 | lần', issues:'', supervisor:'Ban QLDA', photos:[]}
   ];
+  // Kế hoạch vốn đầu tư công: trung hạn 2026–2030, vốn năm 2026 (kèm kịch bản giải ngân lũy kế theo quý)
+  const cap=[['p1','Kế hoạch trung hạn 2026–2030',2026,'Ngân sách Thành phố hỗ trợ có mục tiêu',18,'45/NQ-HĐND','2025-12-15',null],
+    ['p1','Kế hoạch vốn năm',2026,'Ngân sách Thành phố hỗ trợ có mục tiêu',10,'312/QĐ-UBND','2026-01-05',[20,45,70]],
+    ['p1','Bổ sung kế hoạch năm',2026,'Ngân sách Thành phố hỗ trợ có mục tiêu',1.5,'1580/QĐ-UBND','2026-07-20',null],
+    ['p2','Kế hoạch trung hạn 2026–2030',2026,'Ngân sách Thành phố hỗ trợ có mục tiêu',20,'45/NQ-HĐND','2025-12-15',null],
+    ['p2','Kế hoạch vốn năm',2026,'Ngân sách Thành phố hỗ trợ có mục tiêu',13,'312/QĐ-UBND','2026-01-05',[20,45,70]],
+    ['p3','Kế hoạch trung hạn 2026–2030',2026,'Ngân sách xã/phường',9.6,'45/NQ-HĐND','2025-12-15',null],
+    ['p3','Kế hoạch vốn năm',2026,'Ngân sách xã/phường',.3,'315/QĐ-UBND','2026-01-05',[0,0,20]],
+    ['p5','Kế hoạch vốn năm',2026,'Ngân sách xã/phường',.7,'142/QĐ-UBND','2026-06-10',[0,0,25]],
+    ['p6','Kế hoạch vốn năm',2026,'Ngân sách xã/phường',.86,'35/KH-UBND','2026-04-20',[0,20,50]]];
+  D.capitals = cap.map(([projectId,kind,year,source,amt,no,date,tg],i)=>({id:'vk'+(i+1), projectId, kind, year, source, amount:Math.round(amt*T), number:no+' '+mark, date,
+    ...(tg?{targetQ1:tg[0],targetQ2:tg[1],targetQ3:tg[2]}:{}), note:''}));
+  // Nghiệm thu theo giai đoạn, nghiệm thu hoàn thành, bàn giao và bảo hành (NĐ 207/2026)
+  D.acceptances = [
+    {id:'nt1', projectId:'p1', packageId:'k1', kind:'Nghiệm thu giai đoạn thi công', date:'2026-06-30', number:'BB-NT-GĐ01 '+mark, content:'Hoàn thành giai đoạn nền, móng đường đoạn Km2–Km4,2', result:'Đạt', receiver:'', note:''},
+    {id:'nt2', projectId:'p2', packageId:'k4', kind:'Nghiệm thu giai đoạn thi công', date:'2026-05-31', number:'BB-NT-GĐ01 '+mark, content:'Hoàn thành phần móng khối phòng học', result:'Đạt, có tồn tại phải khắc phục', receiver:'', note:'Bổ sung hồ sơ thí nghiệm cọc trước khi thi công thân.'},
+    {id:'nt3', projectId:'p6', packageId:'k9', kind:'Nghiệm thu hoàn thành hạng mục', date:'2026-08-31', number:'BB-NT-01 '+mark, content:'Số hóa hồ sơ hộ tịch lô 1, lô 2', result:'Đạt', receiver:'Văn phòng HĐND - UBND xã', note:''},
+    {id:'nt4', projectId:'p5', packageId:'k8', kind:'Nghiệm thu hoàn thành hạng mục', date:'2026-10-31', number:'BB-NT-TB01 '+mark, content:'Giao hàng, lắp đặt thiết bị đợt 1', result:'Đạt', receiver:'Bộ phận Tiếp nhận và trả kết quả xã', warrantyMonths:24, note:''},
+    {id:'nt5', projectId:'p4', packageId:'', kind:'Nghiệm thu hoàn thành công trình', date:'2025-04-25', number:'BB-NTHT '+mark, content:'Hoàn thành sửa chữa Nhà văn hóa – Trung tâm học tập cộng đồng', result:'Đạt', receiver:'', note:''},
+    {id:'nt6', projectId:'p4', packageId:'', kind:'Bàn giao đưa vào sử dụng', date:'2025-05-20', number:'BB-BG '+mark, content:'Bàn giao công trình đưa vào sử dụng', result:'Đạt', receiver:'Trung tâm Văn hóa - Thể thao xã Mẫu', warrantyMonths:18, warrantyGuaranteeUntil:'2026-11-20', note:'Bảo lãnh bảo hành 5% giá trị hợp đồng.'}
+  ];
+  // Quyết toán dự án hoàn thành: đã phê duyệt nhưng chưa tất toán tài khoản (để minh họa cảnh báo)
+  D.settlements = [
+    {id:'qt1', projectId:'p4', completedDate:'2025-05-20', deadline:'2025-09-20', submittedDate:'2025-09-12', proposedValue:Math.round(3.12*T), auditedValue:Math.round(3.05*T), approvedValue:Math.round(3.05*T), number:'88/QĐ-UBND '+mark, approvalDate:'2025-11-14', closedDate:'', status:'Đã phê duyệt, chưa tất toán', note:'Chờ thu hồi số dư tạm ứng và đóng tài khoản tại Kho bạc.'}
+  ];
+  // Giải phóng mặt bằng theo đoạn tuyến
+  D.clearances = [
+    {id:'gp1', projectId:'p1', name:'Đoạn Km0+000–Km2+000 (ấp Tân Hòa)', households:46, householdsPaid:46, area:9200, handedArea:9200, budget:Math.round(3.1*T), amountPaid:Math.round(3.1*T), number:'56/QĐ-UBND '+mark, planDate:'2025-04-10', handoverDue:'2025-07-31', handoverDate:'2025-07-25', issues:''},
+    {id:'gp2', projectId:'p1', name:'Đoạn Km2+000–Km3+000 (ấp Tân Lợi)', households:31, householdsPaid:24, area:6100, handedArea:4300, budget:Math.round(2.4*T), amountPaid:Math.round(1.85*T), number:'57/QĐ-UBND '+mark, planDate:'2025-04-10', handoverDue:'2026-10-15', handoverDate:'', issues:'7 hộ chưa thống nhất đơn giá bồi thường cây trồng, vật kiến trúc; UBND xã đang vận động, đối thoại.'},
+    {id:'gp3', projectId:'p1', name:'Đoạn Km3+000–Km4+200', households:18, householdsPaid:18, area:5000, handedArea:5000, budget:Math.round(1.2*T), amountPaid:Math.round(1.2*T), number:'58/QĐ-UBND '+mark, planDate:'2025-09-05', handoverDue:'2026-01-31', handoverDate:'2026-01-20', issues:''},
+    {id:'gp4', projectId:'p3', name:'Tuyến kè ấp Tân Thạnh', households:12, householdsPaid:0, area:3600, handedArea:0, budget:Math.round(.65*T), amountPaid:0, number:'', planDate:'', handoverDue:'2027-03-31', handoverDate:'', issues:'Đang kiểm đếm, lập phương án bồi thường.'}
+  ];
   return D;
 }
 function defaultCatalogs(){
   const C = {
-    'Trạng thái dự án':['Chuẩn bị đầu tư','Đang lựa chọn nhà thầu','Đang thi công','Đang thực hiện','Tạm dừng','Hoàn thành','Đã quyết toán'],
+    'Trạng thái dự án':['Chuẩn bị đầu tư','Đang lựa chọn nhà thầu','Đang thi công','Đang thực hiện','Tạm dừng','Hoàn thành','Đã bàn giao đưa vào sử dụng','Đang quyết toán','Đã quyết toán'],
     'Nhóm dự án':['Quan trọng quốc gia','Nhóm A','Nhóm B','Nhóm C'],
     'Giai đoạn':['Chuẩn bị dự án','Thực hiện dự án','Kết thúc dự án'],
-    'Nguồn vốn':['Ngân sách xã/phường','Ngân sách Thành phố hỗ trợ có mục tiêu','Ngân sách Trung ương','Vốn huy động, đóng góp của Nhân dân','Vốn khác'],
-    'Loại hồ sơ pháp lý':['Quyết định chủ trương đầu tư','Quyết định phê duyệt dự án','Quyết định điều chỉnh dự án','Thiết kế, dự toán','Giấy phép xây dựng','Kế hoạch lựa chọn nhà thầu','Hồ sơ mời thầu','Kết quả lựa chọn nhà thầu','Bảo lãnh thực hiện hợp đồng','Bảo lãnh tạm ứng','Biên bản nghiệm thu','Kế hoạch, văn bản giao nhiệm vụ','Văn bản khác'],
+    'Nguồn vốn':['Ngân sách xã/phường','Ngân sách thành phố đầu tư trên địa bàn','Ngân sách Thành phố hỗ trợ có mục tiêu','Ngân sách Trung ương','Vốn huy động, đóng góp của Nhân dân','Vốn khác'],
+    'Vai trò của Ban':['Chủ đầu tư','Quản lý dự án được giao','Tư vấn quản lý dự án'],
+    'Hình thức quản lý dự án':['Ban QLDA đầu tư xây dựng','Chủ đầu tư thuê tư vấn quản lý dự án','Chủ đầu tư thành lập ban trực thuộc','Chủ đầu tư tự quản lý'],
+    'Loại dự án':['Xây dựng mới','Sửa chữa, cải tạo, nâng cấp','Mua sắm','Nhiệm vụ khác'],
+    'Hồ sơ dự án':['Báo cáo nghiên cứu khả thi','Báo cáo kinh tế - kỹ thuật','Không yêu cầu (mua sắm, nhiệm vụ)'],
+    'Loại kế hoạch vốn':['Kế hoạch trung hạn 2026–2030','Kế hoạch vốn năm','Bổ sung kế hoạch năm','Điều chỉnh giảm kế hoạch năm'],
+    'Loại nghiệm thu, bàn giao':['Nghiệm thu giai đoạn thi công','Nghiệm thu hoàn thành hạng mục','Nghiệm thu hoàn thành công trình','Kiểm tra công tác nghiệm thu (cơ quan chuyên môn)','Bàn giao đưa vào sử dụng'],
+    'Kết quả nghiệm thu':['Đạt','Đạt, có tồn tại phải khắc phục','Không đạt'],
+    'Trạng thái quyết toán':['Đang lập hồ sơ','Đã trình thẩm tra','Đã phê duyệt','Đã tất toán tài khoản'],
+    'Loại hồ sơ pháp lý':['Quyết định chủ trương đầu tư','Quyết định phê duyệt dự án','Quyết định điều chỉnh dự án','Thiết kế, dự toán','Giấy phép xây dựng','Kế hoạch lựa chọn nhà thầu','Hồ sơ mời thầu','Kết quả lựa chọn nhà thầu','Bảo lãnh thực hiện hợp đồng','Bảo lãnh tạm ứng','Biên bản nghiệm thu','Kế hoạch, văn bản giao nhiệm vụ','Quyết định giao chủ đầu tư, giao quản lý dự án','Quyết định giao kế hoạch vốn','Báo cáo nghiên cứu khả thi / kinh tế - kỹ thuật','Kết quả thẩm định','Phương án bồi thường, giải phóng mặt bằng','Biên bản nghiệm thu giai đoạn','Biên bản nghiệm thu hoàn thành, bàn giao','Báo cáo quyết toán','Quyết định phê duyệt quyết toán','Văn bản khác'],
     'Loại gói thầu':['Xây lắp','Tư vấn','Mua sắm hàng hóa','Phi tư vấn','Hỗn hợp'],
-    'Hình thức lựa chọn nhà thầu':['Đấu thầu rộng rãi','Đấu thầu hạn chế','Chỉ định thầu','Chỉ định thầu rút gọn','Chào hàng cạnh tranh','Tự thực hiện'],
+    'Hình thức lựa chọn nhà thầu':['Đấu thầu rộng rãi','Đấu thầu hạn chế','Chỉ định thầu','Chỉ định thầu rút gọn','Chào hàng cạnh tranh','Mua sắm trực tuyến','Đàm phán giá','Lựa chọn nhà thầu trong trường hợp đặc biệt','Tham gia thực hiện của cộng đồng','Tự thực hiện'],
     'Trạng thái gói thầu':['Chưa lựa chọn nhà thầu','Đang lựa chọn nhà thầu','Đang thực hiện hợp đồng','Đã nghiệm thu','Đã thanh lý hợp đồng'],
     'Loại hợp đồng':['Trọn gói','Đơn giá cố định','Đơn giá điều chỉnh','Theo thời gian','Hỗn hợp'],
     'Đơn vị tính':['m','m2','m3','tấn','cái','cột','cây','trạm','HT','gói','bộ'],
@@ -212,8 +252,9 @@ function defaultGroups(){
   return [
     {id:'g-admin', name:'Quản trị hệ thống', admin:true, perms:P(ALL,'*'), scope:[], desc:'Toàn quyền, quản lý người dùng và cấu hình.'},
     {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:P(['du-an'],'*'), scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án.'},
-    {id:'g-tech', name:'Cán bộ kỹ thuật', admin:false, perms:P(['du-an','mo-hinh','goi-thau','tien-do','nhat-ky','khoi-luong'],'*'), scope:[], desc:'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng.'},
-    {id:'g-acc', name:'Kế toán', admin:false, perms:P(['thanh-toan'],['tong-quan','du-an','goi-thau','khoi-luong','bao-cao']), scope:[], desc:'Kế hoạch và hồ sơ thanh toán.'},
-    {id:'g-site', name:'Tư vấn giám sát / Nhà thầu', admin:false, perms:P(['nhat-ky','tien-do'],['tong-quan','du-an','mo-hinh','khoi-luong']), scope:['p1'], desc:'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'}
+    {id:'g-tech', name:'Cán bộ kỹ thuật', admin:false, perms:P(['du-an','mo-hinh','goi-thau','tien-do','nhat-ky','khoi-luong','gpmb','nghiem-thu'],'*'), scope:[], desc:'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'},
+    {id:'g-acc', name:'Kế toán', admin:false, perms:P(['thanh-toan','von','quyet-toan'],['tong-quan','du-an','goi-thau','khoi-luong','nghiem-thu','bao-cao']), scope:[], desc:'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'},
+    {id:'g-site', name:'Tư vấn giám sát / Nhà thầu', admin:false, perms:P(['nhat-ky','tien-do'],['tong-quan','du-an','mo-hinh','khoi-luong','nghiem-thu']), scope:['p1'], desc:'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'},
+    {id:'g-ubnd', name:'Lãnh đạo UBND xã (người quyết định đầu tư)', admin:false, perms:P([],['tong-quan','du-an','von','gpmb','tien-do','nghiem-thu','thanh-toan','quyet-toan','bao-cao']), scope:[], desc:'Theo dõi tình hình dự án, giải ngân, quyết toán; nhận cảnh báo. Chỉ xem.'}
   ];
 }

@@ -732,3 +732,204 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    ALTER TABLE [Projects] ADD [BoardRole] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    ALTER TABLE [Projects] ADD [DecisionMaker] nvarchar(300) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    ALTER TABLE [Projects] ADD [MgmtForm] nvarchar(200) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    ALTER TABLE [Projects] ADD [ProjectKind] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    ALTER TABLE [Projects] ADD [ReportType] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE TABLE [Acceptances] (
+        [Id] nvarchar(64) NOT NULL,
+        [ProjectId] nvarchar(64) NULL,
+        [PackageId] nvarchar(64) NULL,
+        [Kind] nvarchar(200) NULL,
+        [Number] nvarchar(200) NULL,
+        [Date] date NULL,
+        [Content] nvarchar(max) NULL,
+        [Result] nvarchar(100) NULL,
+        [Receiver] nvarchar(300) NULL,
+        [WarrantyMonths] int NULL,
+        [WarrantyUntil] date NULL,
+        [WarrantyGuaranteeUntil] date NULL,
+        [Note] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_Acceptances] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE TABLE [CapitalPlans] (
+        [Id] nvarchar(64) NOT NULL,
+        [ProjectId] nvarchar(64) NULL,
+        [Year] int NOT NULL,
+        [Kind] nvarchar(100) NULL,
+        [Source] nvarchar(200) NULL,
+        [Amount] decimal(20,0) NULL,
+        [Number] nvarchar(200) NULL,
+        [Date] date NULL,
+        [TargetQ1] float NULL,
+        [TargetQ2] float NULL,
+        [TargetQ3] float NULL,
+        [Note] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_CapitalPlans] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE TABLE [Clearances] (
+        [Id] nvarchar(64) NOT NULL,
+        [ProjectId] nvarchar(64) NULL,
+        [Name] nvarchar(300) NOT NULL,
+        [Households] int NULL,
+        [Area] float NULL,
+        [Budget] decimal(20,0) NULL,
+        [Number] nvarchar(200) NULL,
+        [PlanDate] date NULL,
+        [HouseholdsPaid] int NULL,
+        [AmountPaid] decimal(20,0) NULL,
+        [HandedArea] float NULL,
+        [HandoverDue] date NULL,
+        [HandoverDate] date NULL,
+        [Issues] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_Clearances] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE TABLE [Settlements] (
+        [Id] nvarchar(64) NOT NULL,
+        [ProjectId] nvarchar(64) NULL,
+        [CompletedDate] date NULL,
+        [Deadline] date NULL,
+        [SubmittedDate] date NULL,
+        [ProposedValue] decimal(20,0) NULL,
+        [AuditedValue] decimal(20,0) NULL,
+        [ApprovedValue] decimal(20,0) NULL,
+        [Number] nvarchar(200) NULL,
+        [ApprovalDate] date NULL,
+        [ClosedDate] date NULL,
+        [Status] nvarchar(100) NULL,
+        [Note] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_Settlements] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE INDEX [IX_Acceptances_ProjectId] ON [Acceptances] ([ProjectId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE INDEX [IX_CapitalPlans_ProjectId_Year] ON [CapitalPlans] ([ProjectId], [Year]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE INDEX [IX_Clearances_ProjectId] ON [Clearances] ([ProjectId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    CREATE INDEX [IX_Settlements_ProjectId] ON [Settlements] ([ProjectId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103042701_CapXa'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261103042701_CapXa', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+

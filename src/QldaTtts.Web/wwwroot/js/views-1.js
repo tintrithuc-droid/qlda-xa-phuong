@@ -99,10 +99,10 @@ ACT['att-view']=(id,el,e)=>{ const a=get('attachments',id); if(!a) return; e&&e.
 ACT['att-all']=(ids)=>{ const list=String(ids).split(',').map(id=>get('attachments',id)).filter(Boolean);
   openModal(`<div class="mform narrow"><header><h3>Tệp đính kèm (${list.length})</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;overflow:auto"><ul class="attlist">${list.map(a=>`<li><a href="${attUrl(a)}" target="_blank" rel="noopener">${attIcon(a)} ${esc(a.fileName)}</a>${a.kind?` <span class="pill">${esc(a.kind)}</span>`:''}<span class="small muted">${attMeta(a)}</span></li>`).join('')}</ul></div></div>`); };
 
-const DEPS = {projects:[['packages','projectId'],['tasks','projectId'],['legal','projectId'],['items','projectId'],['schedule','projectId'],['diaries','projectId'],['models','projectId']],
-  packages:[['contracts','packageId'],['schedule','packageId'],['diaries','packageId'],['legal','packageId']], contracts:[['boq','contractId'],['payments','contractId'],['payplans','contractId'],['addenda','contractId']],
+const DEPS = {projects:[['packages','projectId'],['tasks','projectId'],['legal','projectId'],['items','projectId'],['schedule','projectId'],['diaries','projectId'],['models','projectId'],['capitals','projectId'],['acceptances','projectId'],['settlements','projectId'],['clearances','projectId']],
+  packages:[['contracts','packageId'],['schedule','packageId'],['diaries','packageId'],['legal','packageId'],['acceptances','packageId']], contracts:[['boq','contractId'],['payments','contractId'],['payplans','contractId'],['addenda','contractId']],
   boq:[['volumes','boqId']], groups:[['users','groupId']], items:[['schedule','itemId']]};
-const COL_MOD = {projects:'du-an',tasks:'du-an',legal:'du-an',items:'mo-hinh',models:'mo-hinh',packages:'goi-thau',contracts:'goi-thau',addenda:'goi-thau',schedule:'tien-do',diaries:'nhat-ky',boq:'khoi-luong',volumes:'khoi-luong',payplans:'thanh-toan',payments:'thanh-toan',users:'quan-tri',groups:'quan-tri',catalogs:'quan-tri'};
+const COL_MOD = {projects:'du-an',tasks:'du-an',legal:'du-an',items:'mo-hinh',models:'mo-hinh',packages:'goi-thau',contracts:'goi-thau',addenda:'goi-thau',schedule:'tien-do',diaries:'nhat-ky',boq:'khoi-luong',volumes:'khoi-luong',payplans:'thanh-toan',payments:'thanh-toan',capitals:'von',acceptances:'nghiem-thu',settlements:'quyet-toan',clearances:'gpmb',users:'quan-tri',groups:'quan-tri',catalogs:'quan-tri'};
 ACT.del=async(id,el)=>{
   const col=el.dataset.col; const o=get(col,id); if(!o) return;
   if(!can(COL_MOD[col]||'quan-tri','edit')) return toast('Bạn không có quyền xóa dữ liệu này.','err');
@@ -129,7 +129,7 @@ function renderSetup(){
     <div class="fld"><label for="su_user">Tên đăng nhập</label><input id="su_user" required value="admin"></div>
     <div class="fld"><label for="su_pw">Mật khẩu (tối thiểu 8 ký tự, có chữ và số)</label><input id="su_pw" type="password" required autocomplete="new-password"></div>
     <div class="fld"><label for="su_pw2">Nhập lại mật khẩu</label><input id="su_pw2" type="password" required autocomplete="new-password"></div>
-    <label class="checks"><input type="checkbox" id="su_sample" checked> Nạp dữ liệu mẫu để chạy thử (4 dự án, 7 gói thầu, 6 hợp đồng và tài khoản mẫu)</label>
+    <label class="checks"><input type="checkbox" id="su_sample" checked> Nạp dữ liệu mẫu để chạy thử (6 dự án, nhiệm vụ cấp xã kèm kế hoạch vốn, nghiệm thu, quyết toán, GPMB và tài khoản mẫu)</label>
     <div class="err" id="su_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Khởi tạo hệ thống</button>
     <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu trên máy chủ của đơn vị.</p>
@@ -147,7 +147,7 @@ function renderSetup(){
       const body={name, username, password:pw, groups:defaultGroups(), catalogs:defaultCatalogs()};
       if($('#su_sample').checked){
         body.sample=makeSampleData();
-        body.sampleUsers=[['lanhdao','Lãnh đạo Ban (mẫu)','g-lead','Lãnh đạo Ban'],['kythuat','Cán bộ kỹ thuật (mẫu)','g-tech','Phòng Kỹ thuật'],['ketoan','Kế toán (mẫu)','g-acc','Phòng Kế toán'],['giamsat','Tư vấn giám sát TV01 (mẫu)','g-site','Tư vấn giám sát']].map(([username,name,groupId,unit])=>({username,name,groupId,unit}));
+        body.sampleUsers=[['lanhdao','Lãnh đạo Ban (mẫu)','g-lead','Lãnh đạo Ban'],['kythuat','Cán bộ kỹ thuật (mẫu)','g-tech','Phòng Kỹ thuật'],['ketoan','Kế toán (mẫu)','g-acc','Phòng Kế toán'],['giamsat','Tư vấn giám sát TV01 (mẫu)','g-site','Tư vấn giám sát'],['ubnd','Lãnh đạo UBND xã (mẫu)','g-ubnd','UBND xã']].map(([username,name,groupId,unit])=>({username,name,groupId,unit}));
       }
       const r=await api('POST','/api/auth/setup',body,{auth:true});
       Store.initialized=true; Store.sampleUsers=!!body.sampleUsers; location.hash='tong-quan';
@@ -162,7 +162,7 @@ function renderLogin(){
     <div class="fld"><label for="lg_pw">Mật khẩu</label><input id="lg_pw" type="password" autocomplete="current-password" required></div>
     <div class="err" id="lg_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Đăng nhập</button>
-    <p class="small muted" style="margin:0">Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại. ${Store.sampleUsers?'Tài khoản mẫu: lanhdao, kythuat, ketoan, giamsat (mật khẩu như tài khoản quản trị lúc khởi tạo).':''}</p>
+    <p class="small muted" style="margin:0">Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại. ${Store.sampleUsers?'Tài khoản mẫu: lanhdao, kythuat, ketoan, giamsat, ubnd (mật khẩu như tài khoản quản trị lúc khởi tạo).':''}</p>
   </form><p class="auth-foot">${brandFoot()}</p></div></div>`;
   $('#login').onsubmit=async e=>{
     e.preventDefault(); const err=$('#lg_err');
@@ -253,12 +253,13 @@ ACT.chpw=()=>{
 };
 
 /* ===== TỔNG QUAN (UC32–42) ===== */
-const STATUS_COL = {'Chuẩn bị đầu tư':'var(--c3)','Đang lựa chọn nhà thầu':'var(--c4)','Đang thi công':'var(--c1)','Đang thực hiện':'var(--c4)','Tạm dừng':'var(--red)','Hoàn thành':'var(--c2)','Đã quyết toán':'var(--c5)'};
+const STATUS_COL = {'Chuẩn bị đầu tư':'var(--c3)','Đang lựa chọn nhà thầu':'var(--c4)','Đang thi công':'var(--c1)','Đang thực hiện':'var(--c4)','Tạm dừng':'var(--red)','Hoàn thành':'var(--c2)','Đã quyết toán':'var(--c5)','Đã bàn giao đưa vào sử dụng':'var(--c2)','Đang quyết toán':'var(--c3)'};
 VIEWS['tong-quan']=()=>{
   const ps=projects().filter(p=>!S.pid||p.id===S.pid); const pids=ps.map(p=>p.id);
   const cs=D('contracts').filter(c=>pids.includes(contractPid(c)));
   const tm=sum(ps,'tmdt'), cv=sum(cs,contractValue), done=sum(cs,c=>contractDone(c.id)), acc=sum(cs,c=>contractAcc(c.id)), paid=sum(cs,c=>contractPaid(c.id));
   const al=alerts(); const nb=al.filter(a=>a.lvl==='bad').length;
+  const Y=TODAY.slice(0,4), py=sum(ps,p=>capPlan(p.id,Y)), dy=sum(ps,p=>disbursed(p.id,Y)), tgy=py? sum(ps,p=>capPlan(p.id,Y)*capTargetAt(p.id,Y))/py : 0;
   const stats=catalog('Trạng thái dự án'); const extra=[...new Set(ps.map(p=>p.status))].filter(s=>!stats.includes(s));
   const donutItems=[...stats,...extra].map(s=>({label:s, value:ps.filter(p=>p.status===s).length, color:STATUS_COL[s]||'var(--c5)'})).filter(i=>i.value);
   const pk=D('packages').filter(k=>pids.includes(k.projectId) && D('schedule').some(s=>s.packageId===k.id)).sort(by('code'));
@@ -270,7 +271,7 @@ VIEWS['tong-quan']=()=>{
     <div class="card kpi"><div class="eyebrow">Dự án</div><div class="v">${ps.length}</div><div class="s">${ps.filter(p=>p.status==='Đang thi công'||p.status==='Đang thực hiện').length} đang thực hiện</div></div>
     <div class="card kpi"><div class="eyebrow">Tổng mức đầu tư</div><div class="v">${fmtTy(tm)}</div><div class="s">${D('packages').filter(k=>pids.includes(k.projectId)).length} gói thầu</div></div>
     <div class="card kpi"><div class="eyebrow">Giá trị hợp đồng</div><div class="v">${fmtTy(cv)}</div><div class="s">${cs.length} hợp đồng · thực hiện ${fmtP(pct(done,cv))}</div></div>
-    <div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,tm))} tổng mức đầu tư</div></div>
+    ${py?`<div class="card kpi ${tgy-pct(dy,py)>10?'warn':''}"><div class="eyebrow">Giải ngân năm ${Y}</div><div class="v">${fmtP(pct(dy,py))}</div><div class="s">${fmtTy(dy)} / kế hoạch vốn ${fmtTy(py)} · kịch bản ${fmtP(tgy)}</div></div>`:`<div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,tm))} tổng mức đầu tư</div></div>`}
     <div class="card kpi ${nb?'bad':al.length?'warn':''}"><div class="eyebrow">Cảnh báo</div><div class="v">${al.length}</div><div class="s">${nb} nghiêm trọng</div></div>
   </div>
   <div class="grid g3">
@@ -301,6 +302,9 @@ const projFields=()=>[
   {key:'group',label:'Nhóm dự án',type:'select',options:()=>catalog('Nhóm dự án')},{key:'phase',label:'Giai đoạn',type:'select',options:()=>catalog('Giai đoạn')},
   {key:'tmdt',label:'Tổng mức đầu tư (đồng)',type:'money',req:true},{key:'capital',label:'Nguồn vốn',type:'select',options:()=>catalog('Nguồn vốn')},
   {key:'start',label:'Thời gian bắt đầu',type:'date'},{key:'end',label:'Thời gian hoàn thành',type:'date'},
+  {key:'boardRole',label:'Vai trò của Ban',type:'select',options:()=>catalog('Vai trò của Ban'),def:'Chủ đầu tư'},{key:'decisionMaker',label:'Người quyết định đầu tư',def:'Chủ tịch '+BR.ownerDefault},
+  {key:'mgmtForm',label:'Hình thức quản lý dự án',type:'select',options:()=>catalog('Hình thức quản lý dự án'),def:'Ban QLDA đầu tư xây dựng'},{key:'projectKind',label:'Loại dự án',type:'select',options:()=>catalog('Loại dự án')},
+  {key:'reportType',label:'Hồ sơ dự án',type:'select',options:()=>catalog('Hồ sơ dự án')},
   {key:'owner',label:'Chủ đầu tư / Đại diện',def:BR.ownerDefault},{key:'location',label:'Địa điểm xây dựng'},
   {key:'desc',label:'Quy mô, mô tả',type:'textarea'}];
 /* Văn bản pháp lý chính nhập ngay trong biểu mẫu (lưu thành hồ sơ pháp lý kèm tệp) */
@@ -355,6 +359,7 @@ function projectDetail(p){
     body=`<div class="grid g2"><div class="card"><dl class="kv">
       <dt>Mã dự án</dt><dd class="num">${esc(p.code)}</dd><dt>Nhóm dự án</dt><dd>${esc(p.group||'—')}</dd><dt>Giai đoạn</dt><dd>${esc(p.phase||'—')}</dd><dt>Trạng thái</dt><dd>${statusPill(p.status)}</dd>
       <dt>Tổng mức đầu tư</dt><dd class="num">${fmtVND(p.tmdt)} đồng</dd><dt>Nguồn vốn</dt><dd>${esc(p.capital||'—')}</dd><dt>Chủ đầu tư</dt><dd>${esc(p.owner||'—')}</dd>
+      <dt>Vai trò của Ban</dt><dd>${p.boardRole?pill(p.boardRole,'info'):'—'}</dd><dt>Người quyết định đầu tư</dt><dd>${esc(p.decisionMaker||'—')}</dd><dt>Hình thức quản lý</dt><dd>${esc(p.mgmtForm||'—')}</dd><dt>Loại dự án</dt><dd>${esc([p.projectKind,p.reportType].filter(Boolean).join(' · ')||'—')}</dd>
       <dt>Địa điểm</dt><dd>${esc(p.location||'—')}</dd><dt>Thời gian</dt><dd class="num">${fmtDate(p.start)} – ${fmtDate(p.end)}</dd><dt>Quyết định phê duyệt</dt><dd>${(()=>{ const l=findLegal(p.id,'','Quyết định phê duyệt dự án'); return l? `<span class="num">${esc(l.number)}</span> ngày ${fmtDate(l.date)}${l.issuer?' · '+esc(l.issuer):''}<div style="margin-top:4px">${attLinks(atts('legal',l.id))}</div>` : esc(p.decision||'—'); })()}</dd><dt>Quy mô</dt><dd>${esc(p.desc||'—')}</dd></dl></div>
       ${keyLegalCard(p)}
       <div class="card"><h2>Gói thầu thuộc dự án</h2>${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên gói thầu',k:'name'},{h:'Giá gói thầu',r:1,f:r=>fmtTy(r.estimate)},{h:'Trạng thái',f:r=>statusPill(r.status)}], D('packages').filter(k=>k.projectId===p.id).sort(by('code')), {rowAct:'open-pkg', empty:'Chưa có gói thầu.'})}</div></div>`;

@@ -92,6 +92,26 @@ using (var scope = app.Services.CreateScope())
                 Groups TEXT NOT NULL, ""Order"" INTEGER NOT NULL, UpdatedAt TEXT NULL, UpdatedBy TEXT NULL)");
         if (Cols("Settings").Count == 0)
             db.Database.ExecuteSqlRaw("CREATE TABLE Settings (\"Key\" TEXT NOT NULL PRIMARY KEY, Value TEXT NULL, UpdatedAt TEXT NULL, UpdatedBy TEXT NULL)");
+        // Bảng, cột mới của các phiên bản sau (1.1 trở đi): lấy từ mô hình dữ liệu, chỉ thêm phần còn thiếu
+        var script = db.Database.GenerateCreateScript().Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        foreach (var et in db.Model.GetEntityTypes())
+        {
+            var table = et.GetTableName(); if (table is null) continue;
+            var cols = Cols(table);
+            if (cols.Count == 0)
+            {
+                foreach (var stmt in script.Where(x => x.Contains($"CREATE TABLE \"{table}\"") || x.Contains($"ON \"{table}\" (")))
+                    db.Database.ExecuteSqlRaw(stmt);
+                continue;
+            }
+            var so = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(table, null);
+            foreach (var prop in et.GetProperties())
+            {
+                var col = prop.GetColumnName(so);
+                if (col is null || cols.Contains(col) || !prop.IsNullable) continue;
+                db.Database.ExecuteSqlRaw($"ALTER TABLE \"{table}\" ADD COLUMN \"{col}\" {prop.GetColumnType()} NULL");
+            }
+        }
         conn.Close();
     }
 

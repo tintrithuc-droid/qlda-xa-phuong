@@ -18,7 +18,7 @@ Một máy chủ có thể phục vụ một xã hoặc nhiều xã; mỗi xã m
 2. Giải nén và cài cho từng xã (quyền root):
 
 ```bash
-tar -xzf QLDA_XaPhuong_GoiCaiDat_Linux_1.1.tar.gz && cd QLDA_XaPhuong_GoiCaiDat_Linux_1.1
+tar -xzf QLDA_XaPhuong_GoiCaiDat_Linux_1.2.tar.gz && cd QLDA_XaPhuong_GoiCaiDat_Linux_1.2
 sudo bash install.sh xa-tan-hoa 8080      # mã xã, cổng
 sudo bash install.sh phuong-an-lac 8081   # xã thứ hai trên cùng máy: cổng khác
 ```
@@ -63,6 +63,8 @@ Bản sao nằm ở `/opt/qlda/_saoluu`; nên đồng bộ thư mục này ra ng
 ## 5. Cập nhật phiên bản
 
 Chép gói mới lên máy chủ, giải nén, chạy lại đúng lệnh `sudo bash install.sh <mã-xã> <cổng>` cho từng xã. Dữ liệu giữ nguyên, CSDL tự nâng cấp khi phần mềm khởi động.
+
+Nên chạy `sao-luu-csdl.sh` trước khi cập nhật. Khi nâng cấp từ bản 1.1 lên 1.2, phần mềm tự chuyển các phụ lục hợp đồng và biên bản nghiệm thu đã nhập sang trạng thái «Đã duyệt», gắn hồ sơ thanh toán cũ với đợt thanh toán theo kế hoạch, cấp quyền Duyệt hồ sơ cho nhóm Lãnh đạo Ban và thay tài liệu hướng dẫn sử dụng trong phần mềm bằng bản mới. Không cần thao tác thêm.
 
 ## 6. Lệnh thường dùng
 

@@ -162,8 +162,8 @@ VIEWS['quan-tri']=()=>{
   else if(t==='logs'){ const q=S.f.lq||'', um=S.f.lu||'';
     const rows=D('logs').filter(l=>(!um||l.userId===um) && has(l,q)).sort(by('ts',-1));
     body=`<div class="card"><div class="ch"><h2>Nhật ký hoạt động</h2><select data-f="lu" aria-label="Người dùng">${opts(D('users').map(u=>[u.id,u.username]),um,'Mọi người dùng')}</select><input type="search" data-f="lq" value="${esc(q)}" placeholder="Tìm thao tác, đối tượng…" aria-label="Tìm nhật ký" style="max-width:260px"><button class="btn sm" data-act="export-logs">Xuất Excel</button></div>
-    ${table([{h:'Thời gian',f:r=>`<span class="num small">${fmtDT(r.ts)}</span>`},{h:'Người dùng',f:r=>`${esc(r.fullname||'')} <span class="small muted num">${esc(r.username)}</span>`},{h:'Thao tác',f:r=>pill(r.action, r.action==='Xóa'?'bad':r.action==='Thêm mới'?'ok':r.action==='Đăng nhập'?'info':'')},{h:'Phân hệ',k:'module'},{h:'Đối tượng',k:'target'}], rows.slice(0,300), {empty:'Chưa có hoạt động.'})}
-    <p class="small muted" style="margin:8px 0 0">Hiển thị tối đa 300 hoạt động gần nhất.</p></div>`; }
+    ${table([{h:'Thời gian',f:r=>`<span class="num small">${fmtDT(r.ts)}</span>`},{h:'Người dùng',f:r=>`${esc(r.fullname||'')} <span class="small muted num">${esc(r.username)}</span>`},{h:'Thao tác',f:r=>pill(r.action, r.action==='Xóa'?'bad':r.action==='Thêm mới'?'ok':r.action==='Đăng nhập'?'info':'')},{h:'Phân hệ',k:'module'},{h:'Đối tượng',k:'target'}], rows, {empty:'Chưa có hoạt động.'})}
+    <p class="small muted" style="margin:8px 0 0">Máy chủ gửi 500 hoạt động gần nhất; dùng nút Xuất Excel hoặc bộ lọc để tra cứu.</p></div>`; }
   else if(t==='files') body=storageView();
   else if(t==='org') body=brandView();
   else { const cnt=COLS.filter(c=>c!=='logs').map(c=>[COL_LABEL[c], D(c).length]);

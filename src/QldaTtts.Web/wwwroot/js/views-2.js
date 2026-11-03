@@ -185,25 +185,27 @@ ACT['sched-more']=(id)=>{ const s=get('schedule',id); const h=[...(s.history||[]
   ${can('tien-do','edit')?`<div class="toolbar"><button class="btn" data-act="edit-schedule" data-id="${s.id}">Điều chỉnh kế hoạch</button><button class="btn danger" data-act="del" data-col="schedule" data-id="${s.id}">Xóa hạng mục</button></div>`:''}</div></div>`); };
 
 /* ===== NHẬT KÝ THI CÔNG (UC20–23) ===== */
-function parseWorks(t){ return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const [name,qty,unit]=l.split('|').map(x=>(x||'').trim()); return {name,qty,unit}; }); }
+const parseWorks = worksParse;
 VIEWS['nhat-ky']=()=>{
   const kid=S.f.nkk||'', from=S.f.nkf||'', to=S.f.nkt||'', q=S.f.nkq||'';
   const rows=D('diaries').filter(d=>inFilter(d.projectId) && (!kid||d.packageId===kid) && (!from||d.date>=from) && (!to||d.date<=to) && has(d,q)).sort((a,b)=>b.date.localeCompare(a.date)||String(b.updatedAt).localeCompare(String(a.updatedAt)));
   const ed=can('nhat-ky','edit');
   return `<div class="head"><div class="grow"><h1>Nhật ký thi công</h1><p>${rows.length} trang nhật ký · ${sum(rows,'workers')} lượt nhân công</p></div>${ed?`<button class="btn primary" data-act="add-diary">+ Ghi nhật ký</button>`:''}</div>
   <div class="toolbar"><select data-f="nkk" aria-label="Gói thầu">${opts(pkgOpts(S.pid),kid,'Tất cả gói thầu')}</select><input type="date" data-f="nkf" value="${esc(from)}" aria-label="Từ ngày"><input type="date" data-f="nkt" value="${esc(to)}" aria-label="Đến ngày"><input type="search" data-f="nkq" value="${esc(q)}" placeholder="Tra cứu nội dung, sự cố…" aria-label="Tra cứu nhật ký"></div>
-  <div class="list">${rows.map(d=>{ const k=pkgOf(d.packageId)||{}; const w=parseWorks(d.works); return `<article class="card"><div class="ch"><div style="flex:1;min-width:200px"><h3><span class="num">${fmtDate(d.date)}</span> · ${esc(k.code||'')} ${esc(k.name||'')}</h3><div class="small muted">${esc(d.shift||'')} · Thời tiết: ${esc(d.weather||'—')} · Nhân công: <b class="num">${N(d.workers)}</b> · ${esc(d.machines||'')}</div></div>
+  <div class="list">${rows.slice(0, S.nkn||10).map(d=>{ const k=pkgOf(d.packageId)||{}; const w=parseWorks(d.works); return `<article class="card"><div class="ch"><div style="flex:1;min-width:200px"><h3><span class="num">${fmtDate(d.date)}</span> · ${esc(k.code||'')} ${esc(k.name||'')}</h3><div class="small muted">${esc(d.shift||'')} · Thời tiết: ${esc(d.weather||'—')} · Nhân công: <b class="num">${N(d.workers)}</b> · ${esc(d.machines||'')}</div></div>
       ${ed?`<button class="btn sm ghost" data-act="diary-photo" data-id="${d.id}">${ic('cam').replace('<svg','<svg width="15" height="15"')} Thêm ảnh</button><button class="btn sm ghost" data-act="edit-diaries" data-id="${d.id}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="diaries" data-id="${d.id}">Xóa</button>`:''}</div>
       ${w.length?`<div class="tw" style="margin-top:6px"><table><thead><tr><th>Công việc thực hiện</th><th class="r">Khối lượng</th><th>Đơn vị</th></tr></thead><tbody>${w.map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${esc(x.qty||'')}</td><td>${esc(x.unit||'')}</td></tr>`).join('')}</tbody></table></div>`:''}
       ${d.issues?`<div class="alert" style="margin-top:8px"><span><b>Vướng mắc, sự cố:</b> ${esc(d.issues)}</span></div>`:''}
       ${(d.photos||[]).length?`<div class="thumbs" style="margin-top:8px">${d.photos.map(p=>`<figure><img src="${esc(fileUrl(p))}" alt="${esc(p.caption||p.name||'Ảnh hiện trường')}" title="${esc(p.caption||'')}" data-act="photo" loading="lazy">${p.caption?`<figcaption>${esc(p.caption)}</figcaption>`:''}</figure>`).join('')}</div>`:''}
       ${atts('diaries',d.id).length?`<div class="small" style="margin-top:6px"><b>Tệp đính kèm:</b> ${attLinks(atts('diaries',d.id))}</div>`:''}
-      <div class="small muted" style="margin-top:6px">Xác nhận: ${esc(d.supervisor||'—')} · Người ghi: ${esc(d.byName||'—')}</div></article>`; }).join('') || emptyBox('Không có nhật ký phù hợp.', ed?`<button class="btn primary" data-act="add-diary">+ Ghi nhật ký</button>`:'')}</div>`;
+      <div class="small muted" style="margin-top:6px">Xác nhận: ${esc(d.supervisor||'—')} · Người ghi: ${esc(d.byName||'—')}</div></article>`; }).join('') || emptyBox('Không có nhật ký phù hợp.', ed?`<button class="btn primary" data-act="add-diary">+ Ghi nhật ký</button>`:'')}</div>
+  ${rows.length>(S.nkn||10)?`<div class="pager"><span class="small muted">Đang xem ${S.nkn||10} / ${rows.length} trang nhật ký</span><span class="sp"></span><button class="btn" data-act="nk-more">Xem thêm 10 trang nhật ký</button></div>`:''}`;
 };
+ACT['nk-more']=()=>{ S.nkn=(S.nkn||10)+10; render(); };
 const diaryFields=()=>[{key:'packageId',label:'Gói thầu',type:'select',options:()=>pkgOpts(S.pid).filter(([id])=>{ const k=pkgOf(id); return k && /xây lắp|hỗn hợp|mua sắm/i.test(k.type); }),req:true,full:true,def:S.f.nkk},
   {key:'date',label:'Ngày',type:'date',req:true,def:TODAY},{key:'shift',label:'Ca làm việc',type:'select',options:['Cả ngày','Ca sáng','Ca chiều','Ca đêm'],def:'Cả ngày'},
   {key:'weather',label:'Thời tiết',type:'select',options:()=>catalog('Thời tiết')},{key:'workers',label:'Số nhân công',type:'number'},{key:'machines',label:'Máy móc, thiết bị',full:true},
-  {key:'works',label:'Công việc thực hiện (mỗi dòng: Nội dung | Khối lượng | Đơn vị)',type:'textarea',rows:4,req:true,ph:'Đổ bê tông sàn tầng 4 | 310 | m3'},{key:'issues',label:'Vướng mắc, sự cố, kiến nghị',type:'textarea',rows:2},
+  {key:'works',label:'Công việc thực hiện',type:'works',req:true},{key:'issues',label:'Vướng mắc, sự cố, kiến nghị',type:'textarea',rows:2},
   {key:'supervisor',label:'Cán bộ giám sát xác nhận'},{key:'photos_new',label:'Hình ảnh hiện trường',type:'files',multiple:true,accept:'image/*',hint:'Ảnh được lưu vào kho tệp trên máy chủ (tự thu nhỏ còn tối đa 1920 px).'},
   {key:'att',label:'Trang nhật ký đã ký (bản scan PDF/ảnh), biên bản hiện trường',type:'attach',col:'diaries',kind:'Trang nhật ký đã ký'}];
 async function diaryPhotos(v){

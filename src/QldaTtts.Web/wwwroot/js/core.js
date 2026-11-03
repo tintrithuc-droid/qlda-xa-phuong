@@ -23,7 +23,11 @@ const ICON = {
   wallet:'<path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l12-4 2 4M16 13.5h2"/>',
   stamp:'<path d="M9 3h6l-1 7h4l1 4H5l1-4h4zM5 18h14M7 21h10"/>',
   seal:'<circle cx="12" cy="9" r="6"/><path d="m9 9 2 2 4-4M8.5 14 7 22l5-3 5 3-1.5-8"/>',
-  map:'<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/>'
+  map:'<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>'
 };
 const ic = (n)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||''}</svg>`;
 /* Hoa văn mặt trống đồng Đông Sơn (vẽ cách điệu): ngôi sao 14 cánh, vành tròn chấm, vành vạch, vành chim Lạc bay ngược chiều kim đồng hồ, vành răng cưa */
@@ -354,23 +358,39 @@ const contractOpts = (pid) => D('contracts').filter(c=>pidOk(contractPid(c)) && 
 function emptyBox(text, btn){ return `<div class="empty">${text}${btn?`<div style="margin-top:10px">${btn}</div>`:''}</div>`; }
 
 /* Bảng dữ liệu chung */
+/* Phân trang dùng chung cho mọi bảng: mặc định 20 dòng/trang, chọn 20/50/100/tất cả (nhớ theo máy); dòng tổng do nơi gọi tính trên toàn bộ dữ liệu */
+const PG_SIZES=[20,50,100,0];
+function pgSize(){ try{ const r=localStorage.getItem('qlda-pgsize'); const v=r==null? 20 : +r; return PG_SIZES.includes(v)? v : 20; }catch{ return 20; } }
+function pager(key, total, page, size){
+  const pages=Math.max(1,Math.ceil(total/size)); const b=(p,l,dis,t)=>`<button type="button" class="btn sm ghost" data-act="pg" data-id="${esc(key)}" data-p="${p}" ${dis?'disabled':''} title="${t}" aria-label="${t}">${l}</button>`;
+  return `<div class="pager"><span class="small muted">${(page-1)*size+1}–${Math.min(total,page*size)} / ${total} dòng</span><span class="sp"></span>
+    ${b(1,'«',page<=1,'Trang đầu')}${b(page-1,'‹',page<=1,'Trang trước')}<span class="small">Trang <b>${page}</b>/${pages}</span>${b(page+1,'›',page>=pages,'Trang sau')}${b(pages,'»',page>=pages,'Trang cuối')}
+    <select class="pg-size" aria-label="Số dòng mỗi trang">${PG_SIZES.map(n=>`<option value="${n}" ${n===size?'selected':''}>${n?n+' dòng/trang':'Tất cả'}</option>`).join('')}</select></div>`;
+}
 function table(cols, rows, o={}){
   if(!rows.length) return emptyBox(o.empty||'Chưa có dữ liệu.');
+  const size=o.nopage? 0 : pgSize(); let pg='';
+  if(size && rows.length>size){
+    const key=(S.route||'')+':'+(o.pk||cols.map(c=>c.h).join('|'));
+    const pages=Math.ceil(rows.length/size); const page=Math.min(Math.max(1,(S.pg||{})[key]||1),pages);
+    pg=pager(key, rows.length, page, size); rows=rows.slice((page-1)*size, page*size);
+  }
   const head = cols.map(c=>`<th class="${c.r?'r':''}">${esc(c.h)}</th>`).join('') + (o.actions?'<th></th>':'');
   const body = rows.map(r=>`<tr class="${o.rowAct?'click':''}" ${o.rowAct?`data-act="${o.rowAct}" data-id="${esc(r.id)}"`:''}>${cols.map(c=>`<td class="${c.r?'r':''}" data-label="${esc(c.h)}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}${o.actions?`<td class="acts">${o.actions(r)}</td>`:''}</tr>`).join('');
   const foot = o.foot? `<tfoot><tr>${o.foot.map((f,i)=>`<td class="${cols[i]&&cols[i].r?'r':''}">${f??''}</td>`).join('')}${o.actions?'<td></td>':''}</tr></tfoot>`:'';
-  return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
+  return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>${pg}`;
 }
 const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>` : extra;
 
 /* Hộp thoại biểu mẫu */
 function fieldHTML(f, v, rec={}){
   const id='f_'+f.key, req=f.req?' <span class="req">*</span>':'';
-  const cls='fld'+(f.full||f.type==='textarea'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'');
+  const cls='fld'+(f.full||f.type==='textarea'||f.type==='works'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'');
   let input='';
   const val = v ?? f.def ?? '';
   switch(f.type){
     case 'textarea': input=`<textarea id="${id}" rows="${f.rows||3}" placeholder="${esc(f.ph||'')}">${esc(val)}</textarea>`; break;
+    case 'works': input=worksHTML(id, val, f); break;
     case 'select': { const list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>`; break; }
     case 'money': input=`<input id="${id}" type="number" step="1" min="0" value="${esc(val)}" data-money><span class="hint" id="${id}_h">${val!==''?fmtVND(val)+' đồng':''}</span>`; break;
     case 'number': case 'percent': input=`<input id="${id}" type="number" step="any" ${f.type==='percent'?'min="0" max="100"':''} value="${esc(val)}">`; break;
@@ -409,6 +429,7 @@ function openForm({title, fields, value={}, onSave, narrow, submit='Lưu'}){
       if(f.type==='checks') v[f.key]=$$('input:checked',el).map(i=>i.value);
       else if(f.type==='files') v[f.key]=[...el.files];
       else if(f.type==='password') v[f.key]=el.value;
+      else if(f.type==='works'){ const r=worksRead(el); if(r.err){ err.textContent=r.err; return; } v[f.key]=r.text; }
       else if(['money','number','percent'].includes(f.type)) v[f.key]= el.value===''? null : Number(el.value);
       else v[f.key]=el.value.trim();
       if(f.req && (v[f.key]==null || v[f.key]==='' || (Array.isArray(v[f.key])&&!v[f.key].length))){ err.textContent='Vui lòng nhập "'+f.label+'".'; el.focus&&el.focus(); return; }
@@ -581,3 +602,80 @@ function sCurve(scheds){
   const act=months.map(m=>m<=addDays(TODAY,31)? wavg(scheds, s=>progressAt(s, m>TODAY?TODAY:m)) : null);
   return {labels:months.map(m=>m.slice(5,7)+'/'+m.slice(2,4)), plan, act};
 }
+
+
+/* ===== Bản 1.2: ô ngày dd/mm/yyyy, bảng nhập công việc, giao diện sáng/tối ===== */
+/** Đọc ngày người dùng gõ theo kiểu Việt Nam: 03/11/2026, 3/11 (năm nay), 3-11-26, 03112026. Trả về yyyy-mm-dd, '' nếu bỏ trống, null nếu sai. */
+function parseVNDate(t){
+  t=String(t||'').trim(); if(!t) return '';
+  let d,m,y;
+  if(/^\d+$/.test(t)){
+    if(t.length===8){ d=t.slice(0,2); m=t.slice(2,4); y=t.slice(4); }
+    else if(t.length===6){ d=t.slice(0,2); m=t.slice(2,4); y='20'+t.slice(4); }
+    else if(t.length===4){ d=t.slice(0,2); m=t.slice(2,4); y=TODAY.slice(0,4); }
+    else return null;
+  } else {
+    const p=t.split(/[\/\-.\s]+/).filter(Boolean); if(p.length<2||p.length>3||p.some(x=>!/^\d+$/.test(x))) return null;
+    [d,m,y]=p; if(!y) y=TODAY.slice(0,4); if(y.length===2) y='20'+y;
+  }
+  d=+d; m=+m; y=+y;
+  if(!(y>=1900 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31)) return null;
+  const dt=new Date(y,m-1,d); if(dt.getMonth()!==m-1) return null;
+  return y+'-'+pad(m)+'-'+pad(d);
+}
+/** Ô ngày của trình duyệt hiển thị theo ngôn ngữ máy (máy tiếng Anh ra mm/dd/yyyy). Mọi ô type="date" được thay bằng ô chữ
+ *  luôn hiển thị dd/mm/yyyy kèm nút lịch; ô gốc vẫn giữ giá trị yyyy-mm-dd nên các biểu mẫu, bộ lọc đọc dữ liệu như cũ. */
+function enhanceDate(inp){
+  if(inp.dataset.dx) return; inp.dataset.dx='1';
+  const w=document.createElement('span'); w.className='dx';
+  const t=document.createElement('input'); t.type='text'; t.inputMode='numeric'; t.placeholder='dd/mm/yyyy'; t.autocomplete='off'; t.className='dx-t'; t.maxLength=10;
+  if(inp.id){ t.id=inp.id+'_t'; const lb=document.querySelector(`label[for="${inp.id}"]`); if(lb) lb.htmlFor=t.id; }
+  const al=inp.getAttribute('aria-label') || (inp.closest('label')&&inp.closest('label').textContent.trim()); if(al) t.setAttribute('aria-label', al);
+  const b=document.createElement('button'); b.type='button'; b.className='dx-b'; b.tabIndex=-1; b.title='Chọn ngày trên lịch'; b.setAttribute('aria-label','Chọn ngày trên lịch');
+  b.innerHTML=ic('cal').replace('<svg','<svg width="16" height="16"');
+  inp.parentNode.insertBefore(w,inp); w.append(t,b,inp); inp.classList.add('dx-n'); inp.tabIndex=-1; inp.setAttribute('aria-hidden','true');
+  const show=()=>{ t.value=inp.value? fmtDate(inp.value) : ''; t.classList.remove('bad'); t.removeAttribute('title'); };
+  const fire=()=>{ inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new Event('change',{bubbles:true})); };
+  const commit=()=>{ const iso=parseVNDate(t.value);
+    if(iso===null){ t.classList.add('bad'); t.title='Ngày không hợp lệ. Nhập theo dạng ngày/tháng/năm, ví dụ 03/11/2026'; if(inp.value){ inp.value=''; fire(); } return; }
+    if(inp.value!==iso){ inp.value=iso; fire(); } show(); };
+  show();
+  t.addEventListener('input', e=>{ if(e.inputType==='insertText' && /^\d{2}$|^\d{1,2}\/\d{2}$/.test(t.value)) t.value+='/'; });
+  t.addEventListener('change', commit);
+  t.addEventListener('keydown', e=>{ if(e.key==='Enter') commit(); });
+  b.addEventListener('click', ()=>{ try{ inp.showPicker(); }catch{ t.focus(); } });
+  inp.addEventListener('change', ()=>{ if(document.activeElement!==t) show(); });
+}
+new MutationObserver(()=>document.querySelectorAll('input[type=date]:not([data-dx])').forEach(enhanceDate)).observe(document.documentElement,{childList:true,subtree:true});
+
+/** Bảng nhập "Công việc thực hiện" của nhật ký: mỗi dòng Công việc · Khối lượng · Đơn vị, có thêm/xóa dòng.
+ *  Vẫn lưu dạng văn bản "Nội dung | Khối lượng | Đơn vị" mỗi dòng như bản trước nên nhật ký cũ đọc được ngay. */
+function worksParse(t){ return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const [name,qty,unit]=l.split('|').map(x=>(x||'').trim()); return {name,qty,unit}; }); }
+function worksRow(r={}){ const q=r.qty==null?'':String(r.qty).replace(',','.');
+  return `<div class="wk-row"><input class="wk-n" placeholder="Công việc, vị trí thi công" value="${esc(r.name||'')}" aria-label="Công việc">
+    <input class="wk-q" inputmode="decimal" placeholder="Khối lượng" value="${esc(q)}" aria-label="Khối lượng"><input class="wk-u" placeholder="Đơn vị" value="${esc(r.unit||'')}" list="wk_units" aria-label="Đơn vị">
+    <button type="button" class="btn sm ghost danger wk-del" title="Xóa dòng" aria-label="Xóa dòng">×</button></div>`; }
+function worksHTML(id, val, f){
+  const rows=worksParse(val); if(!rows.length) rows.push({});
+  const units=[...new Set(['m','m2','m3','tấn','kg','cái','bộ','công','ca',...D('boq').map(b=>b.unit).filter(Boolean)])];
+  return `<div class="wk" id="${id}"><div class="wk-h"><span>Công việc</span><span>Khối lượng</span><span>Đơn vị</span><span></span></div><div class="wk-body">${rows.map(worksRow).join('')}</div>
+    <button type="button" class="btn sm wk-add">+ Thêm dòng</button><datalist id="wk_units">${units.map(u=>`<option value="${esc(u)}">`).join('')}</datalist></div>`;
+}
+function worksRead(el){
+  const rows=[...el.querySelectorAll('.wk-row')].map(r=>({name:r.querySelector('.wk-n').value.trim(), qty:r.querySelector('.wk-q').value.trim().replace(',','.'), unit:r.querySelector('.wk-u').value.trim()})).filter(r=>r.name||r.qty||r.unit);
+  const clean=x=>x.replace(/\|/g,'/').replace(/\s+/g,' ');
+  for(const r of rows){ if(!r.name) return {err:'Dòng công việc có khối lượng "'+r.qty+'" chưa nhập tên công việc.'}; if(r.qty && !(Number(r.qty)>=0)) return {err:'Khối lượng của "'+r.name+'" phải là số (ví dụ 12.5).'}; }
+  return {text: rows.map(r=>[clean(r.name), r.qty, clean(r.unit)].join(' | ').replace(/( \| )+$/,'')).join('\n')};
+}
+document.addEventListener('click', e=>{
+  const a=e.target.closest('.wk-add'); if(a){ const body=a.parentNode.querySelector('.wk-body'); body.insertAdjacentHTML('beforeend', worksRow()); body.lastElementChild.querySelector('.wk-n').focus(); return; }
+  const d=e.target.closest('.wk-del'); if(d){ const body=d.closest('.wk-body'); d.closest('.wk-row').remove(); if(!body.children.length) body.insertAdjacentHTML('beforeend', worksRow()); }
+});
+
+/** Giao diện sáng/tối: Tự động (theo máy) → Sáng → Tối, nhớ trên từng máy. */
+const THEMES=[['auto','Tự động theo máy'],['light','Giao diện sáng'],['dark','Giao diện tối']];
+function themeGet(){ try{ return localStorage.getItem('qlda-theme')||'auto'; }catch{ return 'auto'; } }
+function themeApply(m){ const r=document.documentElement; if(m==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',m); }
+themeApply(themeGet());
+function themeBtn(){ const m=themeGet(), next=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3];
+  return `<button class="btn ghost sm theme-btn" data-act="theme" title="${esc(THEMES.find(x=>x[0]===m)[1])} · bấm để chuyển sang ${esc(next[1].toLowerCase())}" aria-label="Đổi giao diện sáng/tối">${ic(m==='auto'?'auto':m==='light'?'sun':'moon').replace('<svg','<svg width="18" height="18"')}</button>`; }

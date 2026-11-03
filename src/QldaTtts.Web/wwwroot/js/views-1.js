@@ -60,6 +60,7 @@ function renderTop(){
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
     <select id="gpid" data-f="__pid" aria-label="Lọc theo dự án">${opts(projOpts(), S.pid, 'Tất cả dự án')}</select>
+    ${themeBtn()}
     <span class="mode ${Store.mode==='server'?'shared':''}" title="${Store.mode==='server'?'Dữ liệu lưu tập trung trên máy chủ, mọi người dùng cùng thấy':'Mất kết nối máy chủ: thay đổi chưa được lưu'}">${Store.mode==='server'?'● Đã kết nối máy chủ':'● Mất kết nối'}</span>
     <div class="who"><button class="btn ghost sm" data-act="account" title="Tài khoản"><span class="avatar">${esc(initials(S.user.name))}</span><span class="nm" style="text-align:left;line-height:1.2">${esc(S.user.name)}<br><span class="small muted">${esc(g?g.name:'')}</span></span></button></div>`;
 }
@@ -83,12 +84,15 @@ let _ft=0;
 function onFilter(e){
   const el=e.target; const k=el.dataset && el.dataset.f; if(!k) return;
   if(k==='__pid'){ S.pid=el.value; S.sel={}; render(); return; }
-  S.f[k]=el.type==='checkbox'?el.checked:el.value;
+  S.f[k]=el.type==='checkbox'?el.checked:el.value; S.pg={}; S.nkn=0;
   clearTimeout(_ft); _ft=setTimeout(render, el.tagName==='INPUT'&&el.type==='search'?180:0);
 }
 document.addEventListener('input', e=>{ if(e.target.matches('input[type=search][data-f]')) onFilter(e); });
 document.addEventListener('change', e=>{ if(e.target.matches('[data-f]') && !e.target.matches('input[type=search]')) onFilter(e); });
 ACT.menu=()=>$('#side').classList.toggle('open');
+ACT.pg=(key,el)=>{ S.pg=S.pg||{}; S.pg[key]=+el.dataset.p; render(); };
+document.addEventListener('change', e=>{ if(e.target.matches('select.pg-size')){ try{ localStorage.setItem('qlda-pgsize', e.target.value); }catch{} S.pg={}; render(); } });
+ACT.theme=()=>{ const m=themeGet(), n=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3][0]; try{ localStorage.setItem('qlda-theme',n); }catch{} themeApply(n); render(); toast(THEMES.find(x=>x[0]===n)[1]); };
 ACT.tab=(id,el)=>{ S.tab[el.dataset.g]=id; if(el.dataset.g==='qt' && typeof ADM!=='undefined'){ delete ADM.storage; delete ADM.auto; } render(); };
 ACT.go=(id)=>{ location.hash=id; };
 ACT.photo=(id,el)=>{ openModal(`<div class="lightbox" style="display:grid;gap:8px;justify-items:center"><img src="${esc(el.getAttribute('src'))}" alt=""><button class="btn" data-close>Đóng</button></div>`); };

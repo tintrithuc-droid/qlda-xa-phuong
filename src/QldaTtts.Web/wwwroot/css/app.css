@@ -369,3 +369,27 @@ tfoot td{font-weight:600; background:var(--panel2)}
 .guide-video{margin:12px 0 0} .guide-video video{width:100%; max-width:860px; border-radius:10px; background:#000; display:block}
 .guide-imgs{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px} .guide-imgs img{height:120px; border-radius:8px; border:1px solid var(--line)}
 .tw td .attl a{max-width:170px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
+
+/* Bản 1.2: ô ngày dd/mm/yyyy (thay ô ngày của trình duyệt), bảng nhập công việc nhật ký, nút sáng/tối */
+.dx{position:relative; display:inline-flex; align-items:center; min-width:0}
+.fld .dx{display:flex}
+.dx .dx-t{flex:1; width:100%; min-width:128px; padding-right:36px; font-variant-numeric:tabular-nums}
+.dx .dx-b{position:absolute; right:4px; top:50%; transform:translateY(-50%); border:0; background:transparent; color:var(--muted); padding:6px; border-radius:var(--r-sm); cursor:pointer; display:grid; place-items:center}
+.dx .dx-b:hover{color:var(--accent); background:var(--panel2)}
+.dx .dx-n{position:absolute; left:0; bottom:0; width:1px; height:1px; min-height:0; opacity:0; pointer-events:none; border:0; padding:0}
+input.bad{border-color:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 18%, transparent)}
+.wk{display:flex; flex-direction:column; gap:6px}
+.wk-h,.wk-row{display:grid; grid-template-columns:minmax(0,1fr) 120px 96px 34px; gap:6px; align-items:center}
+.wk-h{font-size:12px; color:var(--muted)}
+.wk-row input{width:100%}
+.wk-q{text-align:right; font-variant-numeric:tabular-nums}
+.wk-add{align-self:flex-start}
+@media (max-width:640px){
+  .wk-h{display:none}
+  .wk-row{grid-template-columns:1fr 1fr 34px; padding:8px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--panel2)}
+  .wk-row .wk-n{grid-column:1/-1}
+}
+.theme-btn{padding:6px 8px}
+.pager{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px}
+.pager .sp{flex:1}
+.pager select{min-height:32px; padding:4px 8px}

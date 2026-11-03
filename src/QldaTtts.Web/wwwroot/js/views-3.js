@@ -126,7 +126,7 @@ VIEWS['bao-cao']=()=>{
   const totals=R.head.map((h,i)=> i===0?'Tổng cộng': money.includes(i)? fmtVND(sum(rows,r=>r[i])) : '');
   const title=REPORTS.find(r=>r[0]===type)[1];
   return `<div class="head"><div class="grow"><h1>Báo cáo, thống kê</h1><p>Lọc, tra cứu và xuất báo cáo ra Excel, PDF, CSV</p></div><div class="toolbar" style="margin:0"><button class="btn" data-act="export-report-pdf" title="Mở hộp thoại in; chọn máy in hoặc Lưu thành PDF">In / Xuất PDF</button><button class="btn" data-act="export-report-csv">Xuất CSV</button><button class="btn primary" data-act="export-report">Xuất Excel</button></div></div>
-  <div class="card"><div class="toolbar"><select data-f="bct" aria-label="Loại báo cáo" style="flex:1 1 320px;max-width:520px">${opts(REPORTS,type)}</select>
+  <div class="card"><div class="toolbar filters"><select data-f="bct" aria-label="Loại báo cáo" style="flex:1 1 320px;max-width:520px">${opts(REPORTS,type)}</select>
     ${!S.pid?`<select data-f="bcp" aria-label="Dự án">${opts(projOpts(),f.pid,'Tất cả dự án')}</select>`:''}<select data-f="bck" aria-label="Gói thầu">${opts(pkgOpts(f.pid),f.kid,'Tất cả gói thầu')}</select>
     <label class="small muted">Từ <input type="date" data-f="bcf" value="${esc(f.from)}"></label><label class="small muted">Đến <input type="date" data-f="bctt" value="${esc(f.to)}"></label><input type="search" data-f="bcq" value="${esc(q)}" placeholder="Tra cứu trong báo cáo…" aria-label="Tra cứu"></div></div>
   <div class="card"><div class="ch"><h2>${esc(title)}</h2><span class="small muted">${rows.length} dòng · lập ngày ${fmtDate(TODAY)}${f.from||f.to?' · kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):''}</span></div>

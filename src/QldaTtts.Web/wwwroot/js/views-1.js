@@ -35,6 +35,7 @@ function render(){
   S.after.forEach(f=>{ try{ f(); }catch(e){ console.error(e); } });
   if(prevF){ const el=c.querySelector(`[data-f="${prevF}"]`); if(el && el.tagName==='INPUT'){ el.focus(); try{ el.setSelectionRange(caret,caret); }catch{} } }
   renderTabbar();
+  fitTables(c);
 }
 function buildShell(){
   $('#root').innerHTML=`<div class="app" id="app">
@@ -50,7 +51,7 @@ function renderNav(){
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
     if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`; }
   });
-  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Danh mục chức năng</span></a>`;
+  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#" data-act="appearance">${ic('palette')}<span>Giao diện, màu sắc</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Danh mục chức năng</span></a>`;
   $('#nav').innerHTML=html;
   $('#sidefoot').innerHTML=`Phiên bản ${APP_VERSION} · ${esc(BR.support)}`;
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
@@ -93,7 +94,10 @@ document.addEventListener('change', e=>{ if(e.target.matches('[data-f]') && !e.t
 ACT.menu=()=>$('#side').classList.toggle('open');
 ACT.pg=(key,el)=>{ S.pg=S.pg||{}; S.pg[key]=+el.dataset.p; render(); };
 document.addEventListener('change', e=>{ if(e.target.matches('select.pg-size')){ try{ localStorage.setItem('qlda-pgsize', e.target.value); }catch{} S.pg={}; render(); } });
-ACT.theme=()=>{ const m=themeGet(), n=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3][0]; try{ localStorage.setItem('qlda-theme',n); }catch{} themeApply(n); render(); toast(THEMES.find(x=>x[0]===n)[1]); };
+ACT.theme=()=>{ const m=themeGet(), n=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3][0]; UI.set('mode',n); render(); toast('Chế độ hiển thị: '+THEMES.find(x=>x[0]===n)[1].toLowerCase()); };
+ACT.appearance=()=>{ $('#side')?.classList.remove('open'); openModal(appearanceHTML()); };
+ACT['ap-reset']=()=>{ for(const [k,d] of Object.entries(UI_OPTS)) UI.p[k]=d.def; UI.set('mode','auto'); $('#ov').innerHTML=appearanceHTML(); S.dirty=true; };
+document.addEventListener('change', e=>{ const el=e.target; if(!el.matches('[data-ap]')) return; UI.set(el.dataset.ap, el.value); $('#ov').innerHTML=appearanceHTML(); const f=$('#ov').querySelector(`[data-ap="${el.dataset.ap}"]:checked`); if(f) f.focus(); S.dirty=true; });
 ACT.tab=(id,el)=>{ S.tab[el.dataset.g]=id; if(el.dataset.g==='qt' && typeof ADM!=='undefined'){ delete ADM.storage; delete ADM.auto; } render(); };
 ACT.go=(id)=>{ location.hash=id; };
 ACT.photo=(id,el)=>{ openModal(`<div class="lightbox" style="display:grid;gap:8px;justify-items:center"><img src="${esc(el.getAttribute('src'))}" alt=""><button class="btn" data-close>Đóng</button></div>`); };
@@ -243,10 +247,11 @@ ACT.account=()=>{
   <div style="padding:16px;display:flex;flex-direction:column;gap:12px"><div style="display:flex;gap:12px;align-items:center"><span class="avatar" style="width:44px;height:44px;font-size:15px">${esc(initials(S.user.name))}</span><div><b>${esc(S.user.name)}</b><div class="small muted">${esc(S.user.username)} · ${esc(g?g.name:'')}</div><div class="small muted">${esc(S.user.unit||'')}</div></div></div>
   ${S.mfa&&S.mfa.enabled?`<div class="mfa-state">${ic('shield').replace('<svg','<svg width="18" height="18"')}<div><b>Xác thực 2 lớp: đang bật</b><div class="small muted">Còn ${S.mfa.recoveryLeft} mã khôi phục chưa dùng</div></div></div>
   <button class="btn" data-act="new-rc">Tạo mã khôi phục mới</button>`:''}
+  <button class="btn" data-act="appearance">${ic('palette').replace('<svg','<svg width="16" height="16"')} Giao diện: màu sắc, cỡ chữ</button>
   <button class="btn" data-act="chpw">${ic('key').replace('<svg','<svg width="16" height="16"')} Đổi mật khẩu</button>
   <button class="btn danger" data-act="logout">${ic('out').replace('<svg','<svg width="16" height="16"')} Đăng xuất</button></div></div>`);
 };
-ACT.logout=async()=>{ try{ await api('POST','/api/auth/logout',undefined,{auth:true}); }catch{} S.user=null; S.mfa=null; S.mfaStep=null; Store.clear(); closeModal(); S.sel={}; render(); };
+ACT.logout=async()=>{ UI.reset(); try{ await api('POST','/api/auth/logout',undefined,{auth:true}); }catch{} S.user=null; S.mfa=null; S.mfaStep=null; Store.clear(); closeModal(); S.sel={}; render(); };
 ACT.chpw=()=>{
   openForm({title:'Đổi mật khẩu', narrow:true, fields:[{key:'old',label:'Mật khẩu hiện tại',type:'password',req:true,full:true},{key:'pw',label:'Mật khẩu mới (≥ 8 ký tự, có chữ và số)',type:'password',req:true,full:true},{key:'pw2',label:'Nhập lại mật khẩu mới',type:'password',req:true,full:true}],
     onSave: async v=>{

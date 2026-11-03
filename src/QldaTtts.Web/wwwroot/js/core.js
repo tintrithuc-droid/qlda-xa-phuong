@@ -27,7 +27,8 @@ const ICON = {
   cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
-  auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>'
+  auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>',
+  palette:'<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15.5" cy="7.5" r="1"/>'
 };
 const ic = (n)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||''}</svg>`;
 /* Hoa văn mặt trống đồng Đông Sơn (vẽ cách điệu): ngôi sao 14 cánh, vành tròn chấm, vành vạch, vành chim Lạc bay ngược chiều kim đồng hồ, vành răng cưa */
@@ -70,7 +71,7 @@ const MODULES = [
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
 const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet'];
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -144,6 +145,7 @@ const Store = {
     const d=await api('GET','/api/data');
     COLS.forEach(c=>{ this.data[c]=Array.isArray(d[c])?d[c]:[]; });
     const me=S.user && this.data.users.find(u=>u.id===S.user.id); if(me) S.user={...S.user,...me};
+    if(S.user) UI.load(S.user);
     onData();
   },
   clear(){ COLS.forEach(c=>{ this.data[c]=[]; }); },
@@ -409,6 +411,7 @@ function fieldHTML(f, v, rec={}){
 }
 function openModal(html, narrow){
   const ov=$('#ov'); ov.innerHTML=html; ov.hidden=false;
+  fitTables(ov);
   const first=ov.querySelector('input:not([type=checkbox]):not([type=file]),select,textarea'); if(first) setTimeout(()=>first.focus(),30);
   return ov;
 }
@@ -675,13 +678,57 @@ document.addEventListener('click', e=>{
   const d=e.target.closest('.wk-del'); if(d){ const body=d.closest('.wk-body'); d.closest('.wk-row').remove(); if(!body.children.length) body.insertAdjacentHTML('beforeend', worksRow()); }
 });
 
-/** Giao diện sáng/tối: Tự động (theo máy) → Sáng → Tối, nhớ trên từng máy. */
-const THEMES=[['auto','Tự động theo máy'],['light','Giao diện sáng'],['dark','Giao diện tối']];
-function themeGet(){ try{ return localStorage.getItem('qlda-theme')||'auto'; }catch{ return 'auto'; } }
-function themeApply(m){ const r=document.documentElement; if(m==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',m); }
-themeApply(themeGet());
+/* ===== Bản 1.3: tùy chọn giao diện theo từng người dùng =====
+   Chế độ sáng/tối, tông màu, kiểu thanh bên, cỡ chữ, mật độ hiển thị. Lưu trên máy chủ theo tài khoản (đăng nhập máy khác vẫn giữ),
+   kèm bản sao trên máy để mở ứng dụng là áp dụng ngay, không bị nháy màu. */
+const UI_OPTS = {
+  mode:   {label:'Chế độ hiển thị', def:'auto', list:[['auto','Tự động theo máy'],['light','Sáng'],['dark','Tối']]},
+  color:  {label:'Tông màu chủ đạo', def:'navy', list:[['navy','Xanh hành chính','#1f5fbf','#0d2a57'],['teal','Xanh ngọc','#0b7a72','#0a3431'],['indigo','Tím than','#4338ca','#1e1b4b'],['green','Xanh lá','#15803d','#0f2f1c'],['earth','Cam đất','#b4490c','#2e1608'],['slate','Than chì','#334155','#111827']]},
+  side:   {label:'Thanh điều hướng', def:'dark', list:[['dark','Nền đậm theo tông màu'],['light','Nền sáng']]},
+  size:   {label:'Cỡ chữ', def:'md', list:[['sm','Nhỏ'],['md','Vừa'],['lg','Lớn'],['xl','Rất lớn']]},
+  density:{label:'Mật độ hiển thị', def:'comfy', list:[['comfy','Thoáng'],['compact','Gọn (nhiều dòng hơn)']]}
+};
+const THEMES=UI_OPTS.mode.list;
+const UI = {
+  p:{}, _uid:null,
+  clean(o){ const r={}; for(const [k,d] of Object.entries(UI_OPTS)){ const v=o&&o[k]; r[k]=d.list.some(x=>x[0]===v)? v : d.def; } return r; },
+  apply(p){
+    this.p=this.clean(p); const r=document.documentElement, dark=this.p.mode==='dark' || (this.p.mode==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    r.dataset.mode=dark?'dark':'light'; r.dataset.color=this.p.color; r.dataset.side=this.p.side; r.dataset.size=this.p.size; r.dataset.density=this.p.density;
+    if(this.p.mode==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',this.p.mode);
+    const mc=document.querySelector('meta[name=theme-color]'); if(mc) setTimeout(()=>{ mc.content=getComputedStyle(r).getPropertyValue('--brand').trim()||'#0d2a57'; },0);
+  },
+  /* Đọc tùy chọn của người dùng vừa đăng nhập (máy chủ), dùng bản trên máy nếu máy chủ chưa có. */
+  async load(user){
+    if(!user || this._uid===user.id) return; this._uid=user.id;
+    const k='qlda-ui:'+user.id; let p=null; try{ p=JSON.parse(lsGet(k)||'null'); }catch{}
+    if(p) this.apply(p);
+    try{ const r=await api('GET','/api/auth/ui',undefined,{auth:true}); if(r && r.value){ p=JSON.parse(r.value); this.apply(p); lsSet(k,JSON.stringify(this.p)); lsSet('qlda-ui',JSON.stringify(this.p)); onData(); } }catch{}
+  },
+  async set(k,v){
+    this.apply({...this.p,[k]:v}); const js=JSON.stringify(this.p); lsSet('qlda-ui',js);
+    if(S.user){ lsSet('qlda-ui:'+S.user.id,js); try{ await api('PUT','/api/auth/ui',{value:js}); }catch(e){ toast('Chưa lưu được tùy chọn lên máy chủ: '+errText(e),'err'); } }
+  },
+  reset(){ this._uid=null; }
+};
+/* Bản 1.2 trở về trước chỉ lưu sáng/tối trên máy: chuyển sang tùy chọn mới */
+(()=>{ let p=null; try{ p=JSON.parse(lsGet('qlda-ui')||'null'); }catch{} if(!p){ const t=lsGet('qlda-theme'); p={mode:t||'auto'}; } UI.apply(p); })();
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(UI.p.mode==='auto'){ UI.apply(UI.p); } }); }catch{}
+function themeGet(){ return UI.p.mode; }
+function themeApply(m){ UI.apply({...UI.p, mode:m}); }
 function themeBtn(){ const m=themeGet(), next=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3];
-  return `<button class="btn ghost sm theme-btn" data-act="theme" title="${esc(THEMES.find(x=>x[0]===m)[1])} · bấm để chuyển sang ${esc(next[1].toLowerCase())}" aria-label="Đổi giao diện sáng/tối">${ic(m==='auto'?'auto':m==='light'?'sun':'moon').replace('<svg','<svg width="18" height="18"')}</button>`; }
+  return `<button class="btn ghost sm theme-btn" data-act="theme" title="Đang dùng: ${esc(THEMES.find(x=>x[0]===m)[1].toLowerCase())} · bấm để chuyển sang ${esc(next[1].toLowerCase())}" aria-label="Đổi chế độ sáng/tối">${ic(m==='auto'?'auto':m==='light'?'sun':'moon').replace('<svg','<svg width="18" height="18"')}</button>`
+    + `<button class="btn ghost sm theme-btn ap-btn" data-act="appearance" title="Giao diện: tông màu, cỡ chữ, mật độ" aria-label="Tùy chỉnh giao diện">${ic('palette').replace('<svg','<svg width="18" height="18"')}</button>`; }
+/** Hộp thoại Giao diện: chọn là áp dụng ngay, tự lưu theo tài khoản. */
+function appearanceHTML(){
+  const p=UI.p;
+  const seg=(k)=>`<fieldset class="ap-group"><legend>${esc(UI_OPTS[k].label)}</legend><div class="seg" role="radiogroup">${UI_OPTS[k].list.map(([v,l])=>`<label class="${p[k]===v?'on':''}"><input type="radio" name="ap_${k}" value="${v}" data-ap="${k}" ${p[k]===v?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div></fieldset>`;
+  const sw=`<fieldset class="ap-group"><legend>${esc(UI_OPTS.color.label)}</legend><div class="swatches" role="radiogroup">${UI_OPTS.color.list.map(([v,l,a,b])=>`<label class="sw ${p.color===v?'on':''}"><input type="radio" name="ap_color" value="${v}" data-ap="color" ${p.color===v?'checked':''}><span class="chip" style="--a:${a};--b:${b}" aria-hidden="true"><i></i></span><span>${esc(l)}</span></label>`).join('')}</div></fieldset>`;
+  return `<div class="mform narrow ap" role="dialog" aria-modal="true" aria-labelledby="ap_t"><header><h3 id="ap_t">Giao diện</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header>
+    <div class="ap-body">${seg('mode')}${sw}${seg('side')}${seg('size')}${seg('density')}
+    <p class="small muted" style="margin:0">Chọn là áp dụng ngay. Tùy chọn được lưu theo tài khoản của bạn, đăng nhập trên máy khác vẫn giữ nguyên.</p></div>
+    <footer><button class="btn ghost" data-act="ap-reset">Khôi phục mặc định</button><button class="btn primary" data-close>Xong</button></footer></div>`;
+}
 
 
 /* ===== Bản 1.2: quy trình trình duyệt hồ sơ (phụ lục HĐ, hồ sơ thanh toán, nghiệm thu) =====
@@ -718,3 +765,37 @@ function wfBtns(col, r){ const w=WF[col], s=wfStatus(col,r), ap=can(w.mod,'appro
 const wfEditBtns = (col, r, extra='') => wfEditable(col,r) ? editBtns(WF[col].mod, col, r.id, extra) : extra;
 /** Hồ sơ đang chờ người dùng này duyệt. */
 function wfMine(){ return Object.keys(WF).flatMap(col=>can(WF[col].mod,'approve')? D(col).filter(r=>wfWaiting(col,r) && pidOk(WF[col].pid(r))).map(r=>({col,r})) : []); }
+
+/* ===== Bản 1.3: tự căn độ rộng cột của mọi bảng =====
+   Cột chữ ngắn (mã, trạng thái, ngày, số) không xuống dòng; cột chữ dài (tên dự án, nội dung…) được độ rộng tối thiểu dễ đọc,
+   bảng rộng hơn khung thì cuộn ngang và giữ cố định cột đầu. Trên điện thoại bảng đã chuyển thành thẻ nên không áp dụng. */
+function fitTables(root){
+  const mob=matchMedia('(max-width:820px)').matches;
+  (root||document).querySelectorAll(mob? '.tw:not(.rt) > table:not(.perm)' : '.tw > table:not(.perm)').forEach(t=>{
+    const head=t.tHead && t.tHead.rows[0]; if(!head) return;
+    const rows=[...t.tBodies].flatMap(b=>[...b.rows]).slice(0,60);
+    const longCols=[];
+    [...head.cells].forEach((th,i)=>{
+      let line=0, ctl=false, chips=false;
+      for(const r of rows){ const c=r.cells[i]; if(!c) continue;
+        if(c.querySelectorAll('.pill').length>=3){ chips=true; continue; }
+        if(c.classList.contains('acts') || c.querySelector('button,select,input,.bar,.thumbs')){ ctl=true; continue; }
+        for(const ln of (c.innerText||'').split('\n')){ const n=ln.trim().length; if(n>line) line=n; } }
+      const hl=th.textContent.trim().length;
+      const cells=rows.map(r=>r.cells[i]).filter(Boolean);
+      th.classList.toggle('wrap', hl>22); th.style.removeProperty('--mw'); cells.forEach(c=>c.classList.remove('nw'));
+      if(chips){ th.style.setProperty('--mw','400px'); return; }
+      if(ctl) return;
+      if(line<=24) cells.forEach(c=>c.classList.add('nw'));
+      else { const mw=Math.min(360, Math.max(190, Math.round(Math.sqrt(line)*28))); th.style.setProperty('--mw', mw+'px'); longCols.push([th,mw]); }
+    });
+    const tw=t.parentElement;
+    /* bảng vượt khung: thu hẹp dần các cột chữ dài (không dưới 210px để vẫn dễ đọc) trước khi phải cuộn ngang */
+    let over=t.scrollWidth-tw.clientWidth;
+    if(over>0 && longCols.length){ const room=longCols.reduce((a,[,m])=>a+m-210,0);
+      if(room>0){ const k=Math.min(1, over/room); longCols.forEach(([th,m])=>th.style.setProperty('--mw', Math.round(m-(m-210)*k)+'px')); }
+      over=t.scrollWidth-tw.clientWidth; }
+    tw.classList.toggle('wide', over>2);
+  });
+}
+addEventListener('resize', ()=>{ clearTimeout(fitTables._t); fitTables._t=setTimeout(()=>fitTables(), 150); });

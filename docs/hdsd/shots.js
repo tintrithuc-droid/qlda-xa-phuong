@@ -181,7 +181,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await scrollTo(p, '.card', 'Theo dõi tiến độ'); await shot(p, 'ld-tien-do-theo-doi', undefined, [{ sel: '.content .tabs', n: 1 }]);
   await go(p, 'goi-thau'); await click(p, '.content tr.click'); await shot(p, 'ld-hop-dong', undefined, [{ sel: '.card', text: 'Thông tin hợp đồng', n: 1 }, { sel: '.card', text: 'Theo dõi tiến độ thực hiện hợp đồng', n: 2 }]);
   await go(p, 'thanh-toan'); await shot(p, 'ld-thanh-toan', undefined, [{ sel: '.kpis, .content .grid', n: 1 }, { sel: '.content .tabs', n: 2 }]);
-  await go(p, 'bao-cao'); await shot(p, 'chung-bao-cao', undefined, [{ sel: '.content select', n: 1, nth: 0 }, { sel: '.content select', n: 2, nth: 1 }, { sel: '.content select', n: 3, nth: 2 }, { sel: '[data-act=export-report]', n: 4 }]);
+  await go(p, 'bao-cao'); await shot(p, 'chung-bao-cao', undefined, [{ sel: '.content select', n: 1, nth: 0 }, { sel: '.content select', n: 2, nth: 1 }, { sel: '.content select', n: 3, nth: 2 }, { sel: '[data-act=export-report]', n: 4 }, { sel: '[data-act=export-report-pdf]', n: 5 }, { sel: '[data-act=export-report-csv]', n: 6 }]);
   await p.selectOption('.content select >> nth=0', { index: 1 }).catch(() => { }); await wait(400); await shot(p, 'chung-bao-cao-tien-do');
   await p.selectOption('.content select >> nth=0', 'giaingan').catch(() => { }); await wait(400); await shot(p, 'chung-bao-cao-giai-ngan');
   await p.context().close();
@@ -248,7 +248,8 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await go(p, 'nhat-ky'); await shot(p, 'gs-nhat-ky', undefined, [{ sel: '.head .btn.primary', n: 1 }, { sel: '[data-act=diary-photo]', n: 2 }]);
   await click(p, '.head .btn.primary');
   await p.selectOption('#ov select >> nth=0', { index: 1 }).catch(() => { });
-  await p.fill('#ov textarea >> nth=0', 'Đổ bê tông móng M1–M4 | 18,5 | m3\nLắp dựng cốp pha cột trục A | 42 | m2').catch(() => { });
+  await p.fill('#ov .wk-row >> nth=0 >> .wk-n', 'Đổ bê tông móng M1–M4'); await p.fill('#ov .wk-row >> nth=0 >> .wk-q', '18,5'); await p.fill('#ov .wk-row >> nth=0 >> .wk-u', 'm3');
+  await p.click('#ov .wk-add'); await p.fill('#ov .wk-row >> nth=1 >> .wk-n', 'Lắp dựng cốp pha cột trục A'); await p.fill('#ov .wk-row >> nth=1 >> .wk-q', '42'); await p.fill('#ov .wk-row >> nth=1 >> .wk-u', 'm2');
   await p.setInputFiles('#ov input[type=file]', img).catch(() => { }); await wait(500);
   await shot(p, 'gs-ghi-nhat-ky', '#ov .mform'); await closeModal(p);
   await click(p, '[data-act=diary-photo]'); await shot(p, 'gs-anh-nhat-ky', '#ov .mform', [{ sel: '#ov [data-cap]', n: 1 }, { sel: '#ov figure label', n: 2 }, { sel: '#ov .fld', text: 'Thêm ảnh', n: 3 }]); await closeModal(p);
@@ -302,6 +303,46 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
     await p.evaluate(() => { const v = document.querySelector('.guide-video video'); if (v) v.currentTime = 4; }); await wait(800);
     await shot(p, 'chung-huong-dan', 'full', [{ sel: '.side .nav a[href="#huong-dan"]', n: 1 }, { sel: '.toolbar input[type=search]', n: 2 }, { sel: '.guide-doc', n: 3 }, { sel: '.guide-video', n: 4 }]);
     await p.context().close(); }
+
+  // ===== Bản 1.2: nhập ngày, phân trang, giao diện sáng/tối, trình duyệt hồ sơ, in báo cáo =====
+  p = await newPage(DESK); await login(p, 'kythuat');
+  await go(p, 'nhat-ky'); await click(p, '.head .btn.primary'); await wait(300);
+  await p.fill('#f_date_t', ''); await p.type('#f_date_t', '03112026'); await wait(200);
+  await shot(p, 'v12-nhap-ngay', '#ov .mform', [{ sel: '#ov .dx-t', n: 1 }, { sel: '#ov .dx-b', n: 2 }, { sel: '#ov .wk', n: 3 }, { sel: '#ov .wk-add', n: 4 }]); await closeModal(p);
+  // phụ lục do cán bộ kỹ thuật lập: soạn thảo → trình duyệt
+  await p.evaluate(async () => { const c = D('contracts').find(x => x.id === 'c1') || D('contracts')[0];
+    await Store.put('addenda', { id: 'pl-hd', contractId: c.id, number: 'PL02', date: TODAY, content: 'Điều chỉnh khối lượng nền đường đoạn Km0+350 – Km0+620', valueChange: 180000000, daysChange: 15 }); });
+  await go(p, 'goi-thau'); await click(p, '.content tr.click', 'XL01'); await scrollTo(p, '.card', 'Điều chỉnh, phụ lục');
+  await shot(p, 'v12-kt-phu-luc', undefined, [{ sel: '.card:has([data-act=add-addendum]) .pill', text: 'Soạn thảo', n: 1 }, { sel: '[data-act=wf]', text: 'Trình duyệt', n: 2 }, { sel: '.card:has([data-act=add-addendum]) .pill', text: 'Đã duyệt', n: 3 }]);
+  await click(p, '[data-act=wf]', 'Trình duyệt'); await p.fill('#f_note', 'Kèm văn bản đề nghị số 45/CV-NT của nhà thầu');
+  await shot(p, 'v12-trinh', '#ov .mform'); await p.click('#mform [type=submit]'); await wait(600);
+  await p.context().close();
+  // Lãnh đạo Ban duyệt, trả lại
+  p = await newPage(DESK); await login(p, 'lanhdao'); await go(p, 'trinh-duyet'); await wait(400);
+  await shot(p, 'v12-ld-cho-duyet', undefined, [{ sel: '.side .nav a[href="#trinh-duyet"]', n: 1 }, { sel: '.content .tabs', n: 2 }, { sel: '[data-act=wf]', text: 'Duyệt', n: 3 }, { sel: '[data-act=wf]', text: 'Trả lại', n: 4 }, { sel: '[data-act=wf]', text: 'Từ chối', n: 5 }]);
+  await p.click('[data-act=wf][data-id="addenda|pl-hd|approve"]'); await wait(300); await p.fill('#f_note', 'Đồng ý điều chỉnh');
+  await shot(p, 'v12-duyet', '#ov .mform'); await p.click('#mform [type=submit]'); await wait(600);
+  await p.click('[data-act=wf][data-id="addenda|a4|return"]'); await wait(300); await p.fill('#f_note', 'Bổ sung dự toán chi tiết phần chiếu sáng nhánh rẽ');
+  await shot(p, 'v12-tra-lai', '#ov .mform'); await p.click('#mform [type=submit]'); await wait(600);
+  await p.click('button[data-g="td2"][data-id="ls"]'); await wait(300); await shot(p, 'v12-lich-su');
+  await go(p, 'goi-thau'); await click(p, '.content tr.click', 'XL01'); await scrollTo(p, '.card', 'Điều chỉnh, phụ lục');
+  await shot(p, 'v12-ld-thu-hoi', undefined, [{ sel: '[data-act=wf]', text: 'Thu hồi', n: 1 }, { sel: '[data-act=wf]', text: 'Lịch sử', n: 2 }]);
+  // giao diện tối
+  await go(p, 'tong-quan'); await click(p, '[data-act=theme]'); await wait(200); await click(p, '[data-act=theme]'); await wait(500); await p.evaluate(() => { $('#toast').hidden = true; });
+  await shot(p, 'v12-giao-dien-toi', undefined, [{ sel: '.theme-btn', n: 1, pos: 'tr' }]);
+  await p.context().close();
+  p = await newPage(DESK); await login(p, 'kythuat'); await go(p, 'trinh-duyet'); await p.click('button[data-g="td2"][data-id="soan"]'); await wait(300);
+  await shot(p, 'v12-kt-bi-tra-lai', undefined, [{ sel: '.content .tabs button', text: 'Đang soạn thảo', n: 1 }, { sel: '.content td .small.muted', text: 'Trả lại', n: 2 }, { sel: '[data-act=wf]', text: 'Trình duyệt', n: 3 }]);
+  await p.context().close();
+  p = await newPage(DESK); await login(p, 'admin'); await go(p, 'quan-tri'); await tab(p, 'Nhật ký hoạt động'); await wait(300);
+  await p.evaluate(() => document.querySelector('.content .pager').scrollIntoView({ block: 'center' })); await wait(200);
+  await shot(p, 'v12-phan-trang', '.content .pager', [{ sel: '.content .pager .btn', n: 1, nth: 2 }, { sel: '.content .pager select', n: 2 }]);
+  await tab(p, 'Nhóm và phân quyền'); { const eg = await p.$$('[data-act=edit-groups]'); await eg[1].click(); await wait(400); }
+  await shot(p, 'v12-quyen-duyet', '#ov .mform', [{ sel: '#ov table.perm th', text: 'Duyệt hồ sơ', n: 1 }]); await closeModal(p);
+  // báo cáo in, PDF
+  await go(p, 'bao-cao'); const html = await p.evaluate(() => reportPrintHTML(reportNow()));
+  { const q = await newPage({ viewport: { width: 1123, height: 794 }, deviceScaleFactor: 1.5 }); await q.setContent(html); await wait(400); await q.screenshot({ path: path.join(OUT, 'v12-bao-cao-in.png'), fullPage: true }); console.log('✓ v12-bao-cao-in'); await q.context().close(); }
+  await p.context().close();
 
   // ===== Điện thoại =====
   for (const [k, u] of [['gs', 'giamsat'], ['kt', 'kythuat']]) {

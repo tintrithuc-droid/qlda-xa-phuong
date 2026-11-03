@@ -96,13 +96,13 @@ function build() {
   out.push({ steps: [
     'Trên trang **Hiện trường**, chạm ô **Ghi nhật ký thi công**.',
     'Chọn **Gói thầu** (1), kiểm tra **Ngày** (2, mặc định là hôm nay), chọn ca làm việc, **Thời tiết** (3), nhập **Số nhân công** (4) và máy móc, thiết bị.',
-    'Nhập **Công việc thực hiện** (5), mỗi dòng một công việc theo mẫu «Nội dung | Khối lượng | Đơn vị», ví dụ: «Đổ bê tông lót móng | 2,4 | m3». Ghi **Vướng mắc, sự cố, kiến nghị** (6) nếu có.',
+    'Nhập **Công việc thực hiện** (5) vào bảng: mỗi dòng ghi công việc, khối lượng và đơn vị ở ba ô riêng (ví dụ: «Đổ bê tông lót móng» – «2,4» – «m3»); chạm **+ Thêm dòng** để thêm công việc, chạm **×** để xóa dòng nhập nhầm. Ô ngày chạm vào để nhập theo dạng ngày/tháng/năm hoặc chạm biểu tượng lịch để chọn. Ghi **Vướng mắc, sự cố, kiến nghị** (6) nếu có.',
     'Tại ô **Hình ảnh hiện trường** (7), chọn máy ảnh để chụp hoặc chọn ảnh có sẵn; có thể chọn nhiều ảnh.',
     'Chạm **Lưu** (8). Nhật ký và ảnh được gửi ngay về máy chủ.',
     'Sau khi các bên ký trang nhật ký giấy, mở lại trang nhật ký bằng nút **Sửa**, chụp trang đã ký tại ô **Trang nhật ký đã ký** cuối hộp nhập và chạm **Lưu**.',
   ] });
   out.push({ imgs2: ['dt-nk-1', 'dt-nk-2', 'dt-nk-3'], caps: ['Thông tin chung', 'Công việc thực hiện', 'Ảnh hiện trường và Lưu'], mobile: true });
-  out.push(legend([[1, 'Gói thầu'], [2, 'Ngày ghi nhật ký'], [3, 'Thời tiết'], [4, 'Số nhân công'], [5, 'Công việc thực hiện, mỗi dòng một công việc'], [6, 'Vướng mắc, sự cố, kiến nghị'], [7, 'Hình ảnh hiện trường'], [8, 'Lưu nhật ký']]));
+  out.push(legend([[1, 'Gói thầu'], [2, 'Ngày ghi nhật ký'], [3, 'Thời tiết'], [4, 'Số nhân công'], [5, 'Bảng công việc thực hiện: công việc, khối lượng, đơn vị'], [6, 'Vướng mắc, sự cố, kiến nghị'], [7, 'Hình ảnh hiện trường'], [8, 'Lưu nhật ký']]));
   out.push({ note: 'Ảnh chụp được tự thu nhỏ còn tối đa 1920 điểm ảnh trước khi gửi để tiết kiệm dung lượng 3G/4G mà vẫn đủ rõ. Trên hình minh họa, nút chọn ảnh hiển thị theo trình duyệt máy tính; trên điện thoại, nút này mở hộp chọn máy ảnh hoặc thư viện ảnh.' });
   out.push({ h2: 'Xem lại nhật ký' });
   out.push({ p: 'Chạm **Nhật ký** ở thanh điều hướng dưới cùng để xem các trang nhật ký đã ghi, mới nhất ở trên. Chạm **+ Ghi nhật ký** (1) để ghi trang mới; lọc theo gói thầu (2), khoảng ngày hoặc nội dung. Mỗi thẻ nhật ký có nút **Thêm ảnh**, **Sửa** và **Xóa** (theo quyền). Nút **Thêm ảnh** mở hộp quản lý ảnh: ghi chú thích cho từng ảnh (vị trí, nội dung chụp), đánh dấu **Bỏ ảnh này** với ảnh chụp nhầm và chụp thêm ảnh mới.' });

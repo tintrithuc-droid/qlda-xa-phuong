@@ -152,7 +152,7 @@ function renderSetup(){
       const body={name, username, password:pw, groups:defaultGroups(), catalogs:defaultCatalogs()};
       if($('#su_sample').checked){
         body.sample=makeSampleData();
-        body.sampleUsers=[['lanhdao','Lãnh đạo Ban (mẫu)','g-lead','Lãnh đạo Ban'],['kythuat','Cán bộ kỹ thuật (mẫu)','g-tech','Phòng Kỹ thuật'],['ketoan','Kế toán (mẫu)','g-acc','Phòng Kế toán'],['giamsat','Tư vấn giám sát TV01 (mẫu)','g-site','Tư vấn giám sát'],['ubnd','Lãnh đạo UBND xã (mẫu)','g-ubnd','UBND xã']].map(([username,name,groupId,unit])=>({username,name,groupId,unit}));
+        body.sampleUsers=[['lanhdao','Lãnh đạo Ban (mẫu)','g-lead','Lãnh đạo Ban'],['kythuat','Cán bộ kỹ thuật (mẫu)','g-tech','Phòng Kỹ thuật'],['ketoan','Kế toán (mẫu)','g-acc','Phòng Kế toán'],['giamsat','Tư vấn giám sát TV01 (mẫu)','g-site','Tư vấn giám sát'],['ubnd','Chủ tịch UBND xã (mẫu)','g-ubnd','UBND xã'],['bithu','Bí thư Đảng ủy xã (mẫu)','g-ubnd','Đảng ủy xã'],['phochutich','Phó Chủ tịch UBND xã (mẫu)','g-ubnd','UBND xã']].map(([username,name,groupId,unit])=>({username,name,groupId,unit}));
       }
       const r=await api('POST','/api/auth/setup',body,{auth:true});
       Store.initialized=true; Store.sampleUsers=!!body.sampleUsers; location.hash='tong-quan';

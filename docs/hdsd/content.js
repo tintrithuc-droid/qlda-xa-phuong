@@ -3,14 +3,14 @@ const H10 = ['01/11/2026', 'Ban hành lần đầu, theo phần mềm phiên b�
 const H11 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: bổ sung Kế hoạch vốn – giải ngân, Giải phóng mặt bằng, Nghiệm thu – bàn giao – bảo hành, Quyết toán dự án hoàn thành; vai trò của Ban và người quyết định đầu tư; nhóm Lãnh đạo UBND xã', '1.1'];
 const H12 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: trình duyệt hồ sơ (phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu); nhập ngày theo ngày/tháng/năm, phân trang danh sách, giao diện sáng/tối; bảng nhập công việc nhật ký; kế hoạch thanh toán theo đợt; in, xuất báo cáo PDF và CSV', '1.2'];
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10, H11, H12] },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10, H11, H12, ['03/11/2026', 'Nhóm Lãnh đạo UBND xã đổi thành Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…)', '1.2']] },
   ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H10, H11, H12] },
   kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H10, H11, H12] },
   ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H10, H11, H12] },
   gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H10, H11, H12] },
-  ub: { name: 'Lãnh đạo UBND xã', file: 'Lanh dao UBND xa', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12] },
-  dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
-    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2']] },
+  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2']] },
+  dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban, Lãnh đạo xã/phường', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
+    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2']] },
 };
 const MODS = ['Tổng quan', 'Quản lý dự án', 'Kế hoạch vốn, giải ngân', 'Giải phóng mặt bằng', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Nghiệm thu, bàn giao, bảo hành', 'Quản lý thanh toán', 'Quyết toán dự án', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không truy cập';
@@ -29,7 +29,7 @@ const PURPOSE = {
   kt: 'quản lý thông tin dự án, giải phóng mặt bằng, tệp mô hình công trình, gói thầu và hợp đồng, lập và cập nhật tiến độ, ghi nhật ký thi công, quản lý khối lượng, nghiệm thu, bàn giao và theo dõi bảo hành công trình',
   ke: 'nhập kế hoạch vốn được giao và theo dõi giải ngân so với kịch bản, lập kế hoạch thanh toán, lập và theo dõi hồ sơ thanh toán, xác nhận giá trị đã chi, đối chiếu khối lượng nghiệm thu, theo dõi quyết toán dự án hoàn thành và khai thác báo cáo giải ngân',
   gs: 'ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ thực tế, tra cứu dự án, mô hình và khối lượng trong phạm vi được giao, kể cả trên điện thoại',
-  ub: 'theo dõi tình hình thực hiện các dự án do UBND xã/phường quyết định đầu tư: tiến độ, giải ngân kế hoạch vốn so với kịch bản, giải phóng mặt bằng, nghiệm thu bàn giao, quyết toán dự án hoàn thành; nắm bắt cảnh báo và khai thác báo cáo phục vụ chỉ đạo, điều hành',
+  ub: 'theo dõi, trên máy tính hoặc điện thoại, tình hình thực hiện các dự án đầu tư công của xã/phường: tiến độ, giải ngân kế hoạch vốn so với kịch bản, giải phóng mặt bằng, nghiệm thu bàn giao, quyết toán dự án hoàn thành; nắm bắt cảnh báo và khai thác báo cáo phục vụ chỉ đạo, điều hành',
 };
 
 const img = (name, cap, w) => ({ img: name, cap, w });
@@ -481,7 +481,7 @@ S.admin = () => [
   { p: 'Để bảo vệ tài khoản có toàn quyền, mọi tài khoản thuộc nhóm **Quản trị hệ thống** bắt buộc dùng xác thực 2 lớp: ngoài mật khẩu, khi đăng nhập phải nhập thêm mã 6 số do ứng dụng xác thực trên điện thoại sinh ra. Mã đổi sau mỗi 30 giây và chỉ dùng được một lần, nên dù lộ mật khẩu, người khác vẫn không đăng nhập được nếu không cầm điện thoại của quản trị.' },
   { bullets: [
     'Ứng dụng xác thực: **Google Authenticator** hoặc **Microsoft Authenticator** (miễn phí trên CH Play và App Store). Ứng dụng sinh mã ngay trên điện thoại, không cần SMS và không cần kết nối Internet.',
-    'Các nhóm khác (Lãnh đạo UBND xã, Lãnh đạo Ban, Cán bộ kỹ thuật, Kế toán, Tư vấn giám sát) đăng nhập bằng mật khẩu như bình thường.',
+    'Các nhóm khác (Lãnh đạo xã/phường, Lãnh đạo Ban, Cán bộ kỹ thuật, Kế toán, Tư vấn giám sát) đăng nhập bằng mật khẩu như bình thường.',
   ] },
   { h2: 'Thiết lập lần đầu' },
   { p: 'Màn hình **Thiết lập xác thực 2 lớp** xuất hiện ngay sau khi khởi tạo hệ thống, và ở lần đăng nhập đầu tiên của mỗi tài khoản quản trị mới.' },
@@ -561,7 +561,7 @@ S.admin = () => [
     ['Cán bộ kỹ thuật', 'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'],
     ['Kế toán', 'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'],
     ['Tư vấn giám sát / Nhà thầu', 'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'],
-    ['Lãnh đạo UBND xã (người quyết định đầu tư)', 'Theo dõi tình hình dự án, giải ngân, giải phóng mặt bằng, nghiệm thu, quyết toán; nhận cảnh báo. Chỉ xem.'],
+    ['Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND; Chủ tịch UBND là người quyết định đầu tư)', 'Theo dõi tình hình dự án, giải ngân, giải phóng mặt bằng, nghiệm thu, quyết toán; nhận cảnh báo. Chỉ xem.'],
   ] }, cap: 'Các nhóm người dùng tạo sẵn khi khởi tạo hệ thống' },
 
   { h1: 'DANH MỤC DÙNG CHUNG' },
@@ -776,6 +776,28 @@ S.approval = (k) => {
   return out;
 };
 
+
+// ===== Lãnh đạo xã/phường xem trên điện thoại =====
+S.leaderMobile = () => [
+  { h1: 'XEM TRÊN ĐIỆN THOẠI' },
+  { p: 'Lãnh đạo xã/phường dùng chính tài khoản trên máy tính để xem trên điện thoại, không cần cài phần mềm riêng. Số liệu trên điện thoại và máy tính là một, cập nhật cùng lúc.' },
+  { h2: 'Mở phần mềm trên điện thoại' },
+  { steps: [
+    'Điện thoại Android: mở **Chrome**; iPhone: mở **Safari**. Nhập địa chỉ phần mềm do quản trị hệ thống cung cấp.',
+    'Nhập tên đăng nhập, mật khẩu và chạm **Đăng nhập** (1–3).',
+    'Để mở nhanh lần sau: trên Android chạm **⋮** → **Thêm vào màn hình chính**; trên iPhone chạm nút **Chia sẻ** → **Thêm vào MH chính**. Biểu tượng phần mềm xuất hiện trên màn hình điện thoại như một ứng dụng.',
+  ] },
+  { imgs2: ['dt-dang-nhap-so', 'dt-xp-tong-quan'], caps: ['Đăng nhập trên điện thoại', 'Trang Tổng quan'], mobile: true },
+  legend([[1, 'Tên đăng nhập'], [2, 'Mật khẩu'], [3, 'Đăng nhập'], [4, 'Các chỉ tiêu chính: dự án, tổng mức đầu tư, giá trị hợp đồng, giải ngân năm, số cảnh báo'], [5, 'Thanh điều hướng: Tổng quan, Dự án, Hiện trường, Menu']]),
+  { h2: 'Nắm tình hình và cảnh báo' },
+  { p: 'Trang **Tổng quan** mở ra ngay sau khi đăng nhập: các chỉ tiêu chính (4) được xếp thành thẻ dễ đọc trên màn hình nhỏ; kéo xuống để xem biểu đồ và **Cảnh báo và việc cần xử lý** (dự án chậm giải ngân, hạng mục quá hạn, đợt thanh toán quá hạn, khu vực chậm bàn giao mặt bằng, quyết toán quá hạn…). Chạm **Xem** để mở ngay nội dung cần chỉ đạo.' },
+  { imgs2: ['dt-xp-canh-bao', 'dt-xp-von'], caps: ['Cảnh báo và việc cần xử lý', 'Giải ngân kế hoạch vốn so với kịch bản'], mobile: true },
+  { h2: 'Tra cứu dự án và các phân hệ khác' },
+  { p: 'Chạm **Dự án** ở thanh dưới cùng để xem danh sách dự án, chạm vào một dự án để xem chi tiết, tình trạng thực hiện và hồ sơ pháp lý (mở được tệp PDF ngay trên điện thoại). Chạm **Menu** để mở các phân hệ khác: Kế hoạch vốn, giải ngân; Giải phóng mặt bằng; Quản lý tiến độ; Nghiệm thu, bàn giao, bảo hành; Quản lý thanh toán; Quyết toán dự án; Báo cáo, thống kê. Muốn xem riêng một dự án, chọn dự án ở ô phía trên cùng.' },
+  { imgs2: ['dt-xp-du-an', 'dt-xp-menu', 'dt-xp-bao-cao'], caps: ['Danh sách dự án', 'Menu các phân hệ được xem', 'Báo cáo, thống kê'], mobile: true },
+  { note: 'Trên điện thoại, các bảng tự chuyển thành dạng thẻ, không cần kéo ngang. Báo cáo xuất Excel, PDF được tải về điện thoại và mở bằng ứng dụng xem tệp. Khi dùng điện thoại chung hoặc bị mất điện thoại, đăng xuất hoặc báo quản trị hệ thống đặt lại mật khẩu ngay.' },
+];
+
 // ===== Lắp ráp theo vai trò =====
 function build(k) {
   if (k === 'dt') return require('./content-dt').build();
@@ -808,8 +830,8 @@ function build(k) {
   }
   if (k === 'ub') {
     out.push({ h1: 'THEO DÕI, ĐIỀU HÀNH' }, ...S.dashboard(k, 'ld-tong-quan'));
-    out.push({ p: 'Tài khoản Lãnh đạo UBND xã chỉ xem, không sửa dữ liệu; mọi số liệu do Ban Quản lý dự án và các bộ phận cập nhật hằng ngày, nên Lãnh đạo nắm được tình hình mà không cần chờ báo cáo giấy.' });
-    out.push(...S.capital(false), ...S.clearance(false), ...S.projectView(false), ...S.scheduleView(), ...S.paymentView(), ...S.acceptance(false), ...S.settlement(false), ...S.reports());
+    out.push({ p: 'Tài khoản Lãnh đạo xã/phường chỉ xem, không sửa dữ liệu; mọi số liệu do Ban Quản lý dự án và các bộ phận cập nhật hằng ngày, nên Lãnh đạo nắm được tình hình mà không cần chờ báo cáo giấy. Cùng một tài khoản dùng được trên máy tính và trên điện thoại (xem chương **Xem trên điện thoại**).' });
+    out.push(...S.capital(false), ...S.clearance(false), ...S.projectView(false), ...S.scheduleView(), ...S.paymentView(), ...S.acceptance(false), ...S.settlement(false), ...S.reports(), ...S.leaderMobile());
     out.push(...tail(k, false));
   }
   if (k === 'qt') {

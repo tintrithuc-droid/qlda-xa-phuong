@@ -146,6 +146,15 @@ async function login(p, u, pw = PW) {
     console.log('UBND xã: thấy', d.capitals.length, 'kế hoạch vốn | sửa:', w);
     if (!d.capitals.length || w !== 403) errs.push('C7: phân quyền Lãnh đạo UBND xã sai');
     await c.close();
+    // Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch): cùng nhóm, xem trên điện thoại
+    const m = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }); const mp = await m.newPage();
+    mp.on('pageerror', e => errs.push('PAGEERR bithu ' + e.message));
+    await mp.goto(BASE + '/'); await mp.waitForSelector('#login'); await mp.fill('#lg_user', 'bithu'); await mp.fill('#lg_pw', PW); await mp.click('#login button[type=submit]');
+    await mp.waitForSelector('#app'); await mp.evaluate(() => location.hash = 'tong-quan'); await mp.waitForTimeout(600);
+    const xp = await mp.evaluate(() => ({ g: myGroup().name, kpi: !!document.querySelector('.kpis'), tab: [...document.querySelectorAll('#tabbar a')].map(a => a.innerText.trim()).join(','), edit: can('du-an', 'edit') }));
+    console.log('Bí thư trên điện thoại:', JSON.stringify(xp));
+    if (xp.g !== 'Lãnh đạo xã/phường' || !xp.kpi || xp.edit || !xp.tab.includes('Tổng quan')) errs.push('C8: vai trò Lãnh đạo xã/phường sai');
+    await m.close();
   }
 
   const putFiles = (key, files) => p.setInputFiles(`#f_${key} input[type=file]`, files);

@@ -11,16 +11,16 @@ function build() {
   out.push({ p: 'Phần mềm trên điện thoại dùng chung dữ liệu với bản trên máy tính: thông tin nhập tại hiện trường được lưu ngay về máy chủ của Ban và hiển thị cho các bộ phận khác trong khoảng 30 giây. Hình minh họa chụp trực tiếp từ giao diện phần mềm trên điện thoại; số liệu trên hình là dữ liệu mẫu, được đánh dấu «(mẫu)».' });
   out.push({ h2: 'Chức năng dùng trên điện thoại theo vai trò' });
   out.push({ p: 'Mỗi tài khoản chỉ thấy các chức năng được phân quyền. Bảng dưới đây là quyền mặc định của các nhóm thường dùng điện thoại; quản trị hệ thống có thể điều chỉnh theo yêu cầu thực tế của Ban.' });
-  out.push({ table: { head: ['Chức năng', 'TVGS / Nhà thầu', 'Cán bộ kỹ thuật', 'Lãnh đạo Ban'], widths: [3300, 1900, 1900, 1900], rows: [
-    ['Ghi nhật ký thi công, chụp ảnh hiện trường', E, E, V],
-    ['Cập nhật tiến độ thực hiện', E, E, V],
-    ['Tra cứu dự án', V, E, E],
-    ['Khối lượng thực hiện, nghiệm thu', V, E, V],
-    ['Nghiệm thu, bàn giao, bảo hành', V, E, V],
-    ['Giải phóng mặt bằng', N, E, V],
-    ['Kế hoạch vốn, giải ngân', N, V, V],
-    ['Tổng quan, cảnh báo', V, V, V],
-    ['Báo cáo, xuất Excel', N, V, V],
+  out.push({ table: { head: ['Chức năng', 'TVGS / Nhà thầu', 'Cán bộ kỹ thuật', 'Lãnh đạo Ban', 'Lãnh đạo xã/phường'], widths: [2600, 1600, 1600, 1600, 1600], rows: [
+    ['Ghi nhật ký thi công, chụp ảnh hiện trường', E, E, V, N],
+    ['Cập nhật tiến độ thực hiện', E, E, V, V],
+    ['Tra cứu dự án', V, E, E, V],
+    ['Khối lượng thực hiện, nghiệm thu', V, E, V, N],
+    ['Nghiệm thu, bàn giao, bảo hành', V, E, V, V],
+    ['Giải phóng mặt bằng', N, E, V, V],
+    ['Kế hoạch vốn, giải ngân', N, V, V, V],
+    ['Tổng quan, cảnh báo', V, V, V, V],
+    ['Báo cáo, xuất Excel', N, V, V, V],
   ] }, cap: 'Chức năng dùng trên điện thoại theo nhóm người dùng' });
   out.push({ p: 'Tài khoản Tư vấn giám sát / Nhà thầu chỉ thấy số liệu của các dự án được quản trị hệ thống giao.' });
   out.push({ h2: 'Yêu cầu về thiết bị và kết nối' });
@@ -129,7 +129,7 @@ function build() {
   out.push({ h2: 'Tổng quan, cảnh báo và khối lượng' });
   out.push({ p: 'Trang **Tổng quan** hiển thị các chỉ tiêu chính, biểu đồ và danh sách **Cảnh báo và việc cần xử lý** (hạng mục quá hạn, chậm tiến độ, công việc sắp đến hạn); chạm **Xem** để mở ngay nội dung cần xử lý. Trang **Quản lý khối lượng** (mở từ Menu) cho xem giá trị hợp đồng, khối lượng thực hiện lũy kế, đã nghiệm thu và đã thanh toán của từng hợp đồng.' });
   out.push({ imgs2: ['dt-tong-quan', 'dt-canh-bao', 'dt-khoi-luong'], caps: ['Trang Tổng quan', 'Cảnh báo cần xử lý', 'Quản lý khối lượng'], mobile: true });
-  out.push({ h2: 'Lãnh đạo Ban xem trên điện thoại' });
+  out.push({ h2: 'Lãnh đạo Ban, Lãnh đạo xã/phường xem trên điện thoại' });
   out.push({ p: 'Tài khoản Lãnh đạo Ban xem được toàn bộ dự án. Trang **Báo cáo, thống kê** (mở từ Menu) cho chọn loại báo cáo, dự án, gói thầu, khoảng thời gian và chạm **Xuất Excel** để tải báo cáo về điện thoại: trên Android, tệp lưu tại Tải xuống/QLDA Xa Phuong; trên iPhone, chọn **Lưu vào Tệp** hoặc gửi qua ứng dụng khác.' });
   out.push({ imgs2: ['dt-ld-tong-quan', 'dt-ld-bao-cao'], caps: ['Tổng quan của Lãnh đạo Ban', 'Báo cáo, thống kê'], mobile: true });
 

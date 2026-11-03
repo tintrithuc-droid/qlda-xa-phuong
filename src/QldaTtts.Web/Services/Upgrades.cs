@@ -43,6 +43,36 @@ public static class Upgrades
 
         // 4) Phiên bản 1.2: trạng thái phụ lục, gắn hồ sơ thanh toán với đợt kế hoạch, chạy một lần
         V12(db);
+
+        // 5) Vai trò Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…), chạy một lần
+        LanhDaoXa(db);
+    }
+
+    public const string LanhDaoXaName = "Lãnh đạo xã/phường";
+    public const string LanhDaoXaDesc = "Bí thư, Phó Bí thư Đảng ủy; Chủ tịch, Phó Chủ tịch HĐND, UBND xã/phường (người quyết định đầu tư): theo dõi tiến độ, giải ngân, giải phóng mặt bằng, nghiệm thu, quyết toán, cảnh báo và báo cáo trên máy tính hoặc điện thoại. Chỉ xem.";
+
+    /// <summary>Nhóm "Lãnh đạo UBND xã" mặc định đổi tên thành "Lãnh đạo xã/phường" (giữ nguyên quyền, thành viên);
+    /// hệ thống chưa có nhóm này thì tạo mới với quyền chỉ xem.</summary>
+    private static void LanhDaoXa(AppDbContext db)
+    {
+        const string key = "upgrade:1.2-lanh-dao-xa-phuong";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        if (!db.Users.Any()) return; // chưa khởi tạo: nhóm tạo theo bộ mặc định khi khởi tạo
+        var g = db.Groups.FirstOrDefault(x => x.Id == "g-ubnd");
+        if (g is not null)
+        {
+            if (g.Name.StartsWith("Lãnh đạo UBND xã")) { g.Name = LanhDaoXaName; g.Desc = LanhDaoXaDesc; g.UpdatedAt = DateTime.UtcNow; g.UpdatedBy = "he-thong"; }
+        }
+        else if (!db.Groups.Any(x => x.Name == LanhDaoXaName))
+        {
+            var view = new[] { "tong-quan", "du-an", "von", "gpmb", "tien-do", "nghiem-thu", "thanh-toan", "quyet-toan", "bao-cao" };
+            var perms = db.Groups.AsNoTracking().Where(x => x.Admin).Select(x => x.Perms).FirstOrDefault()?.Keys.Where(k => !k.Contains(':')).ToList() ?? view.ToList();
+            db.Groups.Add(new UserGroup { Id = "g-ubnd", Name = LanhDaoXaName, Desc = LanhDaoXaDesc, Admin = false,
+                Perms = perms.Union(view).Distinct().ToDictionary(k => k, k => view.Contains(k) ? "view" : "none"), Scope = new(),
+                UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
     }
 
     /// <summary>

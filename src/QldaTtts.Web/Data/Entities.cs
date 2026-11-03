@@ -147,6 +147,8 @@ public class Addendum : EntityBase, IHasContract
     public string? Content { get; set; }
     [Column(TypeName = "decimal(20,0)")] public decimal? ValueChange { get; set; }
     public int? DaysChange { get; set; }
+    /// <summary>Soạn thảo / Chờ duyệt / Đã duyệt / Từ chối; chỉ phụ lục Đã duyệt (hoặc chưa có trạng thái, dữ liệu trước bản 1.2) được cộng vào hợp đồng.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 public class ProgressPoint
@@ -244,6 +246,8 @@ public class Payment : EntityBase, IHasContract
     [MaxLength(50)] public string? Status { get; set; }
     public string? Content { get; set; }
     public DateOnly? PaidDate { get; set; }
+    /// <summary>Đợt kế hoạch thanh toán mà hồ sơ này thực hiện.</summary>
+    [MaxLength(64)] public string? PayPlanId { get; set; }
     [MaxLength(300)] public string? FileName { get; set; }
     public long? FileSize { get; set; }
     [MaxLength(64)] public string? AssetId { get; set; }

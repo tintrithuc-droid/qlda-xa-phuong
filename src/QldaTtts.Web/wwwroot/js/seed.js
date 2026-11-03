@@ -80,9 +80,10 @@ function makeSampleData(){
     {id:'c8', packageId:'k9', projectId:'p6', number:'07/2026/HĐ-PTV01', contractor:'Công ty Dịch vụ số hóa '+mark, signDate:'2026-05-15', value:0.84*T, start:'2026-05-20', end:'2026-12-15', ctype:'Đơn giá cố định', guarantee:'', advanceRate:20}
   ];
   D.addenda = [
-    {id:'a1', contractId:'c1', number:'PL01', date:'2026-03-12', content:'Bổ sung khối lượng cống thoát nước đoạn qua khu dân cư', valueChange:0.32*T, daysChange:0},
-    {id:'a2', contractId:'c4', number:'PL01', date:'2026-07-20', content:'Gia hạn thời gian thực hiện do điều chỉnh thiết kế móng', valueChange:0, daysChange:45},
-    {id:'a3', contractId:'c4', number:'PL02', date:'2026-09-28', content:'Điều chỉnh đơn giá thép theo chỉ số giá quý II/2026', valueChange:0.18*T, daysChange:0}
+    {id:'a1', contractId:'c1', number:'PL01', date:'2026-03-12', content:'Bổ sung khối lượng cống thoát nước đoạn qua khu dân cư', valueChange:0.32*T, daysChange:0, status:'Đã duyệt'},
+    {id:'a2', contractId:'c4', number:'PL01', date:'2026-07-20', content:'Gia hạn thời gian thực hiện do điều chỉnh thiết kế móng', valueChange:0, daysChange:45, status:'Đã duyệt'},
+    {id:'a3', contractId:'c4', number:'PL02', date:'2026-09-28', content:'Điều chỉnh đơn giá thép theo chỉ số giá quý II/2026', valueChange:0.18*T, daysChange:0, status:'Đã duyệt'},
+    {id:'a4', contractId:'c2', number:'PL01', date:'2026-10-25', content:'Bổ sung hệ thống chiếu sáng nhánh rẽ vào khu dân cư, gia hạn thời gian', valueChange:0.25*T, daysChange:30, status:'Chờ duyệt'}
   ];
   // Tiến độ: lịch sử cập nhật hằng tháng
   const now = new Date().toISOString().slice(0,10);
@@ -167,7 +168,8 @@ function makeSampleData(){
     ['c4','Tạm ứng','2025-10-10',2.64],['c4','Đợt 1','2026-03-31',4.2],['c4','Đợt 2','2026-08-31',5],['c4','Đợt 3','2026-12-31',5.94],
     ['c3','Tạm ứng','2025-06-01',.059],['c3','Đợt 1','2026-06-30',.16],['c5','Thanh toán 100%','2025-09-30',.52],['c6','Tạm ứng','2026-11-30',.08],
     ['c7','Tạm ứng','2026-08-20',.28],['c7','Thanh toán đợt 1','2026-11-10',.4],['c7','Thanh toán đợt 2','2026-12-20',.255],
-    ['c8','Tạm ứng','2026-05-25',.168],['c8','Đợt 1','2026-09-15',.3],['c8','Quyết toán','2026-12-31',.372]];
+    ['c8','Tạm ứng','2026-05-25',.168],['c8','Đợt 1','2026-09-15',.3],['c8','Quyết toán','2026-12-31',.372],
+    ['c3','Đợt 2','2026-08-31',.15]];
   D.payplans = pp.map(([contractId,phase,planDate,amt],i)=>({id:'q'+(i+1), contractId, phase, planDate, amount:Math.round(amt*T)}));
   const pm=[['c1','TU-01','2025-06-12','Tạm ứng',2.54,'Đã thanh toán'],['c1','TT-01','2026-01-08','Thanh toán khối lượng',3.7,'Đã thanh toán'],['c1','TT-02','2026-07-06','Thanh toán khối lượng',4.1,'Đã thanh toán'],['c1','TT-03','2026-10-20','Thanh toán khối lượng',1.9,'Đang trình KBNN'],
     ['c2','TU-01','2025-08-06','Tạm ứng',.69,'Đã thanh toán'],['c2','TT-01','2026-04-10','Thanh toán khối lượng',1.05,'Đã thanh toán'],['c2','TT-02','2026-10-10','Thanh toán khối lượng',.62,'Đề nghị'],
@@ -175,7 +177,9 @@ function makeSampleData(){
     ['c3','TU-01','2025-06-02','Tạm ứng',.059,'Đã thanh toán'],['c3','TT-01','2026-07-02','Thanh toán khối lượng',.16,'Đã thanh toán'],['c5','TT-01','2025-10-05','Thanh toán khối lượng',.52,'Đã thanh toán'],
     ['c7','TU-01','2026-08-21','Tạm ứng',.28,'Đã thanh toán'],['c7','TT-01','2026-10-28','Thanh toán khối lượng',.35,'Đề nghị'],
     ['c8','TU-01','2026-05-26','Tạm ứng',.168,'Đã thanh toán'],['c8','TT-01','2026-09-18','Thanh toán khối lượng',.3,'Đã thanh toán']];
-  D.payments = pm.map(([contractId,number,date,kind,amt,status],i)=>({id:'r'+(i+1), contractId, number, date, kind, amount:Math.round(amt*T), status, content:kind+' '+number}));
+  // Hồ sơ thanh toán gắn với đợt kế hoạch (theo thứ tự hồ sơ ở trên)
+  const pq=['q1','q2','q3','q4','q6','q7','q8','q10','q11','q12','q14','q15','q16','q18','q19','q21','q22'];
+  D.payments = pm.map(([contractId,number,date,kind,amt,status],i)=>({id:'r'+(i+1), contractId, number, date, kind, amount:Math.round(amt*T), status, content:kind+' '+number, payPlanId:pq[i]||''}));
   D.diaries = [
     {id:'d1', projectId:'p1', packageId:'k1', date:'2026-10-26', shift:'Cả ngày', weather:'Nắng', workers:28, machines:'1 máy rải nhựa, 2 lu rung, 3 ô tô tự đổ', works:'Thảm bê tông nhựa đoạn Km1+200–Km1+480 | 1650 | m2\nLắp đặt cống D600 đoạn Km2+100 | 24 | m\nĐổ bê tông hố ga HG-17, HG-18 | 3.2 | m3', issues:'Thiếu 01 xe vận chuyển bê tông nhựa buổi sáng, đã điều bổ sung lúc 10h.', supervisor:'TVGS TV01', photos:[]},
     {id:'d2', projectId:'p1', packageId:'k1', date:'2026-10-25', shift:'Cả ngày', weather:'Mưa chiều', workers:22, machines:'1 máy đào, 1 cần cẩu 10T', works:'Lắp đặt cống D600 đoạn Km2+040–Km2+100 | 60 | m\nĐào hố móng hố ga HG-19 | 18 | m3', issues:'Mưa từ 15h, dừng thi công lắp cống 1,5 giờ.', supervisor:'TVGS TV01', photos:[]},

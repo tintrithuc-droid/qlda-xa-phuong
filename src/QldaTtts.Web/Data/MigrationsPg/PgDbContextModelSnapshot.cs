@@ -107,6 +107,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
 
@@ -1009,6 +1013,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
 
                     b.Property<DateOnly?>("PaidDate")
                         .HasColumnType("date");
+
+                    b.Property<string>("PayPlanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Status")
                         .HasMaxLength(50)

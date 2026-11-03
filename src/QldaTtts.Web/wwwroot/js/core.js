@@ -195,8 +195,14 @@ const pkgOf = id => get('packages',id);
 const projOf = id => get('projects',id);
 const contractOfPkg = kid => D('contracts').find(c=>c.packageId===kid);
 const contractPid = c => c.projectId || (pkgOf(c.packageId)||{}).projectId;
-function contractValue(c){ return N(c.value) + sum(D('addenda').filter(a=>a.contractId===c.id),'valueChange'); }
-function contractEnd(c){ const d=sum(D('addenda').filter(a=>a.contractId===c.id),'daysChange'); return c.end? addDays(c.end,d) : ''; }
+/* Phụ lục hợp đồng: chỉ phụ lục đã duyệt mới cộng vào giá trị, thời hạn hợp đồng (phụ lục nhập trước bản 1.2 không có trạng thái, coi là đã duyệt) */
+const ADD_STATUS = ['Soạn thảo','Chờ duyệt','Đã duyệt','Từ chối'];
+const addApproved = a => !a.status || a.status==='Đã duyệt';
+const addPending = a => a.status==='Soạn thảo' || a.status==='Chờ duyệt';
+function contractValue(c){ return N(c.value) + sum(D('addenda').filter(a=>a.contractId===c.id && addApproved(a)),'valueChange'); }
+function contractEnd(c){ const d=sum(D('addenda').filter(a=>a.contractId===c.id && addApproved(a)),'daysChange'); return c.end? addDays(c.end,d) : ''; }
+/** Phụ lục đang soạn thảo, chờ duyệt của hợp đồng: chưa tính vào hợp đồng, chỉ để nhắc. */
+function contractPending(c){ const xs=D('addenda').filter(a=>a.contractId===c.id && addPending(a)); return {n:xs.length, value:sum(xs,'valueChange'), days:sum(xs,'daysChange')}; }
 function boqDone(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && (!upto||v.date<=upto)),'doneQty'); }
 function boqAcc(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && (!upto||v.date<=upto)),'acceptedQty'); }
 function contractDone(cid, upto){ return sum(D('boq').filter(b=>b.contractId===cid), b=>boqDone(b,upto)*N(b.price)); }
@@ -216,12 +222,28 @@ function schedState(s){
   if(TODAY<s.planStart && p===0) return {k:'', t:'Chưa đến hạn'};
   return {k:'acc', t:'Đúng tiến độ'};
 }
+/** Bình quân theo trọng số: chỉ dùng cho các đầu việc trong CÙNG một gói thầu (trọng số do cán bộ phụ trách gói đặt). */
 function wavg(items, f){ const w=sum(items, s=>N(s.weight)||1); return w? sum(items, s=>(N(s.weight)||1)*f(s))/w : 0; }
-function projProgress(pid){ const p=projOf(pid); if(p && /hoàn thành|quyết toán/i.test(p.status||'') && !D('schedule').some(s=>s.projectId===pid)) return 100; return wavg(D('schedule').filter(s=>s.projectId===pid), s=>N(s.progress)); }
-function projExpected(pid){ return wavg(D('schedule').filter(s=>s.projectId===pid), s=>expectedPct(s)); }
+/** Giá trị của gói thầu dùng để quy đổi tiến độ: giá trị hợp đồng sau điều chỉnh (phụ lục đã duyệt), chưa có hợp đồng thì lấy giá gói thầu. */
+function pkgValue(kid){ const c=contractOfPkg(kid); const v=c? contractValue(c) : 0; return v>0? v : N((pkgOf(kid)||{}).estimate); }
+/** Tiến độ gộp nhiều gói thầu (dự án, hạng mục): trọng số của đầu việc chỉ so được trong gói, nên quy ra giá trị
+ *  = giá trị gói × trọng số ÷ tổng trọng số các đầu việc của gói, rồi bình quân theo giá trị. Gói chưa có giá trị
+ *  lấy bằng bình quân các gói đã có giá trị; nếu không gói nào có giá trị thì bình quân theo trọng số như cũ. */
+function vavg(items, f){
+  if(!items.length) return 0;
+  const keys=[...new Set(items.map(s=>s.packageId||''))];
+  const pv={}; keys.forEach(k=>pv[k]=k?pkgValue(k):0);
+  const known=keys.filter(k=>pv[k]>0); if(!known.length) return wavg(items,f);
+  const avg=sum(known,k=>pv[k])/known.length;
+  const tw={}; keys.forEach(k=>tw[k]=sum(D('schedule').filter(s=>(s.packageId||'')===k && (k || s.projectId===items[0].projectId)), s=>N(s.weight)||1)||1);
+  const val=s=>{ const k=s.packageId||''; return (pv[k]>0?pv[k]:avg)*(N(s.weight)||1)/tw[k]; };
+  const w=sum(items,val); return w? sum(items, s=>val(s)*f(s))/w : 0;
+}
+function projProgress(pid){ const p=projOf(pid); if(p && /hoàn thành|quyết toán/i.test(p.status||'') && !D('schedule').some(s=>s.projectId===pid)) return 100; return vavg(D('schedule').filter(s=>s.projectId===pid), s=>N(s.progress)); }
+function projExpected(pid){ return vavg(D('schedule').filter(s=>s.projectId===pid), s=>expectedPct(s)); }
 function pkgProgress(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>N(s.progress)); }
 function pkgExpected(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>expectedPct(s)); }
-function itemProgress(it){ const ss=D('schedule').filter(s=>s.itemId===it.id); return ss.length? wavg(ss,s=>N(s.progress)) : N(it.progress); }
+function itemProgress(it){ const ss=D('schedule').filter(s=>s.itemId===it.id); return ss.length? vavg(ss,s=>N(s.progress)) : N(it.progress); }
 /* --- vốn đầu tư công, giải ngân (phân hệ Kế hoạch vốn) --- */
 const CAP_MINUS = 'Điều chỉnh giảm kế hoạch năm';
 const isAnnualCap = c => c.kind && !/trung hạn/i.test(c.kind);
@@ -238,6 +260,20 @@ function capTarget(pid, year, q){ if(q>=4) return 100; const c=D('capitals').fin
 function capTargetAt(pid, year, date=TODAY){ const y=N(year); if(N(date.slice(0,4))<y) return 0; if(N(date.slice(0,4))>y) return 100;
   const m=N(date.slice(5,7)), q=Math.floor((m-1)/3)+1; const qs=y+'-'+pad((q-1)*3+1)+'-01', qe=q<4? y+'-'+pad(q*3+1)+'-01' : (y+1)+'-01-01';
   const a=q>1? capTarget(pid,y,q-1) : 0, b=capTarget(pid,y,q); return a+(b-a)*Math.min(1,days(qs,date)/Math.max(1,days(qs,qe))); }
+/* --- kế hoạch thanh toán: tình trạng từng đợt (dùng chung cho bảng, cảnh báo, báo cáo) --- */
+/** Số đã thanh toán của đợt kế hoạch: các hồ sơ thanh toán gắn với đợt ở trạng thái Đã thanh toán. */
+function planPaid(p){ return sum(D('payments').filter(x=>x.payPlanId===p.id && x.status==='Đã thanh toán'),'amount'); }
+/** Tình trạng đợt: Đã thực hiện (có hồ sơ gắn đợt đã được chi) · Đang trình thanh toán · Quá hạn N ngày · Sắp đến hạn (15 ngày) · Chưa đến hạn. */
+function planState(p){
+  const ps=D('payments').filter(x=>x.payPlanId===p.id), paid=planPaid(p);
+  if(ps.some(x=>x.status==='Đã thanh toán')) return {k:'ok', t:'Đã thực hiện', paid};
+  const proc=ps.some(x=>x.status==='Đề nghị' || x.status==='Đang trình KBNN');
+  const left=p.planDate? days(TODAY,p.planDate) : null;
+  if(left!==null && left<0) return {k:'bad', t:'Quá hạn '+(-left)+' ngày'+(proc?', đang trình':''), paid, late:-left, proc};
+  if(proc) return {k:'info', t:'Đang trình thanh toán', paid};
+  if(left!==null && left<=15) return {k:'warn', t:left? 'Còn '+left+' ngày đến hạn' : 'Đến hạn hôm nay', paid};
+  return {k:'', t:'Chưa đến hạn', paid};
+}
 /* --- nghiệm thu, quyết toán, GPMB --- */
 function warrantyEnd(a){ return a.warrantyUntil || (a.date && N(a.warrantyMonths)? isoLocal(new Date(new Date(a.date).setMonth(new Date(a.date).getMonth()+N(a.warrantyMonths)))) : ''); }
 function settleState(x){
@@ -268,21 +304,19 @@ function alerts(){
     else if(left>=0 && left<=60 && done<90) out.push({lvl:'warn', mod:'goi-thau', text:`Hợp đồng <b>${esc(c.number)}</b> còn ${left} ngày đến hạn (${fmtDate(e)}), khối lượng thực hiện ${fmtP(done)}.`});
   });
   /* Bảo lãnh hợp đồng, giấy phép… sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực */
-  const expiry=(until, label, mod)=>{ if(!until) return; const left=days(TODAY,until);
-    if(left<0 && left>=-90) out.push({lvl:'bad', mod, text:`${label} đã hết hiệu lực từ ${fmtDate(until)} (${-left} ngày).`});
+  /* keep=true: nhắc mãi đến khi được cập nhật (bảo lãnh HĐ, giấy phép); bảo hành hết hạn là bình thường nên chỉ nhắc 90 ngày */
+  const expiry=(until, label, mod, keep=true)=>{ if(!until) return; const left=days(TODAY,until);
+    if(left<0 && (keep || left>=-90)) out.push({lvl:'bad', mod, text:`${label} đã hết hiệu lực từ ${fmtDate(until)} (${-left} ngày).`});
     else if(left>=0 && left<=30) out.push({lvl:'warn', mod, text:`${label} sắp hết hiệu lực: còn ${left} ngày (đến ${fmtDate(until)}).`}); };
   D('contracts').filter(c=>inFilter(contractPid(c))).forEach(c=>{ const k=pkgOf(c.packageId); if(k && /thanh lý/i.test(k.status||'')) return;
     expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${esc(c.number)}</b>`, 'goi-thau');
     if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${esc(c.number)}</b>`, 'goi-thau'); });
   D('legal').filter(l=>l.validUntil && inFilter(l.projectId)).forEach(l=>{ const p=projOf(l.projectId); if(p && /hoàn thành|quyết toán/i.test(p.status||'')) return;
     const k=l.packageId&&pkgOf(l.packageId); expiry(l.validUntil, `${esc(l.type)} <b>${esc(l.number)}</b> (${esc(k?k.code:(p?p.code:''))})`, k?'goi-thau':'du-an'); });
-  D('payplans').forEach(p=>{
-    const c=get('contracts',p.contractId); if(!c||!inFilter(contractPid(c))) return;
-    if(p.planDate<TODAY && p.planDate>addDays(TODAY,-60)){
-      const paid=D('payments').some(x=>x.contractId===c.id && x.date>=addDays(p.planDate,-45) && x.status==='Đã thanh toán');
-      if(!paid) out.push({lvl:'warn', mod:'thanh-toan', text:`Kế hoạch thanh toán <b>${esc(p.phase)}</b> HĐ ${esc(c.number)} (${fmtTy(p.amount)}) đến hạn ${fmtDate(p.planDate)} chưa có hồ sơ đã thanh toán.`});
-    }
-  });
+  /* Đợt thanh toán quá hạn: nhắc cho đến khi đợt được thực hiện (không còn tự mất sau 60 ngày); nhiều đợt thì gom một dòng */
+  const lates=D('payplans').map(p=>({p, c:get('contracts',p.contractId), st:planState(p)})).filter(x=>x.c && inFilter(contractPid(x.c)) && x.st.late && pct(contractPaid(x.c.id),contractValue(x.c))<100).sort((a,b)=>b.st.late-a.st.late);
+  if(lates.length>3) out.push({lvl:lates.some(x=>x.st.late>30)?'bad':'warn', mod:'thanh-toan', text:`<b>${lates.length} đợt kế hoạch thanh toán quá hạn</b> chưa thực hiện, tổng ${fmtTy(sum(lates,x=>N(x.p.amount)))}; lâu nhất ${lates[0].st.late} ngày (đợt ${esc(lates[0].p.phase)} HĐ ${esc(lates[0].c.number)}).`});
+  else lates.forEach(({p,c,st})=>out.push({lvl:st.late>30?'bad':'warn', mod:'thanh-toan', text:`Kế hoạch thanh toán <b>${esc(p.phase)}</b> HĐ ${esc(c.number)} (${fmtTy(p.amount)}) đến hạn ${fmtDate(p.planDate)}, quá hạn ${st.late} ngày chưa thực hiện${st.proc?' (hồ sơ đang trình)':''}.`}));
   /* Giải ngân năm hiện tại thấp hơn kịch bản */
   const Y=TODAY.slice(0,4);
   projects().filter(p=>inFilter(p.id)).forEach(p=>{ const plan=capPlan(p.id,Y); if(!plan) return;
@@ -290,8 +324,8 @@ function alerts(){
     if(tg-done>10) out.push({lvl:tg-done>25?'bad':'warn', mod:'von', text:`Dự án <b>${esc(p.code)}</b> giải ngân năm ${Y} mới đạt ${fmtP(done)} kế hoạch vốn (kịch bản đến nay ${fmtP(tg)}).`}); });
   /* Bảo hành, bảo lãnh bảo hành sắp hết hoặc đã hết */
   D('acceptances').filter(a=>inFilter(a.projectId)).forEach(a=>{ const p=projOf(a.projectId)||{}; const k=a.packageId&&pkgOf(a.packageId);
-    const w=warrantyEnd(a); if(w) expiry(w, `Thời hạn bảo hành ${esc(k?k.code:p.code||'')} (${esc(a.number||a.kind||'')})`, 'nghiem-thu');
-    expiry(a.warrantyGuaranteeUntil, `Bảo lãnh bảo hành ${esc(k?k.code:p.code||'')}`, 'nghiem-thu'); });
+    const w=warrantyEnd(a); if(w) expiry(w, `Thời hạn bảo hành ${esc(k?k.code:p.code||'')} (${esc(a.number||a.kind||'')})`, 'nghiem-thu', false);
+    expiry(a.warrantyGuaranteeUntil, `Bảo lãnh bảo hành ${esc(k?k.code:p.code||'')}`, 'nghiem-thu', false); });
   /* Quyết toán quá hạn, đã phê duyệt mà chưa tất toán */
   D('settlements').filter(x=>inFilter(x.projectId)).forEach(x=>{ const p=projOf(x.projectId)||{}; const st=settleState(x);
     if(st.k==='bad'||st.k==='warn') out.push({lvl:st.k, mod:'quyet-toan', text:`Quyết toán dự án <b>${esc(p.code||'')}</b>: ${st.t.toLowerCase()} (hạn ${fmtDate(x.deadline)}).`});
@@ -337,7 +371,7 @@ function fieldHTML(f, v, rec={}){
   const val = v ?? f.def ?? '';
   switch(f.type){
     case 'textarea': input=`<textarea id="${id}" rows="${f.rows||3}" placeholder="${esc(f.ph||'')}">${esc(val)}</textarea>`; break;
-    case 'select': { const list=typeof f.options==='function'?f.options():f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>`; break; }
+    case 'select': { const list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>`; break; }
     case 'money': input=`<input id="${id}" type="number" step="1" min="0" value="${esc(val)}" data-money><span class="hint" id="${id}_h">${val!==''?fmtVND(val)+' đồng':''}</span>`; break;
     case 'number': case 'percent': input=`<input id="${id}" type="number" step="any" ${f.type==='percent'?'min="0" max="100"':''} value="${esc(val)}">`; break;
     case 'date': input=`<input id="${id}" type="date" value="${esc(val)}">`; break;
@@ -361,6 +395,10 @@ function openForm({title, fields, value={}, onSave, narrow, submit='Lưu'}){
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
   fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
+  /* Ô chọn phụ thuộc ô khác (dep): đổi ô gốc thì nạp lại danh sách */
+  fields.filter(f=>f.dep && f.type==='select').forEach(f=>{ const src=$('#f_'+f.dep), el=$('#f_'+f.key); if(!src||!el) return;
+    const fill=()=>{ const cur=el.value; el.innerHTML=opts(f.options(src.value), cur, f.req?null:'— Chọn —'); };
+    fill(); src.addEventListener('change', fill); });
   form.onsubmit=async e=>{
     e.preventDefault();
     const v={...value}; const err=$('#mform_err'); err.textContent='';

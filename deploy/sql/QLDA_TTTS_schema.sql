@@ -933,3 +933,37 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103105818_PhuLucVaDotThanhToan'
+)
+BEGIN
+    ALTER TABLE [Payments] ADD [PayPlanId] nvarchar(64) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103105818_PhuLucVaDotThanhToan'
+)
+BEGIN
+    ALTER TABLE [ContractAddenda] ADD [Status] nvarchar(50) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103105818_PhuLucVaDotThanhToan'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261103105818_PhuLucVaDotThanhToan', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+

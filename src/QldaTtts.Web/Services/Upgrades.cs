@@ -40,6 +40,38 @@ public static class Upgrades
 
         // 3) Phiên bản 1.1: chức năng Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026), chạy một lần
         CapXa(db);
+
+        // 4) Phiên bản 1.2: trạng thái phụ lục, gắn hồ sơ thanh toán với đợt kế hoạch, chạy một lần
+        V12(db);
+    }
+
+    /// <summary>
+    /// Phụ lục đã nhập trước bản 1.2 coi là đã duyệt (giữ nguyên giá trị hợp đồng đang hiển thị).
+    /// Hồ sơ thanh toán chưa gắn đợt kế hoạch: tự gắn theo ngày (hồ sơ đầu tiên từ 45 ngày trước hạn đợt đến trước khoảng của đợt sau),
+    /// kế toán kiểm tra lại tại Quản lý thanh toán → Kế hoạch thanh toán.
+    /// </summary>
+    private static void V12(AppDbContext db)
+    {
+        const string key = "upgrade:1.2-phu-luc-dot-thanh-toan";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        foreach (var a in db.Addenda.Where(a => a.Status == null || a.Status == "").ToList()) a.Status = "Đã duyệt";
+        var pays = db.Payments.Where(p => p.ContractId != null).ToList();
+        foreach (var g in db.PayPlans.AsNoTracking().Where(p => p.ContractId != null && p.PlanDate != null).ToList().GroupBy(p => p.ContractId))
+        {
+            var plans = g.OrderBy(p => p.PlanDate).ToList();
+            var free = pays.Where(p => p.ContractId == g.Key && p.Date != null && p.Status != "Từ chối" && string.IsNullOrEmpty(p.PayPlanId)).OrderBy(p => p.Date).ToList();
+            if (pays.Any(p => p.ContractId == g.Key && !string.IsNullOrEmpty(p.PayPlanId))) continue; // hợp đồng đã được gắn tay
+            for (var i = 0; i < plans.Count; i++)
+            {
+                var from = plans[i].PlanDate!.Value.AddDays(-45);
+                DateOnly? to = i + 1 < plans.Count ? plans[i + 1].PlanDate!.Value.AddDays(-45) : null;
+                var hit = free.FirstOrDefault(p => p.Date >= from && (to is null || p.Date < to));
+                if (hit is null) continue;
+                hit.PayPlanId = plans[i].Id; free.Remove(hit);
+            }
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
     }
 
     /// <summary>Danh mục và quyền cho 4 phân hệ mới (kế hoạch vốn, nghiệm thu bàn giao, quyết toán, GPMB) trên hệ thống đã khởi tạo.</summary>

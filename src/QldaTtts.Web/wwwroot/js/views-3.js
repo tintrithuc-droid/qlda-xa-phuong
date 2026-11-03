@@ -89,7 +89,8 @@ ACT['pay-done']=(id)=>{ const p=get('payments',id);
 /* ===== BÁO CÁO, THỐNG KÊ (UC43–48) ===== */
 const REPORTS = [
   ['tonghop','Báo cáo tổng hợp tình hình thực hiện dự án'],['tiendo','Báo cáo tiến độ thực hiện dự án và các gói thầu'],['hopdong','Báo cáo tình hình thực hiện hợp đồng'],
-  ['khoiluong','Báo cáo khối lượng thực hiện, nghiệm thu và thanh toán'],['thoigian','Báo cáo tổng hợp theo dự án, gói thầu và thời gian']];
+  ['khoiluong','Báo cáo khối lượng thực hiện, nghiệm thu và thanh toán'],['thoigian','Báo cáo tổng hợp theo dự án, gói thầu và thời gian'],
+  ['giaingan','Báo cáo tình hình giải ngân kế hoạch vốn đầu tư công'],['quyettoan','Báo cáo tình hình quyết toán dự án hoàn thành']];
 function buildReport(type, f){
   const ps=projects().filter(p=>inFilter(p.id) && (!f.pid||p.id===f.pid));
   const pids=ps.map(p=>p.id);
@@ -106,6 +107,12 @@ function buildReport(type, f){
     const inR=v=>(!f.from||v.date>=f.from)&&(!f.to||v.date<=f.to);
     return {head:['Hợp đồng','Mã hiệu','Nội dung công việc','ĐVT','KL hợp đồng','Đơn giá','KL thực hiện kỳ','KL nghiệm thu kỳ','KL thực hiện lũy kế','KL nghiệm thu lũy kế','Giá trị nghiệm thu lũy kế','Thực hiện (%)'], money:[5,10],
       rows:bq.map(b=>{ const vs=D('volumes').filter(v=>v.boqId===b.id); const dq=sum(vs.filter(v=>!f.to||v.date<=f.to),'doneQty'), aq=sum(vs.filter(v=>!f.to||v.date<=f.to),'acceptedQty'); return [(get('contracts',b.contractId)||{}).number,b.code,b.name,b.unit,N(b.qty),N(b.price),sum(vs.filter(inR),'doneQty'),sum(vs.filter(inR),'acceptedQty'),dq,aq,aq*N(b.price),+pct(dq,b.qty).toFixed(1)]; })}; }
+  if(type==='giaingan'){ const Y=(f.to||TODAY).slice(0,4), upto=f.to||(Y===TODAY.slice(0,4)?TODAY:Y+'-12-31');
+    return {head:['Mã dự án','Tên dự án','Vai trò của Ban','Nguồn vốn','KH trung hạn','Kế hoạch vốn năm '+Y,'Giải ngân đến '+fmtDate(upto),'Tỷ lệ giải ngân (%)','Kịch bản đến kỳ (%)','Chênh lệch (%)'], money:[4,5,6],
+      rows:ps.map(p=>{ const plan=capPlan(p.id,Y), d=disbursed(p.id,Y,upto), tg=capTargetAt(p.id,Y,upto); return [p.code,p.name,p.boardRole||'',p.capital||'',capMidTerm(p.id),plan,d,+pct(d,plan).toFixed(2),+tg.toFixed(1),+(pct(d,plan)-tg).toFixed(2)]; }).filter(r=>r[4]||r[5]||r[6])}; }
+  if(type==='quyettoan') return {head:['Mã dự án','Tên dự án','Trạng thái dự án','Ngày hoàn thành','Hạn lập quyết toán','Ngày trình','Giá trị đề nghị','Giá trị thẩm tra','Giá trị phê duyệt','Quyết định phê duyệt','Ngày tất toán','Tình trạng'], money:[6,7,8],
+    rows:ps.flatMap(p=>{ const xs=D('settlements').filter(x=>x.projectId===p.id); if(!xs.length) return /hoàn thành|bàn giao|quyết toán/i.test(p.status||'')? [[p.code,p.name,p.status,'','','',0,0,0,'','','Chưa lập hồ sơ quyết toán']] : [];
+      return xs.map(x=>[p.code,p.name,p.status,fmtDate(x.completedDate),fmtDate(x.deadline),fmtDate(x.submittedDate),N(x.proposedValue),N(x.auditedValue),N(x.approvedValue),(x.number||'')+(x.approvalDate?' ngày '+fmtDate(x.approvalDate):''),fmtDate(x.closedDate),settleState(x).t]); })};
   // theo thời gian: gom theo tháng
   const m={}; const inR=d=>(!f.from||d>=f.from)&&(!f.to||d<=f.to);
   D('volumes').filter(v=>cs.some(c=>c.id===v.contractId) && inR(v.date)).forEach(v=>{ const b=get('boq',v.boqId); if(!b) return; const c=get('contracts',v.contractId); const key=v.date.slice(0,7)+'|'+(pkgOf(c.packageId)||{}).code; const o=m[key]=m[key]||{dv:0,av:0,pd:0,pid:contractPid(c)}; o.dv+=N(v.doneQty)*N(b.price); o.av+=N(v.acceptedQty)*N(b.price); });
@@ -160,7 +167,7 @@ VIEWS['quan-tri']=()=>{
   else if(t==='files') body=storageView();
   else if(t==='org') body=brandView();
   else { const cnt=COLS.filter(c=>c!=='logs').map(c=>[COL_LABEL[c], D(c).length]);
-    body=`<div class="grid g2"><div class="card"><h2>Thông tin hệ thống</h2><dl class="kv"><dt>Chế độ lưu trữ</dt><dd>Cơ sở dữ liệu SQL Server tập trung trên máy chủ</dd><dt>Kho tệp đính kèm</dt><dd>Thư mục App_Data/files trên máy chủ (tối đa 500 MB mỗi tệp)</dd><dt>Ngày hệ thống</dt><dd>${fmtDate(TODAY)}</dd></dl>
+    body=`<div class="grid g2"><div class="card"><h2>Thông tin hệ thống</h2><dl class="kv"><dt>Chế độ lưu trữ</dt><dd>Cơ sở dữ liệu tập trung trên máy chủ</dd><dt>Kho tệp đính kèm</dt><dd>Thư mục App_Data/files trên máy chủ (tối đa 500 MB mỗi tệp)</dd><dt>Ngày hệ thống</dt><dd>${fmtDate(TODAY)}</dd></dl>
       <h3 style="margin-top:14px">Số bản ghi</h3>${table([{h:'Loại dữ liệu',f:r=>esc(r[0])},{h:'Số bản ghi',r:1,f:r=>r[1]}], cnt.map(x=>Object.assign(x,{id:x[0]})))}</div>
       <div class="card"><h2>Sao lưu và phục hồi dữ liệu</h2><p class="muted">Tệp sao lưu .json chứa toàn bộ dữ liệu nghiệp vụ, danh mục, nhóm quyền, người dùng (mật khẩu đã mã hóa) và danh sách tệp đính kèm. Bản sao lưu đầy đủ (.zip) chứa thêm toàn bộ tệp đính kèm. Chỉ quản trị hệ thống được sao lưu, phục hồi.</p>
       <div class="toolbar"><button class="btn primary" data-act="backup">Tải tệp sao lưu dữ liệu (.json)</button><button class="btn" data-act="backup-full">Tải bản sao lưu đầy đủ kèm tệp (.zip)</button><button class="btn" data-act="restore">Phục hồi từ tệp sao lưu</button></div>
@@ -231,7 +238,7 @@ VIEWS['hien-truong']=()=>{
   const tiles=[
     ['du-an','proj','Tra cứu dự án','Thông tin, hồ sơ, tình trạng'],['upd-quick','gantt','Cập nhật tiến độ','Nhập % hoàn thành hạng mục','tien-do'],['add-diary','book','Ghi nhật ký thi công','Kèm hình ảnh hiện trường','nhat-ky'],
     ['goi-thau','doc','Hợp đồng','Tra cứu hợp đồng, phụ lục'],['khoi-luong','ruler','Khối lượng','Thực hiện và nghiệm thu'],['thanh-toan','coin','Thanh toán','Giá trị đã thanh toán'],
-    ['tong-quan','dash','Tổng quan','Dashboard điều hành'],['bao-cao','chart','Báo cáo','Xem, xuất báo cáo'],['huong-dan','help','Hướng dẫn','Tài liệu, video hướng dẫn'],['chpw','key','Đổi mật khẩu','Bảo mật tài khoản'],['logout','out','Đăng xuất','Thoát khỏi hệ thống']];
+    ['tong-quan','dash','Tổng quan','Bảng điều hành'],['bao-cao','chart','Báo cáo','Xem, xuất báo cáo'],['huong-dan','help','Hướng dẫn','Tài liệu, video hướng dẫn'],['chpw','key','Đổi mật khẩu','Bảo mật tài khoản'],['logout','out','Đăng xuất','Thoát khỏi hệ thống']];
   const my=D('diaries').filter(d=>inFilter(d.projectId)).sort(by('date',-1)).slice(0,3);
   return `<div class="head"><div class="grow"><div class="eyebrow">Xin chào</div><h1>${esc(S.user.name)}</h1><p>${esc((myGroup()||{}).name||'')} · ${fmtDate(TODAY)}</p></div></div>
   <div class="tiles">${tiles.filter(t=>{ const mod=t[4]||t[0]; return ['chpw','logout'].includes(t[0]) || (t[4]? can(t[4],'edit') : can(mod)); }).map(([k,i,l,s,m])=>`<button class="tile" ${MODULES.some(x=>x.key===k)?`data-act="go" data-id="${k}"`:`data-act="${k}"`}>${ic(i)}<b>${l}</b><span>${s}</span></button>`).join('')}</div>
@@ -242,7 +249,7 @@ ACT['huong-dan']=()=>{ location.hash='huong-dan'; };
 ACT['upd-quick']=()=>openForm({title:'Cập nhật tiến độ hiện trường', narrow:true, fields:[{key:'sid',label:'Hạng mục tiến độ',type:'select',req:true,full:true,options:()=>D('schedule').filter(s=>inFilter(s.projectId)&&N(s.progress)<100).sort(by('planEnd')).map(s=>[s.id,(pkgOf(s.packageId)||{}).code+' · '+s.name+' ('+N(s.progress)+'%)'])},{key:'progress',label:'Tiến độ thực tế lũy kế (%)',type:'percent',req:true,full:true},{key:'note',label:'Ghi chú',type:'textarea'},{...PROG_ATT(null), rid:(r,v)=>v.sid, ref:TODAY, refFrom:null}],
   onSave:v=>{ const s=get('schedule',v.sid); const h=[...(s.history||[]).filter(x=>x.date!==TODAY), {date:TODAY, progress:v.progress, note:v.note||'', by:S.user.name}].sort(by('date')); return save('schedule',{...s, progress:v.progress, history:h, actualStart:s.actualStart||TODAY, actualEnd:v.progress>=100?TODAY:''}, s.name+' → '+v.progress+'%'); }});
 
-/* ===== ĐỐI CHIẾU DANH MỤC CHỨC NĂNG BC KTKT (62 use case) ===== */
+/* ===== DANH MỤC CHỨC NĂNG (62 chức năng gốc + bổ sung cấp xã) ===== */
 const UCS = [
  ['Quản lý dự án','du-an',['Danh sách dự án','Thêm, cập nhật thông tin dự án','Quản lý công việc thuộc dự án','Quản lý hồ sơ pháp lý thuộc dự án','Theo dõi tình trạng thực hiện dự án']],
  ['Mô hình hóa công trình','mo-hinh',['Quản lý file mô hình công trình','Cập nhật file mô hình công trình','Tìm kiếm','Quản lý thông tin các hạng mục công trình']],
@@ -251,11 +258,16 @@ const UCS = [
  ['Quản lý nhật ký thi công','nhat-ky',['Tạo và cập nhật nhật ký thi công','Quản lý thông tin công việc thực hiện','Cập nhật hình ảnh hiện trường','Theo dõi và tra cứu nhật ký']],
  ['Quản lý khối lượng','khoi-luong',['Quản lý khối lượng theo hợp đồng','Cập nhật khối lượng thực hiện','Theo dõi khối lượng nghiệm thu','Tổng hợp khối lượng thực hiện']],
  ['Quản lý thanh toán','thanh-toan',['Quản lý kế hoạch thanh toán','Quản lý hồ sơ thanh toán','Theo dõi giá trị đã thanh toán','Tổng hợp giá trị thanh toán']],
- ['Dashboard tổng quan','tong-quan',['Xem tổng quan tình hình thực hiện các dự án','Hiển thị số lượng dự án theo trạng thái','Tổng hợp tiến độ thực hiện dự án và gói thầu','Tổng hợp tình hình thực hiện hợp đồng','Tổng hợp khối lượng thực hiện và thanh toán','Hiển thị các cảnh báo, công việc và vấn đề cần xử lý']],
+ ['Tổng quan điều hành','tong-quan',['Xem tổng quan tình hình thực hiện các dự án','Hiển thị số lượng dự án theo trạng thái','Tổng hợp tiến độ thực hiện dự án và gói thầu','Tổng hợp tình hình thực hiện hợp đồng','Tổng hợp khối lượng thực hiện và thanh toán','Hiển thị các cảnh báo, công việc và vấn đề cần xử lý']],
  ['Biểu đồ trực quan','tong-quan',['Biểu đồ tổng hợp tình hình dự án','Biểu đồ theo dõi tiến độ thực hiện','Biểu đồ giá trị hợp đồng và thực hiện hợp đồng','Biểu đồ khối lượng thực hiện, nghiệm thu và thanh toán','Biểu đồ so sánh kế hoạch và thực tế']],
  ['Báo cáo, thống kê','bao-cao',['Báo cáo tổng hợp tình hình thực hiện dự án','Báo cáo tiến độ thực hiện dự án và các gói thầu','Báo cáo tình hình thực hiện hợp đồng','Báo cáo khối lượng thực hiện, nghiệm thu và thanh toán','Báo cáo tổng hợp theo từng dự án, gói thầu và thời gian','Cho phép lọc, tra cứu và xuất báo cáo']],
  ['Quản trị hệ thống','quan-tri',['Quản lý người dùng','Quản lý nhóm người dùng','Phân quyền chức năng và dữ liệu','Quản lý danh mục dùng chung','Theo dõi nhật ký hoạt động']],
- ['Ứng dụng trên thiết bị di động','hien-truong',['Đăng nhập, xác thực người dùng','Tra cứu thông tin dự án','Cập nhật tiến độ thực hiện','Cập nhật nhật ký thi công, hình ảnh hiện trường','Tra cứu thông tin hợp đồng, khối lượng và thanh toán','Xem Dashboard tổng quan','Xem báo cáo, thống kê','Cập nhật, thay đổi mật khẩu người dùng','Đăng xuất khỏi hệ thống']]
+ ['Ứng dụng trên thiết bị di động','hien-truong',['Đăng nhập, xác thực người dùng','Tra cứu thông tin dự án','Cập nhật tiến độ thực hiện','Cập nhật nhật ký thi công, hình ảnh hiện trường','Tra cứu thông tin hợp đồng, khối lượng và thanh toán','Xem tổng quan điều hành','Xem báo cáo, thống kê','Cập nhật, thay đổi mật khẩu người dùng','Đăng xuất khỏi hệ thống']],
+ ['Vai trò, hình thức quản lý dự án (Luật Xây dựng 2025)','du-an',['Ghi vai trò của Ban: chủ đầu tư, quản lý dự án, tư vấn quản lý dự án','Ghi người quyết định đầu tư, hình thức tổ chức quản lý dự án','Phân loại dự án và hồ sơ dự án (BCNCKT, BCKTKT)']],
+ ['Kế hoạch vốn, giải ngân','von',['Quản lý kế hoạch vốn trung hạn và vốn giao hằng năm','Theo dõi giải ngân so với kịch bản theo quý','Cảnh báo dự án chậm giải ngân','Báo cáo tình hình giải ngân']],
+ ['Giải phóng mặt bằng','gpmb',['Theo dõi bồi thường, chi trả theo khu vực','Theo dõi bàn giao mặt bằng, cảnh báo chậm bàn giao']],
+ ['Nghiệm thu, bàn giao, bảo hành','nghiem-thu',['Nghiệm thu theo giai đoạn thi công (NĐ 207/2026)','Nghiệm thu hoàn thành, bàn giao đưa vào sử dụng','Theo dõi bảo hành, bảo lãnh bảo hành, cảnh báo trước 30 ngày']],
+ ['Quyết toán dự án hoàn thành','quyet-toan',['Theo dõi hạn lập, thẩm tra, phê duyệt quyết toán','Cảnh báo quá hạn quyết toán, chưa tất toán tài khoản','Báo cáo tình hình quyết toán']]
 ];
 const UC_WHERE = {
  1:'Danh sách, tìm kiếm, lọc trạng thái',2:'Biểu mẫu thêm/sửa dự án',3:'Tab Công việc, cảnh báo quá hạn',4:'Tab Hồ sơ pháp lý, đính kèm tệp',5:'Tab Tình trạng thực hiện, đường cong S',
@@ -269,12 +281,17 @@ const UC_WHERE = {
  38:'Biểu đồ trạng thái dự án',39:'Biểu đồ tiến độ kế hoạch – thực tế',40:'Biểu đồ giá trị HĐ, thực hiện, thanh toán',41:'Biểu đồ thực hiện, nghiệm thu, thanh toán',42:'Đường cong S',
  43:'Mẫu báo cáo 1',44:'Mẫu báo cáo 2',45:'Mẫu báo cáo 3',46:'Mẫu báo cáo 4',47:'Mẫu báo cáo 5 theo tháng',48:'Bộ lọc, tra cứu, xuất Excel',
  49:'Thêm, sửa, khóa, đặt lại mật khẩu',50:'Nhóm người dùng',51:'Ma trận quyền theo phân hệ + phạm vi dự án',52:'14 loại danh mục, thêm loại mới',53:'Nhật ký thao tác, đăng nhập, xuất Excel',
- 54:'Màn hình đăng nhập, mật khẩu băm PBKDF2 trên máy chủ, khóa 15 phút khi sai 5 lần',55:'Ô Tra cứu dự án',56:'Ô Cập nhật tiến độ nhanh',57:'Ô Ghi nhật ký, chụp/chọn ảnh',58:'Ô Hợp đồng, Khối lượng, Thanh toán',59:'Ô Tổng quan',60:'Ô Báo cáo',61:'Ô Đổi mật khẩu',62:'Ô Đăng xuất'};
+ 54:'Màn hình đăng nhập, mật khẩu băm PBKDF2 trên máy chủ, khóa 15 phút khi sai 5 lần',55:'Ô Tra cứu dự án',56:'Ô Cập nhật tiến độ nhanh',57:'Ô Ghi nhật ký, chụp/chọn ảnh',58:'Ô Hợp đồng, Khối lượng, Thanh toán',59:'Ô Tổng quan',60:'Ô Báo cáo',61:'Ô Đổi mật khẩu',62:'Ô Đăng xuất',
+ 63:'Biểu mẫu dự án: trường Vai trò của Ban',64:'Biểu mẫu dự án: Người quyết định đầu tư, Hình thức quản lý dự án',65:'Biểu mẫu dự án: Loại dự án, Hồ sơ dự án',
+ 66:'Thẻ Kế hoạch vốn: trung hạn, vốn năm, bổ sung, điều chỉnh giảm',67:'Thẻ Theo dõi giải ngân, Lũy kế theo quý; kịch bản nhập theo dự án',68:'Cảnh báo trên Tổng quan và menu khi chậm quá 10%',69:'Mẫu báo cáo 6, xuất Excel',
+ 70:'Bảng tiến độ bồi thường theo khu vực, đoạn tuyến',71:'Hạn bàn giao, cảnh báo chậm bàn giao',
+ 72:'Loại nghiệm thu theo giai đoạn, đính kèm biên bản',73:'Nghiệm thu hoàn thành, bàn giao, đơn vị tiếp nhận',74:'Thẻ Theo dõi bảo hành, cảnh báo 30 ngày',
+ 75:'Ngày trình, thẩm tra, phê duyệt, tất toán; danh sách dự án hoàn thành chưa lập hồ sơ',76:'Cảnh báo quá hạn, phê duyệt quá 60 ngày chưa tất toán',77:'Mẫu báo cáo 7, xuất Excel'};
 VIEWS['doi-chieu']=()=>{
   let n=0; const rows=[]; UCS.forEach(([g,mod,list])=>list.forEach(u=>{ n++; rows.push({id:'uc'+n, n, g, mod, u, w:UC_WHERE[n]||''}); }));
-  return `<div class="head"><div class="grow"><h1>Đối chiếu danh mục chức năng</h1><p>${rows.length}/62 chức năng theo 12 nhóm nghiệp vụ quản lý dự án đầu tư xây dựng đã có trong phần mềm.</p></div></div>
-  <div class="grid g4"><div class="card kpi"><div class="eyebrow">Use case</div><div class="v">${rows.length}/62</div><div class="s">Đáp ứng đầy đủ</div></div><div class="card kpi"><div class="eyebrow">Phân hệ nghiệp vụ</div><div class="v">7/7</div><div class="s">Dự án, gói thầu, tiến độ, nhật ký, khối lượng, thanh toán, mô hình</div></div><div class="card kpi"><div class="eyebrow">Nhóm chức năng</div><div class="v">12</div><div class="s">Kể cả Dashboard, biểu đồ, báo cáo</div></div><div class="card kpi"><div class="eyebrow">Giao diện</div><div class="v" style="font-size:1.05rem;font-family:var(--f-ui)">Web + di động</div><div class="s">Tự thích ứng màn hình</div></div></div>
-  ${table([{h:'STT',r:1,k:'n'},{h:'Nhóm chức năng',k:'g'},{h:'Use case / Chức năng',k:'u'},{h:'Hiện thực trong phần mềm',k:'w'},{h:'Đáp ứng',f:()=>pill('Đã đáp ứng','ok')},{h:'',f:r=>can(r.mod)?`<a href="#${r.mod}">Mở</a>`:''}], rows)}`;
+  return `<div class="head"><div class="grow"><h1>Danh mục chức năng</h1><p>${rows.length} chức năng, ${UCS.length} nhóm nghiệp vụ, bám sát chức năng, nhiệm vụ của Ban Quản lý dự án cấp xã theo Luật Xây dựng 2025, Nghị định 217/2026/NĐ-CP và Nghị định 207/2026/NĐ-CP.</p></div></div>
+  <div class="grid g4"><div class="card kpi"><div class="eyebrow">Chức năng</div><div class="v">${rows.length}</div><div class="s">Đáp ứng đầy đủ, dùng được ngay</div></div><div class="card kpi"><div class="eyebrow">Phân hệ nghiệp vụ</div><div class="v">11</div><div class="s">Từ chuẩn bị đầu tư, vốn, GPMB, thi công đến nghiệm thu, quyết toán</div></div><div class="card kpi"><div class="eyebrow">Nhóm chức năng</div><div class="v">${UCS.length}</div><div class="s">Kể cả tổng quan, biểu đồ, báo cáo</div></div><div class="card kpi"><div class="eyebrow">Giao diện</div><div class="v" style="font-size:1.05rem;font-family:var(--f-ui)">Web + di động</div><div class="s">Tự thích ứng màn hình</div></div></div>
+  ${table([{h:'STT',r:1,k:'n'},{h:'Nhóm chức năng',k:'g'},{h:'Chức năng',k:'u'},{h:'Thực hiện trong phần mềm',k:'w'},{h:'Đáp ứng',f:()=>pill('Đã đáp ứng','ok')},{h:'',f:r=>can(r.mod)?`<a href="#${r.mod}">Mở</a>`:''}], rows)}`;
 };
 
 

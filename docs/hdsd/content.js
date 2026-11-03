@@ -1,30 +1,34 @@
 // Nội dung bộ HDSD theo vai trò. Mỗi khối: h1/h2/h3/p/steps/bullets/img/imgs2/legend/table/note
-const H10 = ['01/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.0 phát hành cài đặt trên máy chủ'];
+const H10 = ['01/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.0', '1.0'];
+const H11 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: bổ sung Kế hoạch vốn – giải ngân, Giải phóng mặt bằng, Nghiệm thu – bàn giao – bảo hành, Quyết toán dự án hoàn thành; vai trò của Ban và người quyết định đầu tư; nhóm Lãnh đạo UBND xã', '1.1'];
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10] },
-  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H10] },
-  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H10] },
-  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H10] },
-  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H10] },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10, H11] },
+  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H10, H11] },
+  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H10, H11] },
+  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H10, H11] },
+  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H10, H11] },
+  ub: { name: 'Lãnh đạo UBND xã', file: 'Lanh dao UBND xa', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1']] },
   dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
-    hist: [H10] },
+    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1']] },
 };
-const MODS = ['Tổng quan', 'Quản lý dự án', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Quản lý thanh toán', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
+const MODS = ['Tổng quan', 'Quản lý dự án', 'Kế hoạch vốn, giải ngân', 'Giải phóng mặt bằng', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Nghiệm thu, bàn giao, bảo hành', 'Quản lý thanh toán', 'Quyết toán dự án', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không truy cập';
 const PERM = {
-  qt: [E, E, E, E, E, E, E, E, E, E],
-  ld: [V, E, V, V, V, V, V, V, V, V],
-  kt: [V, E, E, E, E, E, E, V, V, V],
-  ke: [V, V, N, V, N, N, V, E, V, N],
-  gs: [V, V, V, N, E, E, V, N, N, N],
+  qt: [E, E, E, E, E, E, E, E, E, E, E, E, E, E],
+  ld: [V, E, V, V, V, V, V, V, V, V, V, V, V, V],
+  kt: [V, E, V, E, E, E, E, E, E, E, V, V, V, V],
+  ke: [V, V, E, N, N, V, N, N, V, V, E, E, V, N],
+  gs: [V, V, N, N, V, N, E, E, V, V, N, N, N, N],
+  ub: [V, V, V, V, N, N, V, N, N, V, V, V, V, N],
 };
-const SCOPE = { qt: 'tất cả dự án', ld: 'tất cả dự án', kt: 'tất cả dự án', ke: 'tất cả dự án', gs: 'chỉ các dự án được quản trị hệ thống giao (dữ liệu mẫu: DA‑TP01)' };
+const SCOPE = { qt: 'tất cả dự án', ld: 'tất cả dự án', kt: 'tất cả dự án', ke: 'tất cả dự án', gs: 'chỉ các dự án được quản trị hệ thống giao', ub: 'tất cả dự án của xã/phường' };
 const PURPOSE = {
   qt: 'quản lý tài khoản người dùng, nhóm quyền, danh mục dùng chung, theo dõi nhật ký hoạt động, quản lý kho tệp đính kèm, sao lưu và phục hồi dữ liệu, bảo đảm hệ thống vận hành ổn định và an toàn',
-  ld: 'theo dõi tổng thể tình hình thực hiện các dự án, nắm bắt cảnh báo chậm tiến độ, chỉ đạo xử lý công việc, cập nhật thông tin dự án và khai thác báo cáo phục vụ điều hành',
-  kt: 'quản lý thông tin dự án, tệp mô hình công trình, gói thầu và hợp đồng, lập và cập nhật tiến độ, ghi nhật ký thi công, quản lý khối lượng thực hiện và nghiệm thu',
-  ke: 'lập kế hoạch thanh toán, lập và theo dõi hồ sơ thanh toán, xác nhận giá trị đã chi, đối chiếu khối lượng nghiệm thu và khai thác báo cáo giải ngân',
+  ld: 'theo dõi tổng thể tình hình thực hiện các dự án, giải ngân kế hoạch vốn, giải phóng mặt bằng, nghiệm thu và quyết toán; nắm bắt cảnh báo, chỉ đạo xử lý công việc, cập nhật thông tin dự án và khai thác báo cáo phục vụ điều hành',
+  kt: 'quản lý thông tin dự án, giải phóng mặt bằng, tệp mô hình công trình, gói thầu và hợp đồng, lập và cập nhật tiến độ, ghi nhật ký thi công, quản lý khối lượng, nghiệm thu, bàn giao và theo dõi bảo hành công trình',
+  ke: 'nhập kế hoạch vốn được giao và theo dõi giải ngân so với kịch bản, lập kế hoạch thanh toán, lập và theo dõi hồ sơ thanh toán, xác nhận giá trị đã chi, đối chiếu khối lượng nghiệm thu, theo dõi quyết toán dự án hoàn thành và khai thác báo cáo giải ngân',
   gs: 'ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ thực tế, tra cứu dự án, mô hình và khối lượng trong phạm vi được giao, kể cả trên điện thoại',
+  ub: 'theo dõi tình hình thực hiện các dự án do UBND xã/phường quyết định đầu tư: tiến độ, giải ngân kế hoạch vốn so với kịch bản, giải phóng mặt bằng, nghiệm thu bàn giao, quyết toán dự án hoàn thành; nắm bắt cảnh báo và khai thác báo cáo phục vụ chỉ đạo, điều hành',
 };
 
 const img = (name, cap, w) => ({ img: name, cap, w });
@@ -35,8 +39,8 @@ function common(k) {
   const r = ROLES[k], out = [];
   out.push({ h1: 'GIỚI THIỆU CHUNG' });
   out.push({ h2: 'Mục đích tài liệu' });
-  out.push({ p: `Tài liệu này hướng dẫn cán bộ thuộc nhóm người dùng «${r.name}» sử dụng Phần mềm quản lý dự án đầu tư xây dựng của Ban Quản lý dự án – Trung tâm Thủy sản Thành phố Hồ Chí Minh (sau đây gọi là «phần mềm») để ${PURPOSE[k]}.` });
-  out.push({ p: 'Nội dung được trình bày theo trình tự thao tác thực tế. Mỗi thao tác có hình minh họa chụp trực tiếp từ giao diện phần mềm; số liệu trên hình là dữ liệu mẫu dùng để chạy thử, được đánh dấu «(mẫu)».' });
+  out.push({ p: `Tài liệu này hướng dẫn cán bộ thuộc nhóm người dùng «${r.name}» sử dụng Phần mềm quản lý dự án đầu tư xây dựng của Ban Quản lý dự án đầu tư xây dựng xã/phường (sau đây gọi là «phần mềm») để ${PURPOSE[k]}.` });
+  out.push({ p: 'Nội dung được trình bày theo trình tự thao tác thực tế. Mỗi thao tác có hình minh họa chụp trực tiếp từ giao diện phần mềm; số liệu trên hình là số liệu minh họa.' });
   out.push({ h2: 'Đối tượng sử dụng và phạm vi quyền' });
   out.push({ p: `Tài khoản thuộc nhóm «${r.name}» được phân quyền mặc định như bảng dưới đây. Quản trị hệ thống có thể điều chỉnh quyền theo yêu cầu thực tế của Ban; khi đó phần mềm tự ẩn các chức năng không được phép sử dụng.` });
   out.push({ table: { head: ['TT', 'Phân hệ chức năng', 'Quyền mặc định'], widths: [800, 5200, 3000], rows: MODS.map((m, i) => [String(i + 1), m, PERM[k][i]]) }, cap: `Quyền mặc định của nhóm «${r.name}»` });
@@ -51,7 +55,7 @@ function common(k) {
   out.push({ h2: 'Yêu cầu về thiết bị' });
   out.push({ bullets: [
     'Máy tính: trình duyệt Google Chrome, Microsoft Edge hoặc Cốc Cốc phiên bản mới; độ phân giải màn hình khuyến nghị từ 1366 × 768 trở lên.',
-    'Điện thoại: Android 7.0 trở lên (cài ứng dụng QLDA TTTS hoặc dùng trình duyệt Chrome); iPhone dùng trình duyệt Safari.',
+    'Điện thoại: Android 7.0 trở lên dùng trình duyệt Chrome; iPhone dùng trình duyệt Safari. Có thể thêm phần mềm ra màn hình chính để mở như một ứng dụng.',
     'Kết nối: mạng nội bộ của Ban hoặc kết nối Internet/VPN theo hướng dẫn của quản trị hệ thống. Địa chỉ truy cập do quản trị hệ thống cung cấp.',
   ] });
 
@@ -70,7 +74,7 @@ function common(k) {
   out.push({ p: 'Sau khi đăng nhập, giao diện gồm thanh chức năng bên trái, thanh công cụ phía trên và vùng làm việc ở giữa.' });
   out.push(img(`${k}-giao-dien-chinh`, 'Bố cục giao diện làm việc chính', 16));
   out.push(legend([
-    [1, 'Thanh chức năng: danh sách phân hệ được phép sử dụng, nhóm theo Điều hành – Nghiệp vụ – Khai thác – Tiện ích. Số màu đỏ bên phải là số việc cần chú ý (ví dụ hạng mục chậm tiến độ).'],
+    [1, 'Thanh chức năng: danh sách phân hệ được phép sử dụng, nhóm theo Điều hành – Nghiệp vụ – Khai thác – Tiện ích. Số màu đỏ bên phải là số việc cần chú ý (ví dụ hạng mục chậm tiến độ, dự án chậm giải ngân, bảo hành sắp hết hạn).'],
     [2, 'Tên trang đang mở.'],
     [3, 'Ô chọn dự án làm việc: chọn một dự án để mọi trang chỉ hiển thị số liệu của dự án đó; chọn «Tất cả dự án» để xem toàn bộ.'],
     [4, 'Trạng thái kết nối: «Đã kết nối máy chủ» nghĩa là dữ liệu được lưu tập trung và tự làm mới khoảng 30 giây một lần.'],
@@ -95,7 +99,7 @@ function attachCommon(k) {
   const ro = k === 'ld';
   return [
     { h2: 'Đính kèm và xem tệp' },
-    { p: 'Các hộp nhập liệu có ô **đính kèm tệp** để lưu bản scan văn bản, hợp đồng, biên bản, chứng từ ngay cùng thông tin nhập: quyết định phê duyệt dự án, quyết định phê duyệt kế hoạch và kết quả lựa chọn nhà thầu, hợp đồng đã ký, bảo lãnh, phụ lục, kế hoạch tiến độ, nhật ký thi công, biên bản nghiệm thu, hồ sơ và chứng từ thanh toán, công việc được giao…' },
+    { p: 'Các hộp nhập liệu có ô **đính kèm tệp** để lưu bản scan văn bản, hợp đồng, biên bản, chứng từ ngay cùng thông tin nhập: quyết định phê duyệt dự án, quyết định giao kế hoạch vốn, phương án bồi thường, quyết định phê duyệt kế hoạch và kết quả lựa chọn nhà thầu, hợp đồng đã ký, bảo lãnh, phụ lục, kế hoạch tiến độ, nhật ký thi công, biên bản nghiệm thu, bàn giao, hồ sơ và chứng từ thanh toán, hồ sơ quyết toán, công việc được giao…' },
     { steps: [
       'Trong hộp nhập liệu, tại ô đính kèm, nhấn **Chọn tệp** (2) và chọn một hoặc nhiều tệp trên máy; hoặc kéo thả tệp từ thư mục vào ô này. Trên điện thoại, nút này mở máy ảnh hoặc thư viện ảnh.',
       'Tệp mới chọn hiện ngay bên dưới (3), chưa được gửi lên máy chủ. Nhấn **Bỏ** để bỏ tệp chọn nhầm.',
@@ -131,6 +135,7 @@ const tail = (k, mobile) => {
     ['Thông báo «Tài khoản đã bị khóa»', 'Tài khoản bị quản trị hệ thống khóa hoặc đang trong thời gian khóa tạm. Liên hệ quản trị hệ thống.'],
     ['Không thấy một chức năng trên thanh bên trái', 'Nhóm người dùng của tài khoản chưa được cấp quyền phân hệ đó. Đề nghị quản trị hệ thống xem lại phân quyền.'],
     ['Không thấy dữ liệu của một dự án', 'Kiểm tra ô chọn dự án ở thanh công cụ phía trên; nếu vẫn không thấy, tài khoản chưa được giao phạm vi dự án đó.'],
+    ['Trang Tổng quan báo «chậm giải ngân»', 'Tỷ lệ giải ngân của dự án thấp hơn kịch bản đến ngày hiện tại quá 10%. Mở **Kế hoạch vốn, giải ngân** để xem chi tiết; kiểm tra các hồ sơ thanh toán đã được xác nhận đã chi.'],
     ['Không xóa được một bản ghi', 'Bản ghi còn dữ liệu liên quan (ví dụ gói thầu còn hợp đồng, hợp đồng còn khối lượng). Xử lý các bản ghi liên quan trước.'],
     ['Màn hình báo mất kết nối', 'Kiểm tra mạng; phần mềm tự kết nối lại. Thông tin đang nhập dở trong hộp nhập liệu chưa được lưu cho đến khi nhấn Lưu thành công.'],
     ['Tải tệp đính kèm không được', 'Mỗi tệp tối đa 500 MB; phần mềm không nhận tệp chương trình (.exe, .bat…) vì lý do an toàn.'],
@@ -146,8 +151,9 @@ function mobileSection(k) {
   out.push({ h1: 'SỬ DỤNG TRÊN ĐIỆN THOẠI' });
   out.push({ p: 'Phần mềm tự điều chỉnh giao diện cho màn hình điện thoại, phù hợp với cán bộ làm việc tại hiện trường. Có hai cách sử dụng:' });
   out.push({ bullets: [
-    'Điện thoại Android: cài tệp ứng dụng QLDA_TTTS_v1.0.1.apk theo «Hướng dẫn cài ứng dụng trên điện thoại»; lần đầu mở ứng dụng, nhập địa chỉ máy chủ do quản trị hệ thống cung cấp.',
+    'Điện thoại Android: mở Chrome, truy cập địa chỉ phần mềm, chạm nút **⋮** → **Thêm vào màn hình chính** (hoặc **Cài đặt ứng dụng**) để tạo biểu tượng như một ứng dụng.',
     'iPhone: mở Safari, truy cập địa chỉ phần mềm, nhấn nút Chia sẻ → **Thêm vào MH chính** để tạo biểu tượng như một ứng dụng.',
+    'Chi tiết xem tài liệu «Hướng dẫn sử dụng trên điện thoại».',
   ] });
   out.push({ h2: 'Trang Hiện trường' });
   out.push({ p: 'Sau khi đăng nhập trên điện thoại, chọn **Hiện trường** ở thanh dưới cùng. Trang gồm các ô thao tác nhanh (1) và thanh điều hướng (2) để chuyển giữa Tổng quan, Dự án, Hiện trường, Nhật ký và Menu đầy đủ.' });
@@ -179,9 +185,9 @@ S.dashboard = (k, shotName) => [
   { p: 'Trang **Tổng quan** tổng hợp số liệu của các dự án trong phạm vi được phân quyền, cập nhật tự động theo dữ liệu các bộ phận nhập.' },
   img(shotName, 'Trang Tổng quan tình hình thực hiện', 15),
   ...(shotName === 'ld-tong-quan' ? [legend([
-    [1, 'Các chỉ tiêu chính: số dự án, tổng mức đầu tư, giá trị hợp đồng, giá trị đã giải ngân và số cảnh báo (ô đỏ khi có cảnh báo nghiêm trọng).'],
+    [1, 'Các chỉ tiêu chính: số dự án, tổng mức đầu tư, giá trị hợp đồng, giải ngân năm so với kế hoạch vốn và kịch bản đến ngày hiện tại, số cảnh báo (ô đỏ khi có cảnh báo nghiêm trọng).'],
     [2, 'Biểu đồ: dự án theo trạng thái; tiến độ kế hoạch và thực tế từng gói thầu; giá trị hợp đồng; khối lượng thực hiện – nghiệm thu – thanh toán; đường cong S so sánh kế hoạch và thực tế.'],
-    [3, 'Cảnh báo và việc cần xử lý: hạng mục quá hạn, chậm so với kế hoạch, công việc sắp đến hạn; bảo lãnh hợp đồng, giấy phép và văn bản pháp lý sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực. Nhấn **Xem** để mở ngay nội dung cần xử lý.'],
+    [3, 'Cảnh báo và việc cần xử lý: hạng mục quá hạn, chậm so với kế hoạch, công việc sắp đến hạn; bảo lãnh hợp đồng, giấy phép và văn bản pháp lý sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực; dự án chậm giải ngân so với kịch bản; bảo hành, bảo lãnh bảo hành sắp hết hạn; quyết toán quá hạn; khu vực chậm bàn giao mặt bằng. Nhấn **Xem** để mở ngay nội dung cần xử lý.'],
     [4, 'Bảng tình hình thực hiện các dự án; nhấn tên dự án để mở chi tiết.'],
   ])] : []),
   { p: 'Muốn xem riêng một dự án, chọn dự án tại ô chọn dự án trên thanh công cụ phía trên; toàn bộ chỉ tiêu và biểu đồ tự tính lại theo dự án đã chọn.' },
@@ -189,8 +195,8 @@ S.dashboard = (k, shotName) => [
 
 S.reports = () => [
   { h1: 'KHAI THÁC BÁO CÁO, THỐNG KÊ' },
-  { p: 'Phân hệ **Báo cáo, thống kê** cho phép lọc, tra cứu và xuất 05 loại báo cáo ra tệp Excel:' },
-  { bullets: ['Báo cáo tổng hợp tình hình thực hiện dự án;', 'Báo cáo tiến độ thực hiện dự án và các gói thầu;', 'Báo cáo tình hình thực hiện hợp đồng;', 'Báo cáo khối lượng thực hiện, nghiệm thu và thanh toán;', 'Báo cáo tổng hợp theo dự án, gói thầu và thời gian.'] },
+  { p: 'Phân hệ **Báo cáo, thống kê** cho phép lọc, tra cứu và xuất 07 loại báo cáo ra tệp Excel:' },
+  { bullets: ['Báo cáo tổng hợp tình hình thực hiện dự án;', 'Báo cáo tiến độ thực hiện dự án và các gói thầu;', 'Báo cáo tình hình thực hiện hợp đồng;', 'Báo cáo khối lượng thực hiện, nghiệm thu và thanh toán;', 'Báo cáo tổng hợp theo dự án, gói thầu và thời gian;', 'Báo cáo tình hình giải ngân kế hoạch vốn đầu tư công (so với kịch bản);', 'Báo cáo tình hình quyết toán dự án hoàn thành.'] },
   { steps: [
     'Chọn **Báo cáo, thống kê** trên thanh chức năng.',
     'Chọn loại báo cáo (1), dự án (2), gói thầu (3); nhập khoảng thời gian «Từ – Đến» và từ khóa tra cứu nếu cần. Bảng số liệu hiển thị ngay bên dưới.',
@@ -199,7 +205,8 @@ S.reports = () => [
   img('chung-bao-cao', 'Trang Báo cáo, thống kê', 16),
   legend([[1, 'Chọn loại báo cáo'], [2, 'Lọc theo dự án'], [3, 'Lọc theo gói thầu'], [4, 'Xuất báo cáo ra Excel']]),
   img('chung-bao-cao-tien-do', 'Ví dụ báo cáo tiến độ thực hiện dự án và các gói thầu', 16),
-  { note: 'Mẫu biểu báo cáo theo quy định của cơ quan quản lý nhà nước sẽ được bổ sung khi Ban cung cấp mẫu chính thức trong quá trình triển khai.' },
+  img('chung-bao-cao-giai-ngan', 'Ví dụ báo cáo tình hình giải ngân kế hoạch vốn', 16),
+  { note: 'Tệp Excel xuất ra có tên đơn vị (thiết lập tại Quản trị hệ thống → Thông tin đơn vị), tên báo cáo và điều kiện lọc; có thể chỉnh sửa, in ấn, gửi báo cáo cấp trên ngay.' },
 ];
 
 S.projectView = (edit) => [
@@ -220,7 +227,8 @@ S.projectEdit = () => [
   { h2: 'Thêm mới, cập nhật thông tin dự án' },
   { steps: [
     'Tại danh sách dự án, nhấn **+ Thêm dự án**; hoặc tại trang chi tiết dự án, nhấn **Sửa thông tin**.',
-    'Nhập mã dự án, tên dự án, trạng thái, tổng mức đầu tư (bắt buộc) và các thông tin: nhóm dự án, giai đoạn, nguồn vốn, thời gian, chủ đầu tư, địa điểm, quy mô.',
+    'Nhập mã dự án, tên dự án, trạng thái, tổng mức đầu tư (bắt buộc) và các thông tin: nhóm dự án, loại dự án, giai đoạn, nguồn vốn, thời gian, địa điểm, quy mô.',
+    'Chọn **Vai trò của Ban** đối với dự án (chủ đầu tư, quản lý dự án hoặc tư vấn quản lý dự án), **Hình thức quản lý dự án**, **Hồ sơ dự án** (báo cáo kinh tế – kỹ thuật hoặc báo cáo nghiên cứu khả thi); nhập **Chủ đầu tư** và **Người quyết định đầu tư** (mặc định: Chủ tịch UBND xã/phường).',
     'Tại phần **Quyết định phê duyệt dự án** (1), nhập số quyết định, ngày ban hành, cơ quan ban hành và đính kèm bản scan quyết định (2).',
     'Nhấn **Lưu**. Quyết định được lưu thành hồ sơ pháp lý của dự án (loại «Quyết định phê duyệt dự án») kèm tệp; phần mềm ghi nhận người cập nhật và thời điểm vào nhật ký hoạt động.',
   ] },
@@ -454,7 +462,7 @@ S.admin = () => [
   { p: 'Để bảo vệ tài khoản có toàn quyền, mọi tài khoản thuộc nhóm **Quản trị hệ thống** bắt buộc dùng xác thực 2 lớp: ngoài mật khẩu, khi đăng nhập phải nhập thêm mã 6 số do ứng dụng xác thực trên điện thoại sinh ra. Mã đổi sau mỗi 30 giây và chỉ dùng được một lần, nên dù lộ mật khẩu, người khác vẫn không đăng nhập được nếu không cầm điện thoại của quản trị.' },
   { bullets: [
     'Ứng dụng xác thực: **Google Authenticator** hoặc **Microsoft Authenticator** (miễn phí trên CH Play và App Store). Ứng dụng sinh mã ngay trên điện thoại, không cần SMS và không cần kết nối Internet.',
-    'Các nhóm khác (Lãnh đạo Ban, Cán bộ kỹ thuật, Kế toán, Tư vấn giám sát) đăng nhập bằng mật khẩu như bình thường.',
+    'Các nhóm khác (Lãnh đạo UBND xã, Lãnh đạo Ban, Cán bộ kỹ thuật, Kế toán, Tư vấn giám sát) đăng nhập bằng mật khẩu như bình thường.',
   ] },
   { h2: 'Thiết lập lần đầu' },
   { p: 'Màn hình **Thiết lập xác thực 2 lớp** xuất hiện ngay sau khi khởi tạo hệ thống, và ở lần đăng nhập đầu tiên của mỗi tài khoản quản trị mới.' },
@@ -528,13 +536,14 @@ S.admin = () => [
   { table: { head: ['Nhóm mặc định', 'Mô tả'], widths: [3000, 6000], rows: [
     ['Quản trị hệ thống', 'Toàn quyền, quản lý người dùng và cấu hình.'],
     ['Lãnh đạo Ban', 'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án.'],
-    ['Cán bộ kỹ thuật', 'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng.'],
-    ['Kế toán', 'Kế hoạch và hồ sơ thanh toán.'],
+    ['Cán bộ kỹ thuật', 'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'],
+    ['Kế toán', 'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'],
     ['Tư vấn giám sát / Nhà thầu', 'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'],
+    ['Lãnh đạo UBND xã (người quyết định đầu tư)', 'Theo dõi tình hình dự án, giải ngân, giải phóng mặt bằng, nghiệm thu, quyết toán; nhận cảnh báo. Chỉ xem.'],
   ] }, cap: 'Các nhóm người dùng tạo sẵn khi khởi tạo hệ thống' },
 
   { h1: 'DANH MỤC DÙNG CHUNG' },
-  { p: 'Danh mục dùng chung là các giá trị chọn sẵn trong ô nhập liệu: nhóm dự án, giai đoạn, nguồn vốn, loại gói thầu, hình thức lựa chọn nhà thầu, loại hợp đồng, loại hồ sơ pháp lý, loại và trạng thái thanh toán, đơn vị tính, thời tiết, định dạng mô hình…' },
+  { p: 'Danh mục dùng chung là các giá trị chọn sẵn trong ô nhập liệu: nhóm dự án, loại dự án, vai trò của Ban, hình thức quản lý dự án, giai đoạn, nguồn vốn, loại kế hoạch vốn, loại nghiệm thu, trạng thái quyết toán, loại gói thầu, hình thức lựa chọn nhà thầu, loại hợp đồng, loại hồ sơ pháp lý, loại và trạng thái thanh toán, đơn vị tính, thời tiết, định dạng mô hình…' },
   { steps: [
     'Chọn thẻ **Danh mục dùng chung**, chọn loại danh mục ở cột bên trái (1).',
     'Nhấn **+ Thêm giá trị** (2), nhập giá trị và thứ tự hiển thị; nhập tên loại mới để tạo loại danh mục mới. Nhấn **Lưu**.',
@@ -563,13 +572,13 @@ S.admin = () => [
   img('qt-sao-luu', 'Sao lưu và phục hồi dữ liệu', 15),
   legend([[1, 'Tải tệp sao lưu dữ liệu (.json): dữ liệu nghiệp vụ, danh mục, nhóm, người dùng và danh sách tệp đính kèm'], [2, 'Tải bản sao lưu đầy đủ (.zip): dữ liệu kèm toàn bộ tệp đính kèm'], [3, 'Phục hồi dữ liệu từ tệp sao lưu'], [4, 'Sao lưu lên máy chủ ngay'], [5, 'Danh sách bản sao lưu tự động; nhấn tên để tải về']]),
   { h2: 'Sao lưu tự động hằng đêm' },
-  { p: 'Máy chủ tự sao lưu lúc 1 giờ sáng mỗi ngày: ghi một tệp dữ liệu .json và chép thêm các tệp đính kèm mới vào thư mục sao lưu (mặc định **D:\\QLDA_TTTS_Data\\backups**), giữ 14 bản gần nhất. Cùng lúc, phần mềm xóa hẳn các tệp đã nằm trong thùng rác quá 30 ngày. Nhấn **Sao lưu lên máy chủ ngay** (4) trước khi nâng cấp hoặc thao tác dữ liệu lớn.' },
+  { p: 'Máy chủ tự sao lưu lúc 1 giờ sáng mỗi ngày: ghi một tệp dữ liệu .json và chép thêm các tệp đính kèm mới vào thư mục sao lưu (do người cài đặt cấu hình; máy chủ Linux: volume appdata của từng xã), giữ 14 bản gần nhất. Cùng lúc, phần mềm xóa hẳn các tệp đã nằm trong thùng rác quá 30 ngày. Nhấn **Sao lưu lên máy chủ ngay** (4) trước khi nâng cấp hoặc thao tác dữ liệu lớn.' },
   { h2: 'Tải bản sao lưu về máy và phục hồi' },
   { steps: [
     'Sao lưu dữ liệu: nhấn **Tải tệp sao lưu dữ liệu (.json)** (1). Muốn có cả tệp đính kèm, nhấn **Tải bản sao lưu đầy đủ kèm tệp (.zip)** (2); thời gian đóng gói tùy dung lượng kho tệp. Lưu tệp vào nơi an toàn, tách biệt với máy chủ.',
     'Phục hồi: nhấn **Phục hồi từ tệp sao lưu** (3), chọn tệp .json, xác nhận. Dữ liệu trong tệp được ghi đè lên bản ghi trùng mã; tài khoản trùng tên đăng nhập được giữ nguyên; danh sách tệp đính kèm được phục hồi cùng dữ liệu.',
   ] },
-  { note: 'Nên đặt thư mục sao lưu tự động trên ổ đĩa khác hoặc ổ mạng (cấu hình Storage:BackupPath, xem «Hướng dẫn cài đặt»). Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu SQL Server định kỳ do cán bộ phụ trách hạ tầng thực hiện.' },
+  { note: 'Nên đặt thư mục sao lưu tự động trên ổ đĩa khác hoặc ổ mạng (cấu hình Storage:BackupPath, xem «Hướng dẫn cài đặt»). Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu định kỳ (PostgreSQL hoặc SQL Server) do cán bộ phụ trách hạ tầng thực hiện.' },
 
   { h1: 'THÔNG TIN ĐƠN VỊ, GIAO DIỆN' },
   { p: 'Thẻ **Thông tin đơn vị, giao diện** cho phép quản trị thay logo, tên phần mềm, tên đơn vị, banner trang đăng nhập, chân trang… mà không cần cài lại phần mềm. Dùng khi đơn vị đổi tên hoặc khi triển khai phần mềm cho đơn vị khác. Thay đổi áp dụng ngay cho mọi người dùng ở lần mở trang tiếp theo.' },
@@ -585,7 +594,7 @@ S.admin = () => [
   { note: 'Mọi lần thay đổi được ghi vào Nhật ký hoạt động. Thông tin đơn vị và logo được lưu kèm trong tệp sao lưu dữ liệu.' },
 
   { h1: 'QUẢN LÝ HƯỚNG DẪN SỬ DỤNG' },
-  { p: 'Trang **Hướng dẫn sử dụng** (cuối thanh chức năng bên trái) chứa tài liệu, video hướng dẫn cho từng nhóm người dùng. Quản trị hệ thống xem toàn bộ; mỗi nhóm khác chỉ thấy hướng dẫn dành cho nhóm mình. Khi cài đặt, phần mềm tự tạo sẵn 6 hướng dẫn kèm tệp PDF của bộ tài liệu này cho từng vai trò.' },
+  { p: 'Trang **Hướng dẫn sử dụng** (cuối thanh chức năng bên trái) chứa tài liệu, video hướng dẫn cho từng nhóm người dùng. Quản trị hệ thống xem toàn bộ; mỗi nhóm khác chỉ thấy hướng dẫn dành cho nhóm mình. Khi cài đặt, phần mềm tự tạo sẵn 7 hướng dẫn kèm tệp PDF của bộ tài liệu này cho từng vai trò.' },
   img('qt-huong-dan', 'Quản lý hướng dẫn sử dụng', 16),
   legend([[1, 'Thêm hướng dẫn'], [2, 'Tìm kiếm trong hướng dẫn'], [3, 'Lọc hướng dẫn theo nhóm người dùng'], [4, 'Nhóm người dùng được xem hướng dẫn'], [5, 'Sửa hoặc xóa hướng dẫn'], [6, 'Tệp hướng dẫn: Mở hoặc Tải về']]),
   { h2: 'Thêm, sửa hướng dẫn và đính kèm tệp, video' },
@@ -603,9 +612,95 @@ S.admin = () => [
     'Phần mềm kiểm tra quyền trên máy chủ: người dùng không mở được tệp của hướng dẫn không dành cho nhóm mình, kể cả khi biết đường dẫn.',
   ] },
 
-  { h1: 'ĐỐI CHIẾU YÊU CẦU BÁO CÁO KINH TẾ – KỸ THUẬT' },
-  { p: 'Trang **Đối chiếu BC KTKT** (nhóm Tiện ích) liệt kê 62 use case thuộc mục VI của Báo cáo kinh tế – kỹ thuật, ánh xạ tới chức năng tương ứng trong phần mềm và tình trạng đáp ứng; dùng khi kiểm tra, nghiệm thu.' },
-  img('qt-doi-chieu', 'Đối chiếu danh mục chức năng với BC KTKT', 16),
+  { h1: 'DANH MỤC CHỨC NĂNG' },
+  { p: 'Trang **Danh mục chức năng** (nhóm Tiện ích) liệt kê 77 chức năng của phần mềm theo 17 nhóm nghiệp vụ, nơi thực hiện từng chức năng và nút **Mở** để chuyển nhanh tới trang tương ứng; dùng khi giới thiệu, đào tạo người dùng mới hoặc kiểm tra, nghiệm thu phần mềm.' },
+  img('qt-doi-chieu', 'Danh mục chức năng của phần mềm', 16),
+];
+
+
+// ===== Phiên bản 1.1: chức năng Ban QLDA cấp xã =====
+S.capital = (edit) => [
+  { h1: 'KẾ HOẠCH VỐN, GIẢI NGÂN' },
+  { p: 'Phân hệ **Kế hoạch vốn, giải ngân** theo dõi kế hoạch đầu tư công trung hạn, vốn được giao hằng năm (kể cả vốn điều chỉnh, kéo dài) và tiến độ giải ngân của từng dự án so với **kịch bản giải ngân** theo quý. Giá trị giải ngân được tính tự động từ hồ sơ thanh toán đã được Kho bạc chi, không phải nhập lại.' },
+  img('von-giai-ngan', 'Theo dõi giải ngân kế hoạch vốn năm', 16),
+  legend([[1, 'Chọn năm kế hoạch'], [2, 'Chỉ tiêu chính: kế hoạch vốn năm, đã giải ngân, kịch bản đến ngày hiện tại, số dự án chậm giải ngân quá 10%'], [3, 'Các thẻ: Theo dõi giải ngân – Kế hoạch vốn – Lũy kế theo quý'], [4, 'Bảng giải ngân từng dự án: thanh tiến độ, kịch bản đến nay và tình trạng (đạt kịch bản / chậm)']]),
+  { p: 'Tình trạng **Đạt kịch bản** (xanh) khi tỷ lệ giải ngân bằng hoặc vượt kịch bản đến ngày hiện tại; **Chậm** (vàng) khi thấp hơn không quá 10%; **Chậm giải ngân** (đỏ) khi thấp hơn quá 10% – dự án này đồng thời được đưa vào mục cảnh báo trên trang Tổng quan.' },
+  ...(edit ? [
+    { h2: 'Nhập kế hoạch vốn được giao' },
+    { steps: [
+      'Chọn thẻ **Kế hoạch vốn**, nhấn **+ Thêm kế hoạch vốn** (1).',
+      'Chọn dự án, năm kế hoạch, **loại kế hoạch** (kế hoạch trung hạn, kế hoạch vốn năm, bổ sung, điều chỉnh giảm, kéo dài), nguồn vốn và giá trị.',
+      'Nhập số và ngày quyết định giao vốn; đính kèm quyết định giao kế hoạch vốn hoặc văn bản đăng ký kế hoạch.',
+      'Với kế hoạch vốn năm, nhập **kịch bản giải ngân lũy kế** hết quý I, II, III (mặc định 20%, 45%, 70%; hết năm 100%) theo chỉ đạo của UBND xã/phường. Nhấn **Lưu**.',
+      'Khi có quyết định điều chỉnh, thêm một dòng mới loại «Điều chỉnh giảm» hoặc «Bổ sung»; phần mềm tự tính kế hoạch vốn năm sau điều chỉnh. Nhấn **Sửa** (2) để sửa dòng đã nhập.',
+    ] },
+    img('von-ke-hoach', 'Danh sách kế hoạch vốn được giao', 16),
+    legend([[1, 'Thêm kế hoạch vốn'], [2, 'Sửa kế hoạch vốn']]),
+    img('von-them', 'Hộp thêm kế hoạch vốn', 12),
+  ] : [
+    { p: 'Thẻ **Kế hoạch vốn** liệt kê các quyết định giao vốn của từng dự án (trung hạn, năm, bổ sung, điều chỉnh) kèm tệp quyết định; nhấn tên tệp để xem.' },
+  ]),
+  { h2: 'Lũy kế giải ngân theo quý' },
+  { p: 'Thẻ **Lũy kế theo quý** so sánh kịch bản và thực tế giải ngân lũy kế từng quý của năm đã chọn, kèm tỷ lệ đạt kịch bản và tỷ lệ so với kế hoạch vốn năm; dùng khi báo cáo giải ngân định kỳ.' },
+  img('von-quy', 'Kịch bản và thực tế giải ngân lũy kế theo quý', 16),
+];
+
+S.clearance = (edit) => [
+  { h1: 'GIẢI PHÓNG MẶT BẰNG' },
+  { p: 'Phân hệ **Giải phóng mặt bằng** theo dõi từng khu vực, đoạn tuyến phải bồi thường, hỗ trợ, tái định cư: số hộ bị ảnh hưởng và đã chi trả, diện tích thu hồi và đã bàn giao, kinh phí theo phương án và đã chi trả, hạn bàn giao mặt bằng cho thi công.' },
+  img('gpmb', 'Tiến độ bồi thường, bàn giao mặt bằng', 16),
+  legend([[1, 'Chỉ tiêu chính: hộ đã chi trả, diện tích đã bàn giao, kinh phí đã chi trả, số khu vực chậm bàn giao'], [2, 'Thêm khu vực giải phóng mặt bằng (chỉ hiện với tài khoản có quyền cập nhật)'], [3, 'Bảng tiến độ từng khu vực: tiến độ, tình trạng, vướng mắc và tệp đính kèm']]),
+  ...(edit ? [
+    { h2: 'Thêm, cập nhật khu vực giải phóng mặt bằng' },
+    { steps: [
+      'Nhấn **+ Thêm khu vực** (2).',
+      'Chọn dự án, nhập tên khu vực, đoạn tuyến; số hộ bị ảnh hưởng, diện tích thu hồi, kinh phí theo phương án; số và ngày quyết định phê duyệt phương án bồi thường; hạn bàn giao mặt bằng.',
+      'Trong quá trình thực hiện, nhấn **Sửa** trên dòng khu vực để cập nhật số hộ đã chi trả, kinh phí đã chi trả, diện tích đã bàn giao, ngày bàn giao và vướng mắc, kiến nghị.',
+      'Đính kèm phương án bồi thường, biên bản bàn giao mặt bằng; nhấn **Lưu**. Phần mềm không cho số hộ đã chi trả hoặc diện tích đã bàn giao vượt tổng số.',
+    ] },
+    img('gpmb-them', 'Hộp thêm khu vực giải phóng mặt bằng', 12),
+  ] : []),
+  { note: 'Tiến độ khu vực tính theo diện tích đã bàn giao so với diện tích thu hồi. Khu vực quá hạn bàn giao mà chưa bàn giao được tô đỏ và đưa vào mục cảnh báo trên trang Tổng quan để chỉ đạo tháo gỡ.' },
+];
+
+S.acceptance = (edit) => [
+  { h1: 'NGHIỆM THU, BÀN GIAO, BẢO HÀNH' },
+  { p: 'Phân hệ **Nghiệm thu, bàn giao, bảo hành** lưu biên bản nghiệm thu theo giai đoạn thi công, nghiệm thu hoàn thành hạng mục, công trình, bàn giao đưa vào sử dụng (theo Nghị định 207/2026/NĐ-CP) và theo dõi thời hạn bảo hành, bảo lãnh bảo hành của từng công trình.' },
+  img('nt-ds', 'Danh sách nghiệm thu, bàn giao', 16),
+  legend([[1, 'Chỉ tiêu: số biên bản nghiệm thu giai đoạn, nghiệm thu hoàn thành, công trình đã bàn giao, công trình sắp hết bảo hành'], [2, 'Các thẻ: Nghiệm thu, bàn giao – Theo dõi bảo hành'], [3, 'Lọc theo loại nghiệm thu, bàn giao'], [4, 'Thêm biên bản (chỉ hiện với tài khoản có quyền cập nhật)']]),
+  ...(edit ? [
+    { h2: 'Thêm biên bản nghiệm thu, bàn giao' },
+    { steps: [
+      'Nhấn **+ Thêm biên bản** (4).',
+      'Chọn dự án và gói thầu (để trống nếu nghiệm thu, bàn giao toàn dự án); chọn loại (nghiệm thu giai đoạn, nghiệm thu hoàn thành hạng mục, nghiệm thu hoàn thành công trình, bàn giao đưa vào sử dụng…), ngày, số biên bản, kết quả.',
+      'Nhập nội dung nghiệm thu và đơn vị tiếp nhận, quản lý sử dụng (khi bàn giao).',
+      'Khi nghiệm thu hoàn thành hoặc bàn giao: nhập **thời hạn bảo hành** (tháng) – phần mềm tự tính ngày hết bảo hành – và **bảo lãnh bảo hành hiệu lực đến**.',
+      'Đính kèm biên bản, bản vẽ hoàn công, bảo lãnh bảo hành; nhấn **Lưu**. Gói thầu phải thuộc dự án đã chọn.',
+    ] },
+    img('nt-them', 'Hộp thêm biên bản nghiệm thu, bàn giao', 12),
+  ] : []),
+  { h2: 'Theo dõi bảo hành công trình' },
+  { p: 'Thẻ **Theo dõi bảo hành** liệt kê các công trình có thời hạn bảo hành, sắp xếp theo ngày hết bảo hành. Phần mềm cảnh báo trước 30 ngày khi sắp hết bảo hành hoặc hết bảo lãnh bảo hành để Ban kiểm tra hiện trạng, yêu cầu nhà thầu sửa chữa trước khi hoàn trả bảo lãnh.' },
+  img('nt-bh', 'Theo dõi bảo hành công trình', 16),
+];
+
+S.settlement = (edit) => [
+  { h1: 'QUYẾT TOÁN DỰ ÁN HOÀN THÀNH' },
+  { p: 'Phân hệ **Quyết toán dự án** theo dõi từng dự án hoàn thành từ khi bàn giao đến khi tất toán tài khoản: hạn lập báo cáo quyết toán, ngày trình thẩm tra, giá trị đề nghị – thẩm tra – phê duyệt, quyết định phê duyệt và ngày tất toán.' },
+  img('qtoan-ds', 'Quyết toán dự án hoàn thành', 16),
+  legend([[1, 'Chỉ tiêu: dự án phải quyết toán, quá hạn lập quyết toán, đã phê duyệt, giá trị giảm trừ qua thẩm tra'], [2, 'Bảng hồ sơ quyết toán: thời hạn, giá trị đề nghị – thẩm tra – phê duyệt, tất toán và tình trạng'], [3, 'Thêm hồ sơ quyết toán (chỉ hiện với tài khoản có quyền cập nhật)']]),
+  { p: 'Dự án đã hoàn thành, bàn giao nhưng chưa có hồ sơ quyết toán được liệt kê riêng ở khung **Dự án đã hoàn thành chưa lập hồ sơ quyết toán** phía trên bảng, để Ban không bỏ sót.' },
+  ...(edit ? [
+    { h2: 'Lập và cập nhật hồ sơ quyết toán' },
+    { steps: [
+      'Nhấn **+ Thêm hồ sơ quyết toán** (3), hoặc nhấn **Lập hồ sơ** trên dòng dự án tại khung **Dự án đã hoàn thành chưa lập hồ sơ quyết toán** – ngày hoàn thành được điền sẵn từ biên bản bàn giao.',
+      'Nhập ngày hoàn thành, bàn giao và **hạn lập báo cáo quyết toán** theo quy định hiện hành.',
+      'Khi trình thẩm tra, nhập ngày trình và giá trị đề nghị quyết toán; khi có kết quả, nhập giá trị thẩm tra, giá trị phê duyệt, số và ngày quyết định phê duyệt; khi tất toán tài khoản tại Kho bạc, nhập ngày tất toán.',
+      'Đính kèm báo cáo quyết toán, thông báo kết quả thẩm tra, quyết định phê duyệt; nhấn **Lưu**. Tình trạng được phần mềm tự xác định.',
+    ] },
+    img('qtoan-them', 'Hộp thêm hồ sơ quyết toán', 12),
+  ] : []),
+  { note: 'Phần mềm cảnh báo trước 30 ngày khi sắp đến hạn lập báo cáo quyết toán, khi đã quá hạn và khi đã phê duyệt quá 60 ngày nhưng chưa tất toán tài khoản – giúp Ban không bị nhắc nhở, phê bình vì chậm quyết toán.' },
 ];
 
 // ===== Lắp ráp theo vai trò =====
@@ -614,17 +709,17 @@ function build(k) {
   const out = common(k);
   if (k === 'ld') {
     out.push({ h1: 'THEO DÕI, ĐIỀU HÀNH' }, ...S.dashboard(k, 'ld-tong-quan').slice(0), ...S.contractView(), ...S.paymentView());
-    out.push(...S.projectView(true), ...S.projectEdit(), ...S.scheduleView(), ...S.reports());
+    out.push(...S.projectView(true), ...S.projectEdit(), ...S.capital(false), ...S.clearance(false), ...S.scheduleView(), ...S.acceptance(false), ...S.settlement(false), ...S.reports());
     out.push(...tail(k, false));
   }
   if (k === 'kt') {
     out.push({ h2: 'Trang Tổng quan' }, S.dashboard(k, 'kt-giao-dien-chinh')[1], { p: 'Ý nghĩa các chỉ tiêu, biểu đồ và cách nhấn vào cảnh báo để xử lý giống như hướng dẫn tại trang Tổng quan dành cho Lãnh đạo Ban.' });
-    out.push(...S.projectView(true), ...S.projectEdit(), ...S.model(), ...S.packages(), ...S.schedule(), ...S.diary('kt-nhat-ky', 'kt-ghi-nhat-ky'), ...S.volume(), ...S.reports());
+    out.push(...S.projectView(true), ...S.projectEdit(), ...S.clearance(true), ...S.model(), ...S.packages(), ...S.schedule(), ...S.diary('kt-nhat-ky', 'kt-ghi-nhat-ky'), ...S.volume(), ...S.acceptance(true), ...S.reports());
     out.push(...tail(k, true));
   }
   if (k === 'ke') {
     out.push({ h2: 'Trang Tổng quan' }, S.dashboard(k, 'ke-giao-dien-chinh')[1], { p: 'Các chỉ tiêu «Giá trị hợp đồng» và «Đã giải ngân» trên trang Tổng quan được tính trực tiếp từ hồ sơ thanh toán do Kế toán xác nhận đã chi.' });
-    out.push(...S.payments(), { h1: 'TRA CỨU HỢP ĐỒNG' }, ...S.contractView().slice(1), ...S.reports());
+    out.push(...S.capital(true), ...S.payments(), ...S.settlement(true), { h1: 'TRA CỨU HỢP ĐỒNG' }, ...S.contractView().slice(1), ...S.reports());
     out.push(...tail(k, false));
   }
   if (k === 'gs') {
@@ -637,14 +732,20 @@ function build(k) {
     { note: 'Tư vấn giám sát / Nhà thầu chỉ xem thông tin dự án, mô hình và khối lượng; không sửa được hợp đồng, khối lượng hợp đồng và thanh toán.' });
     out.push(...tail(k, true));
   }
+  if (k === 'ub') {
+    out.push({ h1: 'THEO DÕI, ĐIỀU HÀNH' }, ...S.dashboard(k, 'ld-tong-quan'));
+    out.push({ p: 'Tài khoản Lãnh đạo UBND xã chỉ xem, không sửa dữ liệu; mọi số liệu do Ban Quản lý dự án và các bộ phận cập nhật hằng ngày, nên Lãnh đạo nắm được tình hình mà không cần chờ báo cáo giấy.' });
+    out.push(...S.capital(false), ...S.clearance(false), ...S.projectView(false), ...S.scheduleView(), ...S.paymentView(), ...S.acceptance(false), ...S.settlement(false), ...S.reports());
+    out.push(...tail(k, false));
+  }
   if (k === 'qt') {
     out.push(...S.admin());
     out.push({ h1: 'CÁC PHÂN HỆ NGHIỆP VỤ' }, { p: 'Tài khoản Quản trị hệ thống có toàn quyền trên mọi phân hệ nghiệp vụ. Cách sử dụng từng phân hệ được trình bày chi tiết trong tài liệu hướng dẫn của vai trò tương ứng:' },
       { table: { head: ['Phân hệ', 'Tài liệu hướng dẫn tham khảo'], widths: [4500, 4500], rows: [
         ['Tổng quan, Quản lý dự án, Báo cáo', 'HDSD dành cho Lãnh đạo Ban'],
-        ['Mô hình hóa công trình, Gói thầu và hợp đồng, Tiến độ, Nhật ký thi công, Khối lượng', 'HDSD dành cho Cán bộ kỹ thuật'],
-        ['Quản lý thanh toán', 'HDSD dành cho Kế toán'],
-        ['Sử dụng trên điện thoại', 'HDSD dành cho Tư vấn giám sát / Nhà thầu'],
+        ['Giải phóng mặt bằng, Mô hình hóa công trình, Gói thầu và hợp đồng, Tiến độ, Nhật ký thi công, Khối lượng, Nghiệm thu – bàn giao – bảo hành', 'HDSD dành cho Cán bộ kỹ thuật'],
+        ['Kế hoạch vốn – giải ngân, Quản lý thanh toán, Quyết toán dự án', 'HDSD dành cho Kế toán'],
+        ['Sử dụng trên điện thoại', 'HDSD sử dụng trên điện thoại'],
       ] }, cap: 'Tài liệu tham khảo cho các phân hệ nghiệp vụ' });
     out.push(...tail(k, false));
   }

@@ -50,7 +50,7 @@ async function login(p, u, pw = PW) {
   const counts = await p.evaluate(() => Object.fromEntries(Object.entries(Store.data).map(([k, v]) => [k, v.length])));
   console.log('Số bản ghi sau khởi tạo:', JSON.stringify(counts));
 
-  const routes = ['tong-quan', 'du-an', 'mo-hinh', 'goi-thau', 'tien-do', 'nhat-ky', 'khoi-luong', 'thanh-toan', 'bao-cao', 'quan-tri', 'hien-truong', 'doi-chieu'];
+  const routes = ['tong-quan', 'du-an', 'mo-hinh', 'goi-thau', 'tien-do', 'nhat-ky', 'khoi-luong', 'thanh-toan', 'bao-cao', 'quan-tri', 'hien-truong', 'doi-chieu', 'von', 'gpmb', 'nghiem-thu', 'quyet-toan'];
   for (const r of routes) {
     await go(p, r); await p.screenshot({ path: `${SHOTS}/desk-${r}.png`, fullPage: true });
     if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) errs.push('desk OVERFLOW ' + r);
@@ -101,6 +101,52 @@ async function login(p, u, pw = PW) {
   const attN = () => p.evaluate(() => Store.data.attachments.length);
   const attOf = (col, id, kind) => p.evaluate(([c, i, k]) => Store.data.attachments.filter(a => a.collection === c && a.recordId === i && (!k || a.kind === k)).length, [col, id, kind]);
   const submit = async () => { await p.click('#mform [type=submit]'); try { await p.waitForSelector('#mform', { state: 'detached', timeout: 15000 }); } catch (e) { throw new Error('Biểu mẫu không đóng: ' + (await p.textContent('#mform_err').catch(() => '?'))); } await p.waitForTimeout(300); };
+  // Phiên bản 1.1, chức năng Ban QLDA cấp xã: vai trò, hình thức quản lý; kế hoạch vốn, GPMB, nghiệm thu bảo hành, quyết toán
+  {
+    const al = await p.evaluate(() => alerts().map(a => a.mod));
+    for (const m of ['von', 'gpmb', 'nghiem-thu', 'quyet-toan']) if (!al.includes(m)) errs.push('C0: thiếu cảnh báo mẫu của phân hệ ' + m);
+    await p.evaluate(() => ACT['edit-projects']('p1')); await p.waitForTimeout(200);
+    if (await p.inputValue('#f_boardRole') !== 'Chủ đầu tư' || !(await p.$('#f_mgmtForm')) || !(await p.$('#f_decisionMaker'))) errs.push('C1: biểu mẫu dự án thiếu vai trò/hình thức quản lý');
+    await submit();
+    await go(p, 'von');
+    for (const t of ['kh', 'q', 'gn']) { await p.click(`[data-g=von][data-id=${t}]`); await p.waitForTimeout(200); await p.screenshot({ path: `${SHOTS}/v11-von-${t}.png`, fullPage: true }); }
+    const n0 = await p.evaluate(() => Store.data.capitals.length);
+    await p.evaluate(() => ACT['add-capitals']()); await p.waitForTimeout(200);
+    await p.selectOption('#f_projectId', 'p2'); await p.selectOption('#f_kind', 'Bổ sung kế hoạch năm'); await p.fill('#f_amount', '1000000000'); await p.fill('#f_number', 'BS-01');
+    await submit();
+    const plan = await p.evaluate(() => capPlan('p2', TODAY.slice(0, 4)));
+    console.log('Kế hoạch vốn:', n0, '→', await p.evaluate(() => Store.data.capitals.length), '| KH năm DA-02:', plan);
+    if (await p.evaluate(() => Store.data.capitals.length) !== n0 + 1) errs.push('C2: không thêm được kế hoạch vốn');
+    await go(p, 'gpmb');
+    await p.evaluate(() => ACT['add-clearances']()); await p.waitForTimeout(200);
+    await p.selectOption('#f_projectId', 'p3'); await p.fill('#f_name', 'Khu vực thử'); await p.fill('#f_households', '5'); await p.fill('#f_householdsPaid', '7');
+    await p.click('#mform [type=submit]'); await p.waitForTimeout(300);
+    if (!(await p.textContent('#mform_err')).includes('lớn hơn')) errs.push('C3: không chặn số hộ chi trả vượt số hộ');
+    await p.fill('#f_householdsPaid', '2'); await submit();
+    await go(p, 'nghiem-thu');
+    await p.evaluate(() => ACT['add-acceptances']()); await p.waitForTimeout(200);
+    await p.selectOption('#f_projectId', 'p2'); await p.selectOption('#f_packageId', 'k1'); await p.selectOption('#f_kind', 'Nghiệm thu giai đoạn thi công');
+    await p.click('#mform [type=submit]'); await p.waitForTimeout(300);
+    if (!(await p.textContent('#mform_err')).includes('không thuộc')) errs.push('C4: không chặn gói thầu khác dự án');
+    await p.selectOption('#f_packageId', 'k4'); await p.fill('#f_warrantyMonths', '12'); await submit();
+    await p.click('[data-g=nt][data-id=bh]'); await p.waitForTimeout(200); await p.screenshot({ path: `${SHOTS}/v11-bao-hanh.png`, fullPage: true });
+    await go(p, 'quyet-toan');
+    await p.evaluate(() => ACT['add-settlements']('p4')); await p.waitForTimeout(200); await p.click('#mform header [data-close]'); await p.waitForTimeout(200);
+    const rep = await p.evaluate(() => ({ gn: buildReport('giaingan', {}).rows.length, qt: buildReport('quyettoan', {}).rows.length }));
+    console.log('Báo cáo giải ngân:', rep.gn, 'dòng | quyết toán:', rep.qt, 'dòng');
+    if (!rep.gn || !rep.qt) errs.push('C5: báo cáo giải ngân/quyết toán trống');
+    const uc = await p.evaluate(() => UCS.reduce((n, g) => n + g[2].length, 0));
+    if (uc !== 77) errs.push('C6: danh mục chức năng ' + uc + ' (cần 77)');
+    // Lãnh đạo UBND xã chỉ xem: đọc được kế hoạch vốn, không ghi được
+    const c = await b.newContext(); const r = c.request;
+    await r.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'ubnd', password: PW } });
+    const d = await (await r.get(BASE + '/api/data')).json();
+    const w = (await r.put(BASE + '/api/data/capitals/vk2', { headers: { 'X-QLDA': '1' }, data: { ...d.capitals.find(x => x.id === 'vk2'), amount: 1 } })).status();
+    console.log('UBND xã: thấy', d.capitals.length, 'kế hoạch vốn | sửa:', w);
+    if (!d.capitals.length || w !== 403) errs.push('C7: phân quyền Lãnh đạo UBND xã sai');
+    await c.close();
+  }
+
   const putFiles = (key, files) => p.setInputFiles(`#f_${key} input[type=file]`, files);
   const openP = async id => { await go(p, 'du-an'); await p.evaluate(i => { S.sel.project = i; S.tab.proj = 'info'; render(); }, id); await p.waitForTimeout(200); };
   // A1: Quyết định phê duyệt dự án kèm tệp ngay trong biểu mẫu dự án
@@ -319,7 +365,7 @@ async function login(p, u, pw = PW) {
     await p.evaluate(() => Store.load());
     const gd = await p.evaluate(() => Store.data.guides.map(g => ({ id: g.id, t: g.title, g: g.groups, n: Store.data.attachments.filter(a => a.collection === 'guides' && a.recordId === g.id).length })));
     console.log('Hướng dẫn nạp sẵn:', gd.length, gd.map(x => x.n).join(','));
-    if (gd.length !== 6 || gd.some(x => x.n !== 1)) errs.push('Chưa nạp sẵn đủ 6 hướng dẫn kèm tệp PDF');
+    if (gd.length !== 7 || gd.some(x => x.n !== 1)) errs.push("Chưa nạp sẵn đủ 7 hướng dẫn kèm tệp PDF");
     // Thông tin đơn vị
     await p.evaluate(() => { S.tab.qt = 'org'; }); await go(p, 'quan-tri'); await p.waitForTimeout(300);
     await p.fill('#br_appName', 'Phần mềm QLDA thử nghiệm'); await p.fill('#br_orgShort', 'Đơn vị thử'); await p.fill('#br_footer', '© {năm} Đơn vị thử');
@@ -371,7 +417,7 @@ async function login(p, u, pw = PW) {
     await p.evaluate(() => { S.tab.qt = 'org'; }); await go(p, 'quan-tri');
     await p.evaluate(() => api('PUT', '/api/branding', {}).then(setBrand)); await p.evaluate(() => api('DELETE', '/api/branding/logo').then(setBrand));
     const br2 = await p.evaluate(() => BR);
-    if (br2.logo || br2.appName !== 'QLDA đầu tư xây dựng') errs.push('Không khôi phục được thông tin mặc định');
+    if (br2.logo || br2.appName !== 'Quản lý dự án, nhiệm vụ') errs.push('Không khôi phục được thông tin mặc định');
   }
 
   // Đăng nhập sai nhiều lần bị tạm khóa

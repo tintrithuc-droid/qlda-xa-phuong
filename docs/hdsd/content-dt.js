@@ -1,4 +1,4 @@
-// HDSD sử dụng phần mềm trên điện thoại (Android: ứng dụng QLDA TTTS; iPhone: Safari / màn hình chính)
+// HDSD sử dụng phần mềm trên điện thoại (Android: ứng dụng QLDA Xã Phường; iPhone: Safari / màn hình chính)
 const img = (name, cap, w) => ({ img: name, cap, w });
 const legend = rows => ({ legend: rows });
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không dùng';
@@ -7,7 +7,7 @@ function build() {
   const out = [];
   out.push({ h1: 'GIỚI THIỆU CHUNG' });
   out.push({ h2: 'Mục đích tài liệu' });
-  out.push({ p: 'Tài liệu này hướng dẫn cán bộ sử dụng Phần mềm quản lý dự án đầu tư xây dựng của Ban Quản lý dự án – Trung tâm Thủy sản Thành phố Hồ Chí Minh trên điện thoại di động: cài đặt và kết nối, đăng nhập, ghi nhật ký thi công kèm ảnh chụp hiện trường, cập nhật tiến độ, tra cứu dự án, khối lượng và xem báo cáo.' });
+  out.push({ p: 'Tài liệu này hướng dẫn cán bộ sử dụng Phần mềm quản lý dự án đầu tư xây dựng của Ban Quản lý dự án đầu tư xây dựng xã/phường trên điện thoại di động: cài đặt và kết nối, đăng nhập, ghi nhật ký thi công kèm ảnh chụp hiện trường, cập nhật tiến độ, tra cứu dự án, khối lượng và xem báo cáo.' });
   out.push({ p: 'Phần mềm trên điện thoại dùng chung dữ liệu với bản trên máy tính: thông tin nhập tại hiện trường được lưu ngay về máy chủ của Ban và hiển thị cho các bộ phận khác trong khoảng 30 giây. Hình minh họa chụp trực tiếp từ giao diện phần mềm trên điện thoại; số liệu trên hình là dữ liệu mẫu, được đánh dấu «(mẫu)».' });
   out.push({ h2: 'Chức năng dùng trên điện thoại theo vai trò' });
   out.push({ p: 'Mỗi tài khoản chỉ thấy các chức năng được phân quyền. Bảng dưới đây là quyền mặc định của các nhóm thường dùng điện thoại; quản trị hệ thống có thể điều chỉnh theo yêu cầu thực tế của Ban.' });
@@ -16,16 +16,19 @@ function build() {
     ['Cập nhật tiến độ thực hiện', E, E, V],
     ['Tra cứu dự án', V, E, E],
     ['Khối lượng thực hiện, nghiệm thu', V, E, V],
+    ['Nghiệm thu, bàn giao, bảo hành', V, E, V],
+    ['Giải phóng mặt bằng', N, E, V],
+    ['Kế hoạch vốn, giải ngân', N, V, V],
     ['Tổng quan, cảnh báo', V, V, V],
     ['Báo cáo, xuất Excel', N, V, V],
   ] }, cap: 'Chức năng dùng trên điện thoại theo nhóm người dùng' });
   out.push({ p: 'Tài khoản Tư vấn giám sát / Nhà thầu chỉ thấy số liệu của các dự án được quản trị hệ thống giao.' });
   out.push({ h2: 'Yêu cầu về thiết bị và kết nối' });
   out.push({ bullets: [
-    'Điện thoại Android 7.0 trở lên: cài ứng dụng **QLDA TTTS** (tệp .apk do quản trị hệ thống cung cấp).',
-    'iPhone: dùng trình duyệt Safari và thêm phần mềm ra màn hình chính (không cần cài ứng dụng).',
+    'Điện thoại Android 7.0 trở lên: dùng trình duyệt Chrome và thêm phần mềm ra màn hình chính (không cần tải ứng dụng từ kho ứng dụng).',
+    'iPhone: dùng trình duyệt Safari và thêm phần mềm ra màn hình chính.',
     'Kết nối Wi‑Fi nội bộ của Ban hoặc Internet/VPN theo hướng dẫn của quản trị hệ thống. Địa chỉ máy chủ do quản trị hệ thống cung cấp.',
-    'Cho phép ứng dụng dùng máy ảnh để chụp ảnh hiện trường.',
+    'Cho phép trình duyệt dùng máy ảnh để chụp ảnh hiện trường.',
   ] });
   out.push({ h2: 'Quy ước trình bày' });
   out.push({ bullets: [
@@ -35,25 +38,23 @@ function build() {
   ] });
 
   out.push({ h1: 'CÀI ĐẶT VÀ KẾT NỐI' });
-  out.push({ h2: 'Cài ứng dụng trên điện thoại Android' });
+  out.push({ h2: 'Thêm phần mềm ra màn hình chính trên Android' });
   out.push({ steps: [
-    'Nhận tệp **QLDA_TTTS_v1.0.1.apk** do quản trị hệ thống gửi (qua Zalo, thư điện tử hoặc chép trực tiếp), mở tệp trên điện thoại.',
-    'Nếu máy hỏi, cho phép ứng dụng đang mở tệp (Zalo, Tệp, Chrome…) được **cài ứng dụng không rõ nguồn gốc**, rồi chạm **Cài đặt**.',
-    'Cài xong, trên màn hình chính có biểu tượng mặt trống đồng nền xanh tên **QLDA TTTS**. Chạm để mở.',
-    'Lần đầu mở, nhập **Địa chỉ máy chủ** do quản trị hệ thống cung cấp (ví dụ http://192.168.1.10:5080 trong mạng nội bộ) và chạm **Kết nối**. Ứng dụng kiểm tra kết nối, lưu địa chỉ và chuyển sang màn hình đăng nhập.',
+    'Mở **Chrome**, nhập địa chỉ phần mềm do quản trị hệ thống cung cấp (ví dụ https://qlda.tenxa.vn hoặc http://192.168.1.10:5080 trong mạng nội bộ của Ban).',
+    'Chạm nút **⋮** ở góc trên bên phải của Chrome.',
+    'Chọn **Thêm vào màn hình chính** (một số máy hiện **Cài đặt ứng dụng**), giữ tên «QLDA Xã/Phường» và chạm **Thêm**.',
+    'Trên màn hình chính có biểu tượng mặt trống đồng nền xanh. Từ đây chạm biểu tượng để mở phần mềm toàn màn hình như một ứng dụng.',
   ] });
-  out.push({ note: 'Chỉ cài tệp .apk do quản trị hệ thống của Ban cung cấp. Bản cập nhật được ký cùng một khóa nên cài đè trực tiếp, dữ liệu và địa chỉ máy chủ đã lưu được giữ nguyên. Hướng dẫn chi tiết từng bước có trong tài liệu «Hướng dẫn cài ứng dụng trên điện thoại».' });
-  out.push({ p: 'Ứng dụng không lưu dữ liệu nghiệp vụ trên điện thoại; mọi thông tin nằm trên máy chủ của Ban. Một số thao tác riêng của ứng dụng Android:' });
+  out.push({ p: 'Phần mềm không lưu dữ liệu nghiệp vụ trên điện thoại; mọi thông tin nằm trên máy chủ của Ban. Khi Ban nâng cấp phần mềm trên máy chủ, điện thoại tự dùng phiên bản mới ở lần mở tiếp theo, không cần cài lại.' });
   out.push({ bullets: [
-    'Ở màn hình đầu, chạm nút **Quay lại** của điện thoại để mở hộp chọn: **Tải lại trang**, **Đổi máy chủ** (khi Ban đổi địa chỉ truy cập) hoặc **Thoát ứng dụng**.',
-    'Khi chọn ảnh đính kèm, ứng dụng hỏi **Chọn tệp hoặc chụp ảnh**: chọn máy ảnh để chụp trực tiếp tại hiện trường.',
-    'Tệp tải về (tệp đính kèm, báo cáo Excel) được lưu vào thư mục **Tải xuống/QLDA TTTS** của điện thoại.',
+    'Khi chọn ảnh đính kèm, điện thoại hỏi **Máy ảnh** hoặc **Tệp/Thư viện**: chọn máy ảnh để chụp trực tiếp tại hiện trường.',
+    'Tệp tải về (tệp đính kèm, báo cáo Excel) được lưu vào thư mục **Tải xuống** của điện thoại.',
   ] });
   out.push({ h2: 'Thêm phần mềm ra màn hình chính trên iPhone' });
   out.push({ steps: [
     'Mở **Safari**, nhập địa chỉ phần mềm do quản trị hệ thống cung cấp.',
     'Chạm nút **Chia sẻ** (hình vuông có mũi tên lên) ở thanh dưới cùng của Safari.',
-    'Chọn **Thêm vào MH chính**, giữ tên «QLDA TTTS» và chạm **Thêm**.',
+    'Chọn **Thêm vào MH chính**, giữ tên «QLDA Xã Phường» và chạm **Thêm**.',
     'Từ đây mở phần mềm bằng biểu tượng trên màn hình chính; phần mềm chạy toàn màn hình như một ứng dụng.',
   ] });
 
@@ -129,16 +130,16 @@ function build() {
   out.push({ p: 'Trang **Tổng quan** hiển thị các chỉ tiêu chính, biểu đồ và danh sách **Cảnh báo và việc cần xử lý** (hạng mục quá hạn, chậm tiến độ, công việc sắp đến hạn); chạm **Xem** để mở ngay nội dung cần xử lý. Trang **Quản lý khối lượng** (mở từ Menu) cho xem giá trị hợp đồng, khối lượng thực hiện lũy kế, đã nghiệm thu và đã thanh toán của từng hợp đồng.' });
   out.push({ imgs2: ['dt-tong-quan', 'dt-canh-bao', 'dt-khoi-luong'], caps: ['Trang Tổng quan', 'Cảnh báo cần xử lý', 'Quản lý khối lượng'], mobile: true });
   out.push({ h2: 'Lãnh đạo Ban xem trên điện thoại' });
-  out.push({ p: 'Tài khoản Lãnh đạo Ban xem được toàn bộ dự án. Trang **Báo cáo, thống kê** (mở từ Menu) cho chọn loại báo cáo, dự án, gói thầu, khoảng thời gian và chạm **Xuất Excel** để tải báo cáo về điện thoại: trên Android, tệp lưu tại Tải xuống/QLDA TTTS; trên iPhone, chọn **Lưu vào Tệp** hoặc gửi qua ứng dụng khác.' });
+  out.push({ p: 'Tài khoản Lãnh đạo Ban xem được toàn bộ dự án. Trang **Báo cáo, thống kê** (mở từ Menu) cho chọn loại báo cáo, dự án, gói thầu, khoảng thời gian và chạm **Xuất Excel** để tải báo cáo về điện thoại: trên Android, tệp lưu tại Tải xuống/QLDA Xa Phuong; trên iPhone, chọn **Lưu vào Tệp** hoặc gửi qua ứng dụng khác.' });
   out.push({ imgs2: ['dt-ld-tong-quan', 'dt-ld-bao-cao'], caps: ['Tổng quan của Lãnh đạo Ban', 'Báo cáo, thống kê'], mobile: true });
 
   out.push({ h1: 'CÂU HỎI THƯỜNG GẶP VÀ HỖ TRỢ' });
   out.push({ table: { head: ['Tình huống', 'Cách xử lý'], widths: [3400, 5600], rows: [
     ['Ứng dụng báo «Không kết nối được»', 'Kiểm tra Wi‑Fi nội bộ hoặc VPN và địa chỉ máy chủ; chạm Thử lại. Ban đổi địa chỉ truy cập: dùng Đổi máy chủ.'],
     ['Báo «Chứng chỉ HTTPS của máy chủ không hợp lệ»', 'Không tiếp tục; báo quản trị hệ thống kiểm tra chứng chỉ của máy chủ.'],
-    ['Không chụp được ảnh', 'Vào Cài đặt điện thoại → Ứng dụng → QLDA TTTS → Quyền, cho phép Máy ảnh (iPhone: Cài đặt → Safari → Máy ảnh).'],
+    ['Không chụp được ảnh', 'Vào Cài đặt điện thoại → Ứng dụng → QLDA Xã Phường → Quyền, cho phép Máy ảnh (iPhone: Cài đặt → Safari → Máy ảnh).'],
     ['Lưu nhật ký báo lỗi', 'Thường do mất sóng. Kiểm tra kết nối rồi chạm Lưu lại; nhật ký chỉ được ghi nhận khi phần mềm báo lưu thành công.'],
-    ['Không tìm thấy tệp đã tải', 'Android: thư mục Tải xuống/QLDA TTTS. iPhone: ứng dụng Tệp, mục Tải về.'],
+    ['Không tìm thấy tệp đã tải', 'Android: thư mục Tải xuống/QLDA Xa Phuong. iPhone: ứng dụng Tệp, mục Tải về.'],
     ['Không cài được bản mới', 'Chỉ cài tệp do quản trị hệ thống cung cấp. Nếu máy báo xung đột gói, gỡ ứng dụng cũ rồi cài lại và nhập lại địa chỉ máy chủ.'],
     ['Chụp nhầm ảnh hoặc tệp', 'Ảnh nhật ký: chạm Thêm ảnh, đánh dấu Bỏ ảnh này rồi Lưu. Tệp đính kèm: mở lại hộp nhập, chạm Gỡ rồi Lưu; tệp gỡ nhầm được quản trị hệ thống khôi phục trong 30 ngày.'],
     ['Không thấy một chức năng', 'Tài khoản chưa được phân quyền chức năng đó; đề nghị quản trị hệ thống xem lại.'],

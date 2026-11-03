@@ -22,7 +22,7 @@ public class BrandingController : ApiControllerBase
     /// <summary>Các mục được phép cấu hình và giá trị mặc định (bản dùng chung cho xã/phường).</summary>
     public static readonly (string Key, string Default, int Max)[] Fields =
     {
-        ("appName", "QLDA đầu tư xây dựng", 120),
+        ("appName", "Quản lý dự án, nhiệm vụ", 120),
         ("orgShort", "Ban QLDA xã/phường …", 120),
         ("orgName", "Ủy ban nhân dân xã/phường …", 200),
         ("unitName", "Ban Quản lý dự án đầu tư xây dựng", 200),

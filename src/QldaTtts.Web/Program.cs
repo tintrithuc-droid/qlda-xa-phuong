@@ -9,15 +9,23 @@ using QldaTtts.Web.Services;
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
 
-// Cơ sở dữ liệu: SQL Server (vận hành, theo BC KTKT) hoặc SQLite (phát triển/kiểm thử)
+// Cơ sở dữ liệu: PostgreSQL (máy chủ Linux/Docker, chi phí thấp), SQL Server (máy chủ Windows) hoặc SQLite (bản demo, đơn vị rất nhỏ)
 var provider = cfg["Database:Provider"] ?? "SqlServer";
-builder.Services.AddDbContext<AppDbContext>(o =>
+if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
 {
-    if (provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
-        o.UseSqlite(cfg.GetConnectionString("Sqlite") ?? "Data Source=App_Data/qlda.db");
-    else
-        o.UseSqlServer(cfg.GetConnectionString("SqlServer"), s => s.EnableRetryOnFailure());
-});
+    // Giữ cách lưu DateTime như SQL Server/SQLite (timestamp không múi giờ); đặt trước khi Npgsql nạp
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    builder.Services.AddDbContext<AppDbContext, PgDbContext>(o =>
+        o.UseNpgsql(cfg.GetConnectionString("PostgreSQL"), n => n.EnableRetryOnFailure()));
+}
+else
+    builder.Services.AddDbContext<AppDbContext>(o =>
+    {
+        if (provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            o.UseSqlite(cfg.GetConnectionString("Sqlite") ?? "Data Source=App_Data/qlda.db");
+        else
+            o.UseSqlServer(cfg.GetConnectionString("SqlServer"), s => s.EnableRetryOnFailure());
+    });
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();
@@ -53,7 +61,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (db.Database.IsSqlServer()) db.Database.Migrate();
+    if (db.Database.IsSqlServer() || db.Database.IsNpgsql()) db.Database.Migrate();
     else
     {
         Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data"));
@@ -84,6 +92,26 @@ using (var scope = app.Services.CreateScope())
                 Groups TEXT NOT NULL, ""Order"" INTEGER NOT NULL, UpdatedAt TEXT NULL, UpdatedBy TEXT NULL)");
         if (Cols("Settings").Count == 0)
             db.Database.ExecuteSqlRaw("CREATE TABLE Settings (\"Key\" TEXT NOT NULL PRIMARY KEY, Value TEXT NULL, UpdatedAt TEXT NULL, UpdatedBy TEXT NULL)");
+        // Bảng, cột mới của các phiên bản sau (1.1 trở đi): lấy từ mô hình dữ liệu, chỉ thêm phần còn thiếu
+        var script = db.Database.GenerateCreateScript().Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        foreach (var et in db.Model.GetEntityTypes())
+        {
+            var table = et.GetTableName(); if (table is null) continue;
+            var cols = Cols(table);
+            if (cols.Count == 0)
+            {
+                foreach (var stmt in script.Where(x => x.Contains($"CREATE TABLE \"{table}\"") || x.Contains($"ON \"{table}\" (")))
+                    db.Database.ExecuteSqlRaw(stmt);
+                continue;
+            }
+            var so = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(table, null);
+            foreach (var prop in et.GetProperties())
+            {
+                var col = prop.GetColumnName(so);
+                if (col is null || cols.Contains(col) || !prop.IsNullable) continue;
+                db.Database.ExecuteSqlRaw($"ALTER TABLE \"{table}\" ADD COLUMN \"{col}\" {prop.GetColumnType()} NULL");
+            }
+        }
         conn.Close();
     }
 

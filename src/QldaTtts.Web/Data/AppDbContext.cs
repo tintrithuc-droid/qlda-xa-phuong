@@ -8,6 +8,8 @@ namespace QldaTtts.Web.Data;
 public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    /// <summary>Cho lớp con theo từng loại CSDL (mỗi loại một bộ migration riêng).</summary>
+    protected AppDbContext(DbContextOptions options) : base(options) { }
 
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectTask> Tasks => Set<ProjectTask>();
@@ -23,6 +25,10 @@ public class AppDbContext : DbContext
     public DbSet<VolumeEntry> Volumes => Set<VolumeEntry>();
     public DbSet<PayPlan> PayPlans => Set<PayPlan>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<CapitalPlan> CapitalPlans => Set<CapitalPlan>();
+    public DbSet<Acceptance> Acceptances => Set<Acceptance>();
+    public DbSet<Settlement> Settlements => Set<Settlement>();
+    public DbSet<Clearance> Clearances => Set<Clearance>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<UserGroup> Groups => Set<UserGroup>();
     public DbSet<Catalog> Catalogs => Set<Catalog>();
@@ -64,11 +70,33 @@ public class AppDbContext : DbContext
         b.Entity<BoqItem>().HasIndex(x => x.ContractId);
         b.Entity<VolumeEntry>().HasIndex(x => x.BoqId);
         b.Entity<Payment>().HasIndex(x => x.ContractId);
+        b.Entity<CapitalPlan>().HasIndex(x => new { x.ProjectId, x.Year });
+        b.Entity<Acceptance>().HasIndex(x => x.ProjectId);
+        b.Entity<Settlement>().HasIndex(x => x.ProjectId);
+        b.Entity<Clearance>().HasIndex(x => x.ProjectId);
         b.Entity<AuditLog>().HasIndex(x => x.Ts);
         b.Entity<Catalog>().HasIndex(x => x.Type);
         b.Entity<Attachment>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Attachment>().HasIndex(x => x.FileId);
     }
+}
+
+/// <summary>
+/// Ngữ cảnh dùng khi chạy PostgreSQL: cùng mô hình dữ liệu, bộ migration riêng ở Data/MigrationsPg
+/// (dotnet ef migrations add &lt;Ten&gt; --context PgDbContext -o Data/MigrationsPg).
+/// </summary>
+public class PgDbContext : AppDbContext
+{
+    // DateTime lưu dạng timestamp không múi giờ, giống SQL Server/SQLite (áp dụng cả khi chạy lẫn khi sinh migration)
+    static PgDbContext() => AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    public PgDbContext(DbContextOptions<PgDbContext> options) : base(options) { }
+}
+
+/// <summary>Dùng cho lệnh "dotnet ef migrations" với PostgreSQL (không cần CSDL thật để sinh migration).</summary>
+public class PgDesignTimeFactory : IDesignTimeDbContextFactory<PgDbContext>
+{
+    public PgDbContext CreateDbContext(string[] args) =>
+        new(new DbContextOptionsBuilder<PgDbContext>().UseNpgsql("Host=localhost;Database=qlda;Username=qlda;Password=x").Options);
 }
 
 /// <summary>Dùng cho lệnh "dotnet ef migrations" (sinh migration cho SQL Server).</summary>

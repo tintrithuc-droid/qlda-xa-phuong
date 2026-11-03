@@ -1,0 +1,36 @@
+# Một xã/phường = một thư mục chứa tệp này + tệp .env (xem HUONG_DAN_CAI_DAT_LINUX.md).
+# Nhiều xã trên một máy chủ: mỗi xã một thư mục, đặt QLDA_PORT và COMPOSE_PROJECT_NAME khác nhau.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: qlda
+      POSTGRES_USER: qlda
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Chưa đặt DB_PASSWORD trong tệp .env}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qlda -d qlda"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: ${QLDA_IMAGE:-qlda-xa-phuong:latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__PostgreSQL: "Host=db;Database=qlda;Username=qlda;Password=${DB_PASSWORD}"
+      Https__Redirect: "false"
+    ports:
+      - "${QLDA_PORT:-8080}:8080"
+    volumes:
+      - appdata:/app/App_Data
+
+volumes:
+  db:
+  appdata:

@@ -50,5 +50,14 @@ const intoView = (p, sel, text) => p.evaluate(([s, t]) => { const e = [...docume
   p = await newPage(MOB); await login(p, 'lanhdao'); await go(p, 'tong-quan'); await shot(p, 'dt-ld-tong-quan');
   await go(p, 'bao-cao'); await shot(p, 'dt-ld-bao-cao');
   await p.context().close();
+  // Lãnh đạo xã/phường xem trên điện thoại
+  p = await newPage(MOB); await login(p, 'ubnd'); await go(p, 'tong-quan');
+  await shot(p, 'dt-xp-tong-quan', undefined, [{ sel: '.kpis', n: 4 }, { sel: '.tabbar', n: 5, pad: 0 }]);
+  await intoView(p, '.card', 'Cảnh báo và việc cần xử lý'); await shot(p, 'dt-xp-canh-bao');
+  await go(p, 'von'); await shot(p, 'dt-xp-von');
+  await go(p, 'du-an'); await shot(p, 'dt-xp-du-an');
+  await go(p, 'tong-quan'); await click(p, '#top [data-act=menu]'); await wait(400); await shot(p, 'dt-xp-menu'); await p.mouse.click(370, 600); await wait(300);
+  await go(p, 'bao-cao'); await shot(p, 'dt-xp-bao-cao');
+  await p.context().close();
   await H.b.close();
 })().catch(e => { console.error(e); process.exit(1); });

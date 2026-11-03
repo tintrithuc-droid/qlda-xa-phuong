@@ -22,8 +22,8 @@ public static class GuideSeed
             "Kế hoạch vốn và giải ngân theo kịch bản, kế hoạch thanh toán, hồ sơ thanh toán, xác nhận đã chi kèm chứng từ Kho bạc, quyết toán dự án hoàn thành, đối chiếu khối lượng nghiệm thu."),
         ("Tu van giam sat - Nha thau", "Hướng dẫn sử dụng dành cho Tư vấn giám sát / Nhà thầu", new[] { "g-site" },
             "Ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ trong phạm vi dự án được giao."),
-        ("Lanh dao UBND xa", "Hướng dẫn sử dụng dành cho Lãnh đạo UBND xã", new[] { "g-ubnd" },
-            "Theo dõi tình hình các dự án do UBND xã quyết định đầu tư: tiến độ, giải ngân so với kịch bản, giải phóng mặt bằng, nghiệm thu, quyết toán; cảnh báo và báo cáo."),
+        ("Lanh dao xa phuong", "Hướng dẫn sử dụng dành cho Lãnh đạo xã/phường", new[] { "g-ubnd" },
+            "Bí thư, Chủ tịch, Phó Chủ tịch xã/phường theo dõi các dự án trên máy tính hoặc điện thoại: tiến độ, giải ngân so với kịch bản, giải phóng mặt bằng, nghiệm thu, quyết toán; cảnh báo và báo cáo."),
         ("Su dung tren dien thoai", "Hướng dẫn sử dụng trên điện thoại", new[] { "g-site", "g-tech", "g-lead", "g-ubnd" },
             "Thêm phần mềm ra màn hình chính trên Android và iPhone, ghi nhật ký và chụp ảnh tại hiện trường, cập nhật tiến độ, tra cứu."),
     };
@@ -65,10 +65,12 @@ public static class GuideSeed
         if (pdfs.Length == 0) return;
         var key = RefreshFlag + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("|", pdfs.Select(Path.GetFileName)))))[..32];
         if (db.Settings.Any(s => s.Key == key)) return;
-        foreach (var (file, title, _, _) in Roles)
+        foreach (var (file, title, _, content) in Roles)
         {
             var pdf = pdfs.FirstOrDefault(p => Path.GetFileName(p).Contains(" - " + file + " - ", StringComparison.OrdinalIgnoreCase));
-            var g = db.Guides.FirstOrDefault(x => x.Title == title && x.UpdatedBy == "he-thong");
+            var g = db.Guides.FirstOrDefault(x => x.Title == title && x.UpdatedBy == "he-thong")
+                ?? (file == "Lanh dao xa phuong" ? db.Guides.FirstOrDefault(x => x.Title == "Hướng dẫn sử dụng dành cho Lãnh đạo UBND xã" && x.UpdatedBy == "he-thong") : null);
+            if (g is not null && g.Title != title) { g.Title = title; g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
             if (pdf is null || g is null) continue;
             var olds = db.Attachments.Where(a => a.Collection == "guides" && a.RecordId == g.Id && a.DeletedAt == null).ToList();
             if (olds.Any(a => a.FileName == Path.GetFileName(pdf))) continue;

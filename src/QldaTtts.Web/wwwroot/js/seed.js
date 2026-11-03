@@ -259,6 +259,6 @@ function defaultGroups(){
     {id:'g-tech', name:'Cán bộ kỹ thuật', admin:false, perms:P(['du-an','mo-hinh','goi-thau','tien-do','nhat-ky','khoi-luong','gpmb','nghiem-thu'],'*'), scope:[], desc:'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'},
     {id:'g-acc', name:'Kế toán', admin:false, perms:P(['thanh-toan','von','quyet-toan'],['tong-quan','du-an','goi-thau','khoi-luong','nghiem-thu','bao-cao']), scope:[], desc:'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'},
     {id:'g-site', name:'Tư vấn giám sát / Nhà thầu', admin:false, perms:P(['nhat-ky','tien-do'],['tong-quan','du-an','mo-hinh','khoi-luong','nghiem-thu']), scope:['p1'], desc:'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'},
-    {id:'g-ubnd', name:'Lãnh đạo UBND xã (người quyết định đầu tư)', admin:false, perms:P([],['tong-quan','du-an','von','gpmb','tien-do','nghiem-thu','thanh-toan','quyet-toan','bao-cao']), scope:[], desc:'Theo dõi tình hình dự án, giải ngân, quyết toán; nhận cảnh báo. Chỉ xem.'}
+    {id:'g-ubnd', name:'Lãnh đạo xã/phường', admin:false, perms:P([],['tong-quan','du-an','von','gpmb','tien-do','nghiem-thu','thanh-toan','quyet-toan','bao-cao']), scope:[], desc:'Bí thư, Phó Bí thư Đảng ủy; Chủ tịch, Phó Chủ tịch HĐND, UBND xã/phường (người quyết định đầu tư): theo dõi tiến độ, giải ngân, giải phóng mặt bằng, nghiệm thu, quyết toán, cảnh báo và báo cáo trên máy tính hoặc điện thoại. Chỉ xem.'}
   ];
 }

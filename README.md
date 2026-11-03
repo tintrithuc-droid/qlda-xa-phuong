@@ -17,6 +17,12 @@ Nghị định 207/2026/NĐ-CP; thực tiễn TP Cần Thơ sau sắp xếp chí
 - **Quyết toán dự án**: hạn lập, thẩm tra, phê duyệt, tất toán, cảnh báo quá hạn;
 - Nhóm người dùng "Lãnh đạo UBND xã (người quyết định đầu tư)" chỉ xem; danh mục nguồn vốn, hồ sơ pháp lý, hình thức LCNT cập nhật.
 Hệ thống đang chạy được nâng cấp tự động khi cài bản mới (bảng, danh mục, quyền của nhóm có sẵn).
+Phiên bản 1.3 (03/11/2026) làm mới giao diện:
+- Mỗi người dùng tự chọn **Giao diện** (nút bảng màu trên thanh trên cùng, mục Tài khoản hoặc menu): chế độ sáng/tối/tự động, 6 tông màu
+  (xanh hành chính, xanh ngọc, tím than, xanh lá, cam đất, than chì), thanh điều hướng nền đậm hoặc sáng, 4 cỡ chữ, mật độ thoáng/gọn;
+  lưu theo tài khoản trên máy chủ (`/api/auth/ui`, bảng Settings, khóa `ui:<mã người dùng>`), đăng nhập máy khác vẫn giữ;
+- Mọi bảng tự căn độ rộng cột: cột ngắn (mã, trạng thái, số tiền, ngày) không xuống dòng, cột chữ dài có độ rộng tối thiểu dễ đọc,
+  bảng rộng hơn khung thì cuộn ngang và giữ cố định cột đầu; bộ lọc báo cáo xếp lưới đều cột.
 Trang **Danh mục chức năng** trong phần mềm liệt kê từng chức năng và nơi thực hiện trong phần mềm.
 
 ## Công nghệ

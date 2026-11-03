@@ -225,6 +225,35 @@ public class AuthController : ApiControllerBase
         return Ok(new { ok = true });
     }
 
+    public record UiPrefs(string? Value);
+    private static string UiKey(string userId) => "ui:" + (userId.Length > 61 ? userId[..61] : userId);
+
+    /// <summary>Tùy chọn giao diện của người dùng hiện tại (chế độ sáng/tối, tông màu, cỡ chữ…), dạng JSON do giao diện quản lý.</summary>
+    [Authorize, HttpGet("ui")]
+    public async Task<IActionResult> GetUi()
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var v = (await Db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == UiKey(Uc.User.Id)))?.Value;
+        return Ok(new { value = v });
+    }
+
+    /// <summary>Lưu tùy chọn giao diện của người dùng hiện tại; mỗi người tự đổi được, không cần quyền quản trị.</summary>
+    [Authorize, HttpPut("ui")]
+    public async Task<IActionResult> PutUi([FromBody] UiPrefs r)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var v = r.Value ?? "";
+        if (v.Length > 1000) return Error(400, "Tùy chọn giao diện quá dài.");
+        try { using var doc = JsonDocument.Parse(v); if (doc.RootElement.ValueKind != JsonValueKind.Object) throw new JsonException(); }
+        catch (JsonException) { return Error(400, "Tùy chọn giao diện không hợp lệ."); }
+        var key = UiKey(Uc.User.Id);
+        var s = await Db.Settings.FirstOrDefaultAsync(x => x.Key == key);
+        if (s is null) Db.Settings.Add(s = new AppSetting { Key = key });
+        s.Value = v; s.UpdatedAt = DateTime.UtcNow; s.UpdatedBy = Uc.User.Username;
+        await Db.SaveChangesAsync();
+        return Ok(new { value = v });
+    }
+
     public record ChangePasswordRequest(string Old, string Password);
 
     [Authorize, HttpPost("change-password")]

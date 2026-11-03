@@ -35,6 +35,7 @@ function render(){
   S.after.forEach(f=>{ try{ f(); }catch(e){ console.error(e); } });
   if(prevF){ const el=c.querySelector(`[data-f="${prevF}"]`); if(el && el.tagName==='INPUT'){ el.focus(); try{ el.setSelectionRange(caret,caret); }catch{} } }
   renderTabbar();
+  fitTables(c);
 }
 function buildShell(){
   $('#root').innerHTML=`<div class="app" id="app">
@@ -50,7 +51,7 @@ function renderNav(){
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
     if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`; }
   });
-  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Danh mục chức năng</span></a>`;
+  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#" data-act="appearance">${ic('palette')}<span>Giao diện, màu sắc</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Danh mục chức năng</span></a>`;
   $('#nav').innerHTML=html;
   $('#sidefoot').innerHTML=`Phiên bản ${APP_VERSION} · ${esc(BR.support)}`;
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
@@ -62,7 +63,7 @@ function renderTop(){
     <div class="title">${esc(title)}</div><div class="sp"></div>
     <select id="gpid" data-f="__pid" aria-label="Lọc theo dự án">${opts(projOpts(), S.pid, 'Tất cả dự án')}</select>
     ${themeBtn()}
-    <span class="mode ${Store.mode==='server'?'shared':''}" title="${Store.mode==='server'?'Dữ liệu lưu tập trung trên máy chủ, mọi người dùng cùng thấy':'Mất kết nối máy chủ: thay đổi chưa được lưu'}">${Store.mode==='server'?'● Đã kết nối máy chủ':'● Mất kết nối'}</span>
+    <span class="mode ${Store.mode==='server'?'shared':''}" title="${Store.mode==='server'?'Dữ liệu lưu tập trung trên máy chủ, mọi người dùng cùng thấy':'Mất kết nối máy chủ: thay đổi chưa được lưu'}">${Store.mode==='server'?'Đã kết nối máy chủ':'Mất kết nối máy chủ'}</span>
     <div class="who"><button class="btn ghost sm" data-act="account" title="Tài khoản"><span class="avatar">${esc(initials(S.user.name))}</span><span class="nm" style="text-align:left;line-height:1.2">${esc(S.user.name)}<br><span class="small muted">${esc(g?g.name:'')}</span></span></button></div>`;
 }
 function renderTabbar(){
@@ -93,7 +94,10 @@ document.addEventListener('change', e=>{ if(e.target.matches('[data-f]') && !e.t
 ACT.menu=()=>$('#side').classList.toggle('open');
 ACT.pg=(key,el)=>{ S.pg=S.pg||{}; S.pg[key]=+el.dataset.p; render(); };
 document.addEventListener('change', e=>{ if(e.target.matches('select.pg-size')){ try{ localStorage.setItem('qlda-pgsize', e.target.value); }catch{} S.pg={}; render(); } });
-ACT.theme=()=>{ const m=themeGet(), n=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3][0]; try{ localStorage.setItem('qlda-theme',n); }catch{} themeApply(n); render(); toast(THEMES.find(x=>x[0]===n)[1]); };
+ACT.theme=()=>{ const m=themeGet(), n=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3][0]; UI.set('mode',n); render(); toast('Chế độ hiển thị: '+THEMES.find(x=>x[0]===n)[1].toLowerCase()); };
+ACT.appearance=()=>{ $('#side')?.classList.remove('open'); openModal(appearanceHTML()); };
+ACT['ap-reset']=()=>{ for(const [k,d] of Object.entries(UI_OPTS)) UI.p[k]=d.def; UI.set('mode','auto'); $('#ov').innerHTML=appearanceHTML(); S.dirty=true; };
+document.addEventListener('change', e=>{ const el=e.target; if(!el.matches('[data-ap]')) return; UI.set(el.dataset.ap, el.value); $('#ov').innerHTML=appearanceHTML(); const f=$('#ov').querySelector(`[data-ap="${el.dataset.ap}"]:checked`); if(f) f.focus(); S.dirty=true; });
 ACT.tab=(id,el)=>{ S.tab[el.dataset.g]=id; if(el.dataset.g==='qt' && typeof ADM!=='undefined'){ delete ADM.storage; delete ADM.auto; } render(); };
 ACT.go=(id)=>{ location.hash=id; };
 ACT.photo=(id,el)=>{ openModal(`<div class="lightbox" style="display:grid;gap:8px;justify-items:center"><img src="${esc(el.getAttribute('src'))}" alt=""><button class="btn" data-close>Đóng</button></div>`); };
@@ -243,10 +247,11 @@ ACT.account=()=>{
   <div style="padding:16px;display:flex;flex-direction:column;gap:12px"><div style="display:flex;gap:12px;align-items:center"><span class="avatar" style="width:44px;height:44px;font-size:15px">${esc(initials(S.user.name))}</span><div><b>${esc(S.user.name)}</b><div class="small muted">${esc(S.user.username)} · ${esc(g?g.name:'')}</div><div class="small muted">${esc(S.user.unit||'')}</div></div></div>
   ${S.mfa&&S.mfa.enabled?`<div class="mfa-state">${ic('shield').replace('<svg','<svg width="18" height="18"')}<div><b>Xác thực 2 lớp: đang bật</b><div class="small muted">Còn ${S.mfa.recoveryLeft} mã khôi phục chưa dùng</div></div></div>
   <button class="btn" data-act="new-rc">Tạo mã khôi phục mới</button>`:''}
+  <button class="btn" data-act="appearance">${ic('palette').replace('<svg','<svg width="16" height="16"')} Giao diện: màu sắc, cỡ chữ</button>
   <button class="btn" data-act="chpw">${ic('key').replace('<svg','<svg width="16" height="16"')} Đổi mật khẩu</button>
   <button class="btn danger" data-act="logout">${ic('out').replace('<svg','<svg width="16" height="16"')} Đăng xuất</button></div></div>`);
 };
-ACT.logout=async()=>{ try{ await api('POST','/api/auth/logout',undefined,{auth:true}); }catch{} S.user=null; S.mfa=null; S.mfaStep=null; Store.clear(); closeModal(); S.sel={}; render(); };
+ACT.logout=async()=>{ UI.reset(); try{ await api('POST','/api/auth/logout',undefined,{auth:true}); }catch{} S.user=null; S.mfa=null; S.mfaStep=null; Store.clear(); closeModal(); S.sel={}; render(); };
 ACT.chpw=()=>{
   openForm({title:'Đổi mật khẩu', narrow:true, fields:[{key:'old',label:'Mật khẩu hiện tại',type:'password',req:true,full:true},{key:'pw',label:'Mật khẩu mới (≥ 8 ký tự, có chữ và số)',type:'password',req:true,full:true},{key:'pw2',label:'Nhập lại mật khẩu mới',type:'password',req:true,full:true}],
     onSave: async v=>{
@@ -271,12 +276,12 @@ VIEWS['tong-quan']=()=>{
   const sc=sCurve(D('schedule').filter(s=>pids.includes(s.projectId)));
   const tasks=D('tasks').filter(t=>pids.includes(t.projectId) && t.status!=='Hoàn thành').sort(by('due')).slice(0,6);
   const pjRows=ps.map(p=>{ const c=D('contracts').filter(c=>contractPid(c)===p.id); return {...p, cv:sum(c,contractValue), paid:sum(c,x=>contractPaid(x.id)), prog:projProgress(p.id), exp:projExpected(p.id)}; });
-  return `<div class="head"><div class="grow"><h1>Tổng quan tình hình thực hiện</h1><p>Số liệu đến ngày ${fmtDate(TODAY)}${S.pid?' · '+esc(projOf(S.pid)?.code):' · tất cả dự án được phân quyền'}</p></div></div>
+  return `<div class="head"><div class="grow"><h1>Tổng quan tình hình thực hiện</h1><p>Số liệu tính đến ngày ${fmtDate(TODAY)}${S.pid?', dự án '+esc(projOf(S.pid)?.code):', gồm các dự án bạn được giao theo dõi'}</p></div></div>
   <div class="grid g5 kpis" style="grid-template-columns:repeat(5,minmax(0,1fr))">
     <div class="card kpi"><div class="eyebrow">Dự án</div><div class="v">${ps.length}</div><div class="s">${ps.filter(p=>p.status==='Đang thi công'||p.status==='Đang thực hiện').length} đang thực hiện</div></div>
     <div class="card kpi"><div class="eyebrow">Tổng mức đầu tư</div><div class="v">${fmtTy(tm)}</div><div class="s">${D('packages').filter(k=>pids.includes(k.projectId)).length} gói thầu</div></div>
-    <div class="card kpi"><div class="eyebrow">Giá trị hợp đồng</div><div class="v">${fmtTy(cv)}</div><div class="s">${cs.length} hợp đồng · thực hiện ${fmtP(pct(done,cv))}</div></div>
-    ${py?`<div class="card kpi ${tgy-pct(dy,py)>10?'warn':''}"><div class="eyebrow">Giải ngân năm ${Y}</div><div class="v">${fmtP(pct(dy,py))}</div><div class="s">${fmtTy(dy)} / kế hoạch vốn ${fmtTy(py)} · kịch bản ${fmtP(tgy)}</div></div>`:`<div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,tm))} tổng mức đầu tư</div></div>`}
+    <div class="card kpi"><div class="eyebrow">Giá trị hợp đồng</div><div class="v">${fmtTy(cv)}</div><div class="s">${cs.length} hợp đồng, thực hiện ${fmtP(pct(done,cv))}</div></div>
+    ${py?`<div class="card kpi ${tgy-pct(dy,py)>10?'warn':''}"><div class="eyebrow">Giải ngân năm ${Y}</div><div class="v">${fmtP(pct(dy,py))}</div><div class="s">${fmtTy(dy)} / kế hoạch vốn ${fmtTy(py)}, kịch bản ${fmtP(tgy)}</div></div>`:`<div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,tm))} tổng mức đầu tư</div></div>`}
     <div class="card kpi ${nb?'bad':al.length?'warn':''}"><div class="eyebrow">Cảnh báo</div><div class="v">${al.length}</div><div class="s">${nb} nghiêm trọng</div></div>
   </div>
   <div class="grid g3">
@@ -350,7 +355,7 @@ VIEWS['du-an']=()=>{
   if(sel && pidOk(sel.id)) return projectDetail(sel);
   const q=S.f.pq||'', st=S.f.pst||'';
   const rows=projects().filter(p=>(!S.pid||p.id===S.pid) && has(p,q) && (!st||p.status===st)).map(p=>({...p, prog:projProgress(p.id), exp:projExpected(p.id), nk:D('packages').filter(k=>k.projectId===p.id).length}));
-  return `<div class="head"><div class="grow"><h1>Danh sách dự án</h1><p>${rows.length} dự án · Tổng mức đầu tư ${fmtTy(sum(rows,'tmdt'))}</p></div>${can('du-an','edit')?`<button class="btn primary" data-act="add-project">+ Thêm dự án</button>`:''}</div>
+  return `<div class="head"><div class="grow"><h1>Danh sách dự án</h1><p>${rows.length} dự án, tổng mức đầu tư ${fmtTy(sum(rows,'tmdt'))}</p></div>${can('du-an','edit')?`<button class="btn primary" data-act="add-project">+ Thêm dự án</button>`:''}</div>
   <div class="toolbar"><input type="search" placeholder="Tìm theo mã, tên, địa điểm…" data-f="pq" value="${esc(q)}" aria-label="Tìm dự án"><select data-f="pst" aria-label="Trạng thái">${opts(catalog('Trạng thái dự án'),st,'Mọi trạng thái')}</select></div>
   ${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên dự án',f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(r.group||'')} · ${esc(r.phase||'')}</div>`},{h:'Trạng thái',f:r=>statusPill(r.status)},
     {h:'Tổng mức đầu tư',r:1,f:r=>fmtTy(r.tmdt)},{h:'Gói thầu',r:1,f:r=>r.nk},{h:'Thời gian',f:r=>`<span class="num small">${fmtDate(r.start)} – ${fmtDate(r.end)}</span>`},

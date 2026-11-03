@@ -72,7 +72,7 @@ VIEWS['nghiem-thu']=()=>{
       {h:'Bảo lãnh bảo hành đến',f:r=>`<span class="num">${fmtDate(r.warrantyGuaranteeUntil)}</span>`},{h:'Tình trạng',f:r=>{ const s=warrantyState(r); return pill(s.t,s.k); }}], wr,
       {actions:r=>wfEditBtns('acceptances',r), empty:'Chưa có công trình nào nhập thời hạn bảo hành.'})}
     <p class="small muted" style="margin:10px 0 0">Phần mềm tự cảnh báo trước 30 ngày khi sắp hết thời hạn bảo hành hoặc bảo lãnh bảo hành, để Ban kiểm tra hiện trạng và yêu cầu nhà thầu sửa chữa trước khi hoàn trả bảo lãnh.</p></div>`;
-  return `<div class="head"><div class="grow"><h1>Nghiệm thu, bàn giao, bảo hành</h1><p>${all.length} biên bản · ${inW.length} công trình đang bảo hành</p></div></div>
+  return `<div class="head"><div class="grow"><h1>Nghiệm thu, bàn giao, bảo hành</h1><p>${all.length} biên bản, ${inW.length} công trình đang trong thời gian bảo hành</p></div></div>
   <div class="grid g4">${kpiCard('Nghiệm thu giai đoạn', all.filter(a=>/giai đoạn/i.test(a.kind||'')).length, 'biên bản')}${kpiCard('Nghiệm thu hoàn thành', all.filter(a=>/hoàn thành/i.test(a.kind||'')).length, 'hạng mục, công trình')}
     ${kpiCard('Đã bàn giao sử dụng', all.filter(a=>/bàn giao/i.test(a.kind||'')).length, 'công trình')}${kpiCard('Sắp hết bảo hành', soon.length, 'trong 30 ngày tới', soon.length?'warn':'')}</div>
   ${tabsBar('nt', t, [['ds','Nghiệm thu, bàn giao'],['bh','Theo dõi bảo hành']])}${body}`;
@@ -170,7 +170,7 @@ VIEWS['trinh-duyet']=()=>{
     {h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},{h:'Trạng thái',f:x=>wfPill(x.col,x.r)},{h:'Cập nhật',f:x=>`<span class="num small">${fmtDT(x.r.updatedAt)}</span><div class="small muted">${esc(x.r.updatedBy||'')}</div>`}];
   const list=t==='cho'?mine:t==='dang'?waiting:drafts;
   const tabs=[['cho','Chờ tôi duyệt',mine.length],['dang','Đang chờ duyệt',waiting.length],['soan','Đang soạn thảo, bị trả lại',drafts.length],['ls','Lịch sử duyệt',hist.length]];
-  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, hồ sơ thanh toán, biên bản nghiệm thu: người lập trình, Lãnh đạo Ban duyệt hoặc trả lại. Hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
+  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, hồ sơ thanh toán và biên bản nghiệm thu do cán bộ lập rồi trình; Lãnh đạo Ban duyệt hoặc trả lại. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
   <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="td2" data-id="${k}">${l}${n?` <span class="cnt" style="position:static;margin-left:4px">${n}</span>`:''}</button>`).join('')}</div>
   <div class="card">${t==='ls'
     ? table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Hồ sơ',f:x=>`<span class="small muted">${esc((WF[x.collection]||{}).name||'')}</span><div>${esc(x.target||'')}</div>`},{h:'Thao tác',f:x=>pill(x.action, x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'?'warn':'info')},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Ý kiến',f:x=>esc(x.note||'')}], hist, {empty:'Chưa có lịch sử trình duyệt.'})

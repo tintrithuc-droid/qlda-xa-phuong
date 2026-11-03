@@ -63,14 +63,14 @@ VIEWS['nghiem-thu']=()=>{
   let body='';
   if(t==='ds') body=`<div class="card"><div class="ch"><h2>Nghiệm thu, bàn giao</h2><select data-f="ntk" aria-label="Loại">${opts(catalog('Loại nghiệm thu, bàn giao'),kf,'Mọi loại')}</select>${ed?'<button class="btn primary sm" data-act="add-acceptances">+ Thêm biên bản</button>':''}</div>${table([
       {h:'Ngày · số biên bản',f:r=>`<div style="white-space:nowrap"><span class="num">${fmtDate(r.date)}</span><div class="small muted num">${esc(r.number||'—')}</div></div>`},{h:'Dự án · gói thầu',f:r=>`<div style="white-space:nowrap">${pshort(r.projectId)}<div>${pk(r.packageId)}</div></div>`},
-      {h:'Loại, nội dung',f:r=>`<div style="min-width:240px"><b class="small">${esc(r.kind||'')}</b><div>${esc(r.content||'')}</div>${r.receiver?`<div class="small muted">Tiếp nhận: ${esc(r.receiver)}</div>`:''}</div>`},{h:'Kết quả',f:r=>`<div style="max-width:150px">${resPill(r.result).replace('<span class="pill','<span style="white-space:normal;line-height:1.3" class="pill')}</div>`},{h:'Tệp',f:r=>attCell(atts('acceptances',r.id))}], rows,
-      {actions:r=>editBtns('nghiem-thu','acceptances',r.id), empty:'Chưa có biên bản nghiệm thu, bàn giao.'})}
+      {h:'Loại, nội dung',f:r=>`<div style="min-width:240px"><b class="small">${esc(r.kind||'')}</b><div>${esc(r.content||'')}</div>${r.receiver?`<div class="small muted">Tiếp nhận: ${esc(r.receiver)}</div>`:''}</div>`},{h:'Kết quả',f:r=>`<div style="max-width:150px">${resPill(r.result).replace('<span class="pill','<span style="white-space:normal;line-height:1.3" class="pill')}</div>`},{h:'Trạng thái',f:r=>wfPill('acceptances',r)},{h:'Tệp',f:r=>attCell(atts('acceptances',r.id))}], rows,
+      {actions:r=>wfBtns('acceptances',r)+wfEditBtns('acceptances',r), empty:'Chưa có biên bản nghiệm thu, bàn giao.'})}
     <p class="small muted" style="margin:10px 0 0">Nghiệm thu theo giai đoạn thi công, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng theo Nghị định 207/2026/NĐ-CP; đính kèm biên bản, bản vẽ hoàn công.</p></div>`;
   else body=`<div class="card"><h2>Theo dõi bảo hành công trình</h2>${table([
       {h:'Dự án',f:r=>pshort(r.projectId)},{h:'Gói thầu',f:r=>pk(r.packageId)},{h:'Bàn giao / nghiệm thu',f:r=>`<span class="num">${fmtDate(r.date)}</span><div class="small muted">${esc(r.kind||'')}</div>`},
       {h:'Thời hạn bảo hành',f:r=>N(r.warrantyMonths)?esc(r.warrantyMonths)+' tháng':'—'},{h:'Hết bảo hành',f:r=>`<span class="num">${fmtDate(warrantyEnd(r))}</span>`},
       {h:'Bảo lãnh bảo hành đến',f:r=>`<span class="num">${fmtDate(r.warrantyGuaranteeUntil)}</span>`},{h:'Tình trạng',f:r=>{ const s=warrantyState(r); return pill(s.t,s.k); }}], wr,
-      {actions:r=>editBtns('nghiem-thu','acceptances',r.id), empty:'Chưa có công trình nào nhập thời hạn bảo hành.'})}
+      {actions:r=>wfEditBtns('acceptances',r), empty:'Chưa có công trình nào nhập thời hạn bảo hành.'})}
     <p class="small muted" style="margin:10px 0 0">Phần mềm tự cảnh báo trước 30 ngày khi sắp hết thời hạn bảo hành hoặc bảo lãnh bảo hành, để Ban kiểm tra hiện trạng và yêu cầu nhà thầu sửa chữa trước khi hoàn trả bảo lãnh.</p></div>`;
   return `<div class="head"><div class="grow"><h1>Nghiệm thu, bàn giao, bảo hành</h1><p>${all.length} biên bản · ${inW.length} công trình đang bảo hành</p></div></div>
   <div class="grid g4">${kpiCard('Nghiệm thu giai đoạn', all.filter(a=>/giai đoạn/i.test(a.kind||'')).length, 'biên bản')}${kpiCard('Nghiệm thu hoàn thành', all.filter(a=>/hoàn thành/i.test(a.kind||'')).length, 'hạng mục, công trình')}
@@ -139,3 +139,40 @@ const clrFields=()=>[projSel(),{key:'name',label:'Khu vực, đoạn tuyến',re
 const clrCheck=v=>{ const e=$('#mform_err'); if(N(v.householdsPaid)>N(v.households)&&v.households!=null){ e.textContent='Số hộ đã chi trả lớn hơn số hộ bị ảnh hưởng.'; return false; } if(N(v.handedArea)>N(v.area)&&v.area!=null){ e.textContent='Diện tích đã bàn giao lớn hơn diện tích thu hồi.'; return false; } return true; };
 ACT['add-clearances']=()=>openForm({title:'Thêm khu vực giải phóng mặt bằng', fields:clrFields(), onSave:v=>clrCheck(v)?save('clearances',v,v.name):false});
 ACT['edit-clearances']=(id)=>openForm({title:'Cập nhật giải phóng mặt bằng', fields:clrFields(), value:get('clearances',id), onSave:v=>clrCheck(v)?save('clearances',v,v.name):false});
+
+/* ===== TRÌNH DUYỆT HỒ SƠ (bản 1.2) ===== */
+const WF_ACT = {submit:['Trình duyệt','Trình hồ sơ cho người có quyền duyệt.',false], withdraw:['Rút lại','Rút hồ sơ về soạn thảo để sửa tiếp.',false],
+  approve:['Duyệt','Duyệt hồ sơ.',false], return:['Trả lại','Trả hồ sơ về người lập để sửa, ghi rõ nội dung cần sửa.',true],
+  reject:['Từ chối','Từ chối hồ sơ (không thực hiện), ghi rõ lý do.',true], recall:['Thu hồi','Thu hồi hồ sơ đã duyệt về soạn thảo để điều chỉnh, ghi rõ lý do.',true]};
+ACT.wf=(key)=>{
+  const [col,id,a]=key.split('|'); const r=get(col,id); if(!r) return;
+  if(a==='history') return wfHistory(col,r);
+  const [lb,desc,need]=WF_ACT[a]; const w=WF[col];
+  openForm({title:lb+': '+w.label(r), narrow:true, submit:lb, value:{},
+    fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0 0 6px">${esc(desc)}</p><p class="small muted" style="margin:0">${esc(w.info(r))}</p>${a==='approve'&&col==='addenda'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, giá trị và thời hạn của phụ lục được cộng vào hợp đồng.</p>':''}${a==='approve'&&col==='payments'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, hồ sơ chuyển sang trạng thái Đang trình KBNN; kế toán xác nhận khi Kho bạc chi.</p>':''}`},
+      {key:'note',label:need?'Ý kiến (bắt buộc)':'Ý kiến (nếu có)',type:'textarea',rows:3,req:need,full:true}],
+    onSave:async v=>{ const res=await api('POST','/api/approvals',{collection:col, id, action:a, note:v.note||''}); Store.setLocal(col,res.record); Store.setLocal('approvals',res.log); return res.record; }});
+};
+function wfHistory(col, r){
+  const hs=D('approvals').filter(a=>a.collection===col && a.recordId===r.id).sort(by('at',-1));
+  openModal(`<div class="mform"><header><h3>Lịch sử trình duyệt: ${esc(WF[col].label(r))}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:14px 16px">
+    ${table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Thao tác',f:x=>pill(x.action, x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'?'warn':'info')},{h:'Trạng thái',f:x=>`<span class="small">${esc(x.fromStatus||'')} → <b>${esc(x.toStatus||'')}</b></span>`},{h:'Ý kiến',f:x=>esc(x.note||'')}], hs, {nopage:true, empty:'Chưa có lịch sử.'})}</div></div>`);
+}
+VIEWS['trinh-duyet']=()=>{
+  const t=S.tab.td2||'cho';
+  const vis=Object.keys(WF).filter(col=>can(WF[col].mod));
+  const all=vis.flatMap(col=>D(col).filter(r=>pidOk(WF[col].pid(r)) && (!S.pid||WF[col].pid(r)===S.pid)).map(r=>({col,r,id:col+'|'+r.id})));
+  const mine=wfMine().filter(x=>!S.pid||WF[x.col].pid(x.r)===S.pid).map(x=>({...x,id:x.col+'|'+x.r.id}));
+  const waiting=all.filter(x=>wfWaiting(x.col,x.r)), drafts=all.filter(x=>wfStatus(x.col,x.r)===WF[x.col].draft);
+  const hist=D('approvals').filter(a=>vis.includes(a.collection) && (!S.pid||a.projectId===S.pid)).sort(by('at',-1));
+  const lastNote=x=>{ const h=D('approvals').filter(a=>a.collection===x.col && a.recordId===x.r.id).sort(by('at',-1))[0]; return h&&h.note? `<div class="small muted">${esc(h.action)} · ${esc(h.byName||'')}: ${esc(h.note)}</div>` : ''; };
+  const cols=[{h:'Loại hồ sơ',f:x=>`<span class="small">${esc(WF[x.col].name)}</span>`},{h:'Hồ sơ',f:x=>`<b style="font-weight:600">${esc(WF[x.col].label(x.r))}</b><div class="small muted">${esc(WF[x.col].info(x.r))}</div>${lastNote(x)}`},
+    {h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},{h:'Trạng thái',f:x=>wfPill(x.col,x.r)},{h:'Cập nhật',f:x=>`<span class="num small">${fmtDT(x.r.updatedAt)}</span><div class="small muted">${esc(x.r.updatedBy||'')}</div>`}];
+  const list=t==='cho'?mine:t==='dang'?waiting:drafts;
+  const tabs=[['cho','Chờ tôi duyệt',mine.length],['dang','Đang chờ duyệt',waiting.length],['soan','Đang soạn thảo, bị trả lại',drafts.length],['ls','Lịch sử duyệt',hist.length]];
+  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, hồ sơ thanh toán, biên bản nghiệm thu: người lập trình, Lãnh đạo Ban duyệt hoặc trả lại. Hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
+  <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="td2" data-id="${k}">${l}${n?` <span class="cnt" style="position:static;margin-left:4px">${n}</span>`:''}</button>`).join('')}</div>
+  <div class="card">${t==='ls'
+    ? table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Hồ sơ',f:x=>`<span class="small muted">${esc((WF[x.collection]||{}).name||'')}</span><div>${esc(x.target||'')}</div>`},{h:'Thao tác',f:x=>pill(x.action, x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'?'warn':'info')},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Ý kiến',f:x=>esc(x.note||'')}], hist, {empty:'Chưa có lịch sử trình duyệt.'})
+    : table(cols, list, {actions:x=>wfBtns(x.col,x.r), empty:t==='cho'?(Object.keys(WF).some(c=>can(WF[c].mod,'approve'))?'Không có hồ sơ nào chờ bạn duyệt.':'Tài khoản của bạn không có quyền duyệt. Hồ sơ bạn trình sẽ hiện ở thẻ Đang chờ duyệt.'):'Không có hồ sơ.'})}</div>`;
+};

@@ -967,3 +967,62 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103125533_TrinhDuyet'
+)
+BEGIN
+    ALTER TABLE [Acceptances] ADD [Status] nvarchar(50) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103125533_TrinhDuyet'
+)
+BEGIN
+    CREATE TABLE [ApprovalLogs] (
+        [Id] nvarchar(64) NOT NULL,
+        [Collection] nvarchar(50) NOT NULL,
+        [RecordId] nvarchar(64) NOT NULL,
+        [ProjectId] nvarchar(64) NULL,
+        [Target] nvarchar(300) NULL,
+        [Action] nvarchar(50) NOT NULL,
+        [FromStatus] nvarchar(50) NULL,
+        [ToStatus] nvarchar(50) NULL,
+        [Note] nvarchar(max) NULL,
+        [By] nvarchar(64) NULL,
+        [ByName] nvarchar(200) NULL,
+        [At] datetime2 NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_ApprovalLogs] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103125533_TrinhDuyet'
+)
+BEGIN
+    CREATE INDEX [IX_ApprovalLogs_Collection_RecordId] ON [ApprovalLogs] ([Collection], [RecordId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261103125533_TrinhDuyet'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261103125533_TrinhDuyet', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+

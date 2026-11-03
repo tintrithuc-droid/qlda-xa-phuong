@@ -79,6 +79,13 @@ public class DataController : ApiControllerBase
             if (old?.Admin == true && !Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được sửa nhóm có toàn quyền.");
         }
 
+        var wf = Workflow.Find(collection);
+        if (wf is not null)
+        {
+            if (existing is null && string.IsNullOrEmpty(Workflow.StatusOf(obj))) Workflow.SetStatus(obj, wf.Draft);
+            if (!Workflow.CanApprove(Uc, wf) && Workflow.CheckDirectWrite(wf, existing, obj) is { } msg) return Denied(msg);
+        }
+
         obj.UpdatedAt = DateTime.UtcNow; obj.UpdatedBy = Uc.User.Username;
         if (existing is null) Db.Add(obj); else Db.Entry(existing).CurrentValues.SetValues(obj);
         Uc.Log(existing is null ? "Thêm mới" : "Cập nhật", def.Label, Collections.LabelOf(obj));
@@ -97,6 +104,11 @@ public class DataController : ApiControllerBase
         if (existing is null) return Error(404, "Bản ghi không còn tồn tại.");
         if (Scoped(existing) && !Uc.InScope(await ProjectOf(existing))) return Denied("Dự án này nằm ngoài phạm vi dữ liệu được giao.");
         if (id == "g-admin") return Denied("Không thể xóa nhóm quản trị hệ thống.");
+        if (Workflow.Find(collection) is { } wfd && !Workflow.CanApprove(Uc, wfd))
+        {
+            var st = Workflow.StatusOf(existing);
+            if (st == wfd.Waiting || wfd.IsLocked(st)) return Denied("Hồ sơ đang chờ duyệt hoặc đã duyệt nên không xóa được. Liên hệ người có quyền duyệt.");
+        }
         foreach (var (dc, fk) in def.Dependents)
         {
             var n = await Collections.CountDependents(Db, dc, fk, id);

@@ -172,7 +172,7 @@ function makeSampleData(){
     ['c3','Đợt 2','2026-08-31',.15]];
   D.payplans = pp.map(([contractId,phase,planDate,amt],i)=>({id:'q'+(i+1), contractId, phase, planDate, amount:Math.round(amt*T)}));
   const pm=[['c1','TU-01','2025-06-12','Tạm ứng',2.54,'Đã thanh toán'],['c1','TT-01','2026-01-08','Thanh toán khối lượng',3.7,'Đã thanh toán'],['c1','TT-02','2026-07-06','Thanh toán khối lượng',4.1,'Đã thanh toán'],['c1','TT-03','2026-10-20','Thanh toán khối lượng',1.9,'Đang trình KBNN'],
-    ['c2','TU-01','2025-08-06','Tạm ứng',.69,'Đã thanh toán'],['c2','TT-01','2026-04-10','Thanh toán khối lượng',1.05,'Đã thanh toán'],['c2','TT-02','2026-10-10','Thanh toán khối lượng',.62,'Đề nghị'],
+    ['c2','TU-01','2025-08-06','Tạm ứng',.69,'Đã thanh toán'],['c2','TT-01','2026-04-10','Thanh toán khối lượng',1.05,'Đã thanh toán'],['c2','TT-02','2026-10-10','Thanh toán khối lượng',.62,'Chờ duyệt'],
     ['c4','TU-01','2025-10-12','Tạm ứng',2.64,'Đã thanh toán'],['c4','TT-01','2026-04-15','Thanh toán khối lượng',3.6,'Đã thanh toán'],['c4','TT-02','2026-09-08','Thanh toán khối lượng',3.9,'Đã thanh toán'],
     ['c3','TU-01','2025-06-02','Tạm ứng',.059,'Đã thanh toán'],['c3','TT-01','2026-07-02','Thanh toán khối lượng',.16,'Đã thanh toán'],['c5','TT-01','2025-10-05','Thanh toán khối lượng',.52,'Đã thanh toán'],
     ['c7','TU-01','2026-08-21','Tạm ứng',.28,'Đã thanh toán'],['c7','TT-01','2026-10-28','Thanh toán khối lượng',.35,'Đề nghị'],
@@ -201,12 +201,12 @@ function makeSampleData(){
     ...(tg?{targetQ1:tg[0],targetQ2:tg[1],targetQ3:tg[2]}:{}), note:''}));
   // Nghiệm thu theo giai đoạn, nghiệm thu hoàn thành, bàn giao và bảo hành (NĐ 207/2026)
   D.acceptances = [
-    {id:'nt1', projectId:'p1', packageId:'k1', kind:'Nghiệm thu giai đoạn thi công', date:'2026-06-30', number:'BB-NT-GĐ01 '+mark, content:'Hoàn thành giai đoạn nền, móng đường đoạn Km2–Km4,2', result:'Đạt', receiver:'', note:''},
-    {id:'nt2', projectId:'p2', packageId:'k4', kind:'Nghiệm thu giai đoạn thi công', date:'2026-05-31', number:'BB-NT-GĐ01 '+mark, content:'Hoàn thành phần móng khối phòng học', result:'Đạt, có tồn tại phải khắc phục', receiver:'', note:'Bổ sung hồ sơ thí nghiệm cọc trước khi thi công thân.'},
-    {id:'nt3', projectId:'p6', packageId:'k9', kind:'Nghiệm thu hoàn thành hạng mục', date:'2026-08-31', number:'BB-NT-01 '+mark, content:'Số hóa hồ sơ hộ tịch lô 1, lô 2', result:'Đạt', receiver:'Văn phòng HĐND - UBND xã', note:''},
-    {id:'nt4', projectId:'p5', packageId:'k8', kind:'Nghiệm thu hoàn thành hạng mục', date:'2026-10-31', number:'BB-NT-TB01 '+mark, content:'Giao hàng, lắp đặt thiết bị đợt 1', result:'Đạt', receiver:'Bộ phận Tiếp nhận và trả kết quả xã', warrantyMonths:24, note:''},
-    {id:'nt5', projectId:'p4', packageId:'', kind:'Nghiệm thu hoàn thành công trình', date:'2025-04-25', number:'BB-NTHT '+mark, content:'Hoàn thành sửa chữa Nhà văn hóa – Trung tâm học tập cộng đồng', result:'Đạt', receiver:'', note:''},
-    {id:'nt6', projectId:'p4', packageId:'', kind:'Bàn giao đưa vào sử dụng', date:'2025-05-20', number:'BB-BG '+mark, content:'Bàn giao công trình đưa vào sử dụng', result:'Đạt', receiver:'Trung tâm Văn hóa - Thể thao xã Mẫu', warrantyMonths:18, warrantyGuaranteeUntil:'2026-11-20', note:'Bảo lãnh bảo hành 5% giá trị hợp đồng.'}
+    {id:'nt1', status:'Đã duyệt', projectId:'p1', packageId:'k1', kind:'Nghiệm thu giai đoạn thi công', date:'2026-06-30', number:'BB-NT-GĐ01 '+mark, content:'Hoàn thành giai đoạn nền, móng đường đoạn Km2–Km4,2', result:'Đạt', receiver:'', note:''},
+    {id:'nt2', status:'Đã duyệt', projectId:'p2', packageId:'k4', kind:'Nghiệm thu giai đoạn thi công', date:'2026-05-31', number:'BB-NT-GĐ01 '+mark, content:'Hoàn thành phần móng khối phòng học', result:'Đạt, có tồn tại phải khắc phục', receiver:'', note:'Bổ sung hồ sơ thí nghiệm cọc trước khi thi công thân.'},
+    {id:'nt3', status:'Đã duyệt', projectId:'p6', packageId:'k9', kind:'Nghiệm thu hoàn thành hạng mục', date:'2026-08-31', number:'BB-NT-01 '+mark, content:'Số hóa hồ sơ hộ tịch lô 1, lô 2', result:'Đạt', receiver:'Văn phòng HĐND - UBND xã', note:''},
+    {id:'nt4', status:'Chờ duyệt', projectId:'p5', packageId:'k8', kind:'Nghiệm thu hoàn thành hạng mục', date:'2026-10-31', number:'BB-NT-TB01 '+mark, content:'Giao hàng, lắp đặt thiết bị đợt 1', result:'Đạt', receiver:'Bộ phận Tiếp nhận và trả kết quả xã', warrantyMonths:24, note:''},
+    {id:'nt5', status:'Đã duyệt', projectId:'p4', packageId:'', kind:'Nghiệm thu hoàn thành công trình', date:'2025-04-25', number:'BB-NTHT '+mark, content:'Hoàn thành sửa chữa Nhà văn hóa – Trung tâm học tập cộng đồng', result:'Đạt', receiver:'', note:''},
+    {id:'nt6', status:'Đã duyệt', projectId:'p4', packageId:'', kind:'Bàn giao đưa vào sử dụng', date:'2025-05-20', number:'BB-BG '+mark, content:'Bàn giao công trình đưa vào sử dụng', result:'Đạt', receiver:'Trung tâm Văn hóa - Thể thao xã Mẫu', warrantyMonths:18, warrantyGuaranteeUntil:'2026-11-20', note:'Bảo lãnh bảo hành 5% giá trị hợp đồng.'}
   ];
   // Quyết toán dự án hoàn thành: đã phê duyệt nhưng chưa tất toán tài khoản (để minh họa cảnh báo)
   D.settlements = [
@@ -244,7 +244,7 @@ function defaultCatalogs(){
     'Thời tiết':['Nắng','Âm u','Mưa','Mưa chiều','Mưa lớn'],
     'Định dạng mô hình':['IFC','RVT','DWG','NWD','PDF','SKP'],
     'Loại thanh toán':['Tạm ứng','Thanh toán khối lượng','Thu hồi tạm ứng','Quyết toán'],
-    'Trạng thái thanh toán':['Đề nghị','Đang trình KBNN','Đã thanh toán','Từ chối']
+    'Trạng thái thanh toán':['Đề nghị','Chờ duyệt','Đang trình KBNN','Đã thanh toán','Từ chối']
   };
   const out=[]; let n=0;
   Object.entries(C).forEach(([type,vals])=>vals.forEach((value,i)=>out.push({id:'cat'+(++n), type, value, order:i})));
@@ -255,7 +255,7 @@ function defaultGroups(){
   const P = (edit, view)=>Object.fromEntries(ALL.map(k=>[k, edit.includes(k)?'edit':(view==='*'||view.includes(k))?'view':'none']));
   return [
     {id:'g-admin', name:'Quản trị hệ thống', admin:true, perms:P(ALL,'*'), scope:[], desc:'Toàn quyền, quản lý người dùng và cấu hình.'},
-    {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:P(['du-an'],'*'), scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án.'},
+    {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:{...P(['du-an'],'*'), 'goi-thau:duyet':'1', 'thanh-toan:duyet':'1', 'nghiem-thu:duyet':'1'}, scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án; duyệt phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu.'},
     {id:'g-tech', name:'Cán bộ kỹ thuật', admin:false, perms:P(['du-an','mo-hinh','goi-thau','tien-do','nhat-ky','khoi-luong','gpmb','nghiem-thu'],'*'), scope:[], desc:'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'},
     {id:'g-acc', name:'Kế toán', admin:false, perms:P(['thanh-toan','von','quyet-toan'],['tong-quan','du-an','goi-thau','khoi-luong','nghiem-thu','bao-cao']), scope:[], desc:'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'},
     {id:'g-site', name:'Tư vấn giám sát / Nhà thầu', admin:false, perms:P(['nhat-ky','tien-do'],['tong-quan','du-an','mo-hinh','khoi-luong','nghiem-thu']), scope:['p1'], desc:'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'},

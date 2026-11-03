@@ -55,6 +55,20 @@ public static class Upgrades
         const string key = "upgrade:1.2-phu-luc-dot-thanh-toan";
         if (db.Settings.Any(x => x.Key == key)) return;
         foreach (var a in db.Addenda.Where(a => a.Status == null || a.Status == "").ToList()) a.Status = "Đã duyệt";
+        foreach (var a in db.Acceptances.Where(a => a.Status == null || a.Status == "").ToList()) a.Status = "Đã duyệt";
+        // Quy trình trình duyệt: trạng thái "Chờ duyệt" của hồ sơ thanh toán; nhóm Lãnh đạo Ban được quyền duyệt
+        var pcats = db.Catalogs.Where(c => c.Type == "Trạng thái thanh toán").ToList();
+        if (pcats.Count > 0 && !pcats.Any(c => c.Value == "Chờ duyệt"))
+        {
+            foreach (var c in pcats.Where(c => c.Order >= 1)) c.Order++;
+            db.Catalogs.Add(new Catalog { Id = "cat-" + Guid.NewGuid().ToString("N")[..12], Type = "Trạng thái thanh toán", Value = "Chờ duyệt", Order = 1, UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        }
+        foreach (var g in db.Groups.ToList().Where(g => !g.Admin && (g.Id == "g-lead" || g.Name.Contains("Lãnh đạo Ban", StringComparison.OrdinalIgnoreCase))))
+        {
+            var p = new Dictionary<string, string>(g.Perms);
+            foreach (var m in new[] { "goi-thau", "thanh-toan", "nghiem-thu" }) p[m + ":duyet"] = "1";
+            g.Perms = p;
+        }
         var pays = db.Payments.Where(p => p.ContractId != null).ToList();
         foreach (var g in db.PayPlans.AsNoTracking().Where(p => p.ContractId != null && p.PlanDate != null).ToList().GroupBy(p => p.ContractId))
         {

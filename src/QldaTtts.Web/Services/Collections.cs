@@ -38,6 +38,8 @@ public static class Collections
         new("groups", typeof(UserGroup), "quan-tri", "Nhóm người dùng", Q<UserGroup>, new[] { ("users","GroupId") }),
         new("catalogs", typeof(Catalog), "quan-tri", "Danh mục", Q<Catalog>, Array.Empty<(string,string)>()),
         new("guides", typeof(Guide), "quan-tri", "Hướng dẫn sử dụng", Q<Guide>, Array.Empty<(string,string)>()),
+        // Chỉ ghi qua /api/approvals (quản trị mới sửa trực tiếp được); có trong sao lưu, phục hồi
+        new("approvals", typeof(ApprovalLog), "quan-tri", "Lịch sử trình duyệt", Q<ApprovalLog>, Array.Empty<(string,string)>()),
     };
 
     public static CollectionDef? Find(string name) => All.FirstOrDefault(c => c.Name == name);

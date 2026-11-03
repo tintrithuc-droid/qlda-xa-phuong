@@ -1,7 +1,7 @@
 # Hướng dẫn cài đặt trên máy chủ Linux (Docker + PostgreSQL)
 
-Phương án chi phí thấp cho Ban QLDA xã/phường: hệ điều hành, CSDL và nền chạy đều miễn phí, không cần bản quyền Windows Server hay SQL Server.
-Phù hợp thuê VPS trong nước hoặc tận dụng một máy chủ có sẵn của UBND. (Máy chủ Windows/IIS + SQL Server vẫn dùng được, xem `HUONG_DAN_CAI_DAT.md`.)
+Dành cho cán bộ kỹ thuật cài đặt phần mềm Quản lý dự án xã/phường trên máy chủ Linux (máy chủ của UBND hoặc máy chủ ảo thuê trong nước).
+Một máy chủ có thể phục vụ một xã hoặc nhiều xã; mỗi xã một cơ sở dữ liệu và kho tệp riêng.
 
 ## 1. Yêu cầu
 
@@ -18,7 +18,7 @@ Phù hợp thuê VPS trong nước hoặc tận dụng một máy chủ có sẵ
 2. Giải nén và cài cho từng xã (quyền root):
 
 ```bash
-tar -xzf QLDA_XaPhuong_GoiCaiDat_Linux_1.0.tar.gz && cd QLDA_XaPhuong_GoiCaiDat_Linux_1.0
+tar -xzf QLDA_XaPhuong_GoiCaiDat_Linux_1.1.tar.gz && cd QLDA_XaPhuong_GoiCaiDat_Linux_1.1
 sudo bash install.sh xa-tan-hoa 8080      # mã xã, cổng
 sudo bash install.sh phuong-an-lac 8081   # xã thứ hai trên cùng máy: cổng khác
 ```
@@ -26,7 +26,8 @@ sudo bash install.sh phuong-an-lac 8081   # xã thứ hai trên cùng máy: cổ
 Script tự cài Docker (từ kho Ubuntu), nạp ảnh phần mềm, tạo thư mục `/opt/qlda/<mã-xã>` với mật khẩu CSDL ngẫu nhiên trong `.env`, khởi động PostgreSQL 16 và phần mềm, rồi in địa chỉ truy cập.
 Mỗi xã một CSDL và một kho tệp riêng, tách biệt hoàn toàn.
 
-3. Mở trình duyệt tới địa chỉ in ra, làm bước **Khởi tạo hệ thống** và **Xác thực 2 lớp** như mục 4 của `HUONG_DAN_CAI_DAT.md`.
+3. Mở trình duyệt tới địa chỉ in ra. Màn hình **Khởi tạo hệ thống** hiện ra: nhập họ tên, tên đăng nhập và mật khẩu quản trị (tối thiểu 8 ký tự, có chữ và số). Bỏ dấu chọn *Nạp dữ liệu mẫu* khi cài để dùng thật.
+4. Thiết lập **Xác thực 2 lớp** cho tài khoản quản trị: quét mã QR bằng Google Authenticator hoặc Microsoft Authenticator, nhập mã 6 số, lưu 10 mã khôi phục. Chi tiết xem *HDSD dành cho Quản trị hệ thống* (có sẵn trong menu Hướng dẫn sử dụng của phần mềm).
 
 ## 3. Tên miền và HTTPS (khuyến nghị, bắt buộc để chụp ảnh hiện trường trên điện thoại)
 
@@ -72,8 +73,3 @@ docker compose logs -f app             # nhật ký phần mềm
 docker compose restart app             # khởi động lại
 docker compose exec app dotnet QldaTtts.Web.dll --reset-2fa admin   # đặt lại xác thực 2 lớp khi quản trị mất điện thoại
 ```
-
-## 7. Đóng gói (dành cho đơn vị phát triển)
-
-Trên máy có Docker: `bash deploy/linux/build-package.sh 1.0` → `dist/QLDA_XaPhuong_GoiCaiDat_Linux_1.0.tar.gz`
-(chép 6 PDF HDSD vào `src/QldaTtts.Web/hdsd` trước để gói kèm sẵn tài liệu).

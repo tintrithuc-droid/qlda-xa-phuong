@@ -242,9 +242,9 @@ function capTargetAt(pid, year, date=TODAY){ const y=N(year); if(N(date.slice(0,
 function warrantyEnd(a){ return a.warrantyUntil || (a.date && N(a.warrantyMonths)? isoLocal(new Date(new Date(a.date).setMonth(new Date(a.date).getMonth()+N(a.warrantyMonths)))) : ''); }
 function settleState(x){
   if(x.closedDate) return {k:'ok', t:'Đã tất toán'};
-  if(x.approvalDate) return {k:'acc', t:'Đã phê duyệt, chưa tất toán'};
+  if(x.approvalDate) return {k:'acc', t:'Chờ tất toán'};
   if(x.submittedDate) return {k:'info', t:'Đã trình thẩm tra'};
-  if(x.deadline && x.deadline<TODAY) return {k:'bad', t:'Quá hạn lập quyết toán '+days(x.deadline,TODAY)+' ngày'};
+  if(x.deadline && x.deadline<TODAY) return {k:'bad', t:'Quá hạn '+days(x.deadline,TODAY)+' ngày'};
   if(x.deadline && days(TODAY,x.deadline)<=30) return {k:'warn', t:'Còn '+days(TODAY,x.deadline)+' ngày đến hạn'};
   return {k:'', t:'Đang lập hồ sơ'};
 }

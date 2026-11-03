@@ -17,7 +17,7 @@ Nghị định 207/2026/NĐ-CP; thực tiễn TP Cần Thơ sau sắp xếp chí
 - **Quyết toán dự án**: hạn lập, thẩm tra, phê duyệt, tất toán, cảnh báo quá hạn;
 - Nhóm người dùng "Lãnh đạo UBND xã (người quyết định đầu tư)" chỉ xem; danh mục nguồn vốn, hồ sơ pháp lý, hình thức LCNT cập nhật.
 Hệ thống đang chạy được nâng cấp tự động khi cài bản mới (bảng, danh mục, quyền của nhóm có sẵn).
-Trang **Danh mục chức năng** trong phần mềm ánh xạ từng use case với chức năng đã làm.
+Trang **Danh mục chức năng** trong phần mềm liệt kê từng chức năng và nơi thực hiện trong phần mềm.
 
 ## Công nghệ
 

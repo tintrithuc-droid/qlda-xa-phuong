@@ -15,15 +15,17 @@ public static class GuideSeed
         ("Quan tri he thong", "Hướng dẫn sử dụng dành cho Quản trị hệ thống", new[] { "g-admin" },
             "Khởi tạo hệ thống, xác thực 2 lớp, quản lý người dùng, nhóm và phân quyền, danh mục dùng chung, thông tin đơn vị và giao diện, hướng dẫn sử dụng, kho tệp, thùng rác, sao lưu và phục hồi dữ liệu."),
         ("Lanh dao Ban", "Hướng dẫn sử dụng dành cho Lãnh đạo Ban", new[] { "g-lead" },
-            "Theo dõi Tổng quan, cảnh báo, tình hình thực hiện dự án, hợp đồng, thanh toán; chỉ đạo công việc; khai thác báo cáo."),
+            "Theo dõi Tổng quan, cảnh báo, tình hình thực hiện dự án, giải ngân kế hoạch vốn, giải phóng mặt bằng, hợp đồng, thanh toán, nghiệm thu, quyết toán; chỉ đạo công việc; khai thác báo cáo."),
         ("Can bo ky thuat", "Hướng dẫn sử dụng dành cho Cán bộ kỹ thuật", new[] { "g-tech" },
-            "Quản lý dự án, hồ sơ pháp lý, mô hình công trình, gói thầu và hợp đồng, tiến độ, nhật ký thi công, khối lượng và nghiệm thu."),
+            "Quản lý dự án, hồ sơ pháp lý, giải phóng mặt bằng, mô hình công trình, gói thầu và hợp đồng, tiến độ, nhật ký thi công, khối lượng, nghiệm thu, bàn giao và bảo hành."),
         ("Ke toan", "Hướng dẫn sử dụng dành cho Kế toán", new[] { "g-acc" },
-            "Kế hoạch thanh toán, hồ sơ thanh toán, xác nhận đã chi kèm chứng từ Kho bạc, tổng hợp giải ngân, đối chiếu khối lượng nghiệm thu."),
+            "Kế hoạch vốn và giải ngân theo kịch bản, kế hoạch thanh toán, hồ sơ thanh toán, xác nhận đã chi kèm chứng từ Kho bạc, quyết toán dự án hoàn thành, đối chiếu khối lượng nghiệm thu."),
         ("Tu van giam sat - Nha thau", "Hướng dẫn sử dụng dành cho Tư vấn giám sát / Nhà thầu", new[] { "g-site" },
             "Ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ trong phạm vi dự án được giao."),
-        ("Su dung tren dien thoai", "Hướng dẫn sử dụng trên điện thoại", new[] { "g-site", "g-tech", "g-lead" },
-            "Cài ứng dụng Android, thêm vào màn hình chính iPhone, ghi nhật ký và chụp ảnh tại hiện trường, cập nhật tiến độ, tra cứu."),
+        ("Lanh dao UBND xa", "Hướng dẫn sử dụng dành cho Lãnh đạo UBND xã", new[] { "g-ubnd" },
+            "Theo dõi tình hình các dự án do UBND xã quyết định đầu tư: tiến độ, giải ngân so với kịch bản, giải phóng mặt bằng, nghiệm thu, quyết toán; cảnh báo và báo cáo."),
+        ("Su dung tren dien thoai", "Hướng dẫn sử dụng trên điện thoại", new[] { "g-site", "g-tech", "g-lead", "g-ubnd" },
+            "Thêm phần mềm ra màn hình chính trên Android và iPhone, ghi nhật ký và chụp ảnh tại hiện trường, cập nhật tiến độ, tra cứu."),
     };
 
     public static void Run(AppDbContext db, FileStore store, string dir)

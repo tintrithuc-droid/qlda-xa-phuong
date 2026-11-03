@@ -368,3 +368,4 @@ tfoot td{font-weight:600; background:var(--panel2)}
 .guide-doc .grow{flex:1; min-width:0} .guide-doc b{font-weight:600; word-break:break-word}
 .guide-video{margin:12px 0 0} .guide-video video{width:100%; max-width:860px; border-radius:10px; background:#000; display:block}
 .guide-imgs{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px} .guide-imgs img{height:120px; border-radius:8px; border:1px solid var(--line)}
+.tw td .attl a{max-width:170px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}

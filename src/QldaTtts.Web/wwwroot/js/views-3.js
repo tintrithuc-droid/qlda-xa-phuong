@@ -249,7 +249,7 @@ ACT['huong-dan']=()=>{ location.hash='huong-dan'; };
 ACT['upd-quick']=()=>openForm({title:'Cập nhật tiến độ hiện trường', narrow:true, fields:[{key:'sid',label:'Hạng mục tiến độ',type:'select',req:true,full:true,options:()=>D('schedule').filter(s=>inFilter(s.projectId)&&N(s.progress)<100).sort(by('planEnd')).map(s=>[s.id,(pkgOf(s.packageId)||{}).code+' · '+s.name+' ('+N(s.progress)+'%)'])},{key:'progress',label:'Tiến độ thực tế lũy kế (%)',type:'percent',req:true,full:true},{key:'note',label:'Ghi chú',type:'textarea'},{...PROG_ATT(null), rid:(r,v)=>v.sid, ref:TODAY, refFrom:null}],
   onSave:v=>{ const s=get('schedule',v.sid); const h=[...(s.history||[]).filter(x=>x.date!==TODAY), {date:TODAY, progress:v.progress, note:v.note||'', by:S.user.name}].sort(by('date')); return save('schedule',{...s, progress:v.progress, history:h, actualStart:s.actualStart||TODAY, actualEnd:v.progress>=100?TODAY:''}, s.name+' → '+v.progress+'%'); }});
 
-/* ===== ĐỐI CHIẾU DANH MỤC CHỨC NĂNG BC KTKT (62 use case) ===== */
+/* ===== DANH MỤC CHỨC NĂNG (62 chức năng gốc + bổ sung cấp xã) ===== */
 const UCS = [
  ['Quản lý dự án','du-an',['Danh sách dự án','Thêm, cập nhật thông tin dự án','Quản lý công việc thuộc dự án','Quản lý hồ sơ pháp lý thuộc dự án','Theo dõi tình trạng thực hiện dự án']],
  ['Mô hình hóa công trình','mo-hinh',['Quản lý file mô hình công trình','Cập nhật file mô hình công trình','Tìm kiếm','Quản lý thông tin các hạng mục công trình']],
@@ -289,9 +289,9 @@ const UC_WHERE = {
  75:'Ngày trình, thẩm tra, phê duyệt, tất toán; danh sách dự án hoàn thành chưa lập hồ sơ',76:'Cảnh báo quá hạn, phê duyệt quá 60 ngày chưa tất toán',77:'Mẫu báo cáo 7, xuất Excel'};
 VIEWS['doi-chieu']=()=>{
   let n=0; const rows=[]; UCS.forEach(([g,mod,list])=>list.forEach(u=>{ n++; rows.push({id:'uc'+n, n, g, mod, u, w:UC_WHERE[n]||''}); }));
-  return `<div class="head"><div class="grow"><h1>Đối chiếu danh mục chức năng</h1><p>${rows.length} chức năng theo ${UCS.length} nhóm nghiệp vụ: 62 chức năng theo danh mục gốc và ${rows.length-62} chức năng bổ sung theo nhiệm vụ của Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026).</p></div></div>
-  <div class="grid g4"><div class="card kpi"><div class="eyebrow">Use case</div><div class="v">${rows.length}</div><div class="s">62 gốc + ${rows.length-62} bổ sung cấp xã</div></div><div class="card kpi"><div class="eyebrow">Phân hệ nghiệp vụ</div><div class="v">11</div><div class="s">7 phân hệ gốc + kế hoạch vốn, GPMB, nghiệm thu bảo hành, quyết toán</div></div><div class="card kpi"><div class="eyebrow">Nhóm chức năng</div><div class="v">${UCS.length}</div><div class="s">Kể cả Dashboard, biểu đồ, báo cáo</div></div><div class="card kpi"><div class="eyebrow">Giao diện</div><div class="v" style="font-size:1.05rem;font-family:var(--f-ui)">Web + di động</div><div class="s">Tự thích ứng màn hình</div></div></div>
-  ${table([{h:'STT',r:1,k:'n'},{h:'Nhóm chức năng',k:'g'},{h:'Use case / Chức năng',k:'u'},{h:'Hiện thực trong phần mềm',k:'w'},{h:'Đáp ứng',f:()=>pill('Đã đáp ứng','ok')},{h:'',f:r=>can(r.mod)?`<a href="#${r.mod}">Mở</a>`:''}], rows)}`;
+  return `<div class="head"><div class="grow"><h1>Danh mục chức năng</h1><p>${rows.length} chức năng, ${UCS.length} nhóm nghiệp vụ, bám sát chức năng, nhiệm vụ của Ban Quản lý dự án cấp xã theo Luật Xây dựng 2025, Nghị định 217/2026/NĐ-CP và Nghị định 207/2026/NĐ-CP.</p></div></div>
+  <div class="grid g4"><div class="card kpi"><div class="eyebrow">Chức năng</div><div class="v">${rows.length}</div><div class="s">Đáp ứng đầy đủ, dùng được ngay</div></div><div class="card kpi"><div class="eyebrow">Phân hệ nghiệp vụ</div><div class="v">11</div><div class="s">Từ chuẩn bị đầu tư, vốn, GPMB, thi công đến nghiệm thu, quyết toán</div></div><div class="card kpi"><div class="eyebrow">Nhóm chức năng</div><div class="v">${UCS.length}</div><div class="s">Kể cả tổng quan, biểu đồ, báo cáo</div></div><div class="card kpi"><div class="eyebrow">Giao diện</div><div class="v" style="font-size:1.05rem;font-family:var(--f-ui)">Web + di động</div><div class="s">Tự thích ứng màn hình</div></div></div>
+  ${table([{h:'STT',r:1,k:'n'},{h:'Nhóm chức năng',k:'g'},{h:'Chức năng',k:'u'},{h:'Thực hiện trong phần mềm',k:'w'},{h:'Đáp ứng',f:()=>pill('Đã đáp ứng','ok')},{h:'',f:r=>can(r.mod)?`<a href="#${r.mod}">Mở</a>`:''}], rows)}`;
 };
 
 

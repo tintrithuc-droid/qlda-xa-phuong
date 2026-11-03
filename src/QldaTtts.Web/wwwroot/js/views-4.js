@@ -26,7 +26,7 @@ VIEWS['von']=()=>{
     <p class="small muted" style="margin:10px 0 0">Giải ngân tính từ hồ sơ thanh toán đã được Kho bạc chi trong năm (không tính thu hồi tạm ứng). Kịch bản giải ngân lũy kế theo quý nhập ở kế hoạch vốn năm, mặc định 20% · 45% · 70% · 100%.</p></div>`;
   else if(t==='kh'){ const caps=D('capitals').filter(c=>inFilter(c.projectId)).sort((a,b)=>N(b.year)-N(a.year)||pcode(a.projectId).localeCompare(pcode(b.projectId))||String(a.date||'').localeCompare(String(b.date||'')));
     body=`<div class="card"><div class="ch"><h2>Kế hoạch vốn được giao</h2>${ed?'<button class="btn primary sm" data-act="add-capitals">+ Thêm kế hoạch vốn</button>':''}</div>${table([
-      {h:'Năm',f:r=>`<span class="num">${esc(r.year)}</span>`},{h:'Dự án',f:r=>pcell(r.projectId)},{h:'Loại',f:r=>esc(r.kind||'')},{h:'Nguồn vốn',f:r=>esc(r.source||'')},
+      {h:'Dự án',f:r=>pshort(r.projectId)},{h:'Loại kế hoạch · năm',f:r=>`<div style="min-width:150px">${esc(r.kind||'')}<div class="small muted num">Năm ${esc(r.year)}</div></div>`},{h:'Nguồn vốn',f:r=>`<div style="min-width:130px">${esc(r.source||'')}</div>`},
       {h:'Giá trị',r:1,f:r=>(r.kind===CAP_MINUS?'−':'')+fmtVND(r.amount)},{h:'Quyết định giao vốn',f:r=>`${esc(r.number||'—')}${r.date?`<div class="small muted num">${fmtDate(r.date)}</div>`:''}`},
       {h:'Kịch bản QI · QII · QIII',f:r=>r.kind==='Kế hoạch vốn năm'?`<span class="num small">${[1,2,3].map(q=>fmtN(capTarget(r.projectId,r.year,q),0)+'%').join(' · ')}</span>`:'<span class="muted small">—</span>'},
       {h:'Tệp',f:r=>attCell(atts('capitals',r.id))}], caps, {actions:r=>editBtns('von','capitals',r.id), empty:'Chưa có kế hoạch vốn.'})}</div>`; }
@@ -62,8 +62,8 @@ VIEWS['nghiem-thu']=()=>{
   const resPill=r=>!r?'—':pill(r, r==='Đạt'?'ok':r==='Không đạt'?'bad':'warn');
   let body='';
   if(t==='ds') body=`<div class="card"><div class="ch"><h2>Nghiệm thu, bàn giao</h2><select data-f="ntk" aria-label="Loại">${opts(catalog('Loại nghiệm thu, bàn giao'),kf,'Mọi loại')}</select>${ed?'<button class="btn primary sm" data-act="add-acceptances">+ Thêm biên bản</button>':''}</div>${table([
-      {h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Dự án',f:r=>pshort(r.projectId)},{h:'Gói thầu',f:r=>pk(r.packageId)},{h:'Loại',f:r=>esc(r.kind||'')},{h:'Số biên bản',f:r=>`<span class="num">${esc(r.number||'—')}</span>`},
-      {h:'Nội dung',f:r=>`<div style="min-width:180px">${esc(r.content||'')}</div>`},{h:'Kết quả',f:r=>resPill(r.result)},{h:'Đơn vị tiếp nhận',f:r=>esc(r.receiver||'—')},{h:'Tệp',f:r=>attCell(atts('acceptances',r.id))}], rows,
+      {h:'Ngày · số biên bản',f:r=>`<div style="white-space:nowrap"><span class="num">${fmtDate(r.date)}</span><div class="small muted num">${esc(r.number||'—')}</div></div>`},{h:'Dự án · gói thầu',f:r=>`<div style="white-space:nowrap">${pshort(r.projectId)}<div>${pk(r.packageId)}</div></div>`},
+      {h:'Loại, nội dung',f:r=>`<div style="min-width:240px"><b class="small">${esc(r.kind||'')}</b><div>${esc(r.content||'')}</div>${r.receiver?`<div class="small muted">Tiếp nhận: ${esc(r.receiver)}</div>`:''}</div>`},{h:'Kết quả',f:r=>`<div style="max-width:150px">${resPill(r.result).replace('<span class="pill','<span style="white-space:normal;line-height:1.3" class="pill')}</div>`},{h:'Tệp',f:r=>attCell(atts('acceptances',r.id))}], rows,
       {actions:r=>editBtns('nghiem-thu','acceptances',r.id), empty:'Chưa có biên bản nghiệm thu, bàn giao.'})}
     <p class="small muted" style="margin:10px 0 0">Nghiệm thu theo giai đoạn thi công, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng theo Nghị định 207/2026/NĐ-CP; đính kèm biên bản, bản vẽ hoàn công.</p></div>`;
   else body=`<div class="card"><h2>Theo dõi bảo hành công trình</h2>${table([
@@ -101,10 +101,10 @@ VIEWS['quyet-toan']=()=>{
   ${missing.length?`<div class="card"><h2>Dự án đã hoàn thành chưa lập hồ sơ quyết toán</h2><div class="list">${missing.map(p=>`<div class="alert"><span style="flex:1"><b>${esc(p.code)}</b> ${esc(p.name)} · ${esc(p.status)}</span>${ed?`<button class="btn sm" data-act="add-settlements" data-id="${p.id}">Lập hồ sơ</button>`:''}</div>`).join('')}</div></div>`:''}
   <div class="card"><h2>Hồ sơ quyết toán</h2>${table([
     {h:'Dự án',f:r=>pcell(r.projectId)},{h:'Hoàn thành · hạn lập · ngày trình',f:r=>`<div class="num small" style="white-space:nowrap">${fmtDate(r.completedDate)}<br>Hạn ${fmtDate(r.deadline)}<br>Trình ${fmtDate(r.submittedDate)}</div>`},
-    {h:'Đề nghị',r:1,f:r=>fmtVND(r.proposedValue)},{h:'Thẩm tra',r:1,f:r=>fmtVND(r.auditedValue)},{h:'Phê duyệt',r:1,f:r=>fmtVND(r.approvedValue)},
+    {h:'Đề nghị · thẩm tra · phê duyệt',r:1,f:r=>`<div class="num small" style="white-space:nowrap">${fmtVND(r.proposedValue)}<br>${fmtVND(r.auditedValue)}<br><b>${fmtVND(r.approvedValue)}</b></div>`},
     {h:'Phê duyệt · tất toán',f:r=>`${r.number?`${esc(r.number)}<div class="small muted num">${fmtDate(r.approvalDate)}</div>`:'—'}<div class="small num">Tất toán: ${fmtDate(r.closedDate)}</div>`},
     {h:'Tình trạng',f:r=>pill(r.st.t,r.st.k)},{h:'Tệp',f:r=>attCell(atts('settlements',r.id))}], rows,
-    {actions:r=>editBtns('quyet-toan','settlements',r.id), empty:'Chưa có hồ sơ quyết toán.', foot:['Tổng cộng','',fmtVND(sum(rows,'proposedValue')),fmtVND(sum(rows,'auditedValue')),fmtVND(sum(rows,'approvedValue')),'','','']})}
+    {actions:r=>editBtns('quyet-toan','settlements',r.id), empty:'Chưa có hồ sơ quyết toán.', foot:['Tổng cộng','',`<div class="num small" style="white-space:nowrap">${fmtVND(sum(rows,'proposedValue'))}<br>${fmtVND(sum(rows,'auditedValue'))}<br><b>${fmtVND(sum(rows,'approvedValue'))}</b></div>`,'','','']})}
   <p class="small muted" style="margin:10px 0 0">Nhập hạn lập báo cáo quyết toán theo quy định quyết toán dự án hoàn thành hiện hành. Phần mềm cảnh báo trước 30 ngày, khi quá hạn và khi đã phê duyệt quá 60 ngày chưa tất toán tài khoản.</p></div>`;
 };
 const setFields=(pid)=>[projSel(pid),{key:'completedDate',label:'Ngày hoàn thành, bàn giao',type:'date'},{key:'deadline',label:'Hạn lập báo cáo quyết toán',type:'date'},{key:'submittedDate',label:'Ngày trình thẩm tra',type:'date'},
@@ -127,10 +127,9 @@ VIEWS['gpmb']=()=>{
   <div class="grid g4">${kpiCard('Hộ bị ảnh hưởng', fmtN(hh), 'đã chi trả '+fmtN(hp)+' hộ ('+fmtP(pct(hp,hh))+')')}${kpiCard('Diện tích đã bàn giao', fmtP(pct(ah,ar)), fmtN(ah)+' / '+fmtN(ar)+' m²')}
     ${kpiCard('Kinh phí đã chi trả', fmtTy(pa), fmtP(pct(pa,bu))+' phương án '+fmtTy(bu))}${kpiCard('Chậm bàn giao', late, 'khu vực', late?'bad':'')}</div>
   <div class="card"><h2>Tiến độ bồi thường, bàn giao mặt bằng</h2>${table([
-    {h:'Dự án',f:r=>pshort(r.projectId)},{h:'Khu vực, đoạn tuyến',f:r=>`<div style="min-width:170px">${esc(r.name)}${r.number?`<div class="small muted">Phương án ${esc(r.number)} · ${fmtDate(r.planDate)}</div>`:''}</div>`},{h:'Số hộ / đã chi trả',r:1,f:r=>`${fmtN(r.householdsPaid)} / ${fmtN(r.households)}`},
-    {h:'Diện tích bàn giao (m²)',r:1,f:r=>`${fmtN(r.handedArea)} / ${fmtN(r.area)}`},{h:'Kinh phí đã chi / phương án',r:1,f:r=>`${fmtVND(r.amountPaid)}<div class="small muted">${fmtVND(r.budget)}</div>`},
-    {h:'Hạn / ngày bàn giao',f:r=>`<span class="num">${fmtDate(r.handoverDue)}</span><div class="small muted num">${fmtDate(r.handoverDate)}</div>`},
-    {h:'Tiến độ',f:r=>`<div style="min-width:110px">${progBar(clearPct(r))}</div>`},{h:'Tình trạng',f:st},{h:'Vướng mắc',f:r=>`<div class="small" style="min-width:160px">${esc(r.issues||'')}</div>`},{h:'Tệp',f:r=>attCell(atts('clearances',r.id))}], rows,
+    {h:'Dự án',f:r=>pshort(r.projectId)},{h:'Khu vực, đoạn tuyến',f:r=>`<div style="min-width:200px">${esc(r.name)}${r.number?`<div class="small muted">Phương án ${esc(r.number)} · ${fmtDate(r.planDate)}</div>`:''}${r.issues?`<div class="small" style="color:var(--amber)">${esc(r.issues)}</div>`:''}</div>`},{h:'Hộ đã chi trả · m² đã bàn giao',r:1,f:r=>`<div class="num" style="white-space:nowrap">${fmtN(r.householdsPaid)} / ${fmtN(r.households)} hộ<div class="small muted">${fmtN(r.handedArea)} / ${fmtN(r.area)} m²</div></div>`},
+    {h:'Kinh phí đã chi / phương án',r:1,f:r=>`${fmtVND(r.amountPaid)}<div class="small muted">${fmtVND(r.budget)}</div>`},
+    {h:'Tiến độ, hạn bàn giao',f:r=>`<div style="min-width:130px">${progBar(clearPct(r))}<div style="margin-top:4px">${st(r)}</div><div class="small muted num" style="white-space:nowrap">Hạn ${fmtDate(r.handoverDue)}${r.handoverDate?' · giao '+fmtDate(r.handoverDate):''}</div></div>`},{h:'Tệp',f:r=>attCell(atts('clearances',r.id))}], rows,
     {actions:r=>editBtns('gpmb','clearances',r.id), empty:'Chưa có khu vực giải phóng mặt bằng.'})}</div>`;
 };
 const clrFields=()=>[projSel(),{key:'name',label:'Khu vực, đoạn tuyến',req:true,full:true},{key:'households',label:'Số hộ bị ảnh hưởng',type:'number'},{key:'householdsPaid',label:'Số hộ đã chi trả',type:'number'},

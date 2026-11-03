@@ -9,10 +9,10 @@ const { ROLES, build } = require('./content');
 const DIR = __dirname, SHOTS = path.join(DIR, 'shots'), OUT = path.join(DIR, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 const FONT = 'Times New Roman', NAVY = '0D2A57', RED = 'C8102E', GREY = 'BFC5CE', TXT = 9071; // vùng chữ 16 cm ≈ 9070 DXA
-const DATE = '01.11.2026', DATE_VN = '01/11/2026', MONTH = 'tháng 11 năm 2026';
+const DATE = '03.11.2026', DATE_VN = '03/11/2026', MONTH = 'tháng 11 năm 2026';
 const TT = 'Công ty CP Tin học Tri Thức';
 // Lịch sử thay đổi theo vai trò: [ngày, nội dung]; phiên bản tài liệu = dòng cuối, số V trong tên tệp = số dòng
-const hist = role => role.hist.map((h, i) => ['1.' + i, ...h]);
+const hist = role => role.hist.map((h, i) => [h[2] || '1.' + i, h[0], h[1]]);
 const verNo = role => hist(role).slice(-1)[0][0];
 const vFile = role => 'V' + role.hist.length;
 
@@ -155,7 +155,7 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
     P([new TextRun({ text: role.cover ? '' : 'Dành cho: ', size: 28 }), new TextRun({ text: role.cover || role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
     cv('Phiên bản ' + verNo(role), { italics: true, size: 26, after: 2000 }),
     cv('Đơn vị thực hiện: Công ty Cổ phần Tin học Tri Thức', { size: 24 }),
-    cv('TP. Hồ Chí Minh, ' + MONTH, { bold: true, size: 26, before: 200 }),
+    cv('Cần Thơ, ' + MONTH, { bold: true, size: 26, before: 200 }),
   ];
 
   // ===== Thông tin tài liệu =====
@@ -175,7 +175,7 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
     hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], hist(role).map(([v, d, t]) => [v, d, t, TT])),
     sub('Thuật ngữ và từ viết tắt'),
     hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án đầu tư xây dựng xã/phường'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
-      ['BC KTKT', 'Báo cáo kinh tế – kỹ thuật'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian']]),
+      ['GPMB', 'Giải phóng mặt bằng'], ['KBNN', 'Kho bạc Nhà nước'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian']]),
   ];
 
   // ===== Mục lục tĩnh (số trang từ lượt 1) =====

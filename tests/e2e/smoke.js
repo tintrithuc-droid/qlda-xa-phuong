@@ -365,7 +365,7 @@ async function login(p, u, pw = PW) {
     await p.evaluate(() => Store.load());
     const gd = await p.evaluate(() => Store.data.guides.map(g => ({ id: g.id, t: g.title, g: g.groups, n: Store.data.attachments.filter(a => a.collection === 'guides' && a.recordId === g.id).length })));
     console.log('Hướng dẫn nạp sẵn:', gd.length, gd.map(x => x.n).join(','));
-    if (gd.length !== 6 || gd.some(x => x.n !== 1)) errs.push('Chưa nạp sẵn đủ 6 hướng dẫn kèm tệp PDF');
+    if (gd.length !== 7 || gd.some(x => x.n !== 1)) errs.push("Chưa nạp sẵn đủ 7 hướng dẫn kèm tệp PDF");
     // Thông tin đơn vị
     await p.evaluate(() => { S.tab.qt = 'org'; }); await go(p, 'quan-tri'); await p.waitForTimeout(300);
     await p.fill('#br_appName', 'Phần mềm QLDA thử nghiệm'); await p.fill('#br_orgShort', 'Đơn vị thử'); await p.fill('#br_footer', '© {năm} Đơn vị thử');

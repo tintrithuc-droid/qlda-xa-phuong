@@ -22,6 +22,68 @@ namespace QldaTtts.Web.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("QldaTtts.Web.Data.Acceptance", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PackageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Receiver")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateOnly?>("WarrantyGuaranteeUntil")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("WarrantyMonths")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("WarrantyUntil")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Acceptances");
+                });
+
             modelBuilder.Entity("QldaTtts.Web.Data.Addendum", b =>
                 {
                     b.Property<string>("Id")
@@ -324,6 +386,63 @@ namespace QldaTtts.Web.Data.Migrations
                     b.ToTable("BoqItems");
                 });
 
+            modelBuilder.Entity("QldaTtts.Web.Data.CapitalPlan", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<double?>("TargetQ1")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("TargetQ2")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("TargetQ3")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "Year");
+
+                    b.ToTable("CapitalPlans");
+                });
+
             modelBuilder.Entity("QldaTtts.Web.Data.Catalog", b =>
                 {
                     b.Property<string>("Id")
@@ -355,6 +474,69 @@ namespace QldaTtts.Web.Data.Migrations
                     b.HasIndex("Type");
 
                     b.ToTable("Catalogs");
+                });
+
+            modelBuilder.Entity("QldaTtts.Web.Data.Clearance", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal?>("AmountPaid")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<double?>("Area")
+                        .HasColumnType("float");
+
+                    b.Property<decimal?>("Budget")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<double?>("HandedArea")
+                        .HasColumnType("float");
+
+                    b.Property<DateOnly?>("HandoverDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("HandoverDue")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("Households")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HouseholdsPaid")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Issues")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly?>("PlanDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Clearances");
                 });
 
             modelBuilder.Entity("QldaTtts.Web.Data.ConstructionItem", b =>
@@ -856,6 +1038,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("BoardRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Capital")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -868,6 +1054,10 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<string>("Decision")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DecisionMaker")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("Desc")
                         .HasColumnType("nvarchar(max)");
@@ -883,6 +1073,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<string>("MgmtForm")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -893,6 +1087,14 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("Phase")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProjectKind")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ReportType")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -1025,6 +1227,65 @@ namespace QldaTtts.Web.Data.Migrations
                     b.HasIndex("PackageId");
 
                     b.ToTable("ScheduleItems");
+                });
+
+            modelBuilder.Entity("QldaTtts.Web.Data.Settlement", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateOnly?>("ApprovalDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("ApprovedValue")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<decimal?>("AuditedValue")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<DateOnly?>("ClosedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("CompletedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("Deadline")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal?>("ProposedValue")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly?>("SubmittedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Settlements");
                 });
 
             modelBuilder.Entity("QldaTtts.Web.Data.StoredFile", b =>

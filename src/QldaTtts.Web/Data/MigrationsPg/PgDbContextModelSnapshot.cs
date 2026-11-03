@@ -22,6 +22,68 @@ namespace QldaTtts.Web.Data.MigrationsPg
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("QldaTtts.Web.Data.Acceptance", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PackageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Receiver")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateOnly?>("WarrantyGuaranteeUntil")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("WarrantyMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("WarrantyUntil")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Acceptances");
+                });
+
             modelBuilder.Entity("QldaTtts.Web.Data.Addendum", b =>
                 {
                     b.Property<string>("Id")
@@ -324,6 +386,63 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.ToTable("BoqItems");
                 });
 
+            modelBuilder.Entity("QldaTtts.Web.Data.CapitalPlan", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<double?>("TargetQ1")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TargetQ2")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TargetQ3")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "Year");
+
+                    b.ToTable("CapitalPlans");
+                });
+
             modelBuilder.Entity("QldaTtts.Web.Data.Catalog", b =>
                 {
                     b.Property<string>("Id")
@@ -355,6 +474,69 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.HasIndex("Type");
 
                     b.ToTable("Catalogs");
+                });
+
+            modelBuilder.Entity("QldaTtts.Web.Data.Clearance", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal?>("AmountPaid")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<double?>("Area")
+                        .HasColumnType("double precision");
+
+                    b.Property<decimal?>("Budget")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<double?>("HandedArea")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateOnly?>("HandoverDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("HandoverDue")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("Households")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("HouseholdsPaid")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Issues")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("PlanDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Clearances");
                 });
 
             modelBuilder.Entity("QldaTtts.Web.Data.ConstructionItem", b =>
@@ -856,6 +1038,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("BoardRole")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Capital")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -868,6 +1054,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<string>("Decision")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<string>("DecisionMaker")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.Property<string>("Desc")
                         .HasColumnType("text");
@@ -883,6 +1073,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<string>("MgmtForm")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -893,6 +1087,14 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasColumnType("character varying(300)");
 
                     b.Property<string>("Phase")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ProjectKind")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ReportType")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -1025,6 +1227,65 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.HasIndex("PackageId");
 
                     b.ToTable("ScheduleItems");
+                });
+
+            modelBuilder.Entity("QldaTtts.Web.Data.Settlement", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateOnly?>("ApprovalDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("ApprovedValue")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<decimal?>("AuditedValue")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<DateOnly?>("ClosedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("CompletedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("Deadline")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ProjectId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal?>("ProposedValue")
+                        .HasColumnType("decimal(20,0)");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly?>("SubmittedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Settlements");
                 });
 
             modelBuilder.Entity("QldaTtts.Web.Data.StoredFile", b =>

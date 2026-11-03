@@ -4,9 +4,19 @@ Sản phẩm của Công ty Cổ phần Tin học Tri Thức. Phát triển từ
 (kho `tintrithuc-droid/qlda-ttts-hcm`, phiên bản 1.0 ngày 01/11/2026), đổi sang nhận diện trung tính và dữ liệu mẫu cấp xã.
 Mỗi đơn vị tự đặt logo, tên đơn vị, banner, chân trang tại Quản trị hệ thống → Thông tin đơn vị, giao diện.
 
-62 chức năng, 7 phân hệ:
+77 chức năng, 11 phân hệ:
 quản lý dự án, mô hình hóa công trình (lưu trữ tệp mô hình theo phiên bản), gói thầu và hợp đồng, tiến độ (Gantt, đường cong S),
 nhật ký thi công, khối lượng, thanh toán, báo cáo thống kê, quản trị hệ thống và ứng dụng hiện trường trên điện thoại.
+
+Phiên bản 1.1 (03/11/2026) bổ sung theo chức năng, nhiệm vụ của Ban QLDA cấp xã (Luật Xây dựng 135/2025/QH15, Nghị định 217/2026/NĐ-CP,
+Nghị định 207/2026/NĐ-CP; thực tiễn TP Cần Thơ sau sắp xếp chính quyền 2 cấp):
+- Dự án ghi vai trò của Ban (chủ đầu tư, quản lý dự án, tư vấn QLDA), người quyết định đầu tư, hình thức quản lý dự án, loại dự án;
+- **Kế hoạch vốn, giải ngân**: kế hoạch trung hạn, vốn năm, bổ sung/điều chỉnh, giải ngân so với kịch bản quý, cảnh báo chậm giải ngân;
+- **Giải phóng mặt bằng**: bồi thường, chi trả, bàn giao mặt bằng theo khu vực, cảnh báo chậm bàn giao;
+- **Nghiệm thu, bàn giao, bảo hành**: nghiệm thu theo giai đoạn, hoàn thành, bàn giao sử dụng, cảnh báo hết bảo hành;
+- **Quyết toán dự án**: hạn lập, thẩm tra, phê duyệt, tất toán, cảnh báo quá hạn;
+- Nhóm người dùng "Lãnh đạo UBND xã (người quyết định đầu tư)" chỉ xem; danh mục nguồn vốn, hồ sơ pháp lý, hình thức LCNT cập nhật.
+Hệ thống đang chạy được nâng cấp tự động khi cài bản mới (bảng, danh mục, quyền của nhóm có sẵn).
 Trang **Danh mục chức năng** trong phần mềm ánh xạ từng use case với chức năng đã làm.
 
 ## Công nghệ

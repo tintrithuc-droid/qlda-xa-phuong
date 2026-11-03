@@ -23,7 +23,11 @@ const ICON = {
   wallet:'<path d="M3 7h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l12-4 2 4M16 13.5h2"/>',
   stamp:'<path d="M9 3h6l-1 7h4l1 4H5l1-4h4zM5 18h14M7 21h10"/>',
   seal:'<circle cx="12" cy="9" r="6"/><path d="m9 9 2 2 4-4M8.5 14 7 22l5-3 5 3-1.5-8"/>',
-  map:'<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/>'
+  map:'<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>'
 };
 const ic = (n)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||''}</svg>`;
 /* Hoa văn mặt trống đồng Đông Sơn (vẽ cách điệu): ngôi sao 14 cánh, vành tròn chấm, vành vạch, vành chim Lạc bay ngược chiều kim đồng hồ, vành răng cưa */
@@ -65,8 +69,8 @@ const MODULES = [
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
-const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan'];
-const APP_VERSION = '1.1';
+const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet'];
+const APP_VERSION = '1.2';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -76,8 +80,8 @@ let BR = {...BR_DEF};
 function setBrand(b){ BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; }
 const brandMark = () => BR.logo ? `<img src="${esc(BR.logo)}" alt="Logo ${esc(BR.orgShort)}">` : drumSVG();
 const brandFoot = () => esc(BR.footer.replace(/\{năm\}/g, new Date().getFullYear()));
-const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','capitals','acceptances','settlements','clearances','users','groups','catalogs','logs','attachments','guides'];
-const COL_LABEL = {guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',capitals:'Kế hoạch vốn',acceptances:'Nghiệm thu, bàn giao',settlements:'Quyết toán dự án',clearances:'Giải phóng mặt bằng',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
+const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','capitals','acceptances','settlements','clearances','users','groups','catalogs','logs','attachments','guides','approvals'];
+const COL_LABEL = {approvals:'Lịch sử trình duyệt',guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',capitals:'Kế hoạch vốn',acceptances:'Nghiệm thu, bàn giao',settlements:'Quyết toán dự án',clearances:'Giải phóng mặt bằng',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
 
 /* --- tiện ích --- */
 const $ = (s,el=document)=>el.querySelector(s);
@@ -180,8 +184,9 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 /* --- phân quyền --- */
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
-  if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan') return !!S.user;
+  if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan'||mod==='trinh-duyet') return !!S.user;
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
+  if(lvl==='approve') return (g.perms||{})[mod+':duyet']==='1';
   const p=(g.perms||{})[mod]||'none';
   return lvl==='view' ? p!=='none' : p==='edit';
 }
@@ -195,8 +200,14 @@ const pkgOf = id => get('packages',id);
 const projOf = id => get('projects',id);
 const contractOfPkg = kid => D('contracts').find(c=>c.packageId===kid);
 const contractPid = c => c.projectId || (pkgOf(c.packageId)||{}).projectId;
-function contractValue(c){ return N(c.value) + sum(D('addenda').filter(a=>a.contractId===c.id),'valueChange'); }
-function contractEnd(c){ const d=sum(D('addenda').filter(a=>a.contractId===c.id),'daysChange'); return c.end? addDays(c.end,d) : ''; }
+/* Phụ lục hợp đồng: chỉ phụ lục đã duyệt mới cộng vào giá trị, thời hạn hợp đồng (phụ lục nhập trước bản 1.2 không có trạng thái, coi là đã duyệt) */
+const ADD_STATUS = ['Soạn thảo','Chờ duyệt','Đã duyệt','Từ chối'];
+const addApproved = a => !a.status || a.status==='Đã duyệt';
+const addPending = a => a.status==='Soạn thảo' || a.status==='Chờ duyệt';
+function contractValue(c){ return N(c.value) + sum(D('addenda').filter(a=>a.contractId===c.id && addApproved(a)),'valueChange'); }
+function contractEnd(c){ const d=sum(D('addenda').filter(a=>a.contractId===c.id && addApproved(a)),'daysChange'); return c.end? addDays(c.end,d) : ''; }
+/** Phụ lục đang soạn thảo, chờ duyệt của hợp đồng: chưa tính vào hợp đồng, chỉ để nhắc. */
+function contractPending(c){ const xs=D('addenda').filter(a=>a.contractId===c.id && addPending(a)); return {n:xs.length, value:sum(xs,'valueChange'), days:sum(xs,'daysChange')}; }
 function boqDone(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && (!upto||v.date<=upto)),'doneQty'); }
 function boqAcc(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && (!upto||v.date<=upto)),'acceptedQty'); }
 function contractDone(cid, upto){ return sum(D('boq').filter(b=>b.contractId===cid), b=>boqDone(b,upto)*N(b.price)); }
@@ -216,12 +227,28 @@ function schedState(s){
   if(TODAY<s.planStart && p===0) return {k:'', t:'Chưa đến hạn'};
   return {k:'acc', t:'Đúng tiến độ'};
 }
+/** Bình quân theo trọng số: chỉ dùng cho các đầu việc trong CÙNG một gói thầu (trọng số do cán bộ phụ trách gói đặt). */
 function wavg(items, f){ const w=sum(items, s=>N(s.weight)||1); return w? sum(items, s=>(N(s.weight)||1)*f(s))/w : 0; }
-function projProgress(pid){ const p=projOf(pid); if(p && /hoàn thành|quyết toán/i.test(p.status||'') && !D('schedule').some(s=>s.projectId===pid)) return 100; return wavg(D('schedule').filter(s=>s.projectId===pid), s=>N(s.progress)); }
-function projExpected(pid){ return wavg(D('schedule').filter(s=>s.projectId===pid), s=>expectedPct(s)); }
+/** Giá trị của gói thầu dùng để quy đổi tiến độ: giá trị hợp đồng sau điều chỉnh (phụ lục đã duyệt), chưa có hợp đồng thì lấy giá gói thầu. */
+function pkgValue(kid){ const c=contractOfPkg(kid); const v=c? contractValue(c) : 0; return v>0? v : N((pkgOf(kid)||{}).estimate); }
+/** Tiến độ gộp nhiều gói thầu (dự án, hạng mục): trọng số của đầu việc chỉ so được trong gói, nên quy ra giá trị
+ *  = giá trị gói × trọng số ÷ tổng trọng số các đầu việc của gói, rồi bình quân theo giá trị. Gói chưa có giá trị
+ *  lấy bằng bình quân các gói đã có giá trị; nếu không gói nào có giá trị thì bình quân theo trọng số như cũ. */
+function vavg(items, f){
+  if(!items.length) return 0;
+  const keys=[...new Set(items.map(s=>s.packageId||''))];
+  const pv={}; keys.forEach(k=>pv[k]=k?pkgValue(k):0);
+  const known=keys.filter(k=>pv[k]>0); if(!known.length) return wavg(items,f);
+  const avg=sum(known,k=>pv[k])/known.length;
+  const tw={}; keys.forEach(k=>tw[k]=sum(D('schedule').filter(s=>(s.packageId||'')===k && (k || s.projectId===items[0].projectId)), s=>N(s.weight)||1)||1);
+  const val=s=>{ const k=s.packageId||''; return (pv[k]>0?pv[k]:avg)*(N(s.weight)||1)/tw[k]; };
+  const w=sum(items,val); return w? sum(items, s=>val(s)*f(s))/w : 0;
+}
+function projProgress(pid){ const p=projOf(pid); if(p && /hoàn thành|quyết toán/i.test(p.status||'') && !D('schedule').some(s=>s.projectId===pid)) return 100; return vavg(D('schedule').filter(s=>s.projectId===pid), s=>N(s.progress)); }
+function projExpected(pid){ return vavg(D('schedule').filter(s=>s.projectId===pid), s=>expectedPct(s)); }
 function pkgProgress(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>N(s.progress)); }
 function pkgExpected(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>expectedPct(s)); }
-function itemProgress(it){ const ss=D('schedule').filter(s=>s.itemId===it.id); return ss.length? wavg(ss,s=>N(s.progress)) : N(it.progress); }
+function itemProgress(it){ const ss=D('schedule').filter(s=>s.itemId===it.id); return ss.length? vavg(ss,s=>N(s.progress)) : N(it.progress); }
 /* --- vốn đầu tư công, giải ngân (phân hệ Kế hoạch vốn) --- */
 const CAP_MINUS = 'Điều chỉnh giảm kế hoạch năm';
 const isAnnualCap = c => c.kind && !/trung hạn/i.test(c.kind);
@@ -238,6 +265,20 @@ function capTarget(pid, year, q){ if(q>=4) return 100; const c=D('capitals').fin
 function capTargetAt(pid, year, date=TODAY){ const y=N(year); if(N(date.slice(0,4))<y) return 0; if(N(date.slice(0,4))>y) return 100;
   const m=N(date.slice(5,7)), q=Math.floor((m-1)/3)+1; const qs=y+'-'+pad((q-1)*3+1)+'-01', qe=q<4? y+'-'+pad(q*3+1)+'-01' : (y+1)+'-01-01';
   const a=q>1? capTarget(pid,y,q-1) : 0, b=capTarget(pid,y,q); return a+(b-a)*Math.min(1,days(qs,date)/Math.max(1,days(qs,qe))); }
+/* --- kế hoạch thanh toán: tình trạng từng đợt (dùng chung cho bảng, cảnh báo, báo cáo) --- */
+/** Số đã thanh toán của đợt kế hoạch: các hồ sơ thanh toán gắn với đợt ở trạng thái Đã thanh toán. */
+function planPaid(p){ return sum(D('payments').filter(x=>x.payPlanId===p.id && x.status==='Đã thanh toán'),'amount'); }
+/** Tình trạng đợt: Đã thực hiện (có hồ sơ gắn đợt đã được chi) · Đang trình thanh toán · Quá hạn N ngày · Sắp đến hạn (15 ngày) · Chưa đến hạn. */
+function planState(p){
+  const ps=D('payments').filter(x=>x.payPlanId===p.id), paid=planPaid(p);
+  if(ps.some(x=>x.status==='Đã thanh toán')) return {k:'ok', t:'Đã thực hiện', paid};
+  const proc=ps.some(x=>['Đề nghị','Chờ duyệt','Đang trình KBNN'].includes(x.status));
+  const left=p.planDate? days(TODAY,p.planDate) : null;
+  if(left!==null && left<0) return {k:'bad', t:'Quá hạn '+(-left)+' ngày'+(proc?', đang trình':''), paid, late:-left, proc};
+  if(proc) return {k:'info', t:'Đang trình thanh toán', paid};
+  if(left!==null && left<=15) return {k:'warn', t:left? 'Còn '+left+' ngày đến hạn' : 'Đến hạn hôm nay', paid};
+  return {k:'', t:'Chưa đến hạn', paid};
+}
 /* --- nghiệm thu, quyết toán, GPMB --- */
 function warrantyEnd(a){ return a.warrantyUntil || (a.date && N(a.warrantyMonths)? isoLocal(new Date(new Date(a.date).setMonth(new Date(a.date).getMonth()+N(a.warrantyMonths)))) : ''); }
 function settleState(x){
@@ -268,21 +309,21 @@ function alerts(){
     else if(left>=0 && left<=60 && done<90) out.push({lvl:'warn', mod:'goi-thau', text:`Hợp đồng <b>${esc(c.number)}</b> còn ${left} ngày đến hạn (${fmtDate(e)}), khối lượng thực hiện ${fmtP(done)}.`});
   });
   /* Bảo lãnh hợp đồng, giấy phép… sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực */
-  const expiry=(until, label, mod)=>{ if(!until) return; const left=days(TODAY,until);
-    if(left<0 && left>=-90) out.push({lvl:'bad', mod, text:`${label} đã hết hiệu lực từ ${fmtDate(until)} (${-left} ngày).`});
+  /* keep=true: nhắc mãi đến khi được cập nhật (bảo lãnh HĐ, giấy phép); bảo hành hết hạn là bình thường nên chỉ nhắc 90 ngày */
+  const expiry=(until, label, mod, keep=true)=>{ if(!until) return; const left=days(TODAY,until);
+    if(left<0 && (keep || left>=-90)) out.push({lvl:'bad', mod, text:`${label} đã hết hiệu lực từ ${fmtDate(until)} (${-left} ngày).`});
     else if(left>=0 && left<=30) out.push({lvl:'warn', mod, text:`${label} sắp hết hiệu lực: còn ${left} ngày (đến ${fmtDate(until)}).`}); };
   D('contracts').filter(c=>inFilter(contractPid(c))).forEach(c=>{ const k=pkgOf(c.packageId); if(k && /thanh lý/i.test(k.status||'')) return;
     expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${esc(c.number)}</b>`, 'goi-thau');
     if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${esc(c.number)}</b>`, 'goi-thau'); });
   D('legal').filter(l=>l.validUntil && inFilter(l.projectId)).forEach(l=>{ const p=projOf(l.projectId); if(p && /hoàn thành|quyết toán/i.test(p.status||'')) return;
     const k=l.packageId&&pkgOf(l.packageId); expiry(l.validUntil, `${esc(l.type)} <b>${esc(l.number)}</b> (${esc(k?k.code:(p?p.code:''))})`, k?'goi-thau':'du-an'); });
-  D('payplans').forEach(p=>{
-    const c=get('contracts',p.contractId); if(!c||!inFilter(contractPid(c))) return;
-    if(p.planDate<TODAY && p.planDate>addDays(TODAY,-60)){
-      const paid=D('payments').some(x=>x.contractId===c.id && x.date>=addDays(p.planDate,-45) && x.status==='Đã thanh toán');
-      if(!paid) out.push({lvl:'warn', mod:'thanh-toan', text:`Kế hoạch thanh toán <b>${esc(p.phase)}</b> HĐ ${esc(c.number)} (${fmtTy(p.amount)}) đến hạn ${fmtDate(p.planDate)} chưa có hồ sơ đã thanh toán.`});
-    }
-  });
+  /* Đợt thanh toán quá hạn: nhắc cho đến khi đợt được thực hiện (không còn tự mất sau 60 ngày); nhiều đợt thì gom một dòng */
+  const lates=D('payplans').map(p=>({p, c:get('contracts',p.contractId), st:planState(p)})).filter(x=>x.c && inFilter(contractPid(x.c)) && x.st.late && pct(contractPaid(x.c.id),contractValue(x.c))<100).sort((a,b)=>b.st.late-a.st.late);
+  if(lates.length>3) out.push({lvl:lates.some(x=>x.st.late>30)?'bad':'warn', mod:'thanh-toan', text:`<b>${lates.length} đợt kế hoạch thanh toán quá hạn</b> chưa thực hiện, tổng ${fmtTy(sum(lates,x=>N(x.p.amount)))}; lâu nhất ${lates[0].st.late} ngày (đợt ${esc(lates[0].p.phase)} HĐ ${esc(lates[0].c.number)}).`});
+  else lates.forEach(({p,c,st})=>out.push({lvl:st.late>30?'bad':'warn', mod:'thanh-toan', text:`Kế hoạch thanh toán <b>${esc(p.phase)}</b> HĐ ${esc(c.number)} (${fmtTy(p.amount)}) đến hạn ${fmtDate(p.planDate)}, quá hạn ${st.late} ngày chưa thực hiện${st.proc?' (hồ sơ đang trình)':''}.`}));
+  /* Hồ sơ chờ người dùng duyệt (phụ lục, thanh toán, nghiệm thu) */
+  if(typeof WF!=='undefined'){ const mine=wfMine().filter(x=>inFilter(WF[x.col].pid(x.r))); if(mine.length) out.unshift({lvl:'warn', mod:'trinh-duyet', text:`Có <b>${mine.length} hồ sơ chờ bạn duyệt</b>: ${esc([...new Set(mine.map(x=>WF[x.col].name.toLowerCase()))].join(', '))}.`}); }
   /* Giải ngân năm hiện tại thấp hơn kịch bản */
   const Y=TODAY.slice(0,4);
   projects().filter(p=>inFilter(p.id)).forEach(p=>{ const plan=capPlan(p.id,Y); if(!plan) return;
@@ -290,8 +331,8 @@ function alerts(){
     if(tg-done>10) out.push({lvl:tg-done>25?'bad':'warn', mod:'von', text:`Dự án <b>${esc(p.code)}</b> giải ngân năm ${Y} mới đạt ${fmtP(done)} kế hoạch vốn (kịch bản đến nay ${fmtP(tg)}).`}); });
   /* Bảo hành, bảo lãnh bảo hành sắp hết hoặc đã hết */
   D('acceptances').filter(a=>inFilter(a.projectId)).forEach(a=>{ const p=projOf(a.projectId)||{}; const k=a.packageId&&pkgOf(a.packageId);
-    const w=warrantyEnd(a); if(w) expiry(w, `Thời hạn bảo hành ${esc(k?k.code:p.code||'')} (${esc(a.number||a.kind||'')})`, 'nghiem-thu');
-    expiry(a.warrantyGuaranteeUntil, `Bảo lãnh bảo hành ${esc(k?k.code:p.code||'')}`, 'nghiem-thu'); });
+    const w=warrantyEnd(a); if(w) expiry(w, `Thời hạn bảo hành ${esc(k?k.code:p.code||'')} (${esc(a.number||a.kind||'')})`, 'nghiem-thu', false);
+    expiry(a.warrantyGuaranteeUntil, `Bảo lãnh bảo hành ${esc(k?k.code:p.code||'')}`, 'nghiem-thu', false); });
   /* Quyết toán quá hạn, đã phê duyệt mà chưa tất toán */
   D('settlements').filter(x=>inFilter(x.projectId)).forEach(x=>{ const p=projOf(x.projectId)||{}; const st=settleState(x);
     if(st.k==='bad'||st.k==='warn') out.push({lvl:st.k, mod:'quyet-toan', text:`Quyết toán dự án <b>${esc(p.code||'')}</b>: ${st.t.toLowerCase()} (hạn ${fmtDate(x.deadline)}).`});
@@ -320,24 +361,40 @@ const contractOpts = (pid) => D('contracts').filter(c=>pidOk(contractPid(c)) && 
 function emptyBox(text, btn){ return `<div class="empty">${text}${btn?`<div style="margin-top:10px">${btn}</div>`:''}</div>`; }
 
 /* Bảng dữ liệu chung */
+/* Phân trang dùng chung cho mọi bảng: mặc định 20 dòng/trang, chọn 20/50/100/tất cả (nhớ theo máy); dòng tổng do nơi gọi tính trên toàn bộ dữ liệu */
+const PG_SIZES=[20,50,100,0];
+function pgSize(){ try{ const r=localStorage.getItem('qlda-pgsize'); const v=r==null? 20 : +r; return PG_SIZES.includes(v)? v : 20; }catch{ return 20; } }
+function pager(key, total, page, size){
+  const pages=Math.max(1,Math.ceil(total/size)); const b=(p,l,dis,t)=>`<button type="button" class="btn sm ghost" data-act="pg" data-id="${esc(key)}" data-p="${p}" ${dis?'disabled':''} title="${t}" aria-label="${t}">${l}</button>`;
+  return `<div class="pager"><span class="small muted">${(page-1)*size+1}–${Math.min(total,page*size)} / ${total} dòng</span><span class="sp"></span>
+    ${b(1,'«',page<=1,'Trang đầu')}${b(page-1,'‹',page<=1,'Trang trước')}<span class="small">Trang <b>${page}</b>/${pages}</span>${b(page+1,'›',page>=pages,'Trang sau')}${b(pages,'»',page>=pages,'Trang cuối')}
+    <select class="pg-size" aria-label="Số dòng mỗi trang">${PG_SIZES.map(n=>`<option value="${n}" ${n===size?'selected':''}>${n?n+' dòng/trang':'Tất cả'}</option>`).join('')}</select></div>`;
+}
 function table(cols, rows, o={}){
   if(!rows.length) return emptyBox(o.empty||'Chưa có dữ liệu.');
+  const size=o.nopage? 0 : pgSize(); let pg='';
+  if(size && rows.length>size){
+    const key=(S.route||'')+':'+(o.pk||cols.map(c=>c.h).join('|'));
+    const pages=Math.ceil(rows.length/size); const page=Math.min(Math.max(1,(S.pg||{})[key]||1),pages);
+    pg=pager(key, rows.length, page, size); rows=rows.slice((page-1)*size, page*size);
+  }
   const head = cols.map(c=>`<th class="${c.r?'r':''}">${esc(c.h)}</th>`).join('') + (o.actions?'<th></th>':'');
   const body = rows.map(r=>`<tr class="${o.rowAct?'click':''}" ${o.rowAct?`data-act="${o.rowAct}" data-id="${esc(r.id)}"`:''}>${cols.map(c=>`<td class="${c.r?'r':''}" data-label="${esc(c.h)}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}${o.actions?`<td class="acts">${o.actions(r)}</td>`:''}</tr>`).join('');
   const foot = o.foot? `<tfoot><tr>${o.foot.map((f,i)=>`<td class="${cols[i]&&cols[i].r?'r':''}">${f??''}</td>`).join('')}${o.actions?'<td></td>':''}</tr></tfoot>`:'';
-  return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
+  return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>${pg}`;
 }
 const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>` : extra;
 
 /* Hộp thoại biểu mẫu */
 function fieldHTML(f, v, rec={}){
   const id='f_'+f.key, req=f.req?' <span class="req">*</span>':'';
-  const cls='fld'+(f.full||f.type==='textarea'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'');
+  const cls='fld'+(f.full||f.type==='textarea'||f.type==='works'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'');
   let input='';
   const val = v ?? f.def ?? '';
   switch(f.type){
     case 'textarea': input=`<textarea id="${id}" rows="${f.rows||3}" placeholder="${esc(f.ph||'')}">${esc(val)}</textarea>`; break;
-    case 'select': { const list=typeof f.options==='function'?f.options():f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>`; break; }
+    case 'works': input=worksHTML(id, val, f); break;
+    case 'select': { const list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>`; break; }
     case 'money': input=`<input id="${id}" type="number" step="1" min="0" value="${esc(val)}" data-money><span class="hint" id="${id}_h">${val!==''?fmtVND(val)+' đồng':''}</span>`; break;
     case 'number': case 'percent': input=`<input id="${id}" type="number" step="any" ${f.type==='percent'?'min="0" max="100"':''} value="${esc(val)}">`; break;
     case 'date': input=`<input id="${id}" type="date" value="${esc(val)}">`; break;
@@ -361,6 +418,10 @@ function openForm({title, fields, value={}, onSave, narrow, submit='Lưu'}){
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
   fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
+  /* Ô chọn phụ thuộc ô khác (dep): đổi ô gốc thì nạp lại danh sách */
+  fields.filter(f=>f.dep && f.type==='select').forEach(f=>{ const src=$('#f_'+f.dep), el=$('#f_'+f.key); if(!src||!el) return;
+    const fill=()=>{ const cur=el.value; el.innerHTML=opts(f.options(src.value), cur, f.req?null:'— Chọn —'); };
+    fill(); src.addEventListener('change', fill); });
   form.onsubmit=async e=>{
     e.preventDefault();
     const v={...value}; const err=$('#mform_err'); err.textContent='';
@@ -371,6 +432,7 @@ function openForm({title, fields, value={}, onSave, narrow, submit='Lưu'}){
       if(f.type==='checks') v[f.key]=$$('input:checked',el).map(i=>i.value);
       else if(f.type==='files') v[f.key]=[...el.files];
       else if(f.type==='password') v[f.key]=el.value;
+      else if(f.type==='works'){ const r=worksRead(el); if(r.err){ err.textContent=r.err; return; } v[f.key]=r.text; }
       else if(['money','number','percent'].includes(f.type)) v[f.key]= el.value===''? null : Number(el.value);
       else v[f.key]=el.value.trim();
       if(f.req && (v[f.key]==null || v[f.key]==='' || (Array.isArray(v[f.key])&&!v[f.key].length))){ err.textContent='Vui lòng nhập "'+f.label+'".'; el.focus&&el.focus(); return; }
@@ -543,3 +605,116 @@ function sCurve(scheds){
   const act=months.map(m=>m<=addDays(TODAY,31)? wavg(scheds, s=>progressAt(s, m>TODAY?TODAY:m)) : null);
   return {labels:months.map(m=>m.slice(5,7)+'/'+m.slice(2,4)), plan, act};
 }
+
+
+/* ===== Bản 1.2: ô ngày dd/mm/yyyy, bảng nhập công việc, giao diện sáng/tối ===== */
+/** Đọc ngày người dùng gõ theo kiểu Việt Nam: 03/11/2026, 3/11 (năm nay), 3-11-26, 03112026. Trả về yyyy-mm-dd, '' nếu bỏ trống, null nếu sai. */
+function parseVNDate(t){
+  t=String(t||'').trim(); if(!t) return '';
+  let d,m,y;
+  if(/^\d+$/.test(t)){
+    if(t.length===8){ d=t.slice(0,2); m=t.slice(2,4); y=t.slice(4); }
+    else if(t.length===6){ d=t.slice(0,2); m=t.slice(2,4); y='20'+t.slice(4); }
+    else if(t.length===4){ d=t.slice(0,2); m=t.slice(2,4); y=TODAY.slice(0,4); }
+    else return null;
+  } else {
+    const p=t.split(/[\/\-.\s]+/).filter(Boolean); if(p.length<2||p.length>3||p.some(x=>!/^\d+$/.test(x))) return null;
+    [d,m,y]=p; if(!y) y=TODAY.slice(0,4); if(y.length===2) y='20'+y;
+  }
+  d=+d; m=+m; y=+y;
+  if(!(y>=1900 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31)) return null;
+  const dt=new Date(y,m-1,d); if(dt.getMonth()!==m-1) return null;
+  return y+'-'+pad(m)+'-'+pad(d);
+}
+/** Ô ngày của trình duyệt hiển thị theo ngôn ngữ máy (máy tiếng Anh ra mm/dd/yyyy). Mọi ô type="date" được thay bằng ô chữ
+ *  luôn hiển thị dd/mm/yyyy kèm nút lịch; ô gốc vẫn giữ giá trị yyyy-mm-dd nên các biểu mẫu, bộ lọc đọc dữ liệu như cũ. */
+function enhanceDate(inp){
+  if(inp.dataset.dx) return; inp.dataset.dx='1';
+  const w=document.createElement('span'); w.className='dx';
+  const t=document.createElement('input'); t.type='text'; t.inputMode='numeric'; t.placeholder='dd/mm/yyyy'; t.autocomplete='off'; t.className='dx-t'; t.maxLength=10;
+  if(inp.id){ t.id=inp.id+'_t'; const lb=document.querySelector(`label[for="${inp.id}"]`); if(lb) lb.htmlFor=t.id; }
+  const al=inp.getAttribute('aria-label') || (inp.closest('label')&&inp.closest('label').textContent.trim()); if(al) t.setAttribute('aria-label', al);
+  const b=document.createElement('button'); b.type='button'; b.className='dx-b'; b.tabIndex=-1; b.title='Chọn ngày trên lịch'; b.setAttribute('aria-label','Chọn ngày trên lịch');
+  b.innerHTML=ic('cal').replace('<svg','<svg width="16" height="16"');
+  inp.parentNode.insertBefore(w,inp); w.append(t,b,inp); inp.classList.add('dx-n'); inp.tabIndex=-1; inp.setAttribute('aria-hidden','true');
+  const show=()=>{ t.value=inp.value? fmtDate(inp.value) : ''; t.classList.remove('bad'); t.removeAttribute('title'); };
+  const fire=()=>{ inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new Event('change',{bubbles:true})); };
+  const commit=()=>{ const iso=parseVNDate(t.value);
+    if(iso===null){ t.classList.add('bad'); t.title='Ngày không hợp lệ. Nhập theo dạng ngày/tháng/năm, ví dụ 03/11/2026'; if(inp.value){ inp.value=''; fire(); } return; }
+    if(inp.value!==iso){ inp.value=iso; fire(); } show(); };
+  show();
+  t.addEventListener('input', e=>{ if(e.inputType==='insertText' && /^\d{2}$|^\d{1,2}\/\d{2}$/.test(t.value)) t.value+='/'; });
+  t.addEventListener('change', commit);
+  t.addEventListener('keydown', e=>{ if(e.key==='Enter') commit(); });
+  b.addEventListener('click', ()=>{ try{ inp.showPicker(); }catch{ t.focus(); } });
+  inp.addEventListener('change', ()=>{ if(document.activeElement!==t) show(); });
+}
+new MutationObserver(()=>document.querySelectorAll('input[type=date]:not([data-dx])').forEach(enhanceDate)).observe(document.documentElement,{childList:true,subtree:true});
+
+/** Bảng nhập "Công việc thực hiện" của nhật ký: mỗi dòng Công việc · Khối lượng · Đơn vị, có thêm/xóa dòng.
+ *  Vẫn lưu dạng văn bản "Nội dung | Khối lượng | Đơn vị" mỗi dòng như bản trước nên nhật ký cũ đọc được ngay. */
+function worksParse(t){ return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const [name,qty,unit]=l.split('|').map(x=>(x||'').trim()); return {name,qty,unit}; }); }
+function worksRow(r={}){ const q=r.qty==null?'':String(r.qty).replace(',','.');
+  return `<div class="wk-row"><input class="wk-n" placeholder="Công việc, vị trí thi công" value="${esc(r.name||'')}" aria-label="Công việc">
+    <input class="wk-q" inputmode="decimal" placeholder="Khối lượng" value="${esc(q)}" aria-label="Khối lượng"><input class="wk-u" placeholder="Đơn vị" value="${esc(r.unit||'')}" list="wk_units" aria-label="Đơn vị">
+    <button type="button" class="btn sm ghost danger wk-del" title="Xóa dòng" aria-label="Xóa dòng">×</button></div>`; }
+function worksHTML(id, val, f){
+  const rows=worksParse(val); if(!rows.length) rows.push({});
+  const units=[...new Set(['m','m2','m3','tấn','kg','cái','bộ','công','ca',...D('boq').map(b=>b.unit).filter(Boolean)])];
+  return `<div class="wk" id="${id}"><div class="wk-h"><span>Công việc</span><span>Khối lượng</span><span>Đơn vị</span><span></span></div><div class="wk-body">${rows.map(worksRow).join('')}</div>
+    <button type="button" class="btn sm wk-add">+ Thêm dòng</button><datalist id="wk_units">${units.map(u=>`<option value="${esc(u)}">`).join('')}</datalist></div>`;
+}
+function worksRead(el){
+  const rows=[...el.querySelectorAll('.wk-row')].map(r=>({name:r.querySelector('.wk-n').value.trim(), qty:r.querySelector('.wk-q').value.trim().replace(',','.'), unit:r.querySelector('.wk-u').value.trim()})).filter(r=>r.name||r.qty||r.unit);
+  const clean=x=>x.replace(/\|/g,'/').replace(/\s+/g,' ');
+  for(const r of rows){ if(!r.name) return {err:'Dòng công việc có khối lượng "'+r.qty+'" chưa nhập tên công việc.'}; if(r.qty && !(Number(r.qty)>=0)) return {err:'Khối lượng của "'+r.name+'" phải là số (ví dụ 12.5).'}; }
+  return {text: rows.map(r=>[clean(r.name), r.qty, clean(r.unit)].join(' | ').replace(/( \| )+$/,'')).join('\n')};
+}
+document.addEventListener('click', e=>{
+  const a=e.target.closest('.wk-add'); if(a){ const body=a.parentNode.querySelector('.wk-body'); body.insertAdjacentHTML('beforeend', worksRow()); body.lastElementChild.querySelector('.wk-n').focus(); return; }
+  const d=e.target.closest('.wk-del'); if(d){ const body=d.closest('.wk-body'); d.closest('.wk-row').remove(); if(!body.children.length) body.insertAdjacentHTML('beforeend', worksRow()); }
+});
+
+/** Giao diện sáng/tối: Tự động (theo máy) → Sáng → Tối, nhớ trên từng máy. */
+const THEMES=[['auto','Tự động theo máy'],['light','Giao diện sáng'],['dark','Giao diện tối']];
+function themeGet(){ try{ return localStorage.getItem('qlda-theme')||'auto'; }catch{ return 'auto'; } }
+function themeApply(m){ const r=document.documentElement; if(m==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',m); }
+themeApply(themeGet());
+function themeBtn(){ const m=themeGet(), next=THEMES[(THEMES.findIndex(x=>x[0]===m)+1)%3];
+  return `<button class="btn ghost sm theme-btn" data-act="theme" title="${esc(THEMES.find(x=>x[0]===m)[1])} · bấm để chuyển sang ${esc(next[1].toLowerCase())}" aria-label="Đổi giao diện sáng/tối">${ic(m==='auto'?'auto':m==='light'?'sun':'moon').replace('<svg','<svg width="18" height="18"')}</button>`; }
+
+
+/* ===== Bản 1.2: quy trình trình duyệt hồ sơ (phụ lục HĐ, hồ sơ thanh toán, nghiệm thu) =====
+   Soạn thảo → Trình duyệt → Đã duyệt / Trả lại (ghi ý kiến, về soạn thảo) / Từ chối; người duyệt thu hồi được hồ sơ đã duyệt.
+   Máy chủ kiểm tra quyền và trạng thái ở /api/approvals; hồ sơ chờ duyệt, đã duyệt bị khóa sửa với người không có quyền duyệt. */
+const WF = {
+  addenda:{mod:'goi-thau', name:'Phụ lục hợp đồng', draft:'Soạn thảo', wait:'Chờ duyệt', ok:'Đã duyệt', no:'Từ chối', locked:['Đã duyệt','Từ chối'],
+    label:r=>{ const c=get('contracts',r.contractId)||{}; return `Phụ lục ${r.number||''} HĐ ${c.number||''}`; }, pid:r=>contractPid(get('contracts',r.contractId)||{}),
+    info:r=>`${N(r.valueChange)>0?'+':''}${fmtVND(r.valueChange)} đ${N(r.daysChange)?', gia hạn '+N(r.daysChange)+' ngày':''} · ${r.content||''}`},
+  payments:{mod:'thanh-toan', name:'Hồ sơ thanh toán', draft:'Đề nghị', wait:'Chờ duyệt', ok:'Đang trình KBNN', no:'Từ chối', locked:['Đang trình KBNN','Đã thanh toán','Từ chối'],
+    label:r=>{ const c=get('contracts',r.contractId)||{}; return `Hồ sơ thanh toán ${r.number||''} HĐ ${c.number||''}`; }, pid:r=>contractPid(get('contracts',r.contractId)||{}),
+    info:r=>`${r.kind||''} · ${fmtVND(r.amount)} đ${r.payPlanId&&get('payplans',r.payPlanId)?' · '+(/^đợt/i.test(get('payplans',r.payPlanId).phase||'')?'':'đợt ')+get('payplans',r.payPlanId).phase:''}`},
+  acceptances:{mod:'nghiem-thu', name:'Nghiệm thu, bàn giao', draft:'Soạn thảo', wait:'Chờ duyệt', ok:'Đã duyệt', no:'Từ chối', locked:['Đã duyệt','Từ chối'],
+    label:r=>`${r.kind||'Biên bản'} ${r.number||''}`, pid:r=>r.projectId, info:r=>`${fmtDate(r.date)} · ${r.content||''}${r.result?' · '+r.result:''}`}
+};
+/** Trạng thái quy trình của hồ sơ (dữ liệu trước bản 1.2 không có trạng thái: coi là đã duyệt). */
+function wfStatus(col, r){ return r.status || WF[col].ok; }
+const wfLocked = (col, r) => WF[col].locked.includes(wfStatus(col,r));
+const wfWaiting = (col, r) => wfStatus(col,r)===WF[col].wait;
+/** Người dùng sửa được hồ sơ không (người duyệt luôn sửa được; người khác chỉ sửa khi đang soạn thảo). */
+const wfEditable = (col, r) => can(WF[col].mod,'approve') || (can(WF[col].mod,'edit') && !wfLocked(col,r) && !wfWaiting(col,r));
+function wfPill(col, r){ const w=WF[col], s=wfStatus(col,r);
+  return pill(s, s===w.draft?'':s===w.wait?'warn':s===w.no?'bad':s==='Đã thanh toán'||s===w.ok?'ok':'info'); }
+/** Các nút quy trình của một hồ sơ, theo trạng thái và quyền của người dùng. */
+function wfBtns(col, r){ const w=WF[col], s=wfStatus(col,r), ap=can(w.mod,'approve'), ed=can(w.mod,'edit')||ap; const b=(a,l,cls='')=>`<button class="btn sm ${cls||'ghost'}" data-act="wf" data-id="${esc(col+'|'+r.id+'|'+a)}">${l}</button>`;
+  let h='';
+  if(s===w.draft && ed) h+=b('submit','Trình duyệt');
+  if(s===w.wait && ap) h+=b('approve','Duyệt','primary')+b('return','Trả lại')+b('reject','Từ chối','ghost danger');
+  else if(s===w.wait && ed) h+=b('withdraw','Rút lại');
+  if(ap && w.locked.includes(s) && s!=='Đã thanh toán') h+=b('recall','Thu hồi');
+  if(D('approvals').some(a=>a.collection===col && a.recordId===r.id)) h+=b('history','Lịch sử');
+  return h; }
+/** Nút Sửa/Xóa có xét khóa của quy trình. */
+const wfEditBtns = (col, r, extra='') => wfEditable(col,r) ? editBtns(WF[col].mod, col, r.id, extra) : extra;
+/** Hồ sơ đang chờ người dùng này duyệt. */
+function wfMine(){ return Object.keys(WF).flatMap(col=>can(WF[col].mod,'approve')? D(col).filter(r=>wfWaiting(col,r) && pidOk(WF[col].pid(r))).map(r=>({col,r})) : []); }

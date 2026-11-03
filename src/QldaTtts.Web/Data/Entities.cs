@@ -147,6 +147,8 @@ public class Addendum : EntityBase, IHasContract
     public string? Content { get; set; }
     [Column(TypeName = "decimal(20,0)")] public decimal? ValueChange { get; set; }
     public int? DaysChange { get; set; }
+    /// <summary>Soạn thảo / Chờ duyệt / Đã duyệt / Từ chối; chỉ phụ lục Đã duyệt (hoặc chưa có trạng thái, dữ liệu trước bản 1.2) được cộng vào hợp đồng.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 public class ProgressPoint
@@ -244,6 +246,8 @@ public class Payment : EntityBase, IHasContract
     [MaxLength(50)] public string? Status { get; set; }
     public string? Content { get; set; }
     public DateOnly? PaidDate { get; set; }
+    /// <summary>Đợt kế hoạch thanh toán mà hồ sơ này thực hiện.</summary>
+    [MaxLength(64)] public string? PayPlanId { get; set; }
     [MaxLength(300)] public string? FileName { get; set; }
     public long? FileSize { get; set; }
     [MaxLength(64)] public string? AssetId { get; set; }
@@ -284,6 +288,8 @@ public class Acceptance : EntityBase, IHasProject
     public DateOnly? WarrantyUntil { get; set; }
     public DateOnly? WarrantyGuaranteeUntil { get; set; }
     public string? Note { get; set; }
+    /// <summary>Trạng thái trình duyệt: Soạn thảo / Chờ duyệt / Đã duyệt / Từ chối (null = dữ liệu trước bản 1.2, coi là đã duyệt).</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 /// <summary>Quyết toán dự án hoàn thành và tất toán tài khoản.</summary>
@@ -399,6 +405,23 @@ public class AuditLog : EntityBase
     [MaxLength(100)] public string? Module { get; set; }
     [MaxLength(500)] public string? Target { get; set; }
     [MaxLength(64)] public string? Ip { get; set; }
+}
+
+/// <summary>Lịch sử trình duyệt hồ sơ (phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu): ai trình, ai duyệt, trả lại, ý kiến.</summary>
+[Table("ApprovalLogs")]
+public class ApprovalLog : EntityBase, IHasProject
+{
+    [MaxLength(50)] public string Collection { get; set; } = "";
+    [MaxLength(64)] public string RecordId { get; set; } = "";
+    [MaxLength(64)] public string? ProjectId { get; set; }
+    [MaxLength(300)] public string? Target { get; set; }
+    [MaxLength(50)] public string Action { get; set; } = "";
+    [MaxLength(50)] public string? FromStatus { get; set; }
+    [MaxLength(50)] public string? ToStatus { get; set; }
+    public string? Note { get; set; }
+    [MaxLength(64)] public string? By { get; set; }
+    [MaxLength(200)] public string? ByName { get; set; }
+    public DateTime At { get; set; }
 }
 
 [Table("StoredFiles")]

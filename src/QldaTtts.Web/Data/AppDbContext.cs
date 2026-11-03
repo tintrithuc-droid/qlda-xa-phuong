@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<Guide> Guides => Set<Guide>();
     public DbSet<AppSetting> Settings => Set<AppSetting>();
+    public DbSet<ApprovalLog> ApprovalLogs => Set<ApprovalLog>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -78,6 +79,7 @@ public class AppDbContext : DbContext
         b.Entity<Catalog>().HasIndex(x => x.Type);
         b.Entity<Attachment>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Attachment>().HasIndex(x => x.FileId);
+        b.Entity<ApprovalLog>().HasIndex(x => new { x.Collection, x.RecordId });
     }
 }
 

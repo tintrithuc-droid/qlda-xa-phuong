@@ -16,7 +16,9 @@ const intoView = (p, sel, text) => p.evaluate(([s, t]) => { const e = [...docume
   await shot(p, 'dt-nk-1', undefined, [{ sel: '#ov label', text: 'Gói thầu', n: 1 }, { sel: '#ov label', text: 'Ngày', n: 2 }, { sel: '#ov label', text: 'Thời tiết', n: 3 }, { sel: '#ov label', text: 'Số nhân công', n: 4 }]);
   await p.selectOption('#ov select >> nth=0', { index: 1 }).catch(() => {});
   await intoView(p, '#ov label', 'Công việc thực hiện');
-  const ta = await p.$$('#ov textarea'); if (ta[0]) await ta[0].fill('Đào đất hố móng M1–M4 | 18,5 | m3\nĐổ bê tông lót móng | 2,4 | m3');
+  await p.fill('#ov .wk-row >> nth=0 >> .wk-n', 'Đào đất hố móng M1–M4'); await p.fill('#ov .wk-row >> nth=0 >> .wk-q', '18,5'); await p.fill('#ov .wk-row >> nth=0 >> .wk-u', 'm3');
+  await p.click('#ov .wk-add'); await p.fill('#ov .wk-row >> nth=1 >> .wk-n', 'Đổ bê tông lót móng'); await p.fill('#ov .wk-row >> nth=1 >> .wk-q', '2,4'); await p.fill('#ov .wk-row >> nth=1 >> .wk-u', 'm3');
+  await intoView(p, '#ov label', 'Công việc thực hiện');
   await shot(p, 'dt-nk-2', undefined, [{ sel: '#ov label', text: 'Công việc thực hiện', n: 5 }, { sel: '#ov label', text: 'Vướng mắc', n: 6 }]);
   await p.setInputFiles('#f_photos_new', [img]); await wait(900);
   await intoView(p, '#ov label', 'Hình ảnh hiện trường');

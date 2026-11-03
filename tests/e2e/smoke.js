@@ -64,12 +64,13 @@ async function login(p, u, pw = PW) {
   const img = path.join(os.tmpdir(), 'qlda-test.png'); fs.copyFileSync(path.join(__dirname, '../../src/QldaTtts.Web/wwwroot/icons/icon-512.png'), img);
   const nd0 = await p.evaluate(() => Store.data.diaries.length);
   await go(p, 'nhat-ky'); await p.click('[data-act=add-diary]'); await p.waitForTimeout(200);
-  await p.selectOption('#f_packageId', { index: 1 }); await p.fill('#f_works', 'Đổ bê tông móng M1 | 12 | m3');
+  await p.selectOption('#f_packageId', { index: 1 }); await p.fill('#f_works .wk-n', 'Đổ bê tông móng M1'); await p.fill('#f_works .wk-q', '12'); await p.fill('#f_works .wk-u', 'm3');
   await p.setInputFiles('#f_photos_new', img);
   await p.click('#mform [type=submit]'); await p.waitForTimeout(1500);
   const diary = await p.evaluate(() => Store.data.diaries.slice(-1)[0]);
   const nd1 = await p.evaluate(() => Store.data.diaries.length);
   console.log('Nhật ký:', nd0, '→', nd1, '| ảnh:', diary.photos && diary.photos[0] && diary.photos[0].url);
+  if (diary.works !== 'Đổ bê tông móng M1 | 12 | m3') errs.push('Bảng công việc nhật ký lưu sai: ' + diary.works);
   if (nd1 !== nd0 + 1 || !diary.photos?.[0]?.url?.startsWith('/api/files/')) errs.push('Nhật ký/ảnh không lưu được');
   else { const r = await p.request.get(BASE + diary.photos[0].url); if (r.status() !== 200) errs.push('Không tải lại được ảnh ' + r.status()); }
 
@@ -152,27 +153,27 @@ async function login(p, u, pw = PW) {
   // A1: Quyết định phê duyệt dự án kèm tệp ngay trong biểu mẫu dự án
   await openP('p1'); await p.click('[data-act=edit-projects]'); await p.waitForTimeout(200);
   if (!(await p.inputValue('#f_decNo')).includes('215/QĐ')) errs.push('A1: không nạp số QĐ phê duyệt hiện có');
-  await p.fill('#f_decDate', '2025-01-20'); await putFiles('decAtt', [pdf]); await submit();
+  await p.fill('#f_decDate_t', '20/01/2025'); await putFiles('decAtt', [pdf]); await submit();
   if (await attOf('legal', 'l2') !== 1) errs.push('A1: tệp QĐ phê duyệt chưa gắn vào hồ sơ pháp lý l2');
   if (!(await p.textContent('#content')).includes('QD-phe-duyet.pdf')) errs.push('A1: Thông tin chung chưa hiện tệp QĐ');
   await p.screenshot({ path: `${SHOTS}/dot1-du-an-thong-tin.png`, fullPage: true });
   // A1: dự án mới nhập số QĐ + tệp → tự tạo hồ sơ pháp lý
   await p.evaluate(() => ACT['add-project']()); await p.waitForTimeout(200);
   await p.fill('#f_code', 'DA-TEST'); await p.fill('#f_name', 'Dự án kiểm thử đính kèm'); await p.fill('#f_tmdt', '1000000000');
-  await p.fill('#f_decNo', '99/QĐ-UBND'); await p.fill('#f_decDate', '2026-10-01'); await putFiles('decAtt', [pdf, img]); await submit();
+  await p.fill('#f_decNo', '99/QĐ-UBND'); await p.fill('#f_decDate_t', '01/10/2026'); await putFiles('decAtt', [pdf, img]); await submit();
   const newP = await p.evaluate(() => Store.data.projects.find(x => x.code === 'DA-TEST'));
   const newL = await p.evaluate(id => Store.data.legal.find(l => l.projectId === id && l.type === 'Quyết định phê duyệt dự án'), newP && newP.id);
   if (!newL || await attOf('legal', newL.id) !== 2 || !newP.decision.includes('99/QĐ-UBND')) errs.push('A1: dự án mới không tạo được QĐ phê duyệt kèm 2 tệp');
   // A2: công việc + hoàn thành kèm kết quả
   await openP('p1'); await p.click('[data-g=proj][data-id=tasks]'); await p.waitForTimeout(200);
-  await p.click('[data-act=add-task]'); await p.waitForTimeout(200); await p.fill('#f_name', 'Công việc thử đính kèm'); await p.fill('#f_due', '2026-12-31'); await putFiles('att', [pdf]); await submit();
+  await p.click('[data-act=add-task]'); await p.waitForTimeout(200); await p.fill('#f_name', 'Công việc thử đính kèm'); await p.fill('#f_due_t', '31/12/2026'); await putFiles('att', [pdf]); await submit();
   const tk = await p.evaluate(() => Store.data.tasks.find(t => t.name === 'Công việc thử đính kèm'));
   await p.click(`[data-act=task-done][data-id="${tk.id}"]`); await p.waitForTimeout(200); await putFiles('att', [pdf2]); await submit();
   if (await attOf('tasks', tk.id, 'Văn bản giao việc') !== 1 || await attOf('tasks', tk.id, 'Kết quả') !== 1) errs.push('A2: thiếu tệp giao việc / kết quả');
   if ((await p.evaluate(id => Store.data.tasks.find(t => t.id === id).status, tk.id)) !== 'Hoàn thành') errs.push('A2: chưa chuyển Hoàn thành');
   // Hồ sơ pháp lý nhiều tệp + hiệu lực
   await p.click('[data-g=proj][data-id=legal]'); await p.waitForTimeout(200); await p.click('[data-act=add-legal]'); await p.waitForTimeout(200);
-  await p.selectOption('#f_type', 'Giấy phép xây dựng'); await p.fill('#f_number', 'GPXD-TEST'); await p.fill('#f_date', '2026-01-01'); await p.fill('#f_title', 'Giấy phép thử');
+  await p.selectOption('#f_type', 'Giấy phép xây dựng'); await p.fill('#f_number', 'GPXD-TEST'); await p.fill('#f_date_t', '01/01/2026'); await p.fill('#f_title', 'Giấy phép thử');
   await p.fill('#f_validUntil', await p.evaluate(() => addDays(TODAY, 20))); await putFiles('att', [pdf, pdf2, img]); await submit();
   const gp = await p.evaluate(() => Store.data.legal.find(l => l.number === 'GPXD-TEST'));
   if (await attOf('legal', gp.id) !== 3) errs.push('A0: hồ sơ pháp lý không nhận 3 tệp');
@@ -195,7 +196,7 @@ async function login(p, u, pw = PW) {
   if (!(await p.evaluate(() => alerts().some(a => a.text.includes('GPXD-TEST'))))) errs.push('B5: không cảnh báo giấy phép sắp hết hạn');
   await p.click('[data-act=edit-contracts]'); await p.waitForTimeout(300); await putFiles('att2', [img]); await p.screenshot({ path: `${SHOTS}/dot1-form-hop-dong.png` }); await p.click('#mform [data-close]'); await p.waitForTimeout(200);
   // A6: phụ lục
-  await p.click('[data-act=add-addendum]'); await p.waitForTimeout(200); await p.fill('#f_number', 'PL-TEST'); await p.fill('#f_date', '2026-10-01'); await p.fill('#f_content', 'Điều chỉnh thử'); await putFiles('att', [pdf]); await submit();
+  await p.click('[data-act=add-addendum]'); await p.waitForTimeout(200); await p.fill('#f_number', 'PL-TEST'); await p.fill('#f_date_t', '01/10/2026'); await p.fill('#f_content', 'Điều chỉnh thử'); await putFiles('att', [pdf]); await submit();
   const ad = await p.evaluate(() => Store.data.addenda.find(a => a.number === 'PL-TEST'));
   if (await attOf('addenda', ad.id) !== 1) errs.push('A6: phụ lục chưa có tệp');
   await p.screenshot({ path: `${SHOTS}/dot1-hop-dong.png`, fullPage: true });

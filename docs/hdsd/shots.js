@@ -330,6 +330,11 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   // giao diện tối
   await go(p, 'tong-quan'); await click(p, '[data-act=theme]'); await wait(200); await click(p, '[data-act=theme]'); await wait(500); await p.evaluate(() => { $('#toast').hidden = true; });
   await shot(p, 'v12-giao-dien-toi', undefined, [{ sel: '.theme-btn', n: 1, pos: 'tr' }]);
+  await click(p, '[data-act=theme]'); await wait(300);
+  // bản 1.3: hộp chọn giao diện (tông màu, thanh bên, cỡ chữ, mật độ)
+  await click(p, '[data-act=appearance]'); await wait(500);
+  await shot(p, 'v13-hop-giao-dien', undefined, [{ sel: '#ov .ap-group', nth: 0, n: 1 }, { sel: '#ov .ap-group', nth: 1, n: 2 }, { sel: '#ov .ap-group', nth: 2, n: 3 }, { sel: '#ov .ap-group', nth: 3, n: 4 }, { sel: '#ov .ap-group', nth: 4, n: 5 }, { sel: '#ov [data-act=ap-reset]', n: 6 }]);
+  await closeModal(p);
   await p.context().close();
   p = await newPage(DESK); await login(p, 'kythuat'); await go(p, 'trinh-duyet'); await p.click('button[data-g="td2"][data-id="soan"]'); await wait(300);
   await shot(p, 'v12-kt-bi-tra-lai', undefined, [{ sel: '.content .tabs button', text: 'Đang soạn thảo', n: 1 }, { sel: '.content td .small.muted', text: 'Trả lại', n: 2 }, { sel: '[data-act=wf]', text: 'Trình duyệt', n: 3 }]);

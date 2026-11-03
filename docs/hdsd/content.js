@@ -2,15 +2,16 @@
 const H10 = ['01/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.0', '1.0'];
 const H11 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: bổ sung Kế hoạch vốn – giải ngân, Giải phóng mặt bằng, Nghiệm thu – bàn giao – bảo hành, Quyết toán dự án hoàn thành; vai trò của Ban và người quyết định đầu tư; nhóm Lãnh đạo UBND xã', '1.1'];
 const H12 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: trình duyệt hồ sơ (phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu); nhập ngày theo ngày/tháng/năm, phân trang danh sách, giao diện sáng/tối; bảng nhập công việc nhật ký; kế hoạch thanh toán theo đợt; in, xuất báo cáo PDF và CSV', '1.2'];
+const H13 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.3: giao diện mới; mỗi người tự chọn chế độ sáng/tối, tông màu, cỡ chữ, mật độ hiển thị ở nút Giao diện; bảng tự căn độ rộng cột; ảnh minh họa chụp lại theo giao diện mới', '1.3'];
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10, H11, H12, ['03/11/2026', 'Nhóm Lãnh đạo UBND xã đổi thành Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…)', '1.2']] },
-  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H10, H11, H12] },
-  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H10, H11, H12] },
-  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H10, H11, H12] },
-  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H10, H11, H12] },
-  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2']] },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10, H11, H12, ['03/11/2026', 'Nhóm Lãnh đạo UBND xã đổi thành Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…)', '1.2'], H13] },
+  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H10, H11, H12, H13] },
+  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H10, H11, H12, H13] },
+  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H10, H11, H12, H13] },
+  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H10, H11, H12, H13] },
+  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2'], H13] },
   dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban, Lãnh đạo xã/phường', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
-    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2']] },
+    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2'], H13] },
 };
 const MODS = ['Tổng quan', 'Quản lý dự án', 'Kế hoạch vốn, giải ngân', 'Giải phóng mặt bằng', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Nghiệm thu, bàn giao, bảo hành', 'Quản lý thanh toán', 'Quyết toán dự án', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không truy cập';
@@ -100,6 +101,10 @@ function common(k) {
   out.push({ p: 'Nút giao diện (1) ở thanh công cụ phía trên chuyển lần lượt giữa ba chế độ: **Tự động theo máy** (sáng hoặc tối theo cài đặt của máy tính, điện thoại), **Giao diện sáng** và **Giao diện tối**. Giao diện tối giúp đỡ mỏi mắt khi làm việc lâu hoặc ban đêm; số liệu không thay đổi.' });
   out.push(img('v12-giao-dien-toi', 'Giao diện tối', 16));
   out.push(legend([[1, 'Nút chuyển giao diện sáng/tối']]));
+  out.push({ h2: 'Chọn tông màu, cỡ chữ cho riêng mình' });
+  out.push({ p: 'Nút **Giao diện** (biểu tượng bảng màu, cạnh nút sáng/tối) mở hộp chọn cách hiển thị. Trên điện thoại, mở trình đơn bên trái và chọn **Giao diện, màu sắc**. Lựa chọn được lưu theo tài khoản: đăng nhập ở máy khác vẫn giữ nguyên. Thay đổi chỉ ảnh hưởng đến cách hiển thị của người đang dùng, không làm thay đổi số liệu.' });
+  out.push(img('v13-hop-giao-dien', 'Hộp chọn giao diện', 13));
+  out.push(legend([[1, 'Chế độ: tự động theo máy, sáng hoặc tối'], [2, 'Tông màu chủ đạo (6 lựa chọn)'], [3, 'Thanh bên đậm hoặc sáng'], [4, 'Cỡ chữ: nhỏ, vừa, lớn, rất lớn'], [5, 'Mật độ hiển thị: thoáng hoặc gọn'], [6, 'Trở về mặc định']]));
   out.push(...attachCommon(k));
   if (k !== 'qt') out.push(...guideCommon(k));
   return out;

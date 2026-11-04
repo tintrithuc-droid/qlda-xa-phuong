@@ -30,6 +30,8 @@ Trang **Danh mục chức năng** trong phần mềm liệt kê từng chức n�
 - ASP.NET Core 8 (C#), Entity Framework Core 8, chạy trên Linux hoặc Windows
 - Cơ sở dữ liệu chọn theo `Database:Provider`:
   - `PostgreSQL` (khuyến nghị cho xã/phường, chi phí thấp): máy chủ Linux + Docker, xem [docs/HUONG_DAN_CAI_DAT_LINUX.md](docs/HUONG_DAN_CAI_DAT_LINUX.md); migration ở `Data/MigrationsPg`
+  - `PostgreSQL` trên Windows: gói cài Windows có sẵn PostgreSQL 16 và phần mềm chạy thành dịch vụ Windows, không cần IIS, SQL Server hay .NET,
+    xem [docs/HUONG_DAN_CAI_DAT_WINDOWS.md](docs/HUONG_DAN_CAI_DAT_WINDOWS.md); đóng gói bằng `deploy/windows/build-package.sh`
   - `SqlServer`: máy chủ Windows/IIS có sẵn SQL Server, xem [docs/HUONG_DAN_CAI_DAT.md](docs/HUONG_DAN_CAI_DAT.md); migration ở `Data/Migrations`
   - `Sqlite`: bản demo trên máy cá nhân, đơn vị rất nhỏ
 - Giao diện web một trang, đáp ứng máy tính và điện thoại, cài được lên màn hình chính (PWA)
@@ -43,6 +45,7 @@ src/QldaTtts.Web/
   Services/      Phân quyền người dùng, danh sách tập dữ liệu, mật khẩu
   wwwroot/       Giao diện (js/, css/), service worker, manifest
 deploy/          install.ps1 (cài IIS), build-package.ps1, sql/ (lược đồ CSDL)
+deploy/windows/  cai-dat.ps1, CAI_DAT.bat, go-cai-dat.ps1, sao-luu.ps1, build-package.sh (Windows + PostgreSQL đi kèm)
 deploy/linux/    install.sh, docker-compose.yml, sao-luu-csdl.sh, build-package.sh (Docker + PostgreSQL)
 Dockerfile       ảnh chạy trên Linux
 docs/            HUONG_DAN_CAI_DAT.md
@@ -66,4 +69,6 @@ sau đó cập nhật `deploy/sql/QLDA_TTTS_schema.sql` bằng `dotnet ef migrat
 
 ## Triển khai
 
-Máy chủ Linux (khuyến nghị): [docs/HUONG_DAN_CAI_DAT_LINUX.md](docs/HUONG_DAN_CAI_DAT_LINUX.md). Máy chủ Windows/IIS: [docs/HUONG_DAN_CAI_DAT.md](docs/HUONG_DAN_CAI_DAT.md). Gói cài đặt Windows được CI tạo tự động (Actions → Artifacts → `goi-cai-dat-QLDA_TTTS`).
+Hai gói cài chính thức, cùng dùng PostgreSQL: máy chủ Linux [docs/HUONG_DAN_CAI_DAT_LINUX.md](docs/HUONG_DAN_CAI_DAT_LINUX.md),
+máy chủ hoặc máy tính Windows [docs/HUONG_DAN_CAI_DAT_WINDOWS.md](docs/HUONG_DAN_CAI_DAT_WINDOWS.md) (CI cài thử trên Windows Server, Artifacts → `goi-cai-dat-windows`).
+Máy chủ Windows/IIS có sẵn SQL Server: [docs/HUONG_DAN_CAI_DAT.md](docs/HUONG_DAN_CAI_DAT.md). Gói cài đặt Windows được CI tạo tự động (Actions → Artifacts → `goi-cai-dat-QLDA_TTTS`).

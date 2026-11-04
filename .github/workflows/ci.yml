@@ -98,3 +98,72 @@ jobs:
         with:
           name: goi-cai-dat-QLDA_TTTS
           path: dist/*.zip
+
+  package-windows:
+    name: Đóng gói cài Windows (PostgreSQL đi kèm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Tệp PDF HDSD mẫu
+        working-directory: src/QldaTtts.Web
+        run: |
+          mkdir -p hdsd
+          for r in "Quan tri he thong" "Lanh dao Ban" "Can bo ky thuat" "Ke toan" "Tu van giam sat - Nha thau" "Lanh dao xa phuong" "Su dung tren dien thoai"; do
+            printf '%%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%%%EOF\n' > "hdsd/03.11.2026 - HDSD Phan mem QLDA Xa Phuong - $r - V2.pdf"
+          done
+      - run: bash deploy/windows/build-package.sh ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goi-cai-dat-windows
+          path: dist/QLDA_XaPhuong_GoiCaiDat_Windows_ci.zip
+
+  test-windows:
+    name: Cài thử trên Windows Server (cai-dat.ps1, PowerShell 5.1)
+    needs: package-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: goi-cai-dat-windows
+      - name: Giải nén gói
+        shell: powershell
+        run: Expand-Archive QLDA_XaPhuong_GoiCaiDat_Windows_ci.zip -DestinationPath C:\goi
+      - name: Cài mới (xã thứ nhất)
+        shell: powershell
+        run: C:\goi\QLDA_XaPhuong_GoiCaiDat_Windows_ci\cai-dat.ps1 -MaXa xa-ci -Cong 8080
+      - name: Kiểm thử đầu-cuối (Playwright)
+        run: |
+          npm install --no-save playwright@1.48.2
+          npx playwright install chromium
+          node tests/e2e/smoke.js http://127.0.0.1:8080
+      - name: Cập nhật (chạy lại cài đặt) và cài xã thứ hai
+        shell: powershell
+        run: |
+          C:\goi\QLDA_XaPhuong_GoiCaiDat_Windows_ci\cai-dat.ps1 -MaXa xa-ci
+          C:\goi\QLDA_XaPhuong_GoiCaiDat_Windows_ci\cai-dat.ps1 -MaXa phuong-ci -Cong 8081
+          Get-Service QLDA_* | Format-Table Name, Status, StartType
+          (Invoke-RestMethod http://127.0.0.1:8080/api/health).db
+          (Invoke-RestMethod http://127.0.0.1:8081/api/health).db
+      - name: Khởi động lại dịch vụ (giả lập khởi động lại máy)
+        shell: powershell
+        run: |
+          Restart-Service QLDA_PostgreSQL -Force
+          Start-Service QLDA_xa-ci, QLDA_phuong-ci
+          for ($i = 0; $i -lt 60; $i++) { try { Invoke-RestMethod http://127.0.0.1:8080/api/health | Out-Null; break } catch { Start-Sleep 2 } }
+          Invoke-RestMethod http://127.0.0.1:8080/api/health
+      - name: Gỡ cài đặt
+        shell: powershell
+        run: |
+          C:\goi\QLDA_XaPhuong_GoiCaiDat_Windows_ci\go-cai-dat.ps1 -MaXa phuong-ci -XoaDuLieu -KhongHoi
+          C:\goi\QLDA_XaPhuong_GoiCaiDat_Windows_ci\go-cai-dat.ps1 -MaXa xa-ci -XoaDuLieu -KhongHoi
+          if (Get-Service QLDA_* -ErrorAction SilentlyContinue) { throw "Còn dịch vụ sau khi gỡ" }
+          if (Test-Path C:\QLDA) { throw "Còn thư mục C:\QLDA sau khi gỡ" }
+      - if: failure()
+        shell: powershell
+        run: |
+          Get-WinEvent -LogName Application -MaxEvents 40 | Format-List TimeCreated, ProviderName, Message
+          Get-ChildItem C:\QLDA\pgdata\log -ErrorAction SilentlyContinue | Get-Content -Tail 50

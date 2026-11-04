@@ -18,7 +18,7 @@ Một máy chủ có thể phục vụ một xã hoặc nhiều xã; mỗi xã m
 2. Giải nén và cài cho từng xã (quyền root):
 
 ```bash
-tar -xzf QLDA_XaPhuong_GoiCaiDat_Linux_1.2.tar.gz && cd QLDA_XaPhuong_GoiCaiDat_Linux_1.2
+tar -xzf QLDA_XaPhuong_GoiCaiDat_Linux_1.4.tar.gz && cd QLDA_XaPhuong_GoiCaiDat_Linux_1.4
 sudo bash install.sh xa-tan-hoa 8080      # mã xã, cổng
 sudo bash install.sh phuong-an-lac 8081   # xã thứ hai trên cùng máy: cổng khác
 ```

@@ -26,6 +26,7 @@ unzip -q -o "$TMP"/vc/*.whl -d "$TMP/vc/x"
 for f in vcruntime140.dll vcruntime140_1.dll msvcp140.dll; do cp "$(find "$TMP/vc/x" -name "$f" | head -1)" "$OUT/pgsql/bin/"; done
 
 cp "$ROOT/deploy/windows/"{cai-dat.ps1,go-cai-dat.ps1,sao-luu.ps1,dat-lai-2fa.ps1,CAI_DAT.bat} "$OUT/"
+sed -i 's/\r*$/\r/' "$OUT/"*.ps1 "$OUT/"*.bat   # Windows: xuống dòng CRLF
 cp "$ROOT/docs/HUONG_DAN_CAI_DAT_WINDOWS.md" "$OUT/"
 for f in "$ROOT/dist/HUONG_DAN_CAI_DAT_WINDOWS".{pdf,docx}; do [[ -f "$f" ]] && cp "$f" "$OUT/"; done
 (cd "$ROOT/dist" && zip -qr -9 "$NAME.zip" "$NAME")

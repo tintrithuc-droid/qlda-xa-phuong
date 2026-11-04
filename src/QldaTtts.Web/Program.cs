@@ -2,11 +2,18 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using QldaTtts.Web.Controllers;
 using QldaTtts.Web.Data;
 using QldaTtts.Web.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+// Chạy như dịch vụ Windows (gói cài Windows): thư mục gốc là thư mục chứa QldaTtts.Web.exe; chạy thường/Linux không ảnh hưởng
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null
+});
+builder.Services.AddWindowsService(o => o.ServiceName = "QLDA");
 var cfg = builder.Configuration;
 
 // Cơ sở dữ liệu: PostgreSQL (máy chủ Linux/Docker, chi phí thấp), SQL Server (máy chủ Windows) hoặc SQLite (bản demo, đơn vị rất nhỏ)
@@ -61,6 +68,12 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // Gỡ hẳn một xã khỏi máy chủ (go-cai-dat.ps1 -XoaDuLieu): QldaTtts.Web.exe --xoa-csdl
+    if (args.Contains("--xoa-csdl"))
+    {
+        Console.WriteLine(db.Database.EnsureDeleted() ? "Đã xóa cơ sở dữ liệu." : "Không có cơ sở dữ liệu để xóa.");
+        return;
+    }
     if (db.Database.IsSqlServer() || db.Database.IsNpgsql()) db.Database.Migrate();
     else
     {

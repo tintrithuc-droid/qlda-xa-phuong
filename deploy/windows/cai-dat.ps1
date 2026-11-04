@@ -203,3 +203,4 @@ Write-Host "`nXONG. Tình trạng: $($h.status), CSDL: $($h.db)" -ForegroundColo
 Write-Host "Trên máy này:       http://localhost:$Cong" -ForegroundColor Green
 foreach ($ip in $ips) { Write-Host "Máy khác trong mạng: http://${ip}:$Cong" -ForegroundColor Green }
 if (-not $capNhat) { Write-Host "Mở địa chỉ trên để khởi tạo tài khoản quản trị (bỏ chọn Nạp dữ liệu mẫu khi dùng thật)." -ForegroundColor Green }
+exit 0

@@ -48,9 +48,10 @@ if (-not $conLai) {
   if (Get-Service QLDA_PostgreSQL -ErrorAction SilentlyContinue) {
     Stop-Service QLDA_PostgreSQL -Force -ErrorAction SilentlyContinue
     & "$ThuMuc\pgsql\bin\pg_ctl.exe" unregister -N QLDA_PostgreSQL 2>&1 | Out-Null
-    sc.exe delete QLDA_PostgreSQL 2>&1 | Out-Null
+    if (Get-Service QLDA_PostgreSQL -ErrorAction SilentlyContinue) { sc.exe delete QLDA_PostgreSQL 2>&1 | Out-Null }
   }
   Start-Sleep 2
   Remove-Item -Recurse -Force $ThuMuc -ErrorAction SilentlyContinue
   Write-Host "Không còn xã nào trên máy: đã gỡ PostgreSQL và thư mục $ThuMuc." -ForegroundColor Green
 }
+exit 0

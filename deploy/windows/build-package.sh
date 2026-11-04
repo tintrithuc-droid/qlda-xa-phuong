@@ -15,7 +15,8 @@ dotnet publish "$ROOT/src/QldaTtts.Web" -c Release -r win-x64 --self-contained -
 rm -rf "$OUT/app/App_Data" "$OUT/app/appsettings.Development.json"
 
 echo "== PostgreSQL $PG_VER (bản nhị phân Windows x64)"
-curl -fsSL -o "$TMP/pg.jar" "https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-windows-amd64/$PG_VER/embedded-postgres-binaries-windows-amd64-$PG_VER.jar"
+if [[ -n "${PG_JAR:-}" ]]; then cp "$PG_JAR" "$TMP/pg.jar"; else   # PG_JAR: tệp .jar đã tải sẵn (khi mạng chặn/giới hạn)
+curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o "$TMP/pg.jar" "https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-windows-amd64/$PG_VER/embedded-postgres-binaries-windows-amd64-$PG_VER.jar"; fi
 unzip -q -o "$TMP/pg.jar" -d "$TMP/pg"
 mkdir -p "$OUT/pgsql"; tar -xJf "$TMP/pg/postgres-windows-x86_64.txz" -C "$OUT/pgsql"
 rm -f "$OUT/pgsql/bin/"wx*.dll "$OUT/pgsql/bin/testplug.dll"

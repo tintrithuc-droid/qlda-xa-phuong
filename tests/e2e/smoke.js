@@ -40,6 +40,7 @@ async function login(p, u, pw = PW) {
   // Tài khoản quản trị bắt buộc thiết lập xác thực 2 lớp ngay sau khởi tạo
   await p.waitForSelector('#mfa .qr svg', { timeout: 30000 }); await p.screenshot({ path: `${SHOTS}/mfa-enroll.png` });
   const secret = await p.evaluate(() => S.mfaStep.secret);
+  fs.writeFileSync(path.join(SHOTS, 'admin-totp.txt'), secret); // cho các kiểm thử chạy sau (v15.js) đăng nhập quản trị
   p._expectFail = true; await p.fill('#mf_code', '000000'); await p.click('#mfa button[type=submit]'); await p.waitForTimeout(400); p._expectFail = false;
   if (!(await p.textContent('#mf_err')).trim()) errs.push('Không báo lỗi khi nhập sai mã 2 lớp');
   await p.fill('#mf_code', totp(secret)); await p.click('#mfa button[type=submit]');
@@ -210,7 +211,7 @@ async function login(p, u, pw = PW) {
   if (await attOf('addenda', ad.id) !== 1) errs.push('A6: phụ lục chưa có tệp');
   await p.screenshot({ path: `${SHOTS}/dot1-hop-dong.png`, fullPage: true });
   // A7, A8: tiến độ được duyệt + ảnh cập nhật tiến độ
-  await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100).id);
+  await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100 && (!s.status || s.status === 'Đã duyệt')).id);
   await p.evaluate(id => ACT['edit-schedule'](id), sid); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   await p.evaluate(id => ACT['upd-sched'](id), sid); await p.waitForTimeout(200); await p.fill('#f_progress', '55'); await putFiles('att', [img]); await submit();
   if (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1) errs.push('A7/A8: tệp tiến độ chưa gắn');

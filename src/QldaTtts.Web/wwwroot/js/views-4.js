@@ -149,7 +149,7 @@ ACT.wf=(key)=>{
   if(a==='history') return wfHistory(col,r);
   const [lb,desc,need]=WF_ACT[a]; const w=WF[col];
   openForm({title:lb+': '+w.label(r), narrow:true, submit:lb, value:{},
-    fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0 0 6px">${esc(desc)}</p><p class="small muted" style="margin:0">${esc(w.info(r))}</p>${a==='approve'&&col==='addenda'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, giá trị và thời hạn của phụ lục được cộng vào hợp đồng.</p>':''}${a==='approve'&&col==='payments'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, hồ sơ chuyển sang trạng thái Đang trình KBNN; kế toán xác nhận khi Kho bạc chi.</p>':''}`},
+    fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0 0 6px">${esc(desc)}</p><p class="small muted" style="margin:0">${esc(w.info(r))}</p>${a==='approve'&&col==='addenda'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, giá trị và thời hạn của phụ lục được cộng vào hợp đồng.</p>':''}${a==='approve'&&col==='schedule'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, kế hoạch được tính vào tiến độ gói thầu, dự án, đường cong S và cảnh báo; cán bộ được cập nhật tiến độ thực tế.</p>':''}${a==='approve'&&col==='payments'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, hồ sơ chuyển sang trạng thái Đang trình KBNN; kế toán xác nhận khi Kho bạc chi.</p>':''}`},
       {key:'note',label:need?'Ý kiến (bắt buộc)':'Ý kiến (nếu có)',type:'textarea',rows:3,req:need,full:true}],
     onSave:async v=>{ const res=await api('POST','/api/approvals',{collection:col, id, action:a, note:v.note||''}); Store.setLocal(col,res.record); Store.setLocal('approvals',res.log); return res.record; }});
 };
@@ -170,7 +170,7 @@ VIEWS['trinh-duyet']=()=>{
     {h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},{h:'Trạng thái',f:x=>wfPill(x.col,x.r)},{h:'Cập nhật',f:x=>`<span class="num small">${fmtDT(x.r.updatedAt)}</span><div class="small muted">${esc(x.r.updatedBy||'')}</div>`}];
   const list=t==='cho'?mine:t==='dang'?waiting:drafts;
   const tabs=[['cho','Chờ tôi duyệt',mine.length],['dang','Đang chờ duyệt',waiting.length],['soan','Đang soạn thảo, bị trả lại',drafts.length],['ls','Lịch sử duyệt',hist.length]];
-  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, hồ sơ thanh toán và biên bản nghiệm thu do cán bộ lập rồi trình; Lãnh đạo Ban duyệt hoặc trả lại. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
+  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, kế hoạch tiến độ, hồ sơ thanh toán và biên bản nghiệm thu do cán bộ lập rồi trình; Lãnh đạo Ban duyệt hoặc trả lại. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
   <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="td2" data-id="${k}">${l}${n?` <span class="cnt" style="position:static;margin-left:4px">${n}</span>`:''}</button>`).join('')}</div>
   <div class="card">${t==='ls'
     ? table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Hồ sơ',f:x=>`<span class="small muted">${esc((WF[x.collection]||{}).name||'')}</span><div>${esc(x.target||'')}</div>`},{h:'Thao tác',f:x=>pill(x.action, x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'?'warn':'info')},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Ý kiến',f:x=>esc(x.note||'')}], hist, {empty:'Chưa có lịch sử trình duyệt.'})

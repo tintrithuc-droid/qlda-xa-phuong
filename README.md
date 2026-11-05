@@ -23,6 +23,12 @@ Phiên bản 1.3 (03/11/2026) làm mới giao diện:
   lưu theo tài khoản trên máy chủ (`/api/auth/ui`, bảng Settings, khóa `ui:<mã người dùng>`), đăng nhập máy khác vẫn giữ;
 - Mọi bảng tự căn độ rộng cột: cột ngắn (mã, trạng thái, số tiền, ngày) không xuống dòng, cột chữ dài có độ rộng tối thiểu dễ đọc,
   bảng rộng hơn khung thì cuộn ngang và giữ cố định cột đầu; bộ lọc báo cáo xếp lưới đều cột.
+Phiên bản 1.5 (05/11/2026) theo đề xuất của bộ phận Triển khai:
+- **Trình duyệt kế hoạch tiến độ**: kế hoạch lập ở trạng thái Soạn thảo, Lãnh đạo Ban duyệt; chỉ kế hoạch đã duyệt mới tính tiến độ,
+  đường cong S, cảnh báo và được cập nhật thực tế; kế hoạch có sẵn khi nâng cấp được coi là đã duyệt;
+- **Nhập từ Excel**: bảng khối lượng hợp đồng, khối lượng thực hiện/nghiệm thu, kế hoạch tiến độ (tệp mẫu, xem trước, đánh dấu dòng lỗi);
+- Hồ sơ thanh toán bị trả lại có nhãn riêng, không chiếm hạn mức hợp đồng, không cộng vào "Đang đề nghị"; máy chủ kiểm tra hạn mức khi trình, duyệt;
+- Thẻ Tổng cộng trên điện thoại có nhãn từng cột; thẻ công việc nhật ký: tên và nút xóa cùng một hàng.
 Trang **Danh mục chức năng** trong phần mềm liệt kê từng chức năng và nơi thực hiện trong phần mềm.
 
 ## Công nghệ

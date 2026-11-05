@@ -128,17 +128,19 @@ ACT['goto-td']=(kid)=>{ S.f.tdk=kid; location.hash='tien-do'; };
 VIEWS['tien-do']=()=>{
   const kid=S.f.tdk||''; const mode=S.tab.td||'goi-thau';
   const sch=D('schedule').filter(s=>inFilter(s.projectId) && (!kid||s.packageId===kid));
+  /* chỉ kế hoạch đã duyệt được tính tiến độ; kế hoạch đang soạn thảo, chờ duyệt vẫn hiện trên biểu đồ để trình duyệt */
+  const schA=sch.filter(schedOk), schP=sch.filter(s=>!schedOk(s));
   const al=alerts().filter(a=>a.mod==='tien-do');
   const ed=can('tien-do','edit');
   let summary;
   if(mode==='du-an'){
-    const ps=projects().filter(p=>inFilter(p.id) && sch.some(s=>s.projectId===p.id));
-    summary=table([{h:'Dự án',f:r=>`${esc(r.code)} · ${esc(r.name)}`},{h:'Kế hoạch đến nay',r:1,f:r=>fmtP(projExpected(r.id))},{h:'Thực tế',f:r=>`<div style="min-width:140px">${progBar(projProgress(r.id), projExpected(r.id)-projProgress(r.id)>10?'warn':'')}</div>`},{h:'Chênh lệch',r:1,f:r=>{ const d=projProgress(r.id)-projExpected(r.id); return `<span style="color:${d<-10?'var(--red)':d<0?'var(--amber)':'var(--green)'}">${d>0?'+':''}${fmtP(d)}</span>`; }},{h:'Hạng mục chậm',r:1,f:r=>sch.filter(s=>s.projectId===r.id && ['warn','bad'].includes(schedState(s).k)).length}], ps);
+    const ps=projects().filter(p=>inFilter(p.id) && schA.some(s=>s.projectId===p.id));
+    summary=table([{h:'Dự án',f:r=>`${esc(r.code)} · ${esc(r.name)}`},{h:'Kế hoạch đến nay',r:1,f:r=>fmtP(projExpected(r.id))},{h:'Thực tế',f:r=>`<div style="min-width:140px">${progBar(projProgress(r.id), projExpected(r.id)-projProgress(r.id)>10?'warn':'')}</div>`},{h:'Chênh lệch',r:1,f:r=>{ const d=projProgress(r.id)-projExpected(r.id); return `<span style="color:${d<-10?'var(--red)':d<0?'var(--amber)':'var(--green)'}">${d>0?'+':''}${fmtP(d)}</span>`; }},{h:'Hạng mục chậm',r:1,f:r=>schA.filter(s=>s.projectId===r.id && ['warn','bad'].includes(schedState(s).k)).length}], ps);
   } else {
-    const ks=D('packages').filter(k=>sch.some(s=>s.packageId===k.id)).sort(by('code'));
-    summary=table([{h:'Gói thầu',f:r=>`${esc(r.code)} · ${esc(r.name)}`},{h:'Dự án',f:r=>esc((projOf(r.projectId)||{}).code)},{h:'Kế hoạch đến nay',r:1,f:r=>fmtP(pkgExpected(r.id))},{h:'Thực tế',f:r=>`<div style="min-width:140px">${progBar(pkgProgress(r.id), pkgExpected(r.id)-pkgProgress(r.id)>10?'warn':'')}</div>`},{h:'Chênh lệch',r:1,f:r=>{ const d=pkgProgress(r.id)-pkgExpected(r.id); return `<span style="color:${d<-10?'var(--red)':d<0?'var(--amber)':'var(--green)'}">${d>0?'+':''}${fmtP(d)}</span>`; }},{h:'Hạng mục chậm',r:1,f:r=>sch.filter(s=>s.packageId===r.id && ['warn','bad'].includes(schedState(s).k)).length}], ks, {rowAct:'open-pkg'});
+    const ks=D('packages').filter(k=>schA.some(s=>s.packageId===k.id)).sort(by('code'));
+    summary=table([{h:'Gói thầu',f:r=>`${esc(r.code)} · ${esc(r.name)}`},{h:'Dự án',f:r=>esc((projOf(r.projectId)||{}).code)},{h:'Kế hoạch đến nay',r:1,f:r=>fmtP(pkgExpected(r.id))},{h:'Thực tế',f:r=>`<div style="min-width:140px">${progBar(pkgProgress(r.id), pkgExpected(r.id)-pkgProgress(r.id)>10?'warn':'')}</div>`},{h:'Chênh lệch',r:1,f:r=>{ const d=pkgProgress(r.id)-pkgExpected(r.id); return `<span style="color:${d<-10?'var(--red)':d<0?'var(--amber)':'var(--green)'}">${d>0?'+':''}${fmtP(d)}</span>`; }},{h:'Hạng mục chậm',r:1,f:r=>schA.filter(s=>s.packageId===r.id && ['warn','bad'].includes(schedState(s).k)).length}], ks, {rowAct:'open-pkg'});
   }
-  return `<div class="head"><div class="grow"><h1>Quản lý tiến độ</h1><p>${sch.length} hạng mục, trong đó ${sch.filter(s=>['warn','bad'].includes(schedState(s).k)).length} hạng mục đang chậm hoặc quá hạn</p></div>${ed?`<button class="btn primary" data-act="add-sched">+ Lập kế hoạch tiến độ</button>`:''}</div>
+  return `<div class="head"><div class="grow"><h1>Quản lý tiến độ</h1><p>${schA.length} hạng mục đã duyệt, trong đó ${schA.filter(s=>['warn','bad'].includes(schedState(s).k)).length} hạng mục đang chậm hoặc quá hạn${schP.length?`. Có ${schP.length} kế hoạch chưa duyệt, chưa tính vào tiến độ`:''}</p></div>${ed?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="imp" data-id="sched|${esc(kid)}">Nhập từ Excel</button><button class="btn primary" data-act="add-sched">+ Lập kế hoạch tiến độ</button></div>`:''}</div>
   <div class="toolbar"><select data-f="tdk" aria-label="Gói thầu">${opts(pkgOpts(S.pid),kid,'Tất cả gói thầu')}</select></div>
   ${al.length?`<div class="card"><h2>Cảnh báo chậm tiến độ</h2><div class="list">${al.map(a=>`<div class="alert ${a.lvl==='bad'?'bad':''}">${a.text}</div>`).join('')}</div></div>`:''}
   <div class="card"><div class="ch"><h2>Theo dõi tiến độ</h2><div class="tabs" style="border:0">${[['du-an','Theo dự án'],['goi-thau','Theo gói thầu']].map(([k,l])=>`<button class="${mode===k?'on':''}" data-act="tab" data-g="td" data-id="${k}">${l}</button>`).join('')}</div></div>${summary}</div>
@@ -158,10 +160,10 @@ function gantt(sch, ed){
     const k=pkgOf(kid)||{code:'?',name:''};
     rows+=`<div class="grow-row pk"><div>${esc(k.code)} · ${esc(k.name)}</div><div class="gtrack">${today}</div><div class="num small">${fmtP(pkgProgress(kid))}</div></div>`;
     arr.sort(by('planStart')).forEach(s=>{
-      const stt=schedState(s); const l=X(s.planStart), w=Math.max(.8,X(s.planEnd)-l);
-      rows+=`<div class="grow-row"><div><div>${esc(s.name)}</div><div class="small muted num">${fmtDate(s.planStart)} – ${fmtDate(s.planEnd)} · ${pill(stt.t, stt.k)}</div></div>
-        <div class="gtrack">${today}<div class="gplan ${stt.k==='warn'?'warn':stt.k==='bad'?'bad':''}" style="left:${l}%;width:${w}%" title="${esc(s.name)}: ${N(s.progress)}%"><i style="width:${Math.min(100,N(s.progress))}%"></i></div></div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end"><span class="num" style="font-weight:600">${N(s.progress)}%</span>${ed?`<button class="btn sm ghost" data-act="upd-sched" data-id="${s.id}">Cập nhật</button>`:''}<button class="btn sm ghost" data-act="sched-more" data-id="${s.id}">⋯</button></div></div>`;
+      const ok=schedOk(s), stt=ok? schedState(s) : {k:'', t:''}; const l=X(s.planStart), w=Math.max(.8,X(s.planEnd)-l);
+      rows+=`<div class="grow-row${ok?'':' draft'}"><div><div>${esc(s.name)}</div><div class="small muted num">${fmtDate(s.planStart)} – ${fmtDate(s.planEnd)} ${ok? pill(stt.t, stt.k) : wfPill('schedule',s)}</div></div>
+        <div class="gtrack">${today}<div class="gplan ${ok?(stt.k==='warn'?'warn':stt.k==='bad'?'bad':''):'pend'}" style="left:${l}%;width:${w}%" title="${esc(s.name)}: ${ok? N(s.progress)+'%' : 'kế hoạch chưa duyệt'}"><i style="width:${ok?Math.min(100,N(s.progress)):0}%"></i></div></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${ok?`<span class="num" style="font-weight:600">${N(s.progress)}%</span>${ed?`<button class="btn sm ghost" data-act="upd-sched" data-id="${s.id}">Cập nhật</button>`:''}`:wfBtns('schedule',s)}<button class="btn sm ghost" data-act="sched-more" data-id="${s.id}" aria-label="Chi tiết">⋯</button></div></div>`;
     });
   });
   return `<div class="tw" style="border:0"><div class="gantt"><div class="grow-row hd"><div>Hạng mục</div><div class="gtrack" style="height:24px">${months}</div><div style="text-align:right">Thực tế</div></div>${rows}</div></div>`;
@@ -169,9 +171,19 @@ function gantt(sch, ed){
 const schedFields=()=>[{key:'packageId',label:'Gói thầu',type:'select',options:()=>pkgOpts(S.pid),req:true,full:true,def:S.f.tdk},{key:'name',label:'Tên hạng mục / công việc',req:true,full:true},
   {key:'planStart',label:'Bắt đầu kế hoạch',type:'date',req:true},{key:'planEnd',label:'Kết thúc kế hoạch',type:'date',req:true},{key:'weight',label:'Trọng số (tỷ trọng giá trị, %)',type:'number',def:10},
   {key:'att',label:'Tiến độ được duyệt, tài liệu kèm theo (PDF, Excel, MS Project…)',type:'attach',col:'schedule',kind:'Kế hoạch tiến độ'},
-  {key:'itemId',label:'Gắn với hạng mục công trình',type:'select',options:()=>D('items').filter(i=>!S.pid||i.projectId===S.pid).map(i=>[i.id,(projOf(i.projectId)||{}).code+' · '+i.code+' – '+i.name])}];
-ACT['add-sched']=()=>openForm({title:'Lập kế hoạch tiến độ', fields:schedFields(), onSave:v=>{ if(v.planEnd<v.planStart){ $('#mform_err').textContent='Ngày kết thúc phải sau ngày bắt đầu.'; return false; } return save('schedule',{...v, projectId:pkgOf(v.packageId).projectId, progress:0, history:[]}); }});
-ACT['edit-schedule']=(id)=>openForm({title:'Điều chỉnh kế hoạch tiến độ', fields:schedFields(), value:get('schedule',id), onSave:v=>save('schedule',{...v, projectId:pkgOf(v.packageId).projectId})});
+  {key:'itemId',label:'Gắn với hạng mục công trình',type:'select',options:()=>D('items').filter(i=>!S.pid||i.projectId===S.pid).map(i=>[i.id,(projOf(i.projectId)||{}).code+' · '+i.code+' – '+i.name])},
+  {key:'wfnote',type:'html',label:'',full:true,html:'<p class="small muted" style="margin:0">Kế hoạch lưu ở trạng thái Soạn thảo; bấm Trình duyệt để Lãnh đạo Ban duyệt. Chỉ kế hoạch đã duyệt mới được tính vào tiến độ gói thầu, dự án, đường cong S, cảnh báo và được cập nhật tiến độ thực tế.</p>'},
+  {key:'wsum',type:'html',label:'',full:true,html:'<p class="small" id="sched_wsum" style="margin:0"></p>'}];
+/** Dòng nhắc tổng trọng số của gói thầu khi lập, điều chỉnh kế hoạch (không chặn lưu; phần mềm tự quy về 100%). */
+function schedWsum(self){
+  const upd=()=>{ const k=$('#f_packageId'), w=$('#f_weight'), out=$('#sched_wsum'); if(!k||!w||!out) return;
+    const t=sum(D('schedule').filter(s=>s.packageId===k.value && s.id!==self), s=>N(s.weight)||1)+(w.value===''?1:N(w.value));
+    out.style.color=Math.abs(t-100)>0.01?'var(--amber)':'var(--muted)';
+    out.textContent=Math.abs(t-100)>0.01? `Tổng trọng số các đầu việc của gói này sẽ là ${fmtN(t,2)}%. Phần mềm tự quy về 100% khi tính tiến độ; kiểm tra lại nếu nhập nhầm.` : 'Tổng trọng số các đầu việc của gói này là 100%.'; };
+  ['#f_packageId','#f_weight'].forEach(q=>{ const el=$(q); if(el){ el.addEventListener('input',upd); el.addEventListener('change',upd); } }); upd();
+}
+ACT['add-sched']=()=>{ openForm({title:'Lập kế hoạch tiến độ', fields:schedFields(), onSave:v=>{ if(v.planEnd<v.planStart){ $('#mform_err').textContent='Ngày kết thúc phải sau ngày bắt đầu.'; return false; } return save('schedule',{...v, projectId:pkgOf(v.packageId).projectId, progress:0, history:[], status:'Soạn thảo'}); }}); schedWsum(''); };
+ACT['edit-schedule']=(id)=>{ openForm({title:'Điều chỉnh kế hoạch tiến độ', fields:schedFields(), value:get('schedule',id), onSave:v=>{ if(v.planEnd<v.planStart){ $('#mform_err').textContent='Ngày kết thúc phải sau ngày bắt đầu.'; return false; } return save('schedule',{...v, projectId:pkgOf(v.packageId).projectId}); }}); schedWsum(id); };
 ACT['upd-sched']=(id)=>{ const s=get('schedule',id);
   openForm({title:'Cập nhật tiến độ: '+s.name, narrow:true, fields:[{key:'progress',label:'Tiến độ thực tế lũy kế (%)',type:'percent',req:true,full:true},{key:'date',label:'Ngày cập nhật',type:'date',req:true,def:TODAY,full:true},{key:'note',label:'Ghi chú / nguyên nhân chậm',type:'textarea'},PROG_ATT(s.id)], value:{progress:s.progress},
     onSave:v=>{ const h=[...(s.history||[]).filter(x=>x.date!==v.date), {date:v.date, progress:v.progress, note:v.note||'', by:S.user.name}].sort(by('date')); return save('schedule',{...s, progress:h[h.length-1].progress, history:h, actualStart:s.actualStart||(v.progress>0?v.date:''), actualEnd:v.progress>=100?v.date:''}, s.name+' → '+v.progress+'%'); }}); };
@@ -182,7 +194,8 @@ ACT['sched-more']=(id)=>{ const s=get('schedule',id); const h=[...(s.history||[]
   <dl class="kv"><dt>Gói thầu</dt><dd>${esc((pkgOf(s.packageId)||{}).code||'')}</dd><dt>Kế hoạch</dt><dd class="num">${fmtDate(s.planStart)} – ${fmtDate(s.planEnd)}</dd><dt>Thực tế</dt><dd class="num">${fmtDate(s.actualStart)} – ${fmtDate(s.actualEnd)}</dd><dt>Kế hoạch đến nay</dt><dd>${fmtP(expectedPct(s))}</dd><dt>Thực tế</dt><dd>${N(s.progress)}%</dd></dl>
   <dl class="kv"><dt>Tiến độ được duyệt</dt><dd>${attLinks(atts('schedule',s.id,'Kế hoạch tiến độ'))}</dd></dl>
   <h3>Lịch sử cập nhật</h3>${table([{h:'Ngày',f:r=>fmtDate(r.date)},{h:'Tiến độ',r:1,f:r=>r.progress+'%'},{h:'Ghi chú',k:'note'},{h:'Người cập nhật',k:'by'},{h:'Ảnh, tài liệu',f:r=>attLinks(atts('schedule',s.id,'Cập nhật tiến độ',r.date),{empty:'<span class="muted small">—</span>'})}], h.map(x=>({...x,id:x.date})), {empty:'Chưa có lần cập nhật nào.'})}
-  ${can('tien-do','edit')?`<div class="toolbar"><button class="btn" data-act="edit-schedule" data-id="${s.id}">Điều chỉnh kế hoạch</button><button class="btn danger" data-act="del" data-col="schedule" data-id="${s.id}">Xóa hạng mục</button></div>`:''}</div></div>`); };
+  <dl class="kv"><dt>Trạng thái kế hoạch</dt><dd>${wfPill('schedule',s)}</dd></dl>
+  <div class="toolbar">${wfBtns('schedule',s)}${wfEditable('schedule',s)?`<button class="btn" data-act="edit-schedule" data-id="${s.id}">Điều chỉnh kế hoạch</button><button class="btn danger" data-act="del" data-col="schedule" data-id="${s.id}">Xóa hạng mục</button>`:''}</div></div></div>`); };
 
 /* ===== NHẬT KÝ THI CÔNG (UC20–23) ===== */
 const parseWorks = worksParse;

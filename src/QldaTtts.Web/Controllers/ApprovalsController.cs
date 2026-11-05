@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
 using QldaTtts.Web.Services;
 
@@ -9,6 +10,8 @@ namespace QldaTtts.Web.Controllers;
 public class ApprovalsController : ApiControllerBase
 {
     public ApprovalsController(AppDbContext db, UserContext uc) : base(db, uc) { }
+
+    private static string Vnd(decimal v) => v.ToString("#,0", System.Globalization.CultureInfo.InvariantCulture).Replace(",", ".");
 
     public record ActRequest(string Collection, string Id, string Action, string? Note);
 
@@ -55,6 +58,22 @@ public class ApprovalsController : ApiControllerBase
                 if (note == "") return Error(400, "Vui lòng ghi lý do thu hồi.");
                 to = w.Draft; label = "Thu hồi"; break;
             default: return Error(400, "Thao tác không hợp lệ.");
+        }
+        // Hồ sơ thanh toán: khi trình hoặc duyệt, tổng các hồ sơ đã trình trở lên (chờ duyệt, trình Kho bạc, đã chi) cộng hồ sơ này
+        // không được vượt giá trị hợp đồng sau phụ lục đã duyệt. Hồ sơ đang lập hoặc bị trả lại không chiếm hạn mức (bản 1.5).
+        if (rec is Payment pay && (r.Action == "submit" || r.Action == "approve") && pay.ContractId is { } cid)
+        {
+            var c = await Db.Contracts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == cid);
+            if (c is not null)
+            {
+                var adds = await Db.Addenda.AsNoTracking().Where(a => a.ContractId == cid).ToListAsync();
+                var cv = (c.Value ?? 0) + adds.Where(a => string.IsNullOrEmpty(a.Status) || a.Status == "Đã duyệt").Sum(a => a.ValueChange ?? 0);
+                var held = new[] { "Chờ duyệt", "Đang trình KBNN", "Đã thanh toán" };
+                var others = (await Db.Payments.AsNoTracking().Where(x => x.ContractId == cid && x.Id != pay.Id).ToListAsync())
+                    .Where(x => held.Contains(x.Status ?? "")).Sum(x => x.Amount ?? 0);
+                if (others + (pay.Amount ?? 0) > cv + 1)
+                    return Error(409, $"Tổng giá trị thanh toán đã trình ({Vnd(others + (pay.Amount ?? 0))} đ) vượt giá trị hợp đồng ({Vnd(cv)} đ). Kiểm tra lại số tiền hoặc các hồ sơ khác của hợp đồng.");
+            }
         }
         Workflow.SetStatus(rec, to); rec.UpdatedAt = DateTime.UtcNow; rec.UpdatedBy = Uc.User.Username;
         var target = Collections.LabelOf(rec);

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -17,7 +17,9 @@ public class AuthController : ApiControllerBase
     private const int MaxFailed = 5;
     private static readonly TimeSpan LockoutTime = TimeSpan.FromMinutes(15);
     private readonly TwoFactor _tf;
-    public AuthController(AppDbContext db, UserContext uc, TwoFactor tf) : base(db, uc) { _tf = tf; }
+    private readonly SetupGuard _guard;
+    private readonly TenantContext _tc;
+    public AuthController(AppDbContext db, UserContext uc, TwoFactor tf, SetupGuard guard, TenantContext tc) : base(db, uc) { _tf = tf; _guard = guard; _tc = tc; }
 
     /// <summary>Trạng thái: hệ thống đã khởi tạo chưa, người dùng hiện tại là ai.</summary>
     [HttpGet("state")]
@@ -31,7 +33,7 @@ public class AuthController : ApiControllerBase
             var me = await Db.Users.AsNoTracking().FirstAsync(x => x.Id == Uc.User.Id);
             mfa = new { enabled = me.TotpSecret is not null, required = _tf.Required(me, Uc.Group), recoveryLeft = TwoFactor.RecoveryLeft(me) };
         }
-        return Ok(new { initialized, user = Uc.User, mfa, sampleUsers = initialized && await Db.Users.AnyAsync(u => u.Sample) });
+        return Ok(new { initialized, user = Uc.User, mfa, sampleUsers = initialized && await Db.Users.AnyAsync(u => u.Sample), setupToken = !initialized && _guard.Required });
     }
 
     public class SetupRequest
@@ -44,6 +46,8 @@ public class AuthController : ApiControllerBase
         /// <summary>Dữ liệu mẫu theo tập: {"projects":[…], "packages":[…], …}</summary>
         public Dictionary<string, List<JsonElement>>? Sample { get; set; }
         public List<SampleUser>? SampleUsers { get; set; }
+        /// <summary>Mã khởi tạo (bắt buộc khi máy chủ đặt mã, luôn bắt buộc ở chế độ cho thuê).</summary>
+        public string? Token { get; set; }
     }
     public record SampleUser(string Username, string Name, string GroupId, string? Unit);
 
@@ -52,6 +56,7 @@ public class AuthController : ApiControllerBase
     public async Task<IActionResult> Setup([FromBody] SetupRequest r)
     {
         if (await Db.Users.AnyAsync()) return Error(409, "Hệ thống đã được khởi tạo.");
+        if (await _guard.Check(r.Token) is { } tokenError) return Error(403, tokenError);
         var username = r.Username.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(r.Name)) return Error(400, "Vui lòng nhập họ tên.");
         if (!Passwords.ValidUsername(username)) return Error(400, Passwords.UsernameMessage);
@@ -92,6 +97,7 @@ public class AuthController : ApiControllerBase
         Db.Users.Add(u);
         Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = now, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Khởi tạo hệ thống", Module = "Người dùng", Target = "Tài khoản quản trị " + username, Ip = Uc.Ip });
         await Db.SaveChangesAsync();
+        await _guard.Consume();
         // Tài khoản quản trị đầu tiên phải thiết lập xác thực 2 lớp ngay
         if (_tf.RequiredForAdmins) return Ok(MfaChallenge(u));
         await SignIn(u, false);
@@ -275,6 +281,7 @@ public class AuthController : ApiControllerBase
     {
         var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, u.Id), new(ClaimTypes.Name, u.Username), new("stamp", Passwords.Stamp(u)) };
         if (mfa) claims.Add(new Claim("amr", "mfa"));
+        if (_tc.Code is { } code) claims.Add(new Claim(UserContext.TenantClaim, code));
         var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         return HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(id),
             new AuthenticationProperties { IsPersistent = false });

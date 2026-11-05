@@ -78,3 +78,11 @@ sau đó cập nhật `deploy/sql/QLDA_TTTS_schema.sql` bằng `dotnet ef migrat
 Hai gói cài chính thức, cùng dùng PostgreSQL: máy chủ Linux [docs/HUONG_DAN_CAI_DAT_LINUX.md](docs/HUONG_DAN_CAI_DAT_LINUX.md),
 máy chủ hoặc máy tính Windows [docs/HUONG_DAN_CAI_DAT_WINDOWS.md](docs/HUONG_DAN_CAI_DAT_WINDOWS.md) (CI cài thử trên Windows Server, Artifacts → `goi-cai-dat-windows`).
 Máy chủ Windows/IIS có sẵn SQL Server: [docs/HUONG_DAN_CAI_DAT.md](docs/HUONG_DAN_CAI_DAT.md). Gói cài đặt Windows được CI tạo tự động (Actions → Artifacts → `goi-cai-dat-QLDA_TTTS`).
+
+### Cho thuê nhiều xã/phường trên một máy chủ (từ bản 1.6)
+
+Bật `Tenancy:Enabled`: một bộ phần mềm phục vụ nhiều xã, nhận diện xã theo tên miền (`<mã-xã>.<tên miền gốc>` hoặc tên miền riêng của xã).
+Mỗi xã một CSDL PostgreSQL và một tài khoản CSDL riêng, kho tệp riêng, khóa phiên đăng nhập riêng; danh sách xã nằm trong CSDL nền tảng `qlda_nentang`.
+Tri Thức quản lý trên trang quản lý thuê bao `quantri.<tên miền gốc>` (tạo xã, gia hạn, tạm khóa, cấp mã khởi tạo, thống kê); xã tạo tài khoản quản trị đầu tiên bằng mã khởi tạo dùng một lần.
+Bộ cài: `deploy/thue-bao` (PostgreSQL + phần mềm + cổng HTTPS Caddy, sao lưu/khôi phục từng xã), hướng dẫn [docs/HUONG_DAN_MAY_CHU_THUE_BAO.md](docs/HUONG_DAN_MAY_CHU_THUE_BAO.md).
+Kiểm thử: `tests/e2e/thue-bao.js` (CI job `test-thue-bao`). Tắt `Tenancy` (mặc định) thì phần mềm chạy cho một đơn vị như các bản trước.

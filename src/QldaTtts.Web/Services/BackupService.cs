@@ -19,10 +19,10 @@ public class BackupService
     public int Hour => Math.Clamp(_cfg.GetValue("Backup:Hour", 1), 0, 23);
     public bool Enabled => _cfg.GetValue("Backup:Enabled", true);
 
-    public BackupService(FileStore store, IConfiguration cfg, IWebHostEnvironment env)
+    public BackupService(FileStore store, IConfiguration cfg, TenantContext tc)
     {
         _store = store; _cfg = cfg;
-        Dir = Path.GetFullPath(cfg["Storage:BackupPath"] is { Length: > 0 } p ? p : Path.Combine(env.ContentRootPath, "App_Data", "backups"));
+        Dir = Path.GetFullPath(tc.BackupPath);
     }
 
     public static async Task<byte[]> ExportJson(AppDbContext db)
@@ -105,15 +105,30 @@ public class MaintenanceService : BackgroundService
         await Task.Delay(TimeSpan.FromSeconds(30), stop).ContinueWith(_ => { });
         while (!stop.IsCancellationRequested)
         {
-            try { await Tick(stop); }
+            try
+            {
+                var tenancy = _sp.GetRequiredService<TenancyOptions>();
+                if (!tenancy.Enabled) { using var scope = _sp.CreateScope(); await Tick(scope, stop); }
+                else
+                {
+                    // Chế độ cho thuê: lần lượt từng xã đang hoạt động; lỗi ở một xã không chặn các xã khác
+                    var reg = _sp.GetRequiredService<TenantRegistry>(); var ops = _sp.GetRequiredService<TenantOps>();
+                    foreach (var t in await reg.All())
+                    {
+                        if (stop.IsCancellationRequested) break;
+                        if (t.Status != TenantStatus.Active || reg.StateOf(t.Code).state != TenantRegistry.State.Ready) continue;
+                        try { using var scope = ops.ScopeFor(t); await Tick(scope, stop); }
+                        catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogError(ex, "Lỗi tác vụ sao lưu / dọn thùng rác của xã {Code}", t.Code); }
+                    }
+                }
+            }
             catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogError(ex, "Lỗi tác vụ sao lưu / dọn thùng rác"); }
             await Task.Delay(TimeSpan.FromMinutes(15), stop).ContinueWith(_ => { });
         }
     }
 
-    private async Task Tick(CancellationToken ct)
+    private async Task Tick(IServiceScope scope, CancellationToken ct)
     {
-        using var scope = _sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var backup = scope.ServiceProvider.GetRequiredService<BackupService>();
         var store = scope.ServiceProvider.GetRequiredService<FileStore>();

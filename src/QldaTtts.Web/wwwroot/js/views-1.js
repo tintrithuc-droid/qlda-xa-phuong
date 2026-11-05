@@ -132,8 +132,12 @@ function authArt(){
   <div class="meta">${esc(BR.address)}</div></div>`;
 }
 function renderSetup(){
+  // Mã khởi tạo: lấy từ đường dẫn được cấp (…/?ma=XXXX-XXXX-XXXX) rồi xóa khỏi thanh địa chỉ
+  const qs=new URLSearchParams(location.search), ma=qs.get('ma')||'';
+  if(ma){ qs.delete('ma'); history.replaceState(null,'',location.pathname+(qs.toString()?'?'+qs:'')+location.hash); }
   $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box"><form id="setup" autocomplete="off">
     <div class="form-head"><h2>Khởi tạo hệ thống</h2><p class="muted small">Tạo tài khoản quản trị đầu tiên. Hệ thống chưa có người dùng. Tài khoản này có toàn quyền và dùng để cấp tài khoản cho cán bộ khác.</p></div>
+    ${Store.setupToken?`<div class="fld"><label for="su_token">Mã khởi tạo (do đơn vị cung cấp dịch vụ gửi)</label><input id="su_token" required value="${esc(ma)}" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" spellcheck="false"></div>`:''}
     <div class="fld"><label for="su_name">Họ và tên</label><input id="su_name" required value=""></div>
     <div class="fld"><label for="su_user">Tên đăng nhập</label><input id="su_user" required value="admin"></div>
     <div class="fld"><label for="su_pw">Mật khẩu (tối thiểu 8 ký tự, có chữ và số)</label><input id="su_pw" type="password" required autocomplete="new-password"></div>
@@ -141,7 +145,7 @@ function renderSetup(){
     <label class="checks"><input type="checkbox" id="su_sample" checked> Nạp dữ liệu mẫu để chạy thử (6 dự án, nhiệm vụ cấp xã kèm kế hoạch vốn, nghiệm thu, quyết toán, GPMB và tài khoản mẫu)</label>
     <div class="err" id="su_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Khởi tạo hệ thống</button>
-    <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu trên máy chủ của đơn vị.</p>
+    <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu riêng của đơn vị trên máy chủ.</p>
   </form><p class="auth-foot">${brandFoot()}</p></div></div>`;
   $('#setup').onsubmit=async e=>{
     e.preventDefault(); const err=$('#su_err');
@@ -150,10 +154,12 @@ function renderSetup(){
     if(!/^[a-z0-9._-]{3,32}$/.test(username)) return err.textContent='Tên đăng nhập 3–32 ký tự, chỉ gồm chữ thường không dấu, số, dấu chấm, gạch.';
     if(!pwOk(pw)) return err.textContent='Mật khẩu cần tối thiểu 8 ký tự, gồm cả chữ và số.';
     if(pw!==pw2) return err.textContent='Hai lần nhập mật khẩu không khớp.';
+    if(Store.setupToken && !$('#su_token').value.trim()) return err.textContent='Vui lòng nhập mã khởi tạo.';
     const btn=e.submitter||$('#setup button[type=submit]'); btn.disabled=true;
     try{
       err.style.color='var(--muted)'; err.textContent='Đang khởi tạo danh mục, nhóm quyền'+($('#su_sample').checked?' và dữ liệu mẫu':'')+'…';
       const body={name, username, password:pw, groups:defaultGroups(), catalogs:defaultCatalogs()};
+      if(Store.setupToken) body.token=$('#su_token').value.trim();
       if($('#su_sample').checked){
         body.sample=makeSampleData();
         body.sampleUsers=[['lanhdao','Lãnh đạo Ban (mẫu)','g-lead','Lãnh đạo Ban'],['kythuat','Cán bộ kỹ thuật (mẫu)','g-tech','Phòng Kỹ thuật'],['ketoan','Kế toán (mẫu)','g-acc','Phòng Kế toán'],['giamsat','Tư vấn giám sát TV01 (mẫu)','g-site','Tư vấn giám sát'],['ubnd','Chủ tịch UBND xã (mẫu)','g-ubnd','UBND xã'],['bithu','Bí thư Đảng ủy xã (mẫu)','g-ubnd','Đảng ủy xã'],['phochutich','Phó Chủ tịch UBND xã (mẫu)','g-ubnd','UBND xã']].map(([username,name,groupId,unit])=>({username,name,groupId,unit}));

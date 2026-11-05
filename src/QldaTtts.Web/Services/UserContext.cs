@@ -14,7 +14,11 @@ public class UserContext
     public UserGroup? Group { get; private set; }
 
     private readonly TwoFactor _tf;
-    public UserContext(AppDbContext db, IHttpContextAccessor http, TwoFactor tf) { _db = db; _http = http; _tf = tf; }
+    private readonly TenantContext _tc;
+    public UserContext(AppDbContext db, IHttpContextAccessor http, TwoFactor tf, TenantContext tc) { _db = db; _http = http; _tf = tf; _tc = tc; }
+
+    /// <summary>Mã xã ghi trong phiên đăng nhập (chế độ cho thuê); phiên của xã khác bị từ chối.</summary>
+    public const string TenantClaim = "tn";
 
     /// <summary>Phiên hiện tại đã qua bước xác thực 2 lớp.</summary>
     public bool Mfa => _http.HttpContext?.User.FindFirstValue("amr") == "mfa";
@@ -25,6 +29,7 @@ public class UserContext
         _loaded = true;
         var id = _http.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (id is null) return this;
+        if (_tc.Multi && _http.HttpContext!.User.FindFirstValue(TenantClaim) != _tc.Code) return this;
         User = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id && u.Active);
         if (User is not null && _http.HttpContext!.User.FindFirstValue("stamp") != Passwords.Stamp(User)) User = null;
         if (User?.GroupId is not null) Group = await _db.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == User.GroupId);

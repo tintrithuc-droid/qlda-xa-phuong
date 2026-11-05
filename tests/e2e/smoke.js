@@ -211,7 +211,7 @@ async function login(p, u, pw = PW) {
   if (await attOf('addenda', ad.id) !== 1) errs.push('A6: phụ lục chưa có tệp');
   await p.screenshot({ path: `${SHOTS}/dot1-hop-dong.png`, fullPage: true });
   // A7, A8: tiến độ được duyệt + ảnh cập nhật tiến độ
-  await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100).id);
+  await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100 && (!s.status || s.status === 'Đã duyệt')).id);
   await p.evaluate(id => ACT['edit-schedule'](id), sid); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   await p.evaluate(id => ACT['upd-sched'](id), sid); await p.waitForTimeout(200); await p.fill('#f_progress', '55'); await putFiles('att', [img]); await submit();
   if (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1) errs.push('A7/A8: tệp tiến độ chưa gắn');

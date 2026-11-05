@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Cài máy chủ cho thuê nhiều xã/phường trên Ubuntu 22.04/24.04 (quyền root), trong thư mục gói cài:
 #   sudo bash cai-dat.sh <tên miền gốc> <email nhận thông báo chứng chỉ> [tên đăng nhập quản trị nền tảng]
-#   ví dụ: sudo bash cai-dat.sh qlda.trithuc.vn kythuat@trithuc.vn tri
-# Trước đó: trỏ bản ghi DNS *.qlda.trithuc.vn (và quantri.qlda.trithuc.vn) về IP máy chủ; mở cổng 80, 443.
+#   ví dụ: sudo bash cai-dat.sh trithucsoft.vn kythuat@trithucsoft.vn tri
+# Trước đó: trỏ bản ghi DNS *.trithucsoft.vn (và quantri.trithucsoft.vn) về IP máy chủ; mở cổng 80, 443.
 # Chạy lại cùng lệnh để cập nhật phiên bản mới (dữ liệu giữ nguyên, CSDL từng xã tự nâng cấp lần lượt).
 set -euo pipefail
-BASE="${1:?Thiếu tên miền gốc, ví dụ qlda.trithuc.vn}"; EMAIL="${2:?Thiếu email nhận thông báo chứng chỉ}"; QT="${3:-}"
+BASE="${1:?Thiếu tên miền gốc, ví dụ trithucsoft.vn}"; EMAIL="${2:?Thiếu email nhận thông báo chứng chỉ}"; QT="${3:-}"
 DIR="${QLDA_DIR:-/opt/qlda-thue-bao}"; HERE="$(cd "$(dirname "$0")" && pwd)"
 if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
   echo "== Cài Docker"; apt-get update -qq && apt-get install -y -qq docker.io docker-compose-v2; systemctl enable --now docker

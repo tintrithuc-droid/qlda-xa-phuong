@@ -17,8 +17,8 @@ namespace QldaTtts.Web.Services;
 public class TenancyOptions
 {
     public bool Enabled { get; set; }
-    /// <summary>Tên miền gốc, ví dụ qlda.trithuc.vn: mỗi xã dùng &lt;mã-xã&gt;.qlda.trithuc.vn.</summary>
-    public string BaseDomain { get; set; } = "qlda.trithuc.vn";
+    /// <summary>Tên miền gốc, ví dụ trithucsoft.vn: mỗi xã dùng &lt;mã-xã&gt;.trithucsoft.vn (các tên con của công ty như www, mail nằm trong danh sách dành riêng).</summary>
+    public string BaseDomain { get; set; } = "trithucsoft.vn";
     /// <summary>Tên miền trang quản lý thuê bao; mặc định quantri.&lt;tên miền gốc&gt;.</summary>
     public string? PortalHost { get; set; }
     /// <summary>Thư mục gốc chứa kho tệp, bản sao lưu của từng xã (mỗi xã một thư mục con theo mã).</summary>
@@ -30,7 +30,8 @@ public class TenancyOptions
     public string HostOf(string code) => $"{code}.{BaseDomain}".ToLowerInvariant();
 
     /// <summary>Mã không được dùng cho xã (trùng tên miền dịch vụ).</summary>
-    public static readonly HashSet<string> Reserved = new() { "quantri", "admin", "www", "api", "mail", "nentang", "portal", "static", "cdn", "demo-trithuc" };
+    public static readonly HashSet<string> Reserved = new() { "quantri", "admin", "www", "api", "mail", "nentang", "portal", "static", "cdn", "demo-trithuc",
+        "webmail", "smtp", "imap", "pop", "ftp", "cpanel", "ns1", "ns2", "blog", "shop", "app", "demo", "test", "dev", "staging", "support", "hotro" };
     public static bool ValidCode(string? c) => c is not null && System.Text.RegularExpressions.Regex.IsMatch(c, "^[a-z0-9]([a-z0-9-]{1,38})[a-z0-9]$") && !c.Contains("--") && !Reserved.Contains(c);
     public const string CodeMessage = "Mã xã 3–40 ký tự, chỉ gồm chữ thường không dấu, số và gạch ngang (không đứng đầu/cuối), ví dụ tan-hoa.";
 }

@@ -58,6 +58,7 @@ const exp = (what, got, want) => { n++; if (got !== want) errs.push(`${what}: ${
   const A = 'a' + RUN + '-tan-hoa', B = 'b' + RUN + '-an-lac';
   exp('Mã xã không hợp lệ bị từ chối', (await portal.post('/api/portal/tenants', { code: 'Quản Trị', name: 'x' })).status, 400);
   exp('Mã dành riêng bị từ chối', (await portal.post('/api/portal/tenants', { code: 'quantri', name: 'x' })).status, 400);
+  exp('Tên con của công ty bị từ chối', (await portal.post('/api/portal/tenants', { code: 'webmail', name: 'x' })).status, 400);
   const ca = await portal.post('/api/portal/tenants', { code: A, name: 'xã Tân Hòa', contact: 'Ông A – 0909', expiresAt: '2030-12-31' });
   exp('Tạo xã A', ca.status, 200);
   const cb = await portal.post('/api/portal/tenants', { code: B, name: 'phường An Lạc', hosts: `qlda.${B}.gov.test` });

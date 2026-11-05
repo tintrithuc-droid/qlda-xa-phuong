@@ -1,6 +1,6 @@
 # Hướng dẫn vận hành máy chủ cho thuê nhiều xã/phường
 
-Dành cho cán bộ kỹ thuật của Tri Thức. Một máy chủ phục vụ nhiều xã/phường: mỗi xã truy cập bằng địa chỉ riêng (ví dụ `https://tan-hoa.qlda.trithuc.vn`), có **cơ sở dữ liệu riêng, tài khoản cơ sở dữ liệu riêng, kho tệp riêng**. Tri Thức quản lý các xã trên **trang quản lý thuê bao** `https://quantri.qlda.trithuc.vn`.
+Dành cho cán bộ kỹ thuật của Tri Thức. Một máy chủ phục vụ nhiều xã/phường: mỗi xã truy cập bằng địa chỉ riêng (ví dụ `https://tan-hoa.trithucsoft.vn`), có **cơ sở dữ liệu riêng, tài khoản cơ sở dữ liệu riêng, kho tệp riêng**. Tri Thức quản lý các xã trên **trang quản lý thuê bao** `https://quantri.trithucsoft.vn`.
 
 Gói cài cho xã tự đặt máy chủ (Linux, Windows) không thay đổi; gói này chỉ dùng cho máy chủ của Tri Thức.
 
@@ -14,12 +14,14 @@ Gói cài cho xã tự đặt máy chủ (Linux, Windows) không thay đổi; g�
 
 Số liệu là ước tính; xem dung lượng thực tế của từng xã trên trang quản lý thuê bao rồi điều chỉnh.
 
-**Tên miền.** Chọn tên miền gốc, ví dụ `qlda.trithuc.vn`. Tại nơi quản lý DNS của `trithuc.vn`, tạo hai bản ghi trỏ về IP máy chủ:
+**Tên miền.** Chọn tên miền gốc, ví dụ `trithucsoft.vn`. Tại nơi quản lý DNS của `trithucsoft.vn`, tạo hai bản ghi trỏ về IP máy chủ:
 
 | Bản ghi | Loại | Giá trị |
 |---|---|---|
-| `*.qlda.trithuc.vn` | A | IP máy chủ |
-| `quantri.qlda.trithuc.vn` | A | IP máy chủ (không bắt buộc nếu đã có bản ghi `*`) |
+| `*.trithucsoft.vn` | A | IP máy chủ |
+| `quantri.trithucsoft.vn` | A | IP máy chủ (không bắt buộc nếu đã có bản ghi `*`) |
+
+Các bản ghi đã có của công ty (`trithucsoft.vn`, `www`, `mail`...) **giữ nguyên**: bản ghi cụ thể luôn được ưu tiên hơn bản ghi `*`, nên trang web và thư điện tử của công ty không bị ảnh hưởng. Các tên này cũng nằm trong danh sách dành riêng, không đặt được làm mã xã.
 
 Mở cổng **80** và **443** trên tường lửa. Chứng chỉ HTTPS được cấp và gia hạn tự động cho từng xã, không phải làm tay.
 
@@ -29,12 +31,12 @@ Chép gói `QLDA_XaPhuong_GoiThueBao_<phiên bản>.tar.gz` lên máy chủ, r�
 
 ```bash
 tar -xzf QLDA_XaPhuong_GoiThueBao_1.6.tar.gz && cd QLDA_XaPhuong_GoiThueBao_1.6
-sudo bash cai-dat.sh qlda.trithuc.vn kythuat@trithuc.vn tri
+sudo bash cai-dat.sh trithucsoft.vn kythuat@trithucsoft.vn tri
 ```
 
 Ba tham số: tên miền gốc, email nhận thông báo chứng chỉ, tên đăng nhập quản trị nền tảng. Script tự cài Docker, nạp phần mềm, tạo thư mục `/opt/qlda-thue-bao` (mật khẩu CSDL ngẫu nhiên trong `.env`), khởi động PostgreSQL, phần mềm và cổng vào HTTPS, đặt lịch sao lưu 1h30 hằng đêm và kiểm tra tình trạng 5 phút một lần. Cuối cùng script in **mật khẩu tạm** của quản trị nền tảng.
 
-Mở `https://quantri.qlda.trithuc.vn`, đăng nhập bằng mật khẩu tạm, quét mã QR bằng Google Authenticator hoặc Microsoft Authenticator, nhập mã 6 số. Sau đó bấm **Đổi mật khẩu** ngay.
+Mở `https://quantri.trithucsoft.vn`, đăng nhập bằng mật khẩu tạm, quét mã QR bằng Google Authenticator hoặc Microsoft Authenticator, nhập mã 6 số. Sau đó bấm **Đổi mật khẩu** ngay.
 
 Thêm quản trị nền tảng khác, hoặc đặt lại khi quên mật khẩu/mất điện thoại:
 
@@ -100,7 +102,7 @@ Chép gói mới lên máy chủ, giải nén, chạy lại đúng lệnh cài �
 
 ```bash
 sudo bash /opt/qlda-thue-bao/sao-luu.sh
-sudo bash cai-dat.sh qlda.trithuc.vn kythuat@trithuc.vn
+sudo bash cai-dat.sh trithucsoft.vn kythuat@trithucsoft.vn
 ```
 
 Phần mềm khởi động lại và **nâng cấp cơ sở dữ liệu lần lượt từng xã**. Xã đang chờ nâng cấp, người dùng thấy thông báo "Đang nâng cấp phần mềm" trong vài giây. Xã nào nâng cấp lỗi thì chỉ xã đó tạm dừng, trang quản lý thuê bao báo **Lỗi nâng cấp** kèm nội dung lỗi; khắc phục xong bấm **Chạy lại nâng cấp**. Nên nâng cấp ngoài giờ hành chính và báo trước cho các xã.

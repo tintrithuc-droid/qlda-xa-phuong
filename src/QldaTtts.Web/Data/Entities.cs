@@ -173,6 +173,9 @@ public class ScheduleItem : EntityBase, IHasProject
     public double? Progress { get; set; }
     public double? Weight { get; set; }
     public List<ProgressPoint> History { get; set; } = new();
+    /// <summary>Soạn thảo / Chờ duyệt / Đã duyệt / Từ chối (bản 1.5). Chỉ kế hoạch Đã duyệt (hoặc chưa có trạng thái, dữ liệu trước bản 1.5)
+    /// được tính vào tiến độ, đường cong S, cảnh báo và được cập nhật tiến độ thực tế.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 public class Photo

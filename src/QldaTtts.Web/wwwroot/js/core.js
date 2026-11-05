@@ -71,7 +71,7 @@ const MODULES = [
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
 const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet'];
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.5';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -229,6 +229,10 @@ function schedState(s){
   if(TODAY<s.planStart && p===0) return {k:'', t:'Chưa đến hạn'};
   return {k:'acc', t:'Đúng tiến độ'};
 }
+/** Kế hoạch tiến độ đã duyệt (bản 1.5): chỉ những kế hoạch này được tính tiến độ, đường cong S, cảnh báo và được cập nhật thực tế.
+ *  Kế hoạch chưa có trạng thái (dữ liệu trước bản 1.5) coi là đã duyệt. */
+function schedOk(s){ return !s.status || s.status==='Đã duyệt'; }
+const SCHED = () => D('schedule').filter(schedOk);
 /** Bình quân theo trọng số: chỉ dùng cho các đầu việc trong CÙNG một gói thầu (trọng số do cán bộ phụ trách gói đặt). */
 function wavg(items, f){ const w=sum(items, s=>N(s.weight)||1); return w? sum(items, s=>(N(s.weight)||1)*f(s))/w : 0; }
 /** Giá trị của gói thầu dùng để quy đổi tiến độ: giá trị hợp đồng sau điều chỉnh (phụ lục đã duyệt), chưa có hợp đồng thì lấy giá gói thầu. */
@@ -242,15 +246,15 @@ function vavg(items, f){
   const pv={}; keys.forEach(k=>pv[k]=k?pkgValue(k):0);
   const known=keys.filter(k=>pv[k]>0); if(!known.length) return wavg(items,f);
   const avg=sum(known,k=>pv[k])/known.length;
-  const tw={}; keys.forEach(k=>tw[k]=sum(D('schedule').filter(s=>(s.packageId||'')===k && (k || s.projectId===items[0].projectId)), s=>N(s.weight)||1)||1);
+  const tw={}; keys.forEach(k=>tw[k]=sum(SCHED().filter(s=>(s.packageId||'')===k && (k || s.projectId===items[0].projectId)), s=>N(s.weight)||1)||1);
   const val=s=>{ const k=s.packageId||''; return (pv[k]>0?pv[k]:avg)*(N(s.weight)||1)/tw[k]; };
   const w=sum(items,val); return w? sum(items, s=>val(s)*f(s))/w : 0;
 }
-function projProgress(pid){ const p=projOf(pid); if(p && /hoàn thành|quyết toán/i.test(p.status||'') && !D('schedule').some(s=>s.projectId===pid)) return 100; return vavg(D('schedule').filter(s=>s.projectId===pid), s=>N(s.progress)); }
-function projExpected(pid){ return vavg(D('schedule').filter(s=>s.projectId===pid), s=>expectedPct(s)); }
-function pkgProgress(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>N(s.progress)); }
-function pkgExpected(kid){ return wavg(D('schedule').filter(s=>s.packageId===kid), s=>expectedPct(s)); }
-function itemProgress(it){ const ss=D('schedule').filter(s=>s.itemId===it.id); return ss.length? vavg(ss,s=>N(s.progress)) : N(it.progress); }
+function projProgress(pid){ const p=projOf(pid); if(p && /hoàn thành|quyết toán/i.test(p.status||'') && !SCHED().some(s=>s.projectId===pid)) return 100; return vavg(SCHED().filter(s=>s.projectId===pid), s=>N(s.progress)); }
+function projExpected(pid){ return vavg(SCHED().filter(s=>s.projectId===pid), s=>expectedPct(s)); }
+function pkgProgress(kid){ return wavg(SCHED().filter(s=>s.packageId===kid), s=>N(s.progress)); }
+function pkgExpected(kid){ return wavg(SCHED().filter(s=>s.packageId===kid), s=>expectedPct(s)); }
+function itemProgress(it){ const ss=SCHED().filter(s=>s.itemId===it.id); return ss.length? vavg(ss,s=>N(s.progress)) : N(it.progress); }
 /* --- vốn đầu tư công, giải ngân (phân hệ Kế hoạch vốn) --- */
 const CAP_MINUS = 'Điều chỉnh giảm kế hoạch năm';
 const isAnnualCap = c => c.kind && !/trung hạn/i.test(c.kind);
@@ -274,7 +278,7 @@ function planPaid(p){ return sum(D('payments').filter(x=>x.payPlanId===p.id && x
 function planState(p){
   const ps=D('payments').filter(x=>x.payPlanId===p.id), paid=planPaid(p);
   if(ps.some(x=>x.status==='Đã thanh toán')) return {k:'ok', t:'Đã thực hiện', paid};
-  const proc=ps.some(x=>['Đề nghị','Chờ duyệt','Đang trình KBNN'].includes(x.status));
+  const proc=ps.some(payInProc);
   const left=p.planDate? days(TODAY,p.planDate) : null;
   if(left!==null && left<0) return {k:'bad', t:'Quá hạn '+(-left)+' ngày'+(proc?', đang trình':''), paid, late:-left, proc};
   if(proc) return {k:'info', t:'Đang trình thanh toán', paid};
@@ -297,7 +301,7 @@ function catalog(type){ return D('catalogs').filter(c=>c.type===type).sort(by('o
 /* --- cảnh báo (UC19, UC37) --- */
 function alerts(){
   const out=[];
-  D('schedule').filter(s=>inFilter(s.projectId)).forEach(s=>{
+  SCHED().filter(s=>inFilter(s.projectId)).forEach(s=>{
     const st=schedState(s); const k=pkgOf(s.packageId);
     if(st.k==='bad') out.push({lvl:'bad', mod:'tien-do', text:`<b>${esc(s.name)}</b> (${esc(k?k.code:'')}) ${st.t.toLowerCase()}, mới đạt ${N(s.progress)}%.`});
     else if(st.k==='warn') out.push({lvl:'warn', mod:'tien-do', text:`<b>${esc(s.name)}</b> (${esc(k?k.code:'')}) chậm so với kế hoạch: thực tế ${N(s.progress)}%, kế hoạch ${Math.round(expectedPct(s))}%.`});
@@ -382,7 +386,8 @@ function table(cols, rows, o={}){
   }
   const head = cols.map(c=>`<th class="${c.r?'r':''}">${esc(c.h)}</th>`).join('') + (o.actions?'<th></th>':'');
   const body = rows.map(r=>`<tr class="${o.rowAct?'click':''}" ${o.rowAct?`data-act="${o.rowAct}" data-id="${esc(r.id)}"`:''}>${cols.map(c=>`<td class="${c.r?'r':''}" data-label="${esc(c.h)}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}${o.actions?`<td class="acts">${o.actions(r)}</td>`:''}</tr>`).join('');
-  const foot = o.foot? `<tfoot><tr>${o.foot.map((f,i)=>`<td class="${cols[i]&&cols[i].r?'r':''}">${f??''}</td>`).join('')}${o.actions?'<td></td>':''}</tr></tfoot>`:'';
+  /* dòng tổng cũng gắn nhãn cột: trên điện thoại bảng thành thẻ, thiếu nhãn thì chỉ thấy một cột số (góp ý Triển khai, mục 14) */
+  const foot = o.foot? `<tfoot><tr>${o.foot.map((f,i)=>`<td class="${cols[i]&&cols[i].r?'r':''}"${i&&cols[i]?` data-label="${esc(cols[i].h)}"`:''}>${f??''}</td>`).join('')}${o.actions?'<td></td>':''}</tr></tfoot>`:'';
   return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>${pg}`;
 }
 const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>` : extra;
@@ -741,6 +746,9 @@ const WF = {
   payments:{mod:'thanh-toan', name:'Hồ sơ thanh toán', draft:'Đề nghị', wait:'Chờ duyệt', ok:'Đang trình KBNN', no:'Từ chối', locked:['Đang trình KBNN','Đã thanh toán','Từ chối'],
     label:r=>{ const c=get('contracts',r.contractId)||{}; return `Hồ sơ thanh toán ${r.number||''} HĐ ${c.number||''}`; }, pid:r=>contractPid(get('contracts',r.contractId)||{}),
     info:r=>`${r.kind||''} · ${fmtVND(r.amount)} đ${r.payPlanId&&get('payplans',r.payPlanId)?' · '+(/^đợt/i.test(get('payplans',r.payPlanId).phase||'')?'':'đợt ')+get('payplans',r.payPlanId).phase:''}`},
+  schedule:{mod:'tien-do', name:'Kế hoạch tiến độ', draft:'Soạn thảo', wait:'Chờ duyệt', ok:'Đã duyệt', no:'Từ chối', locked:['Đã duyệt','Từ chối'],
+    label:r=>`Kế hoạch ${r.name||''} (${(pkgOf(r.packageId)||{}).code||''})`, pid:r=>r.projectId,
+    info:r=>`${fmtDate(r.planStart)} – ${fmtDate(r.planEnd)}, trọng số ${N(r.weight)||1}`},
   acceptances:{mod:'nghiem-thu', name:'Nghiệm thu, bàn giao', draft:'Soạn thảo', wait:'Chờ duyệt', ok:'Đã duyệt', no:'Từ chối', locked:['Đã duyệt','Từ chối'],
     label:r=>`${r.kind||'Biên bản'} ${r.number||''}`, pid:r=>r.projectId, info:r=>`${fmtDate(r.date)} · ${r.content||''}${r.result?' · '+r.result:''}`}
 };
@@ -750,7 +758,13 @@ const wfLocked = (col, r) => WF[col].locked.includes(wfStatus(col,r));
 const wfWaiting = (col, r) => wfStatus(col,r)===WF[col].wait;
 /** Người dùng sửa được hồ sơ không (người duyệt luôn sửa được; người khác chỉ sửa khi đang soạn thảo). */
 const wfEditable = (col, r) => can(WF[col].mod,'approve') || (can(WF[col].mod,'edit') && !wfLocked(col,r) && !wfWaiting(col,r));
-function wfPill(col, r){ const w=WF[col], s=wfStatus(col,r);
+/** Hồ sơ bị người duyệt trả lại và chưa trình lại (lần thao tác gần nhất là Trả lại): trả về dòng lịch sử đó. */
+function wfReturned(col, r){ if(!WF[col] || wfStatus(col,r)!==WF[col].draft) return null;
+  const h=D('approvals').filter(a=>a.collection===col && a.recordId===r.id).sort(by('at',-1))[0]; return h && h.action==='Trả lại' ? h : null; }
+/** Hồ sơ thanh toán đang đề nghị (mới lập, chờ duyệt, đang trình Kho bạc); hồ sơ bị trả lại không tính. */
+function payInProc(p){ return ['Đề nghị','Chờ duyệt','Đang trình KBNN'].includes(p.status) && !wfReturned('payments',p); }
+function wfPill(col, r){ const w=WF[col], s=wfStatus(col,r), rt=wfReturned(col,r);
+  if(rt) return `<span class="pill bad" title="${esc('Trả lại: '+(rt.note||''))}">Bị trả lại</span>${rt.note?`<div class="small muted">${esc(rt.note)}</div>`:''}`;
   return pill(s, s===w.draft?'':s===w.wait?'warn':s===w.no?'bad':s==='Đã thanh toán'||s===w.ok?'ok':'info'); }
 /** Các nút quy trình của một hồ sơ, theo trạng thái và quyền của người dùng. */
 function wfBtns(col, r){ const w=WF[col], s=wfStatus(col,r), ap=can(w.mod,'approve'), ed=can(w.mod,'edit')||ap; const b=(a,l,cls='')=>`<button class="btn sm ${cls||'ghost'}" data-act="wf" data-id="${esc(col+'|'+r.id+'|'+a)}">${l}</button>`;

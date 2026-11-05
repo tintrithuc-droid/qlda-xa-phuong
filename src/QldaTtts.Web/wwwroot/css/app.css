@@ -209,6 +209,7 @@ tfoot td{font-weight:600; background:var(--panel2)}
 .gplan i{position:absolute; inset:0 auto 0 0; background:var(--accent); opacity:.85}
 .gplan.warn{border-color:var(--amber); background:var(--amber-soft)} .gplan.warn i{background:var(--amber)}
 .gplan.bad{border-color:var(--red); background:var(--red-soft)} .gplan.bad i{background:var(--red)}
+.gplan.pend{border-style:dashed; border-color:var(--muted); background:transparent}
 .gtoday{position:absolute; top:0; bottom:0; width:0; border-left:2px dashed var(--red); z-index:2}
 .gmonth{position:absolute; top:0; bottom:0; border-left:1px solid var(--line); font-size:10.5px; padding-left:3px; color:var(--muted)}
 
@@ -218,6 +219,13 @@ tfoot td{font-weight:600; background:var(--panel2)}
 @keyframes rise{from{opacity:0; transform:translateY(8px)}}
 .mform{background:var(--panel); border-radius:16px; box-shadow:var(--sh-3); animation:rise .18s ease-out; width:min(720px,100%); max-height:calc(100vh / var(--zoom) - 32px); display:flex; flex-direction:column; border:1px solid var(--line)}
 .mform.narrow{width:min(440px,100%)}
+/* hộp thoại nhập từ Excel (bản 1.5) */
+.mform.imp{width:min(1040px,100%)}
+.imp-body{padding:16px 20px; overflow:auto; display:flex; flex-direction:column; gap:12px; min-height:0}
+.imp-step{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.imp-step > span{flex:1 1 260px}
+.imp-sum{padding:8px 12px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--panel2)}
+.imp-body .fgrid{padding:0}
 .mform header,.mform footer{display:flex; align-items:center; gap:8px; padding:14px 20px}
 .mform header{border-bottom:1px solid var(--line)} .mform header h3{flex:1}
 .mform footer{border-top:1px solid var(--line); justify-content:flex-end}
@@ -415,7 +423,11 @@ input.bad{border-color:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(-
 @media (max-width:640px){
   .wk-h{display:none}
   .wk-row{grid-template-columns:1fr 1fr 34px; padding:8px; border:1px solid var(--line); border-radius:var(--r-sm); background:var(--panel2)}
-  .wk-row .wk-n{grid-column:1/-1}
+  /* tầng 1: tên công việc + nút xóa; tầng 2: khối lượng, đơn vị */
+  .wk-row .wk-n{grid-column:1/3; grid-row:1}
+  .wk-row .wk-del{grid-column:3; grid-row:1}
+  .wk-row .wk-q{grid-column:1; grid-row:2}
+  .wk-row .wk-u{grid-column:2/4; grid-row:2}
 }
 .theme-btn{padding:6px 8px}
 .pager{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px}

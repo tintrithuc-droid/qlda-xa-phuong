@@ -22,12 +22,14 @@ public static class Workflow
         // Hồ sơ thanh toán: Lãnh đạo Ban duyệt thì chuyển sang trình Kho bạc; kế toán xác nhận đã chi khi Kho bạc chi
         new("payments", "thanh-toan", "Đề nghị", "Chờ duyệt", "Đang trình KBNN", "Từ chối", new[] { "Đang trình KBNN", "Đã thanh toán", "Từ chối" }),
         new("acceptances", "nghiem-thu", "Soạn thảo", "Chờ duyệt", "Đã duyệt", "Từ chối", new[] { "Đã duyệt", "Từ chối" }),
+        // Kế hoạch tiến độ (bản 1.5): kế hoạch đã duyệt vẫn được cập nhật tiến độ thực tế, nhưng không sửa được nội dung kế hoạch
+        new("schedule", "tien-do", "Soạn thảo", "Chờ duyệt", "Đã duyệt", "Từ chối", new[] { "Đã duyệt", "Từ chối" }),
     };
 
     public static WorkflowDef? Find(string collection) => All.FirstOrDefault(w => w.Collection == collection);
 
-    public static string? StatusOf(EntityBase e) => e switch { Addendum a => a.Status, Payment p => p.Status, Acceptance x => x.Status, _ => null };
-    public static void SetStatus(EntityBase e, string s) { switch (e) { case Addendum a: a.Status = s; break; case Payment p: p.Status = s; break; case Acceptance x: x.Status = s; break; } }
+    public static string? StatusOf(EntityBase e) => e switch { Addendum a => a.Status, Payment p => p.Status, Acceptance x => x.Status, ScheduleItem s => s.Status, _ => null };
+    public static void SetStatus(EntityBase e, string s) { switch (e) { case Addendum a: a.Status = s; break; case Payment p: p.Status = s; break; case Acceptance x: x.Status = s; break; case ScheduleItem si: si.Status = s; break; } }
 
     public static bool CanApprove(UserContext uc, WorkflowDef w)
     {
@@ -48,6 +50,17 @@ public static class Workflow
         if (existing is null)
             return newS is null || newS == "" || newS == w.Draft ? null : $"Hồ sơ mới phải ở trạng thái \"{w.Draft}\", sau đó bấm Trình duyệt.";
         if (w.Collection == "payments" && oldS == "Đang trình KBNN" && newS == "Đã thanh toán") return null;
+        if (existing is ScheduleItem os && incoming is ScheduleItem ns)
+        {
+            var planSame = os.Name == ns.Name && os.PlanStart == ns.PlanStart && os.PlanEnd == ns.PlanEnd && os.Weight == ns.Weight
+                && (os.PackageId ?? "") == (ns.PackageId ?? "") && (os.ItemId ?? "") == (ns.ItemId ?? "") && (oldS ?? "") == (newS ?? "");
+            var progSame = os.Progress == ns.Progress && os.ActualStart == ns.ActualStart && os.ActualEnd == ns.ActualEnd
+                && System.Text.Json.JsonSerializer.Serialize(os.History) == System.Text.Json.JsonSerializer.Serialize(ns.History);
+            var approved = string.IsNullOrEmpty(oldS) || oldS == w.Approved;
+            if (approved && planSame) return null; // cập nhật tiến độ thực tế trên kế hoạch đã duyệt
+            if (!approved && !progSame) return "Kế hoạch tiến độ chưa được duyệt nên chưa cập nhật tiến độ thực tế được. Bấm Trình duyệt để Lãnh đạo Ban duyệt kế hoạch.";
+            if (approved) return "Kế hoạch tiến độ đã được duyệt nên không sửa được nội dung kế hoạch. Người có quyền duyệt thu hồi về soạn thảo thì mới điều chỉnh được.";
+        }
         if (oldS == w.Waiting) return "Hồ sơ đang chờ duyệt, không sửa được. Người duyệt trả lại thì mới sửa tiếp.";
         if (w.IsLocked(oldS)) return "Hồ sơ đã được duyệt (hoặc đã từ chối) nên bị khóa. Người có quyền duyệt thu hồi về soạn thảo thì mới sửa được.";
         if (newS != oldS && newS != w.Draft) return "Trạng thái hồ sơ chỉ thay đổi qua các nút Trình duyệt, Duyệt, Trả lại.";

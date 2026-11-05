@@ -40,6 +40,7 @@ async function login(p, u, pw = PW) {
   // Tài khoản quản trị bắt buộc thiết lập xác thực 2 lớp ngay sau khởi tạo
   await p.waitForSelector('#mfa .qr svg', { timeout: 30000 }); await p.screenshot({ path: `${SHOTS}/mfa-enroll.png` });
   const secret = await p.evaluate(() => S.mfaStep.secret);
+  fs.writeFileSync(path.join(SHOTS, 'admin-totp.txt'), secret); // cho các kiểm thử chạy sau (v15.js) đăng nhập quản trị
   p._expectFail = true; await p.fill('#mf_code', '000000'); await p.click('#mfa button[type=submit]'); await p.waitForTimeout(400); p._expectFail = false;
   if (!(await p.textContent('#mf_err')).trim()) errs.push('Không báo lỗi khi nhập sai mã 2 lớp');
   await p.fill('#mf_code', totp(secret)); await p.click('#mfa button[type=submit]');

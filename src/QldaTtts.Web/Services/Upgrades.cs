@@ -46,6 +46,25 @@ public static class Upgrades
 
         // 5) Vai trò Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…), chạy một lần
         LanhDaoXa(db);
+
+        // 6) Phiên bản 1.5: trình duyệt kế hoạch tiến độ, chạy một lần
+        V15(db);
+    }
+
+    /// <summary>Bản 1.5: kế hoạch tiến độ đang có được coi là đã duyệt (không đổi số liệu của đơn vị đang dùng);
+    /// nhóm Lãnh đạo Ban được quyền duyệt kế hoạch tiến độ.</summary>
+    private static void V15(AppDbContext db)
+    {
+        const string key = "upgrade:1.5-duyet-ke-hoach-tien-do";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        foreach (var s in db.Schedule.Where(s => s.Status == null || s.Status == "").ToList()) s.Status = "Đã duyệt";
+        foreach (var g in db.Groups.ToList().Where(g => !g.Admin && (g.Id == "g-lead" || g.Name.Contains("Lãnh đạo Ban", StringComparison.OrdinalIgnoreCase))))
+        {
+            var p = new Dictionary<string, string>(g.Perms) { ["tien-do:duyet"] = "1" };
+            g.Perms = p;
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
     }
 
     public const string LanhDaoXaName = "Lãnh đạo xã/phường";

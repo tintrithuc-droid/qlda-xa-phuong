@@ -119,6 +119,8 @@ function makeSampleData(){
     ['s21','p6','k9','','Kiểm tra, nghiệm thu dữ liệu, bàn giao','2026-11-01','2026-12-15',0,20]
   ];
   D.schedule = sc.map(([id,projectId,packageId,itemId,name,planStart,planEnd,progress,weight])=>({id,projectId,packageId,itemId,name,planStart,planEnd,progress,weight,history:hist(planStart,planEnd,progress)}));
+  // Kế hoạch bổ sung đang chờ Lãnh đạo Ban duyệt (bản 1.5): chưa tính vào tiến độ, chưa cập nhật thực tế được
+  D.schedule.push({id:'s22', projectId:'p2', packageId:'k4', itemId:'i8', name:'Nhà để xe giáo viên (bổ sung)', planStart:'2026-11-15', planEnd:'2027-01-31', progress:0, weight:5, history:[], status:'Chờ duyệt'});
   // Khối lượng hợp đồng (đơn giá, khối lượng) và tỷ lệ đã thực hiện / nghiệm thu
   const bq = [
     ['c1','AB.11','Đào nền đường đất cấp II','m3',18500,62000,1,1],
@@ -255,7 +257,7 @@ function defaultGroups(){
   const P = (edit, view)=>Object.fromEntries(ALL.map(k=>[k, edit.includes(k)?'edit':(view==='*'||view.includes(k))?'view':'none']));
   return [
     {id:'g-admin', name:'Quản trị hệ thống', admin:true, perms:P(ALL,'*'), scope:[], desc:'Toàn quyền, quản lý người dùng và cấu hình.'},
-    {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:{...P(['du-an'],'*'), 'goi-thau:duyet':'1', 'thanh-toan:duyet':'1', 'nghiem-thu:duyet':'1'}, scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án; duyệt phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu.'},
+    {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:{...P(['du-an'],'*'), 'goi-thau:duyet':'1', 'thanh-toan:duyet':'1', 'nghiem-thu:duyet':'1', 'tien-do:duyet':'1'}, scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án; duyệt phụ lục hợp đồng, kế hoạch tiến độ, hồ sơ thanh toán, nghiệm thu.'},
     {id:'g-tech', name:'Cán bộ kỹ thuật', admin:false, perms:P(['du-an','mo-hinh','goi-thau','tien-do','nhat-ky','khoi-luong','gpmb','nghiem-thu'],'*'), scope:[], desc:'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'},
     {id:'g-acc', name:'Kế toán', admin:false, perms:P(['thanh-toan','von','quyet-toan'],['tong-quan','du-an','goi-thau','khoi-luong','nghiem-thu','bao-cao']), scope:[], desc:'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'},
     {id:'g-site', name:'Tư vấn giám sát / Nhà thầu', admin:false, perms:P(['nhat-ky','tien-do'],['tong-quan','du-an','mo-hinh','khoi-luong','nghiem-thu']), scope:['p1'], desc:'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'},

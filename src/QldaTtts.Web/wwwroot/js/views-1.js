@@ -272,8 +272,8 @@ VIEWS['tong-quan']=()=>{
   const Y=TODAY.slice(0,4), py=sum(ps,p=>capPlan(p.id,Y)), dy=sum(ps,p=>disbursed(p.id,Y)), tgy=py? sum(ps,p=>capPlan(p.id,Y)*capTargetAt(p.id,Y))/py : 0;
   const stats=catalog('Trạng thái dự án'); const extra=[...new Set(ps.map(p=>p.status))].filter(s=>!stats.includes(s));
   const donutItems=[...stats,...extra].map(s=>({label:s, value:ps.filter(p=>p.status===s).length, color:STATUS_COL[s]||'var(--c5)'})).filter(i=>i.value);
-  const pk=D('packages').filter(k=>pids.includes(k.projectId) && D('schedule').some(s=>s.packageId===k.id)).sort(by('code'));
-  const sc=sCurve(D('schedule').filter(s=>pids.includes(s.projectId)));
+  const pk=D('packages').filter(k=>pids.includes(k.projectId) && SCHED().some(s=>s.packageId===k.id)).sort(by('code'));
+  const sc=sCurve(SCHED().filter(s=>pids.includes(s.projectId)));
   const tasks=D('tasks').filter(t=>pids.includes(t.projectId) && t.status!=='Hoàn thành').sort(by('due')).slice(0,6);
   const pjRows=ps.map(p=>{ const c=D('contracts').filter(c=>contractPid(c)===p.id); return {...p, cv:sum(c,contractValue), paid:sum(c,x=>contractPaid(x.id)), prog:projProgress(p.id), exp:projExpected(p.id)}; });
   return `<div class="head"><div class="grow"><h1>Tổng quan tình hình thực hiện</h1><p>Số liệu tính đến ngày ${fmtDate(TODAY)}${S.pid?', dự án '+esc(projOf(S.pid)?.code):', gồm các dự án bạn được giao theo dõi'}</p></div></div>
@@ -381,7 +381,7 @@ function projectDetail(p){
     body=legalCard(D('legal').filter(l=>l.projectId===p.id && !l.packageId), p.id, null, 'du-an', 'Hồ sơ pháp lý dự án');
   } else {
     const ks=D('packages').filter(k=>k.projectId===p.id).sort(by('code')); const cs=D('contracts').filter(c=>contractPid(c)===p.id);
-    const sc=sCurve(D('schedule').filter(s=>s.projectId===p.id)); const cv=sum(cs,contractValue), paid=sum(cs,c=>contractPaid(c.id));
+    const sc=sCurve(SCHED().filter(s=>s.projectId===p.id)); const cv=sum(cs,contractValue), paid=sum(cs,c=>contractPaid(c.id));
     const tEl=p.start&&p.end? Math.min(100,pct(Math.max(0,days(p.start,TODAY)),days(p.start,p.end))):0;
     body=`<div class="grid g4"><div class="card kpi"><div class="eyebrow">Tiến độ thực tế</div><div class="v">${fmtP(projProgress(p.id))}</div><div class="s">Kế hoạch đến nay ${fmtP(projExpected(p.id))}</div></div>
       <div class="card kpi"><div class="eyebrow">Thời gian đã qua</div><div class="v">${fmtP(tEl)}</div><div class="s">Còn ${Math.max(0,days(TODAY,p.end||TODAY))} ngày</div></div>
@@ -389,7 +389,7 @@ function projectDetail(p){
       <div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,p.tmdt))} TMĐT</div></div></div>
       <div class="grid g2"><div class="card"><h2>Đường cong S của dự án</h2>${sc?lineChart({labels:sc.labels, series:[{name:'Kế hoạch',color:'var(--c5)',values:sc.plan,dash:true},{name:'Thực tế',color:'var(--c1)',values:sc.act,area:true}]}):emptyBox('Chưa lập kế hoạch tiến độ.')}</div>
       <div class="card"><h2>Tình trạng từng gói thầu</h2>${table([{h:'Gói',k:'code'},{h:'Tiến độ',f:r=>`<div style="min-width:120px">${progBar(pkgProgress(r.id), pkgExpected(r.id)-pkgProgress(r.id)>10?'warn':'')}</div>`},{h:'KH đến nay',r:1,f:r=>fmtP(pkgExpected(r.id))},{h:'Trạng thái',f:r=>statusPill(r.status)}], ks, {rowAct:'open-pkg'})}</div></div>
-      <div class="list">${alerts().filter(a=>{ return D('schedule').some(s=>s.projectId===p.id && a.text.includes(esc(s.name))) || cs.some(c=>a.text.includes(esc(c.number))); }).map(a=>`<div class="alert ${a.lvl==='bad'?'bad':''}">${a.text}</div>`).join('')}</div>`;
+      <div class="list">${alerts().filter(a=>{ return SCHED().some(s=>s.projectId===p.id && a.text.includes(esc(s.name))) || cs.some(c=>a.text.includes(esc(c.number))); }).map(a=>`<div class="alert ${a.lvl==='bad'?'bad':''}">${a.text}</div>`).join('')}</div>`;
   }
   return `<div class="head"><div class="grow"><button class="btn ghost sm" data-act="back-project">← Danh sách dự án</button><h1 style="margin-top:8px">${esc(p.name)}</h1><p><span class="num">${esc(p.code)}</span> · ${statusPill(p.status)}</p></div>${can('du-an','edit')?`<button class="btn" data-act="edit-projects" data-id="${p.id}">Sửa thông tin</button><button class="btn ghost danger" data-act="del" data-col="projects" data-id="${p.id}">Xóa</button>`:''}</div>
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="proj" data-id="${k}">${l}</button>`).join('')}</div>${body}`;

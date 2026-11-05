@@ -16,9 +16,27 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 builder.Services.AddWindowsService(o => o.ServiceName = "QLDA");
 var cfg = builder.Configuration;
 
+// Chế độ cho thuê nhiều xã/phường (Tenancy:Enabled): mỗi xã một CSDL PostgreSQL riêng, chọn theo tên miền truy cập
+var tenancy = cfg.GetSection("Tenancy").Get<TenancyOptions>() ?? new TenancyOptions();
+builder.Services.AddSingleton(tenancy);
+builder.Services.AddScoped<TenantContext>();
+builder.Services.AddScoped<SetupGuard>();
+
 // Cơ sở dữ liệu: PostgreSQL (máy chủ Linux/Docker, chi phí thấp), SQL Server (máy chủ Windows) hoặc SQLite (bản demo, đơn vị rất nhỏ)
-var provider = cfg["Database:Provider"] ?? "SqlServer";
-if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+var provider = tenancy.Enabled ? "PostgreSQL" : cfg["Database:Provider"] ?? "SqlServer";
+if (tenancy.Enabled)
+{
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    // CSDL nền tảng: danh sách xã, quản trị nền tảng (chuỗi kết nối PostgreSQL trong cấu hình, tài khoản có quyền tạo CSDL)
+    builder.Services.AddDbContextFactory<PlatformDbContext>(o => o.UseNpgsql(cfg.GetConnectionString("PostgreSQL")));
+    builder.Services.AddSingleton<TenantRegistry>();
+    builder.Services.AddSingleton<TenantOps>();
+    builder.Services.AddHostedService<TenantStartup>();
+    // CSDL nghiệp vụ: của xã đang được truy cập (TenantContext do TenantMiddleware hoặc tác vụ nền đặt)
+    builder.Services.AddDbContext<AppDbContext, PgDbContext>((sp, o) =>
+        o.UseNpgsql(sp.GetRequiredService<TenantContext>().ConnectionString, n => n.EnableRetryOnFailure()));
+}
+else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
 {
     // Giữ cách lưu DateTime như SQL Server/SQLite (timestamp không múi giờ); đặt trước khi Npgsql nạp
     AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -36,13 +54,13 @@ else
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();
-builder.Services.AddSingleton<TwoFactor>();
-builder.Services.AddSingleton<FileStore>();
-builder.Services.AddSingleton<BackupService>();
+builder.Services.AddScoped<TwoFactor>();
+builder.Services.AddScoped<FileStore>();
+builder.Services.AddScoped<BackupService>();
 builder.Services.AddHostedService<MaintenanceService>();
 builder.Services.AddControllersWithViews().AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
 
-var keysDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
+var keysDir = cfg["Storage:KeysPath"] is { Length: > 0 } kp ? kp : Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
 Directory.CreateDirectory(keysDir);
 builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keysDir)).SetApplicationName("QldaTtts");
 
@@ -57,6 +75,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     o.Events.OnRedirectToLogin = c => { c.Response.StatusCode = 401; return Task.CompletedTask; };
     o.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = 403; return Task.CompletedTask; };
 });
+// Chế độ cho thuê: phiếu đăng nhập mã hóa bằng khóa con riêng của từng xã
+if (tenancy.Enabled)
+    builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+        .Configure<IHttpContextAccessor, IDataProtectionProvider>((o, h, dp) => o.TicketDataFormat = new TenantTicketFormat(h, dp));
 builder.Services.AddAuthorization();
 
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = FilesController.MaxBytes + 1024 * 1024);
@@ -64,8 +86,13 @@ builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = FilesControl
 
 var app = builder.Build();
 
-// Khởi tạo/cập nhật lược đồ cơ sở dữ liệu
-using (var scope = app.Services.CreateScope())
+// Chế độ cho thuê: CSDL nền tảng, lệnh quản trị trên máy chủ; CSDL của từng xã do TenantStartup nâng cấp lần lượt
+if (tenancy.Enabled)
+{
+    if (await PlatformCli.RunAsync(app, args)) return;
+}
+// Chế độ một đơn vị: khởi tạo/cập nhật lược đồ cơ sở dữ liệu
+else using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     // Gỡ hẳn một xã khỏi máy chủ (go-cai-dat.ps1 -XoaDuLieu): QldaTtts.Web.exe --xoa-csdl
@@ -146,6 +173,14 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Chạy sau cổng vào (Caddy/Nginx): nhận đúng địa chỉ IP người dùng và giao thức HTTPS (cookie Secure)
+if (cfg.GetValue("ReverseProxy:Enabled", false))
+{
+    var fo = new Microsoft.AspNetCore.Builder.ForwardedHeadersOptions { ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto };
+    fo.KnownNetworks.Clear(); fo.KnownProxies.Clear(); // chỉ bật khi cổng phần mềm không mở trực tiếp ra ngoài
+    app.UseForwardedHeaders(fo);
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler(a => a.Run(async c =>
@@ -174,13 +209,21 @@ app.Use(async (c, next) =>
     await next();
 });
 
+if (tenancy.Enabled) app.UseMiddleware<TenantMiddleware>();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", async (AppDbContext db) =>
-    Results.Ok(new { status = "ok", db = await db.Database.CanConnectAsync() ? "ok" : "error", time = DateTime.UtcNow }));
+app.MapGet("/api/health", async (HttpContext c) =>
+{
+    // Trang quản lý thuê bao: kiểm tra CSDL nền tảng; trang của xã: kiểm tra CSDL của xã
+    var tc = c.RequestServices.GetRequiredService<TenantContext>();
+    bool ok;
+    if (tc.Portal) { await using var p = await c.RequestServices.GetRequiredService<IDbContextFactory<PlatformDbContext>>().CreateDbContextAsync(); ok = await p.Database.CanConnectAsync(); }
+    else ok = await c.RequestServices.GetRequiredService<AppDbContext>().Database.CanConnectAsync();
+    return Results.Ok(new { status = "ok", db = ok ? "ok" : "error", xa = tc.Code, version = TenantOps.AppVersion, time = DateTime.UtcNow });
+});
 app.MapControllers();
 app.MapFallback("/api/{**rest}", () => Results.NotFound(new { code = 404, message = "Không tìm thấy." }));
 

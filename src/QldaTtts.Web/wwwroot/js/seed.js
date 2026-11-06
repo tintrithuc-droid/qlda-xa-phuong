@@ -164,6 +164,15 @@ function makeSampleData(){
       D.volumes.push({id:'v'+(++vn), boqId:id, contractId:cid, date:m, period:'Đợt '+(j+1), doneQty:dq, acceptedQty:aq, note:''});
     });
   });
+  // Bản 1.7: gom khối lượng theo ngày nghiệm thu thành các đợt nghiệm thu đã duyệt
+  D.vbatches=[];
+  [...new Set(D.volumes.map(v=>v.contractId))].forEach(cid=>{
+    [...new Set(D.volumes.filter(v=>v.contractId===cid).map(v=>v.date))].sort().forEach((d,k)=>{
+      const b={id:'vb-'+cid+'-'+(k+1), contractId:cid, name:'Đợt '+(k+1), number:'BB '+String(k+1).padStart(2,'0')+'/NTKL', date:d, note:'', status:'Đã duyệt'};
+      D.vbatches.push(b);
+      D.volumes.filter(v=>v.contractId===cid && v.date===d).forEach(v=>{ v.batchId=b.id; v.period=b.name; v.note=b.number; });
+    });
+  });
   // Kế hoạch & hồ sơ thanh toán
   const pp=[['c1','Tạm ứng','2025-06-10',2.54],['c1','Đợt 1','2025-12-31',4],['c1','Đợt 2','2026-06-30',4.5],['c1','Đợt 3','2026-10-15',3.2],['c1','Quyết toán','2027-03-31',2.98],
     ['c2','Tạm ứng','2025-08-05',.69],['c2','Đợt 1','2026-03-31',1.2],['c2','Đợt 2','2026-09-30',1.3],['c2','Đợt 3','2027-03-31',1.43],
@@ -257,10 +266,10 @@ function defaultGroups(){
   const P = (edit, view)=>Object.fromEntries(ALL.map(k=>[k, edit.includes(k)?'edit':(view==='*'||view.includes(k))?'view':'none']));
   return [
     {id:'g-admin', name:'Quản trị hệ thống', admin:true, perms:P(ALL,'*'), scope:[], desc:'Toàn quyền, quản lý người dùng và cấu hình.'},
-    {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:{...P(['du-an'],'*'), 'goi-thau:duyet':'1', 'thanh-toan:duyet':'1', 'nghiem-thu:duyet':'1', 'tien-do:duyet':'1'}, scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án; duyệt phụ lục hợp đồng, kế hoạch tiến độ, hồ sơ thanh toán, nghiệm thu.'},
+    {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:{...P(['du-an'],'*'), 'goi-thau:duyet':'1', 'thanh-toan:duyet':'1', 'nghiem-thu:duyet':'1', 'tien-do:duyet':'1', 'khoi-luong:duyet':'1'}, scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án; duyệt phụ lục hợp đồng, kế hoạch tiến độ, đợt nghiệm thu khối lượng, hồ sơ thanh toán, nghiệm thu.'},
     {id:'g-tech', name:'Cán bộ kỹ thuật', admin:false, perms:P(['du-an','mo-hinh','goi-thau','tien-do','nhat-ky','khoi-luong','gpmb','nghiem-thu'],'*'), scope:[], desc:'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'},
     {id:'g-acc', name:'Kế toán', admin:false, perms:P(['thanh-toan','von','quyet-toan'],['tong-quan','du-an','goi-thau','khoi-luong','nghiem-thu','bao-cao']), scope:[], desc:'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'},
-    {id:'g-site', name:'Tư vấn giám sát / Nhà thầu', admin:false, perms:P(['nhat-ky','tien-do'],['tong-quan','du-an','mo-hinh','khoi-luong','nghiem-thu']), scope:['p1'], desc:'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'},
+    {id:'g-site', name:'Tư vấn giám sát / Nhà thầu', admin:false, perms:{...P(['nhat-ky','tien-do'],['tong-quan','du-an','mo-hinh','khoi-luong','nghiem-thu']), 'khoi-luong:kiemtra':'1'}, scope:['p1'], desc:'Cập nhật nhật ký, tiến độ hiện trường; xác nhận khối lượng các đợt nghiệm thu trong phạm vi dự án được giao.'},
     {id:'g-ubnd', name:'Lãnh đạo xã/phường', admin:false, perms:P([],['tong-quan','du-an','von','gpmb','tien-do','nghiem-thu','thanh-toan','quyet-toan','bao-cao']), scope:[], desc:'Bí thư, Phó Bí thư Đảng ủy; Chủ tịch, Phó Chủ tịch HĐND, UBND xã/phường (người quyết định đầu tư): theo dõi tiến độ, giải ngân, giải phóng mặt bằng, nghiệm thu, quyết toán, cảnh báo và báo cáo trên máy tính hoặc điện thoại. Chỉ xem.'}
   ];
 }

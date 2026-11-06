@@ -49,7 +49,31 @@ public class DataController : ApiControllerBase
             result["users"] = await Db.Users.AsNoTracking().Select(u => new { u.Id, u.Username, u.Name, u.Unit, u.GroupId, u.Active }).Cast<object>().ToListAsync();
             result["logs"] = new List<object>();
         }
+        // Bản 1.7: quản trị chính, các loại hồ sơ có bước kiểm tra
+        result["ownerId"] = Owner.Ensure(Db) ?? "";
+        result["wfCheck"] = Workflow.All.Where(w => Workflow.CheckEnabled(Db, w)).Select(w => w.Collection).ToList();
         return Ok(result);
+    }
+
+    public record CheckStepRequest(string Collection, bool Enabled);
+
+    /// <summary>Bật, tắt bước kiểm tra của một loại hồ sơ (quản trị hệ thống).</summary>
+    [HttpPost("wf-check")]
+    public async Task<IActionResult> SetCheckStep([FromBody] CheckStepRequest r)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được thay đổi quy trình duyệt.");
+        var w = Workflow.Find(r.Collection); if (w is null) return Error(400, "Loại hồ sơ không hợp lệ.");
+        // Tắt bước kiểm tra: hồ sơ đang chờ kiểm tra chuyển thẳng sang chờ duyệt
+        if (!r.Enabled && Collections.Find(w.Collection) is { } cd)
+            foreach (var e in (await cd.Query(Db).ToListAsync()).Where(e => Workflow.StatusOf(e) == WorkflowDef.Checking)) Workflow.SetStatus(e, w.Waiting);
+        var key = Workflow.CheckKey(w.Collection);
+        var s = await Db.Settings.FirstOrDefaultAsync(x => x.Key == key);
+        if (s is null) Db.Settings.Add(new AppSetting { Key = key, Value = r.Enabled ? "1" : "0", UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username });
+        else { s.Value = r.Enabled ? "1" : "0"; s.UpdatedAt = DateTime.UtcNow; s.UpdatedBy = Uc.User.Username; }
+        Uc.Log(r.Enabled ? "Bật bước kiểm tra" : "Tắt bước kiểm tra", "Quy trình duyệt", Collections.Find(w.Collection)?.Label ?? w.Collection);
+        await Db.SaveChangesAsync();
+        return Ok(new { ok = true });
     }
 
     [HttpPut("{collection}/{id}")]
@@ -84,7 +108,10 @@ public class DataController : ApiControllerBase
         {
             if (existing is null && string.IsNullOrEmpty(Workflow.StatusOf(obj))) Workflow.SetStatus(obj, wf.Draft);
             if (!Workflow.CanApprove(Uc, wf) && Workflow.CheckDirectWrite(wf, existing, obj) is { } msg) return Denied(msg);
+            if (Workflow.CheckStatusChange(wf, existing, obj) is { } msg2) return Denied(msg2);
         }
+        // Dòng khối lượng thuộc đợt nghiệm thu (bản 1.7): đợt đang chờ hoặc đã duyệt thì khóa với người không có quyền duyệt
+        if (obj is VolumeEntry ve && await VolumeLock(ve, existing as VolumeEntry) is { } vmsg) return Denied(vmsg);
 
         obj.UpdatedAt = DateTime.UtcNow; obj.UpdatedBy = Uc.User.Username;
         if (existing is null) Db.Add(obj); else Db.Entry(existing).CurrentValues.SetValues(obj);
@@ -107,8 +134,9 @@ public class DataController : ApiControllerBase
         if (Workflow.Find(collection) is { } wfd && !Workflow.CanApprove(Uc, wfd))
         {
             var st = Workflow.StatusOf(existing);
-            if (st == wfd.Waiting || wfd.IsLocked(st)) return Denied("Hồ sơ đang chờ duyệt hoặc đã duyệt nên không xóa được. Liên hệ người có quyền duyệt.");
+            if (wfd.IsPending(st) || wfd.IsLocked(st)) return Denied("Hồ sơ đang chờ duyệt hoặc đã duyệt nên không xóa được. Liên hệ người có quyền duyệt.");
         }
+        if (existing is VolumeEntry dv && await VolumeLock(dv, dv) is { } vmsg) return Denied(vmsg);
         foreach (var (dc, fk) in def.Dependents)
         {
             var n = await Collections.CountDependents(Db, dc, fk, id);
@@ -121,6 +149,21 @@ public class DataController : ApiControllerBase
         Uc.Log("Xóa", def.Label, Collections.LabelOf(existing));
         await Db.SaveChangesAsync();
         return Ok(new { deleted = true });
+    }
+
+    private async Task<string?> VolumeLock(VolumeEntry v, VolumeEntry? old)
+    {
+        var wf = Workflow.Find("vbatches")!;
+        if (Workflow.CanApprove(Uc, wf)) return null;
+        foreach (var bid in new[] { v.BatchId, old?.BatchId }.Where(x => !string.IsNullOrEmpty(x)).Distinct())
+        {
+            var b = await Db.VolumeBatches.AsNoTracking().FirstOrDefaultAsync(x => x.Id == bid);
+            if (b is null) continue;
+            if (wf.IsPending(b.Status) || wf.IsLocked(b.Status))
+                return $"Đợt nghiệm thu \"{b.Name}\" đang chờ kiểm tra, chờ duyệt hoặc đã duyệt nên không sửa được khối lượng. Người có quyền duyệt trả lại hoặc thu hồi thì mới sửa được.";
+        }
+        if (old is not null && string.IsNullOrEmpty(old.BatchId)) return null; // dữ liệu trước bản 1.7
+        return null;
     }
 
     public record LogRequest(string Action, string? Module, string? Target);

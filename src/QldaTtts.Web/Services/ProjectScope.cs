@@ -31,6 +31,7 @@ public static class ProjectScope
         ["diaries"] = new[] { "nhat-ky" },
         ["boq"] = new[] { "khoi-luong" },
         ["volumes"] = new[] { "khoi-luong" },
+        ["vbatches"] = new[] { "khoi-luong" },
         ["payplans"] = new[] { "thanh-toan" },
         ["payments"] = new[] { "thanh-toan" },
         ["guides"] = new[] { "quan-tri" },

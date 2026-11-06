@@ -79,7 +79,8 @@ async function login(p, u, pw = PW) {
 
   // Tiến độ, khối lượng, thanh toán
   await go(p, 'tien-do'); await p.click('[data-act=upd-sched]'); await p.fill('#f_progress', '90'); await p.click('#mform [type=submit]'); await p.waitForTimeout(500);
-  await go(p, 'khoi-luong'); await p.click('[data-act=add-vol]'); await p.selectOption('#f_boqId', { index: 0 }); await p.fill('#f_doneQty', '10'); await p.fill('#f_acceptedQty', '5'); await p.click('#mform [type=submit]'); await p.waitForTimeout(500);
+  await go(p, 'khoi-luong'); await p.click('[data-act=vb-new]'); await p.fill('.vb-grid tbody tr:first-child [data-k=d]', '10'); await p.fill('.vb-grid tbody tr:first-child [data-k=a]', '5'); await p.click('#mform [type=submit]'); await p.waitForFunction(() => Store.data.vbatches.some(b => b.status === 'Soạn thảo'), null, { timeout: 10000 }).catch(() => {});
+  { const nb = await p.evaluate(() => Store.data.vbatches.filter(b => b.status === 'Soạn thảo').length); if (nb !== 1) errs.push('Không lập được đợt nghiệm thu: ' + nb + ' ' + (await p.evaluate(() => document.querySelector('#mform_err')?.textContent || ''))); await p.evaluate(() => document.querySelector('#mform') && closeModal()); }
   for (const t of ['nt', 'th']) { await p.click(`[data-g=kl][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'thanh-toan'); for (const t of ['kh', 'hs', 'th']) { await p.click(`[data-g=tt][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'bao-cao'); for (const v of ['tiendo', 'hopdong', 'khoiluong', 'thoigian']) { await p.selectOption('[data-f=bct]', v); await p.waitForTimeout(250); }
@@ -229,9 +230,9 @@ async function login(p, u, pw = PW) {
   // A10, A11: bảng khối lượng gốc + biên bản nghiệm thu theo đợt
   await p.evaluate(() => { S.tab.kl = 'hd'; }); await go(p, 'khoi-luong'); const kcid = await p.evaluate(() => pickContract('klc'));
   await p.click('[data-act=att-boq]'); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
-  await p.click('[data-act=add-vol]'); await p.waitForTimeout(200); await p.selectOption('#f_boqId', { index: 0 }); await p.fill('#f_period', 'Đợt thử'); await p.fill('#f_doneQty', '1'); await putFiles('att', [pdf]); await submit();
+  await p.click('[data-act=vb-new]'); await p.waitForTimeout(200); await p.fill('#f_name', 'Đợt thử'); await p.fill('.vb-grid tbody tr:first-child [data-k=d]', '1'); await putFiles('att', [pdf]); await submit();
   if (await attOf('contracts', kcid, 'Bảng khối lượng hợp đồng') !== 1) errs.push('A10: bảng khối lượng gốc chưa gắn');
-  if ((await p.evaluate(c => Store.data.attachments.filter(a => a.recordId === c && a.kind === 'Biên bản nghiệm thu' && a.ref === 'Đợt thử').length, kcid)) !== 1) errs.push('A11: biên bản nghiệm thu đợt chưa gắn');
+  if ((await p.evaluate(c => { const b = Store.data.vbatches.find(x => x.contractId === c && x.name === 'Đợt thử'); return b ? Store.data.attachments.filter(a => a.collection === 'vbatches' && a.recordId === b.id && a.kind === 'Biên bản nghiệm thu').length : 0; }, kcid)) !== 1) errs.push('A11: biên bản nghiệm thu đợt chưa gắn');
   // A12, A13: kế hoạch thanh toán, hồ sơ thanh toán nhiều tệp, chứng từ Kho bạc khi xác nhận đã chi
   await go(p, 'thanh-toan'); await p.click('[data-g=tt][data-id=kh]'); await p.waitForTimeout(200);
   const pp = await p.evaluate(() => Store.data.payplans[0].id);
@@ -239,6 +240,8 @@ async function login(p, u, pw = PW) {
   await p.click('[data-g=tt][data-id=hs]'); await p.waitForTimeout(200);
   await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); await p.selectOption('#f_contractId', await p.evaluate(() => Store.data.contracts.find(c => contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
   const pay = await p.evaluate(() => Store.data.payments.find(x => x.number === 'TT-TEST'));
+  // Bản 1.7: trạng thái chỉ đổi qua trình duyệt; trình, duyệt xong (Đang trình KBNN) mới xác nhận đã chi
+  await p.evaluate(async id => { for (const a of ['submit', 'approve']) { const r = await api('POST', '/api/approvals', { collection: 'payments', id, action: a, note: '' }); Store.setLocal('payments', r.record); } }, pay.id);
   await p.evaluate(id => ACT['pay-done'](id), pay.id); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   if (await attOf('payplans', pp) !== 1 || await attOf('payments', pay.id, 'Hồ sơ đề nghị thanh toán') !== 2 || await attOf('payments', pay.id, 'Chứng từ Kho bạc') !== 1) errs.push('A12/A13: tệp thanh toán chưa đủ');
   if ((await p.evaluate(id => Store.data.payments.find(x => x.id === id).status, pay.id)) !== 'Đã thanh toán') errs.push('A13: chưa chuyển Đã thanh toán');

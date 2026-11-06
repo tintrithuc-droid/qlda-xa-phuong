@@ -226,6 +226,22 @@ public class VolumeEntry : EntityBase, IHasContract
     public double? DoneQty { get; set; }
     public double? AcceptedQty { get; set; }
     public string? Note { get; set; }
+    /// <summary>Đợt nghiệm thu chứa dòng này (bản 1.7). Dòng không có đợt là dữ liệu trước bản 1.7, coi như đã nghiệm thu.</summary>
+    [MaxLength(64)] public string? BatchId { get; set; }
+}
+
+/// <summary>Đợt nghiệm thu khối lượng (bản 1.7): một biên bản nghiệm thu gồm nhiều công việc của hợp đồng,
+/// trình duyệt một lần cho cả đợt (tư vấn giám sát xác nhận, lãnh đạo Ban duyệt).</summary>
+[Table("VolumeBatches")]
+public class VolumeBatch : EntityBase, IHasContract
+{
+    [MaxLength(64)] public string? ContractId { get; set; }
+    [MaxLength(100)] public string Name { get; set; } = "";
+    [MaxLength(200)] public string? Number { get; set; }
+    public DateOnly? Date { get; set; }
+    public string? Note { get; set; }
+    /// <summary>Soạn thảo / Chờ kiểm tra / Chờ duyệt / Đã duyệt / Từ chối.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("PaymentPlans")]

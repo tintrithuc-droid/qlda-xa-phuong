@@ -142,14 +142,15 @@ ACT['edit-clearances']=(id)=>openForm({title:'Cập nhật giải phóng mặt b
 
 /* ===== TRÌNH DUYỆT HỒ SƠ (bản 1.2) ===== */
 const WF_ACT = {submit:['Trình duyệt','Trình hồ sơ cho người có quyền duyệt.',false], withdraw:['Rút lại','Rút hồ sơ về soạn thảo để sửa tiếp.',false],
-  approve:['Duyệt','Duyệt hồ sơ.',false], return:['Trả lại','Trả hồ sơ về người lập để sửa, ghi rõ nội dung cần sửa.',true],
+  approve:['Duyệt','Duyệt hồ sơ.',false], check:['Kiểm tra, xác nhận','Xác nhận hồ sơ đúng, đủ để chuyển lãnh đạo duyệt.',false], return:['Trả lại','Trả hồ sơ về người lập để sửa, ghi rõ nội dung cần sửa.',true],
   reject:['Từ chối','Từ chối hồ sơ (không thực hiện), ghi rõ lý do.',true], recall:['Thu hồi','Thu hồi hồ sơ đã duyệt về soạn thảo để điều chỉnh, ghi rõ lý do.',true]};
 ACT.wf=(key)=>{
   const [col,id,a]=key.split('|'); const r=get(col,id); if(!r) return;
   if(a==='history') return wfHistory(col,r);
-  const [lb,desc,need]=WF_ACT[a]; const w=WF[col];
+  let [lb,desc,need]=WF_ACT[a]; const w=WF[col]; if(a==='check' && w.checkBtn) lb=w.checkBtn;
+  if(a==='check' && col==='vbatches') desc='Tư vấn giám sát xác nhận khối lượng thực hiện và nghiệm thu của đợt đúng với hiện trường, rồi chuyển lãnh đạo Ban duyệt.';
   openForm({title:lb+': '+w.label(r), narrow:true, submit:lb, value:{},
-    fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0 0 6px">${esc(desc)}</p><p class="small muted" style="margin:0">${esc(w.info(r))}</p>${a==='approve'&&col==='addenda'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, giá trị và thời hạn của phụ lục được cộng vào hợp đồng.</p>':''}${a==='approve'&&col==='schedule'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, kế hoạch được tính vào tiến độ gói thầu, dự án, đường cong S và cảnh báo; cán bộ được cập nhật tiến độ thực tế.</p>':''}${a==='approve'&&col==='payments'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, hồ sơ chuyển sang trạng thái Đang trình KBNN; kế toán xác nhận khi Kho bạc chi.</p>':''}`},
+    fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0 0 6px">${esc(desc)}</p><p class="small muted" style="margin:0">${esc(w.info(r))}</p>${a==='approve'&&col==='addenda'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, giá trị và thời hạn của phụ lục được cộng vào hợp đồng.</p>':''}${a==='approve'&&col==='schedule'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, kế hoạch được tính vào tiến độ gói thầu, dự án, đường cong S và cảnh báo; cán bộ được cập nhật tiến độ thực tế.</p>':''}${a==='approve'&&col==='vbatches'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, khối lượng nghiệm thu của đợt được tính vào số liệu, báo cáo và là căn cứ lập hồ sơ thanh toán khối lượng hoàn thành.</p>':''}${a==='approve'&&col==='payments'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, hồ sơ chuyển sang trạng thái Đang trình KBNN; kế toán xác nhận khi Kho bạc chi.</p>':''}`},
       {key:'note',label:need?'Ý kiến (bắt buộc)':'Ý kiến (nếu có)',type:'textarea',rows:3,req:need,full:true}],
     onSave:async v=>{ const res=await api('POST','/api/approvals',{collection:col, id, action:a, note:v.note||''}); Store.setLocal(col,res.record); Store.setLocal('approvals',res.log); return res.record; }});
 };
@@ -169,10 +170,17 @@ VIEWS['trinh-duyet']=()=>{
   const cols=[{h:'Loại hồ sơ',f:x=>`<span class="small">${esc(WF[x.col].name)}</span>`},{h:'Hồ sơ',f:x=>`<b style="font-weight:600">${esc(WF[x.col].label(x.r))}</b><div class="small muted">${esc(WF[x.col].info(x.r))}</div>${lastNote(x)}`},
     {h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},{h:'Trạng thái',f:x=>wfPill(x.col,x.r)},{h:'Cập nhật',f:x=>`<span class="num small">${fmtDT(x.r.updatedAt)}</span><div class="small muted">${esc(x.r.updatedBy||'')}</div>`}];
   const list=t==='cho'?mine:t==='dang'?waiting:drafts;
-  const tabs=[['cho','Chờ tôi duyệt',mine.length],['dang','Đang chờ duyệt',waiting.length],['soan','Đang soạn thảo, bị trả lại',drafts.length],['ls','Lịch sử duyệt',hist.length]];
-  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, kế hoạch tiến độ, hồ sơ thanh toán và biên bản nghiệm thu do cán bộ lập rồi trình; Lãnh đạo Ban duyệt hoặc trả lại. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
+  const tabs=[['cho','Chờ tôi xử lý',mine.length],['dang','Đang chờ duyệt',waiting.length],['soan','Đang soạn thảo, bị trả lại',drafts.length],['ls','Lịch sử duyệt',hist.length]];
+  const adm=myGroup()?.admin;
+  const ckCard=adm? `<div class="card"><h2>Bước kiểm tra trước khi duyệt</h2><p class="small muted" style="margin:0 0 8px">Bật cho loại hồ sơ nào thì hồ sơ đó sau khi trình phải được người có quyền "Kiểm tra hồ sơ" xác nhận rồi mới tới lãnh đạo duyệt. Giao quyền kiểm tra ở Quản trị hệ thống, Nhóm người dùng.</p>
+    <div class="list">${Object.keys(WF).map(col=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-act="wf-check" data-id="${col}" ${wfHasCheck(col)?'checked':''}> ${esc(WF[col].name)}${col==='vbatches'?' <span class="small muted">(tư vấn giám sát xác nhận khối lượng)</span>':''}</label>`).join('')}</div></div>` : '';
+  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, kế hoạch tiến độ, đợt nghiệm thu khối lượng, hồ sơ thanh toán và biên bản nghiệm thu do cán bộ lập rồi trình; nếu có bước kiểm tra thì bộ phận chuyên môn hoặc tư vấn giám sát xác nhận trước; Lãnh đạo Ban duyệt hoặc trả lại. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
   <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="td2" data-id="${k}">${l}${n?` <span class="cnt" style="position:static;margin-left:4px">${n}</span>`:''}</button>`).join('')}</div>
   <div class="card">${t==='ls'
     ? table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Hồ sơ',f:x=>`<span class="small muted">${esc((WF[x.collection]||{}).name||'')}</span><div>${esc(x.target||'')}</div>`},{h:'Thao tác',f:x=>pill(x.action, x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'?'warn':'info')},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Ý kiến',f:x=>esc(x.note||'')}], hist, {empty:'Chưa có lịch sử trình duyệt.'})
-    : table(cols, list, {actions:x=>wfBtns(x.col,x.r), empty:t==='cho'?(Object.keys(WF).some(c=>can(WF[c].mod,'approve'))?'Không có hồ sơ nào chờ bạn duyệt.':'Tài khoản của bạn không có quyền duyệt. Hồ sơ bạn trình sẽ hiện ở thẻ Đang chờ duyệt.'):'Không có hồ sơ.'})}</div>`;
+    : table(cols, list, {actions:x=>wfBtns(x.col,x.r), empty:t==='cho'?(Object.keys(WF).some(c=>can(WF[c].mod,'approve')||can(WF[c].mod,'check'))?'Không có hồ sơ nào chờ bạn kiểm tra hoặc duyệt.':'Tài khoản của bạn không có quyền duyệt. Hồ sơ bạn trình sẽ hiện ở thẻ Đang chờ duyệt.'):'Không có hồ sơ.'})}</div>${ckCard}`;
 };
+
+ACT['wf-check']=async(col,el)=>{ const on=el.checked;
+  try{ await api('POST','/api/data/wf-check',{collection:col, enabled:on}); const a=Store.meta.wfCheck.filter(x=>x!==col); if(on) a.push(col); Store.meta.wfCheck=a; toast((on?'Đã bật':'Đã tắt')+' bước kiểm tra: '+WF[col].name); Store.soon(); render(); }
+  catch(ex){ el.checked=!on; toast(errText(ex),'err'); } };

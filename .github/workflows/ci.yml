@@ -49,6 +49,7 @@ jobs:
           npx playwright install --with-deps chromium
           node tests/e2e/smoke.js http://127.0.0.1:5080
           node tests/e2e/v15.js http://127.0.0.1:5080
+          node tests/e2e/v17.js http://127.0.0.1:5080
       - if: failure()
         run: cat server.log
       - if: always()

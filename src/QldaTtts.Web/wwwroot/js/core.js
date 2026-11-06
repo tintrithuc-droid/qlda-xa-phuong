@@ -71,7 +71,7 @@ const MODULES = [
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
 const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet'];
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.7';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -81,8 +81,8 @@ let BR = {...BR_DEF};
 function setBrand(b){ BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; }
 const brandMark = () => BR.logo ? `<img src="${esc(BR.logo)}" alt="Logo ${esc(BR.orgShort)}">` : drumSVG();
 const brandFoot = () => esc(BR.footer.replace(/\{năm\}/g, new Date().getFullYear()));
-const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','payplans','payments','capitals','acceptances','settlements','clearances','users','groups','catalogs','logs','attachments','guides','approvals'];
-const COL_LABEL = {approvals:'Lịch sử trình duyệt',guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',capitals:'Kế hoạch vốn',acceptances:'Nghiệm thu, bàn giao',settlements:'Quyết toán dự án',clearances:'Giải phóng mặt bằng',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
+const COLS = ['projects','tasks','legal','items','models','packages','contracts','addenda','schedule','diaries','boq','volumes','vbatches','payplans','payments','capitals','acceptances','settlements','clearances','users','groups','catalogs','logs','attachments','guides','approvals'];
+const COL_LABEL = {approvals:'Lịch sử trình duyệt',guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',vbatches:'Đợt nghiệm thu khối lượng',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',capitals:'Kế hoạch vốn',acceptances:'Nghiệm thu, bàn giao',settlements:'Quyết toán dự án',clearances:'Giải phóng mặt bằng',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
 
 /* --- tiện ích --- */
 const $ = (s,el=document)=>el.querySelector(s);
@@ -126,6 +126,7 @@ async function api(method, url, body, opts={}){
   return data;
 }
 const Store = {
+  meta:{ownerId:'', wfCheck:[]},
   mode:'loading', initialized:false, sampleUsers:false, setupToken:false, error:'',
   data:Object.fromEntries(COLS.map(c=>[c,[]])),
   _timer:0,
@@ -144,6 +145,7 @@ const Store = {
   async load(){
     const d=await api('GET','/api/data');
     COLS.forEach(c=>{ this.data[c]=Array.isArray(d[c])?d[c]:[]; });
+    this.meta={ownerId:d.ownerId||'', wfCheck:Array.isArray(d.wfCheck)?d.wfCheck:[]};
     const me=S.user && this.data.users.find(u=>u.id===S.user.id); if(me) S.user={...S.user,...me};
     if(S.user) UI.load(S.user);
     onData();
@@ -189,6 +191,7 @@ function can(mod, lvl='view'){
   if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan'||mod==='trinh-duyet') return !!S.user;
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(lvl==='approve') return (g.perms||{})[mod+':duyet']==='1';
+  if(lvl==='check') return (g.perms||{})[mod+':kiemtra']==='1';
   const p=(g.perms||{})[mod]||'none';
   return lvl==='view' ? p!=='none' : p==='edit';
 }
@@ -210,8 +213,19 @@ function contractValue(c){ return N(c.value) + sum(D('addenda').filter(a=>a.cont
 function contractEnd(c){ const d=sum(D('addenda').filter(a=>a.contractId===c.id && addApproved(a)),'daysChange'); return c.end? addDays(c.end,d) : ''; }
 /** Phụ lục đang soạn thảo, chờ duyệt của hợp đồng: chưa tính vào hợp đồng, chỉ để nhắc. */
 function contractPending(c){ const xs=D('addenda').filter(a=>a.contractId===c.id && addPending(a)); return {n:xs.length, value:sum(xs,'valueChange'), days:sum(xs,'daysChange')}; }
-function boqDone(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && (!upto||v.date<=upto)),'doneQty'); }
-function boqAcc(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && (!upto||v.date<=upto)),'acceptedQty'); }
+/* Bản 1.7: đợt nghiệm thu khối lượng. Dòng không thuộc đợt nào là dữ liệu trước bản 1.7, coi như đã nghiệm thu.
+   Khối lượng thực hiện tính mọi đợt (trừ đợt bị từ chối); khối lượng nghiệm thu chỉ tính đợt đã duyệt. */
+const VB_DISP = {'Soạn thảo':'Dự thảo','Chờ kiểm tra':'Chờ TVGS xác nhận','Chờ duyệt':'Chờ duyệt nghiệm thu','Đã duyệt':'Đã nghiệm thu','Từ chối':'Không nghiệm thu'};
+const batchOf = v => v.batchId ? get('vbatches', v.batchId) : null;
+function volAccOk(v){ const b=batchOf(v); return !b || !b.status || b.status==='Đã duyệt'; }
+function volLive(v){ const b=batchOf(v); return !b || b.status!=='Từ chối'; }
+function volAccPend(v){ const b=batchOf(v); return !!b && (b.status==='Chờ kiểm tra' || b.status==='Chờ duyệt'); }
+function boqDone(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && volLive(v) && (!upto||v.date<=upto)),'doneQty'); }
+function boqAcc(b, upto){ return sum(D('volumes').filter(v=>v.boqId===b.id && volAccOk(v) && (!upto||v.date<=upto)),'acceptedQty'); }
+/** Lũy kế khối lượng nghiệm thu đã ghi (mọi đợt chưa bị từ chối), dùng để kiểm tra theo lũy kế (mục 29). */
+function boqAccAll(b){ return sum(D('volumes').filter(v=>v.boqId===b.id && volLive(v)),'acceptedQty'); }
+/** Giá trị nghiệm thu đang chờ xác nhận, chờ duyệt của hợp đồng. */
+function contractAccPend(cid){ return sum(D('volumes').filter(v=>v.contractId===cid && volAccPend(v)), v=>N(v.acceptedQty)*N((get('boq',v.boqId)||{}).price)); }
 function contractDone(cid, upto){ return sum(D('boq').filter(b=>b.contractId===cid), b=>boqDone(b,upto)*N(b.price)); }
 function contractAcc(cid, upto){ return sum(D('boq').filter(b=>b.contractId===cid), b=>boqAcc(b,upto)*N(b.price)); }
 function contractPaid(cid, upto){ return sum(D('payments').filter(p=>p.contractId===cid && p.status==='Đã thanh toán' && (!upto||p.date<=upto)),'amount'); }
@@ -421,8 +435,8 @@ function openModal(html, narrow){
   return ov;
 }
 function closeModal(){ const ov=$('#ov'); ov.hidden=true; ov.innerHTML=''; if(S.dirty){ S.dirty=false; render(); } }
-function openForm({title, fields, value={}, onSave, narrow, submit='Lưu'}){
-  const ov=openModal(`<form class="mform ${narrow?'narrow':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key], value)).join('')}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn primary" type="submit">${esc(submit)}</button></footer></form>`);
+function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu'}){
+  const ov=openModal(`<form class="mform ${narrow?'narrow':''} ${wide?'wide':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key], value)).join('')}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn primary" type="submit">${esc(submit)}</button></footer></form>`);
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
   fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
@@ -489,7 +503,7 @@ function attMeta(a){ return `${fmtSize(a.size)} · ${esc(a.uploadedBy||'')} · $
 function attLinks(list, opt={}){
   if(!list.length) return opt.empty ?? '<span class="muted small">Chưa đính kèm</span>';
   const max=opt.max||99; const shown=list.slice(0,max);
-  return `<span class="attl">${shown.map(a=>`<a href="${attUrl(a)}" target="_blank" rel="noopener" ${/^image\//.test(a.contentType)?`data-act="att-view" data-id="${esc(a.id)}"`:''} title="${esc(a.fileName)} · ${attMeta(a)}">${attIcon(a)} ${esc(a.fileName)}</a>`).join('')}${list.length>max?`<button class="btn sm ghost" data-act="att-all" data-id="${esc(list.map(a=>a.id).join(','))}">+${list.length-max} tệp</button>`:''}</span>`;
+  return `<span class="attl">${shown.map(a=>`<a href="${attUrl(a)}" target="_blank" rel="noopener" ${/^image\//.test(a.contentType)?`data-act="att-view" data-id="${esc(a.id)}"`:isPdf(a)?pdfAttr(attUrl(a),a.fileName):''} title="${esc(a.fileName)} · ${attMeta(a)}">${attIcon(a)} ${esc(a.fileName)}</a>`).join('')}${list.length>max?`<button class="btn sm ghost" data-act="att-all" data-id="${esc(list.map(a=>a.id).join(','))}">+${list.length-max} tệp</button>`:''}</span>`;
 }
 /* Ô "Tệp" trong bảng: 1 tệp hiện tên, nhiều tệp hiện số lượng (bấm xem danh sách) */
 function attCell(list, btnOnly){ if(!list.length) return '<span class="muted small">—</span>'; if(list.length===1 && !btnOnly) return attLinks(list); return `<button class="btn sm ghost" data-act="att-all" data-id="${esc(list.map(a=>a.id).join(','))}">${AICO.clip} ${list.length} tệp</button>`; }
@@ -497,7 +511,7 @@ function attachHTML(f, rec){
   const rid=f.cur!==undefined? f.cur : rec.id;
   const ref=f.ref!=null? f.ref : (f.refFrom? (rec[f.refFrom]||'') : null);
   const cur=rid? atts(f.col, rid, f.kind, ref) : [];
-  return `<div class="attbox" id="f_${f.key}"><ul class="attlist">${cur.map(a=>`<li data-aid="${esc(a.id)}"><a href="${attUrl(a)}" target="_blank" rel="noopener">${attIcon(a)} ${esc(a.fileName)}</a><span class="small muted">${attMeta(a)}</span><button type="button" class="btn sm ghost" data-attdel title="Gỡ tệp này">Gỡ</button></li>`).join('')}</ul>
+  return `<div class="attbox" id="f_${f.key}"><ul class="attlist">${cur.map(a=>`<li data-aid="${esc(a.id)}"><a href="${attUrl(a)}" target="_blank" rel="noopener" ${isPdf(a)?pdfAttr(attUrl(a),a.fileName):''}>${attIcon(a)} ${esc(a.fileName)}</a><span class="small muted">${attMeta(a)}</span><button type="button" class="btn sm ghost" data-attdel title="Gỡ tệp này">Gỡ</button></li>`).join('')}</ul>
     <label class="attdrop"><input type="file" multiple accept="${esc(f.accept||ATT_ACCEPT)}"><span>${f.photo?AICO.cam+' Chụp ảnh / chọn ảnh':AICO.clip+' Chọn tệp'} hoặc kéo thả vào đây</span></label><ul class="attlist attnew"></ul>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}</div>`;
 }
 function attachWire(box){
@@ -552,13 +566,76 @@ async function saveFile(filename, data){
   try{ const blob=data instanceof Blob?data:new Blob([data]); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast('Đã tạo tệp '+filename); }
   catch(e){ toast('Trình duyệt không cho phép tải tệp.','err'); }
 }
-function exportXlsx(filename, sheets){
-  if(!window.XLSX){ toast('Thư viện Excel chưa tải xong, thử lại sau.','err'); return; }
-  const wb=XLSX.utils.book_new();
-  sheets.forEach(s=>{ const ws=XLSX.utils.aoa_to_sheet([[s.title],[s.sub||''],[],s.head,...s.rows]); ws['!cols']=s.head.map((h,i)=>({wch:Math.max(10,Math.min(60, Math.max(String(h).length, ...s.rows.map(r=>String(r[i]??'').length))+2))})); XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0,31)); });
-  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+/* Bản 1.7: tệp Excel có định dạng (ExcelJS, giấy phép MIT, đóng gói kèm phần mềm, chỉ tải khi cần).
+   sheets: [{name, title, sub, head, rows, money:[chỉ số cột tiền], total:true nếu dòng cuối là dòng tổng}] */
+const LIBS={};
+function loadLib(src, test){
+  if(test()) return Promise.resolve();
+  return LIBS[src] || (LIBS[src]=new Promise((ok,no)=>{ const el=document.createElement('script'); el.src=src; el.onload=()=>test()?ok():no(new Error('lib')); el.onerror=()=>{ delete LIBS[src]; no(new Error('Không tải được thư viện '+src)); }; document.head.appendChild(el); }));
+}
+const loadExcel = () => loadLib('/lib/exceljs.min.js', ()=>!!window.ExcelJS);
+const XL = {font:'Times New Roman', head:'FF1F4E79', headInk:'FFFFFFFF', band:'FFF3F6FA', line:'FFB7C3D0', money:'#,##0', num:'#,##0.##'};
+function xlBorder(c, strong){ const t={style:'thin', color:{argb:XL.line}}; c.border={top:t,left:t,bottom:strong?{style:'double',color:{argb:'FF333333'}}:t,right:t}; }
+/** Một trang tính chuẩn văn phòng: tên đơn vị, tên báo cáo gộp ô, dòng tiêu đề tô màu, kẻ khung, số có phân cách hàng nghìn, dòng tổng in đậm. */
+function xlSheet(wb, s){
+  const ws=wb.addWorksheet(String(s.name||'Trang 1').slice(0,31), {views:[{state:'frozen', ySplit:5}], pageSetup:{paperSize:9, orientation:s.head.length>7?'landscape':'portrait', fitToPage:true, fitToWidth:1, fitToHeight:0}});
+  const n=s.head.length, money=s.money||[];
+  ws.mergeCells(1,1,1,n); const o=ws.getCell(1,1); o.value=(BR.reportOrg||BR.orgShort||'').toUpperCase(); o.font={name:XL.font, size:11, bold:true};
+  ws.mergeCells(2,1,2,n); const t=ws.getCell(2,1); t.value=s.title; t.font={name:XL.font, size:14, bold:true}; t.alignment={horizontal:'center'};
+  ws.mergeCells(3,1,3,n); const u=ws.getCell(3,1); u.value=s.sub||''; u.font={name:XL.font, size:11, italic:true}; u.alignment={horizontal:'center'};
+  const hr=ws.getRow(5); s.head.forEach((h,i)=>{ const c=hr.getCell(i+1); c.value=h; c.font={name:XL.font, bold:true, color:{argb:XL.headInk}}; c.fill={type:'pattern', pattern:'solid', fgColor:{argb:XL.head}}; c.alignment={horizontal:'center', vertical:'middle', wrapText:true}; xlBorder(c); });
+  hr.height=32;
+  s.rows.forEach((r,ri)=>{ const row=ws.getRow(6+ri); const last=s.total && ri===s.rows.length-1;
+    r.forEach((v,i)=>{ const c=row.getCell(i+1); c.value=(v===''||v==null)?null:v; c.font={name:XL.font, bold:last}; c.alignment={vertical:'top', wrapText:typeof v==='string' && v.length>30};
+      if(typeof v==='number') c.numFmt=money.includes(i)?XL.money:XL.num;
+      if(!last && ri%2===1) c.fill={type:'pattern', pattern:'solid', fgColor:{argb:XL.band}};
+      xlBorder(c, last); }); });
+  s.head.forEach((h,i)=>{ const w=Math.max(String(h).length*0.9, ...s.rows.slice(0,300).map(r=>{ const v=r[i]; return typeof v==='number'? (money.includes(i)?fmtVND(v).length+2:String(v).length+1) : String(v??'').length; })); ws.getColumn(i+1).width=Math.max(9, Math.min(48, w+2)); });
+  if(s.foot){ const fr=ws.getRow(7+s.rows.length); ws.mergeCells(fr.number,1,fr.number,n); fr.getCell(1).value=s.foot; fr.getCell(1).font={name:XL.font, italic:true, size:10}; }
+  return ws;
+}
+async function exportXlsx(filename, sheets){
+  try{ await loadExcel(); }catch(e){ toast('Không tải được thư viện Excel, thử lại sau.','err'); return; }
+  const wb=new ExcelJS.Workbook(); wb.creator=BR.appName||'QLDA'; wb.created=new Date();
+  sheets.forEach(s=>xlSheet(wb, s));
+  const out=await wb.xlsx.writeBuffer();
   saveFile(filename, new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
 }
+/** Xuất JSON (báo cáo kinh tế kỹ thuật, trang 78): mỗi dòng là một đối tượng theo tên cột. */
+function exportJson(filename, s){
+  const rows=s.rows.map(r=>Object.fromEntries(s.head.map((h,i)=>[h, r[i]===undefined?null:r[i]])));
+  saveFile(filename, new Blob([JSON.stringify({tieuDe:s.title, ghiChu:s.sub||'', ngayXuat:TODAY, soDong:rows.length, duLieu:rows}, null, 2)],{type:'application/json'}));
+}
+
+/* Bản 1.7: xem trước tệp PDF ngay trên phần mềm (Mozilla PDF.js, giấy phép Apache 2.0, đóng gói kèm phần mềm nên chạy được trong mạng nội bộ) */
+const isPdf = a => /pdf/i.test(a.contentType||'') || /\.pdf$/i.test(a.fileName||a.name||'');
+const pdfAttr = (url, name) => `data-act="att-pdf" data-id="${esc(url+'|'+(name||''))}"`;
+async function pdfView(key){
+  const i=key.indexOf('|'), url=key.slice(0,i), name=key.slice(i+1)||'Tệp PDF';
+  const ov=openModal(`<div class="mform pdfv"><header><h3 title="${esc(name)}">${esc(name)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header>
+    <div class="pdfbar"><button type="button" class="btn sm ghost" data-pdf="prev" aria-label="Trang trước">‹</button><span class="small num" id="pdf_pg">…</span><button type="button" class="btn sm ghost" data-pdf="next" aria-label="Trang sau">›</button>
+      <span style="flex:1"></span><button type="button" class="btn sm ghost" data-pdf="out" aria-label="Thu nhỏ">−</button><span class="small num" id="pdf_z">100%</span><button type="button" class="btn sm ghost" data-pdf="in" aria-label="Phóng to">+</button><button type="button" class="btn sm ghost" data-pdf="fit">Vừa khung</button>
+      <a class="btn sm" href="${esc(url)}?download=true">Tải về</a><button type="button" class="btn sm" data-pdf="print">In</button></div>
+    <div class="pdfpages" id="pdf_box"><p class="muted" style="padding:20px">Đang mở tệp…</p></div></div>`);
+  let doc, zoom=0, page=1; const box=$('#pdf_box',ov);
+  try{ await loadLib('/lib/pdfjs/pdf.min.js', ()=>!!window.pdfjsLib); pdfjsLib.GlobalWorkerOptions.workerSrc='/lib/pdfjs/pdf.worker.min.js';
+    doc=await pdfjsLib.getDocument({url, withCredentials:true}).promise; }
+  catch(e){ box.innerHTML=`<div class="alert bad" style="margin:16px">Không xem trước được tệp này. Bấm <b>Tải về</b> để mở bằng phần mềm trên máy.</div>`; return; }
+  const draw=async()=>{ const first=await doc.getPage(1); const w0=first.getViewport({scale:1}).width; const fit=Math.max(.3,(box.clientWidth-24)/w0); const sc=zoom||fit;
+    $('#pdf_z',ov).textContent=Math.round(sc*100)+'%'; box.innerHTML='';
+    for(let n=1;n<=doc.numPages;n++){ const pg=await doc.getPage(n); const vp=pg.getViewport({scale:sc*(window.devicePixelRatio||1)});
+      const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height; c.style.width=(vp.width/(window.devicePixelRatio||1))+'px'; c.dataset.pg=n; box.appendChild(c);
+      await pg.render({canvasContext:c.getContext('2d'), viewport:vp}).promise; if(!ov.contains(box)) return; }
+    upd(); };
+  const upd=()=>{ $('#pdf_pg',ov).textContent=`Trang ${page} / ${doc.numPages}`; };
+  box.addEventListener('scroll',()=>{ const cs=[...box.querySelectorAll('canvas')]; const top=box.scrollTop+40; const hit=cs.filter(c=>c.offsetTop<=top).pop(); if(hit){ page=+hit.dataset.pg; upd(); } });
+  const go=n=>{ page=Math.max(1,Math.min(doc.numPages,n)); const c=box.querySelector(`canvas[data-pg="${page}"]`); if(c) box.scrollTop=c.offsetTop-8; upd(); };
+  ov.querySelector('.pdfbar').addEventListener('click',e=>{ const b=e.target.closest('[data-pdf]'); if(!b) return; const a=b.dataset.pdf; const cur=zoom||parseInt($('#pdf_z',ov).textContent)/100;
+    if(a==='prev') go(page-1); else if(a==='next') go(page+1);
+    else if(a==='in'){ zoom=Math.min(4,cur*1.25); draw(); } else if(a==='out'){ zoom=Math.max(.3,cur/1.25); draw(); } else if(a==='fit'){ zoom=0; draw(); }
+    else if(a==='print'){ const w=window.open(url,'_blank'); if(w) w.addEventListener('load',()=>{ try{ w.print(); }catch{} }); } });
+  draw();
+};
 
 /* --- Biểu đồ SVG --- */
 function niceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p; }
@@ -749,27 +826,38 @@ const WF = {
   schedule:{mod:'tien-do', name:'Kế hoạch tiến độ', draft:'Soạn thảo', wait:'Chờ duyệt', ok:'Đã duyệt', no:'Từ chối', locked:['Đã duyệt','Từ chối'],
     label:r=>`Kế hoạch ${r.name||''} (${(pkgOf(r.packageId)||{}).code||''})`, pid:r=>r.projectId,
     info:r=>`${fmtDate(r.planStart)} – ${fmtDate(r.planEnd)}, trọng số ${N(r.weight)||1}`},
+  vbatches:{mod:'khoi-luong', name:'Đợt nghiệm thu khối lượng', draft:'Soạn thảo', wait:'Chờ duyệt', ok:'Đã duyệt', no:'Từ chối', locked:['Đã duyệt','Từ chối'], disp:VB_DISP,
+    checkLabel:'Chờ TVGS xác nhận', checkBtn:'Xác nhận khối lượng',
+    label:r=>{ const c=get('contracts',r.contractId)||{}; return `Nghiệm thu ${r.name||''} HĐ ${c.number||''}`; }, pid:r=>contractPid(get('contracts',r.contractId)||{}),
+    info:r=>{ const vs=D('volumes').filter(v=>v.batchId===r.id); return `${r.number?'Biên bản '+r.number+', ':''}${fmtDate(r.date)}, ${vs.length} công việc, giá trị nghiệm thu ${fmtVND(sum(vs,v=>N(v.acceptedQty)*N((get('boq',v.boqId)||{}).price)))} đ`; }},
   acceptances:{mod:'nghiem-thu', name:'Nghiệm thu, bàn giao', draft:'Soạn thảo', wait:'Chờ duyệt', ok:'Đã duyệt', no:'Từ chối', locked:['Đã duyệt','Từ chối'],
     label:r=>`${r.kind||'Biên bản'} ${r.number||''}`, pid:r=>r.projectId, info:r=>`${fmtDate(r.date)} · ${r.content||''}${r.result?' · '+r.result:''}`}
 };
 /** Trạng thái quy trình của hồ sơ (dữ liệu trước bản 1.2 không có trạng thái: coi là đã duyệt). */
 function wfStatus(col, r){ return r.status || WF[col].ok; }
 const wfLocked = (col, r) => WF[col].locked.includes(wfStatus(col,r));
-const wfWaiting = (col, r) => wfStatus(col,r)===WF[col].wait;
+/** Bước kiểm tra (bản 1.7): hồ sơ trình lên qua "Chờ kiểm tra" rồi mới tới "Chờ duyệt" nếu quản trị bật cho loại hồ sơ này. */
+const WF_CHECK = 'Chờ kiểm tra';
+const wfHasCheck = col => (Store.meta.wfCheck||[]).includes(col);
+const wfWaiting = (col, r) => { const s=wfStatus(col,r); return s===WF[col].wait || s===WF_CHECK; };
+const wfDisp = (col, s) => s===WF_CHECK ? (WF[col].checkLabel||'Chờ kiểm tra') : (WF[col].disp&&WF[col].disp[s]) || s;
 /** Người dùng sửa được hồ sơ không (người duyệt luôn sửa được; người khác chỉ sửa khi đang soạn thảo). */
 const wfEditable = (col, r) => can(WF[col].mod,'approve') || (can(WF[col].mod,'edit') && !wfLocked(col,r) && !wfWaiting(col,r));
 /** Hồ sơ bị người duyệt trả lại và chưa trình lại (lần thao tác gần nhất là Trả lại): trả về dòng lịch sử đó. */
 function wfReturned(col, r){ if(!WF[col] || wfStatus(col,r)!==WF[col].draft) return null;
   const h=D('approvals').filter(a=>a.collection===col && a.recordId===r.id).sort(by('at',-1))[0]; return h && h.action==='Trả lại' ? h : null; }
 /** Hồ sơ thanh toán đang đề nghị (mới lập, chờ duyệt, đang trình Kho bạc); hồ sơ bị trả lại không tính. */
-function payInProc(p){ return ['Đề nghị','Chờ duyệt','Đang trình KBNN'].includes(p.status) && !wfReturned('payments',p); }
+function payInProc(p){ return ['Đề nghị',WF_CHECK,'Chờ duyệt','Đang trình KBNN'].includes(p.status) && !wfReturned('payments',p); }
+/** Thanh toán khối lượng hoàn thành (không gồm tạm ứng, thu hồi tạm ứng). */
+const payIsVol = p => /khối lượng/i.test(p.kind||'') && !/tạm ứng/i.test(p.kind||'');
 function wfPill(col, r){ const w=WF[col], s=wfStatus(col,r), rt=wfReturned(col,r);
   if(rt) return `<span class="pill bad" title="${esc('Trả lại: '+(rt.note||''))}">Bị trả lại</span>${rt.note?`<div class="small muted">${esc(rt.note)}</div>`:''}`;
-  return pill(s, s===w.draft?'':s===w.wait?'warn':s===w.no?'bad':s==='Đã thanh toán'||s===w.ok?'ok':'info'); }
+  return pill(wfDisp(col,s), s===w.draft?'':s===w.wait||s===WF_CHECK?'warn':s===w.no?'bad':s==='Đã thanh toán'||s===w.ok?'ok':'info'); }
 /** Các nút quy trình của một hồ sơ, theo trạng thái và quyền của người dùng. */
 function wfBtns(col, r){ const w=WF[col], s=wfStatus(col,r), ap=can(w.mod,'approve'), ed=can(w.mod,'edit')||ap; const b=(a,l,cls='')=>`<button class="btn sm ${cls||'ghost'}" data-act="wf" data-id="${esc(col+'|'+r.id+'|'+a)}">${l}</button>`;
   let h='';
   if(s===w.draft && ed) h+=b('submit','Trình duyệt');
+  if(s===WF_CHECK){ if(can(w.mod,'check')) h+=b('check',w.checkBtn||'Kiểm tra, xác nhận','primary')+b('return','Trả lại'); else if(ap) h+=b('return','Trả lại'); else if(ed) h+=b('withdraw','Rút lại'); }
   if(s===w.wait && ap) h+=b('approve','Duyệt','primary')+b('return','Trả lại')+b('reject','Từ chối','ghost danger');
   else if(s===w.wait && ed) h+=b('withdraw','Rút lại');
   if(ap && w.locked.includes(s) && s!=='Đã thanh toán') h+=b('recall','Thu hồi');
@@ -778,7 +866,8 @@ function wfBtns(col, r){ const w=WF[col], s=wfStatus(col,r), ap=can(w.mod,'appro
 /** Nút Sửa/Xóa có xét khóa của quy trình. */
 const wfEditBtns = (col, r, extra='') => wfEditable(col,r) ? editBtns(WF[col].mod, col, r.id, extra) : extra;
 /** Hồ sơ đang chờ người dùng này duyệt. */
-function wfMine(){ return Object.keys(WF).flatMap(col=>can(WF[col].mod,'approve')? D(col).filter(r=>wfWaiting(col,r) && pidOk(WF[col].pid(r))).map(r=>({col,r})) : []); }
+function wfMine(){ return Object.keys(WF).flatMap(col=>{ const ap=can(WF[col].mod,'approve'), ck=can(WF[col].mod,'check');
+  return D(col).filter(r=>{ const s=wfStatus(col,r); return pidOk(WF[col].pid(r)) && ((ap && s===WF[col].wait) || (ck && s===WF_CHECK)); }).map(r=>({col,r})); }); }
 
 /* ===== Bản 1.3: tự căn độ rộng cột của mọi bảng =====
    Cột chữ ngắn (mã, trạng thái, ngày, số) không xuống dòng; cột chữ dài (tên dự án, nội dung…) được độ rộng tối thiểu dễ đọc,

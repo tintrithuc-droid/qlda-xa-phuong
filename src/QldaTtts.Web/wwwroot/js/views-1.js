@@ -1,6 +1,6 @@
 /* ===== Trạng thái giao diện & khung ứng dụng ===== */
 const S = {user:null, route:'tong-quan', pid:'', dirty:false, sel:{}, tab:{}, f:{}, after:[], cam:null};
-const ACT = {};
+const ACT = {'att-pdf':(k)=>pdfView(k)};
 const VIEWS = {};
 let _raf=0;
 function onData(){
@@ -106,7 +106,7 @@ ACT.photo=(id,el)=>{ openModal(`<div class="lightbox" style="display:grid;gap:8p
 ACT['att-view']=(id,el,e)=>{ const a=get('attachments',id); if(!a) return; e&&e.preventDefault&&e.preventDefault();
   openModal(`<div class="lightbox" style="display:grid;gap:8px;justify-items:center"><img src="${attUrl(a)}" alt="${esc(a.fileName)}"><div class="small" style="color:#fff">${esc(a.fileName)} · ${attMeta(a)}</div><div class="toolbar"><a class="btn" href="${attUrl(a)}?download=true">Tải về</a><button class="btn" data-close>Đóng</button></div></div>`); };
 ACT['att-all']=(ids)=>{ const list=String(ids).split(',').map(id=>get('attachments',id)).filter(Boolean);
-  openModal(`<div class="mform narrow"><header><h3>Tệp đính kèm (${list.length})</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;overflow:auto"><ul class="attlist">${list.map(a=>`<li><a href="${attUrl(a)}" target="_blank" rel="noopener">${attIcon(a)} ${esc(a.fileName)}</a>${a.kind?` <span class="pill">${esc(a.kind)}</span>`:''}<span class="small muted">${attMeta(a)}</span></li>`).join('')}</ul></div></div>`); };
+  openModal(`<div class="mform narrow"><header><h3>Tệp đính kèm (${list.length})</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;overflow:auto"><ul class="attlist">${list.map(a=>`<li><a href="${attUrl(a)}" target="_blank" rel="noopener" ${isPdf(a)?pdfAttr(attUrl(a),a.fileName):''}>${attIcon(a)} ${esc(a.fileName)}</a>${a.kind?` <span class="pill">${esc(a.kind)}</span>`:''}<span class="small muted">${attMeta(a)}</span></li>`).join('')}</ul></div></div>`); };
 
 const DEPS = {projects:[['packages','projectId'],['tasks','projectId'],['legal','projectId'],['items','projectId'],['schedule','projectId'],['diaries','projectId'],['models','projectId'],['capitals','projectId'],['acceptances','projectId'],['settlements','projectId'],['clearances','projectId']],
   packages:[['contracts','packageId'],['schedule','packageId'],['diaries','packageId'],['legal','packageId'],['acceptances','packageId']], contracts:[['boq','contractId'],['payments','contractId'],['payplans','contractId'],['addenda','contractId']],

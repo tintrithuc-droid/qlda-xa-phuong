@@ -40,14 +40,14 @@ function totp(secret) {
   exp('Tạo hợp đồng', (await put(kt, 'contracts', { id: 'c15', packageId: 'k15', projectId: 'p15', number: 'HD-V15', contractor: 'Nhà thầu thử', value: 100 * T, start: '2026-01-01', end: '2027-06-30', signDate: '2026-01-01' })).status(), 200);
 
   /* ---- Mục 16: hồ sơ thanh toán bị trả lại ---- */
-  const pay = { id: 'tt15a', contractId: 'c15', number: 'TT-15A', date: '2026-11-01', kind: 'Thanh toán khối lượng', amount: 80 * T, content: 'Đợt 1' };
+  const pay = { id: 'tt15a', contractId: 'c15', number: 'TT-15A', date: '2026-11-01', kind: 'Tạm ứng', amount: 80 * T, content: 'Đợt 1' }; // bản 1.7: thanh toán khối lượng còn bị giới hạn theo giá trị nghiệm thu (kiểm thử ở v17.js)
   exp('Kế toán lập hồ sơ', (await put(ke, 'payments', pay)).status(), 200);
   exp('Trình hồ sơ', (await act(ke, 'payments', 'tt15a', 'submit')).status(), 200);
   exp('Lãnh đạo trả lại', (await act(ld, 'payments', 'tt15a', 'return', 'Thiếu biên bản nghiệm thu')).status(), 200);
   let p = await page(ke, 'thanh-toan');
-  const r16 = await p.evaluate(() => { const a = get('payments', 'tt15a');
+  const r16 = await p.evaluate(async () => { const a = get('payments', 'tt15a');
     return { ret: !!wfReturned('payments', a), inproc: payInProc(a), pill: wfPill('payments', a).includes('Bị trả lại'),
-      okNew: (() => { document.body.insertAdjacentHTML('beforeend', '<span id="mform_err"></span>'); const r = payCheck({ contractId: 'c15', amount: 80e9 }); document.getElementById('mform_err').remove(); return r; })() }; });
+      okNew: await (async () => { document.body.insertAdjacentHTML('beforeend', '<span id="mform_err"></span>'); const r = await payCheck({ contractId: 'c15', amount: 80e9, kind: 'Tạm ứng' }); document.getElementById('mform_err').remove(); return r; })() }; });
   exp('Nhận ra hồ sơ bị trả lại', r16.ret, true); exp('Không tính vào Đang đề nghị', r16.inproc, false); exp('Nhãn Bị trả lại', r16.pill, true);
   exp('Lập hồ sơ thay thế không bị chặn hạn mức', r16.okNew, true);
   const pay2 = { ...pay, id: 'tt15b', number: 'TT-15B' };

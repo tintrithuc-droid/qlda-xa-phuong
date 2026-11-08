@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cài máy chủ cho thuê nhiều xã/phường trên Ubuntu 22.04/24.04 (quyền root), trong thư mục gói cài:
+# Cài máy chủ cho thuê nhiều xã/phường trên Ubuntu 22.04/24.04 hoặc CentOS Stream/Rocky/AlmaLinux 8-10 (quyền root), trong thư mục gói cài:
 #   sudo bash cai-dat.sh <tên miền gốc> <email nhận thông báo chứng chỉ> [tên đăng nhập quản trị nền tảng]
 #   ví dụ: sudo bash cai-dat.sh trithucsoft.vn kythuat@trithucsoft.vn tri
 # Trước đó: trỏ bản ghi DNS *.trithucsoft.vn (và quantri.trithucsoft.vn) về IP máy chủ; mở cổng 80, 443.
@@ -7,11 +7,26 @@
 set -euo pipefail
 BASE="${1:?Thiếu tên miền gốc, ví dụ trithucsoft.vn}"; EMAIL="${2:?Thiếu email nhận thông báo chứng chỉ}"; QT="${3:-}"
 DIR="${QLDA_DIR:-/opt/qlda-thue-bao}"; HERE="$(cd "$(dirname "$0")" && pwd)"
+if command -v apt-get >/dev/null; then PKG=apt; elif command -v dnf >/dev/null; then PKG=dnf; else PKG=yum; fi
+cai_goi() { if [[ $PKG == apt ]]; then apt-get install -y -qq "$@"; else $PKG install -y -q "$@"; fi; }
 if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
-  echo "== Cài Docker"; apt-get update -qq && apt-get install -y -qq docker.io docker-compose-v2; systemctl enable --now docker
+  echo "== Cài Docker"
+  if [[ $PKG == apt ]]; then apt-get update -qq && apt-get install -y -qq docker.io docker-compose-v2
+  else
+    # CentOS Stream / Rocky / AlmaLinux / RHEL: kho docker-ce chính thức
+    curl -fsSL https://download.docker.com/linux/centos/docker-ce.repo -o /etc/yum.repos.d/docker-ce.repo
+    $PKG install -y -q --allowerasing docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  fi
+  systemctl enable --now docker
 fi
-apt-get install -y -qq rsync curl >/dev/null 2>&1 || true
-command -v restic >/dev/null || apt-get install -y -qq restic >/dev/null 2>&1 || true
+[[ $PKG == apt ]] || $PKG install -y -q epel-release >/dev/null 2>&1 || true
+cai_goi rsync curl cronie >/dev/null 2>&1 || cai_goi rsync curl >/dev/null 2>&1 || true
+command -v restic >/dev/null || cai_goi restic >/dev/null 2>&1 || true
+systemctl enable --now crond >/dev/null 2>&1 || true
+# Tường lửa họ Red Hat (firewalld): mở cổng web
+if systemctl is-active -q firewalld 2>/dev/null; then
+  echo "== Mở cổng 80, 443 trên firewalld"; firewall-cmd -q --permanent --add-service=http --add-service=https; firewall-cmd -q --reload
+fi
 if [[ -f "$HERE/qlda-xa-phuong-image.tar.gz" ]]; then echo "== Nạp ảnh phần mềm"; docker load -i "$HERE/qlda-xa-phuong-image.tar.gz"
 elif ! docker image inspect qlda-xa-phuong:latest >/dev/null 2>&1; then echo "Không thấy qlda-xa-phuong-image.tar.gz trong gói cài"; exit 1; fi
 mkdir -p "$DIR"/{du-lieu,postgres,caddy}

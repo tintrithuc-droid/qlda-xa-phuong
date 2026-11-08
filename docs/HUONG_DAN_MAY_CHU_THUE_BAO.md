@@ -14,6 +14,8 @@ Gói cài cho xã tự đặt máy chủ (Linux, Windows) không thay đổi; g�
 
 Số liệu là ước tính; xem dung lượng thực tế của từng xã trên trang quản lý thuê bao rồi điều chỉnh.
 
+**Hệ điều hành.** Ubuntu 22.04/24.04 hoặc CentOS Stream/Rocky/AlmaLinux 9-10 (bộ cài tự cài Docker, mở cổng firewalld, giữ SELinux bật).
+
 **Tên miền.** Chọn tên miền gốc, ví dụ `trithucsoft.vn`. Tại nơi quản lý DNS của `trithucsoft.vn`, tạo hai bản ghi trỏ về IP máy chủ:
 
 | Bản ghi | Loại | Giá trị |

@@ -40,7 +40,9 @@ Ba tham số: tên miền gốc, email nhận thông báo chứng chỉ, tên đ
 
 Mở `https://quantri.trithucsoft.vn`, đăng nhập bằng mật khẩu tạm, quét mã QR bằng Google Authenticator hoặc Microsoft Authenticator, nhập mã 6 số. Sau đó bấm **Đổi mật khẩu** ngay.
 
-Thêm quản trị nền tảng khác, hoặc đặt lại khi quên mật khẩu/mất điện thoại:
+Thêm quản trị viên khác, sửa họ tên, khóa/mở lại, đặt lại mật khẩu và xác thực 2 lớp cho người quên mật khẩu hoặc mất điện thoại: làm trên thẻ **Quản trị viên** của trang quản lý thuê bao. Mỗi thao tác cần nhập mã 6 số của người đang làm. Mật khẩu tạm chỉ hiện một lần trên màn hình. Phần mềm không cho tự khóa mình và luôn giữ ít nhất một quản trị viên đang hoạt động.
+
+Khi không còn ai đăng nhập được (quản trị viên duy nhất mất điện thoại), đặt lại bằng lệnh trên máy chủ:
 
 ```bash
 cd /opt/qlda-thue-bao && sudo docker compose -p qlda-thue-bao exec app dotnet QldaTtts.Web.dll --tao-quan-tri-nen-tang <tên đăng nhập> "Họ tên"
@@ -135,4 +137,4 @@ Mỗi lỗi chỉ nhắc lại tối đa một lần mỗi giờ. Nhật ký ki�
 | Trình duyệt báo lỗi chứng chỉ ở tên miền mới | Kiểm tra bản ghi DNS và cổng 80/443; xem `docker compose -p qlda-thue-bao logs caddy`. |
 | Xã báo "Đang nâng cấp phần mềm" lâu | Trang quản lý thuê bao → Chi tiết xã → xem lỗi nâng cấp → Chạy lại nâng cấp. |
 | Quản trị xã quên mật khẩu | Quản trị khác của xã đặt lại. Xã chỉ có một quản trị: khi có văn bản đề nghị, chạy `docker compose -p qlda-thue-bao exec app dotnet QldaTtts.Web.dll --dat-lai-mat-khau <tên đăng nhập> --xa <mã xã>`, gửi mật khẩu tạm cho xã và đề nghị đổi ngay. |
-| Quản trị nền tảng mất điện thoại | Chạy lại lệnh `--tao-quan-tri-nen-tang <tên đăng nhập>` trên máy chủ để đặt lại. |
+| Quản trị nền tảng mất điện thoại | Quản trị viên khác vào thẻ Quản trị viên → Đặt lại mật khẩu. Không còn ai: chạy lại lệnh `--tao-quan-tri-nen-tang <tên đăng nhập>` trên máy chủ. |

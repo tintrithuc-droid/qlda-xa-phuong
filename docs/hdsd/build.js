@@ -147,6 +147,7 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   });
 
   // ===== Bìa =====
+  const cust = k !== 'ns';
   const drum = fs.readFileSync(path.join(DIR, 'drum.png'));
   const cv = (text, o = {}) => P([new TextRun({ text, bold: o.bold, size: o.size || 26, color: o.color, italics: o.italics })], { alignment: AlignmentType.CENTER, spacing: { before: o.before || 0, after: o.after || 0 } });
   const cover = [
@@ -159,9 +160,10 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
     cv('PHẦN MỀM QUẢN LÝ DỰ ÁN ĐẦU TƯ XÂY DỰNG', { bold: true, size: 28 }),
     cv(role.coverSub || 'BẢN DÙNG CHUNG CHO CÁC XÃ, PHƯỜNG', { size: 26, after: 600 }),
     P([new TextRun({ text: role.cover ? '' : 'Dành cho: ', size: 28 }), new TextRun({ text: role.cover || role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-    cv('Phiên bản ' + verNo(role), { italics: true, size: 26, after: 2000 }),
+    // Tài liệu cho khách hàng không ghi phiên bản, ngày ban hành
+    ...(cust ? [P([], { spacing: { after: 2400 } })] : [cv('Phiên bản ' + verNo(role), { italics: true, size: 26, after: 2000 })]),
     cv('Đơn vị thực hiện: Công ty Cổ phần Tin học Tri Thức', { size: 24 }),
-    cv('Cần Thơ, ' + MONTH, { bold: true, size: 26, before: 200 }),
+    ...(cust ? [] : [cv('Cần Thơ, ' + MONTH, { bold: true, size: 26, before: 200 })]),
   ];
 
   // ===== Thông tin tài liệu =====
@@ -173,12 +175,12 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   const info = [
     title('THÔNG TIN TÀI LIỆU'),
     kv([['Tên tài liệu', role.audience ? `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – ${role.name.toLowerCase()}` : `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – dành cho ${role.name}`],
-      ['Mã tài liệu', `HDSD-QLDA-XP-${k.toUpperCase()}`], ['Phiên bản', verNo(role)], ['Ngày ban hành', DATE_VN],
+      ['Mã tài liệu', `HDSD-QLDA-XP-${k.toUpperCase()}`], ...(cust ? [] : [['Phiên bản', verNo(role)], ['Ngày ban hành', DATE_VN]]),
       ['Đối tượng sử dụng', role.audience || `Cán bộ thuộc nhóm người dùng «${role.name}»`],
       ['Cơ quan sử dụng', role.org || 'Ban Quản lý dự án đầu tư xây dựng xã/phường'],
       ['Đơn vị soạn thảo', 'Công ty Cổ phần Tin học Tri Thức']]),
-    sub('Lịch sử thay đổi'),
-    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], hist(role).map(([v, d, t]) => [v, d, t, TT])),
+    ...(cust ? [] : [sub('Lịch sử thay đổi'),
+      hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], hist(role).map(([v, d, t]) => [v, d, t, TT]))]),
     sub('Thuật ngữ và từ viết tắt'),
     hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án đầu tư xây dựng xã/phường'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
       ['GPMB', 'Giải phóng mặt bằng'], ['KBNN', 'Kho bạc Nhà nước'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian'], ...(role.terms || [])]),

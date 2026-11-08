@@ -147,7 +147,7 @@ function build() {
     ['Không chụp được ảnh', 'Vào Cài đặt điện thoại → Ứng dụng → QLDA Xã Phường → Quyền, cho phép Máy ảnh (iPhone: Cài đặt → Safari → Máy ảnh).'],
     ['Lưu nhật ký báo lỗi', 'Thường do mất sóng. Kiểm tra kết nối rồi chạm Lưu lại; nhật ký chỉ được ghi nhận khi phần mềm báo lưu thành công.'],
     ['Không tìm thấy tệp đã tải', 'Android: thư mục Tải xuống/QLDA Xa Phuong. iPhone: ứng dụng Tệp, mục Tải về.'],
-    ['Không cài được bản mới', 'Chỉ cài tệp do quản trị hệ thống cung cấp. Nếu máy báo xung đột gói, gỡ ứng dụng cũ rồi cài lại và nhập lại địa chỉ máy chủ.'],
+    ['Không cài được ứng dụng', 'Chỉ cài tệp do quản trị hệ thống cung cấp. Nếu máy báo xung đột gói, gỡ ứng dụng cũ rồi cài lại và nhập lại địa chỉ máy chủ.'],
     ['Chụp nhầm ảnh hoặc tệp', 'Ảnh nhật ký: chạm Thêm ảnh, đánh dấu Bỏ ảnh này rồi Lưu. Tệp đính kèm: mở lại hộp nhập, chạm Gỡ rồi Lưu; tệp gỡ nhầm được quản trị hệ thống khôi phục trong 30 ngày.'],
     ['Không thấy một chức năng', 'Tài khoản chưa được phân quyền chức năng đó; đề nghị quản trị hệ thống xem lại.'],
     ['Tài khoản bị tạm khóa', 'Do nhập sai mật khẩu 5 lần; chờ 15 phút hoặc đề nghị quản trị hệ thống đặt lại mật khẩu.'],

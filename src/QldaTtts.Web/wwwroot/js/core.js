@@ -126,14 +126,14 @@ async function api(method, url, body, opts={}){
   return data;
 }
 const Store = {
-  mode:'loading', initialized:false, sampleUsers:false, error:'',
+  mode:'loading', initialized:false, sampleUsers:false, setupToken:false, error:'',
   data:Object.fromEntries(COLS.map(c=>[c,[]])),
   _timer:0,
   async init(){
     try{
       const [s,b]=await Promise.all([api('GET','/api/auth/state'), api('GET','/api/branding',undefined,{auth:true}).catch(()=>null)]);
       setBrand(b);
-      this.initialized=s.initialized; this.sampleUsers=s.sampleUsers; S.user=s.user||null; S.mfa=s.mfa||null;
+      this.initialized=s.initialized; this.sampleUsers=s.sampleUsers; this.setupToken=!!s.setupToken; S.user=s.user||null; S.mfa=s.mfa||null;
       if(S.user) await this.load();
       this.mode='server'; this.error='';
     }catch(e){ this.mode='offline'; this.error=e.message; setTimeout(()=>this.init(),10000); }

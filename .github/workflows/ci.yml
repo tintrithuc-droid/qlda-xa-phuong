@@ -84,6 +84,31 @@ jobs:
       - if: failure()
         run: sudo docker compose -f /opt/qlda/xa-ci/docker-compose.yml logs
 
+  test-thue-bao:
+    name: Máy chủ cho thuê nhiều xã (cai-dat.sh, cách ly dữ liệu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Dựng ảnh Docker
+        run: docker build -t qlda-xa-phuong:latest .
+      - name: Cài máy chủ cho thuê (cai-dat.sh)
+        run: sudo bash deploy/thue-bao/cai-dat.sh qlda.test ci@example.com tri | tee cai-dat.log
+      - name: Mở cổng phần mềm cho kiểm thử (máy thật chỉ đi qua cổng HTTPS)
+        run: docker run -d --network qlda-thue-bao_default -p 8090:8090 alpine/socat tcp-listen:8090,fork,reuseaddr tcp:app:8080
+      - name: Kiểm thử cách ly dữ liệu, mã khởi tạo, tạm khóa, hết hạn
+        run: |
+          sleep 3
+          PORTAL_PW=$(grep "Mật khẩu tạm" cai-dat.log | awk '{print $NF}') node tests/e2e/thue-bao.js http://127.0.0.1:8090
+      - name: Sao lưu, kiểm tra tình trạng
+        run: |
+          sudo bash /opt/qlda-thue-bao/sao-luu.sh
+          sudo bash /opt/qlda-thue-bao/danh-sach-xa.sh
+      - if: failure()
+        run: cd /opt/qlda-thue-bao && sudo docker compose -p qlda-thue-bao logs
+
   package:
     name: Gói cài đặt Windows/IIS
     needs: test

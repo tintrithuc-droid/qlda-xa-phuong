@@ -25,3 +25,11 @@ https:// {
 http:// {
 	redir https://{host}{uri} permanent
 }
+
+# Trang web khác dùng chung cổng 80/443 của máy này (ví dụ một trang đang chạy trên máy IIS trong mạng):
+# mỗi tệp them/<tên>.caddy là một khối, ví dụ
+#   ttts.example.vn {
+#   	reverse_proxy http://192.168.0.23:80
+#   }
+# Tên miền ghi rõ ở đây được cấp chứng chỉ bình thường, ưu tiên hơn khối https:// chung ở trên.
+import /etc/caddy/them/*.caddy

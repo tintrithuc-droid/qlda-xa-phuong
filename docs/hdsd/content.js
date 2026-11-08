@@ -10,7 +10,7 @@ const ROLES = {
   kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', v: 5, hist: [H10, H11, H12, H17] },
   ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', v: 5, hist: [H10, H11, H12, H17] },
   gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', v: 5, hist: [H10, H11, H12, H17] },
-  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2'], H17] },
+  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', v: 5, hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2'], H17] },
   dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban, Lãnh đạo xã/phường', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
     hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2'], ['08/11/2026', 'Ban hành bộ hướng dẫn hợp nhất: biểu đồ tiến độ và dòng tổng cộng trên điện thoại, tư vấn giám sát xác nhận khối lượng nghiệm thu, xem trước tệp PDF, tùy chỉnh giao diện', '1.7']], v: 6 },
 };
@@ -68,6 +68,7 @@ function common(k) {
     'Kết nối: mạng nội bộ của Ban hoặc kết nối Internet/VPN theo hướng dẫn của quản trị hệ thống. Địa chỉ truy cập do quản trị hệ thống cung cấp.',
   ] });
 
+  if (k === 'qt') out.push(...S.setup());
   out.push({ h1: 'BẮT ĐẦU SỬ DỤNG' });
   out.push({ h2: 'Đăng nhập hệ thống' });
   out.push({ steps: [
@@ -574,7 +575,7 @@ S.payments = () => [
 ];
 
 // ===== Quản trị =====
-S.admin = () => [
+S.setup = () => [
   { h1: 'KHỞI TẠO HỆ THỐNG' },
   { p: 'Khi đơn vị được cấp phần mềm, cán bộ được giao làm quản trị nhận từ đơn vị cung cấp dịch vụ hai thông tin: **địa chỉ truy cập** của đơn vị (ví dụ https://tan-hoa.qlda.trithucsoft.vn) và **mã khởi tạo** dùng một lần. Lần đầu mở địa chỉ này, phần mềm hiển thị màn hình **Khởi tạo hệ thống** để tạo tài khoản quản trị đầu tiên.' },
   { steps: [
@@ -632,6 +633,9 @@ S.admin = () => [
   ] },
   img('qt-2lop-dat-lai', 'Hộp xác nhận đặt lại xác thực 2 lớp', 9),
 
+];
+
+S.admin = () => [
   { h1: 'QUẢN LÝ NGƯỜI DÙNG' },
   { p: 'Chọn **Quản trị hệ thống**. Các thẻ (1) gồm: Người dùng, Nhóm và phân quyền, Danh mục dùng chung, Nhật ký hoạt động, Thông tin đơn vị – giao diện, Kho tệp – thùng rác, Sao lưu – hệ thống.' },
   img('qt-nguoi-dung', 'Danh sách người dùng', 16),
@@ -988,7 +992,7 @@ function build(k) {
     out.push(...S.admin());
     out.push({ h1: 'CÁC PHÂN HỆ NGHIỆP VỤ' }, { p: 'Tài khoản Quản trị hệ thống có toàn quyền trên mọi phân hệ nghiệp vụ. Cách sử dụng từng phân hệ được trình bày chi tiết trong tài liệu hướng dẫn của vai trò tương ứng:' },
       { table: { head: ['Phân hệ', 'Tài liệu hướng dẫn tham khảo'], widths: [4500, 4500], rows: [
-        ['Tổng quan, Quản lý dự án, Báo cáo', 'HDSD dành cho Lãnh đạo Ban'],
+        ['Tổng quan, Trình duyệt hồ sơ, Quản lý dự án, Báo cáo', 'HDSD dành cho Lãnh đạo Ban'],
         ['Giải phóng mặt bằng, Mô hình hóa công trình, Gói thầu và hợp đồng, Tiến độ, Nhật ký thi công, Khối lượng, Nghiệm thu – bàn giao – bảo hành', 'HDSD dành cho Cán bộ kỹ thuật'],
         ['Kế hoạch vốn – giải ngân, Quản lý thanh toán, Quyết toán dự án', 'HDSD dành cho Kế toán'],
         ['Sử dụng trên điện thoại', 'HDSD sử dụng trên điện thoại'],

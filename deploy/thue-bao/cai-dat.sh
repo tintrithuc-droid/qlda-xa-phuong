@@ -28,6 +28,8 @@ if systemctl is-active -q firewalld 2>/dev/null; then
   echo "== Mở cổng 80, 443 trên firewalld"; firewall-cmd -q --permanent --add-service=http --add-service=https; firewall-cmd -q --reload
 fi
 if [[ -f "$HERE/qlda-xa-phuong-image.tar.gz" ]]; then echo "== Nạp ảnh phần mềm"; docker load -i "$HERE/qlda-xa-phuong-image.tar.gz"
+elif [[ -f "$HERE/../../Dockerfile" && ( -n "${DUNG_LAI:-}" || ! $(docker images -q qlda-xa-phuong:latest) ) ]]; then
+  echo "== Dựng ảnh phần mềm từ mã nguồn (vài phút)"; docker build -q -t qlda-xa-phuong:latest "$HERE/../.."
 elif ! docker image inspect qlda-xa-phuong:latest >/dev/null 2>&1; then echo "Không thấy qlda-xa-phuong-image.tar.gz trong gói cài"; exit 1; fi
 mkdir -p "$DIR"/{du-lieu,postgres,caddy,them}
 for f in docker-compose.yml Caddyfile chung.sh sao-luu.sh khoi-phuc-xa.sh xuat-du-lieu-xa.sh xoa-xa.sh kiem-tra.sh danh-sach-xa.sh .env.mau; do cp "$HERE/$f" "$DIR/"; done

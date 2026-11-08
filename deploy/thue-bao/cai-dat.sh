@@ -29,7 +29,7 @@ if systemctl is-active -q firewalld 2>/dev/null; then
 fi
 if [[ -f "$HERE/qlda-xa-phuong-image.tar.gz" ]]; then echo "== Nạp ảnh phần mềm"; docker load -i "$HERE/qlda-xa-phuong-image.tar.gz"
 elif ! docker image inspect qlda-xa-phuong:latest >/dev/null 2>&1; then echo "Không thấy qlda-xa-phuong-image.tar.gz trong gói cài"; exit 1; fi
-mkdir -p "$DIR"/{du-lieu,postgres,caddy}
+mkdir -p "$DIR"/{du-lieu,postgres,caddy,them}
 for f in docker-compose.yml Caddyfile chung.sh sao-luu.sh khoi-phuc-xa.sh xuat-du-lieu-xa.sh xoa-xa.sh kiem-tra.sh danh-sach-xa.sh .env.mau; do cp "$HERE/$f" "$DIR/"; done
 chmod +x "$DIR"/*.sh
 if [[ -f "$DIR/.env" ]]; then sed -i "s#^BASE_DOMAIN=.*#BASE_DOMAIN=$BASE#; s#^ACME_EMAIL=.*#ACME_EMAIL=$EMAIL#" "$DIR/.env"

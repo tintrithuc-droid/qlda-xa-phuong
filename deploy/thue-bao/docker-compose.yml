@@ -48,4 +48,5 @@ services:
       ACME_EMAIL: ${ACME_EMAIL:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro,Z
+      - ./them:/etc/caddy/them:ro,Z
       - ./caddy:/data:Z

@@ -365,6 +365,126 @@ public class PortalController : ControllerBase
         });
     }
 
+    // ---------- Quản trị viên nền tảng ----------
+
+    /// <summary>Xác nhận lại bằng mã 2 lớp của người đang thao tác. Cho dùng lại mã vừa đăng nhập trong cùng 30 giây.</summary>
+    private string? Confirm(PlatformAdmin me, string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return "Nhập mã xác thực 6 số trên điện thoại của bạn để xác nhận.";
+        string? secret = null;
+        try { if (me.TotpSecret is not null) secret = _secret.Unprotect(me.TotpSecret); } catch (System.Security.Cryptography.CryptographicException) { }
+        if (secret is null) return "Không đọc được khóa xác thực 2 lớp của bạn.";
+        var step = TwoFactor.Verify(secret, code, Math.Max(0, me.TotpLastStep - 1));
+        if (step is null) return "Mã xác thực không đúng hoặc đã hết hạn.";
+        if (step.Value > me.TotpLastStep) me.TotpLastStep = step.Value;
+        return null;
+    }
+
+    private static object AdminView(PlatformAdmin a, string meId) => new
+    {
+        a.Username, a.Name, a.Active, a.CreatedAt, a.LastLogin,
+        twoFactor = a.TotpSecret is not null,
+        locked = a.LockoutUntil is { } u && u > DateTime.UtcNow,
+        self = a.Id == meId
+    };
+
+    [HttpGet("admins")]
+    public async Task<IActionResult> Admins()
+    {
+        var (db, me) = await Me(); await using var _ = db;
+        if (me is null) return Error(401, "Phiên đăng nhập đã hết hạn.");
+        var list = await db.Admins.AsNoTracking().OrderByDescending(a => a.Active).ThenBy(a => a.Username).ToListAsync();
+        return Ok(list.Select(a => AdminView(a, me.Id)));
+    }
+
+    public record AdminRequest(string? Username, string? Name, string? Code);
+    public record ConfirmRequest(string? Code);
+
+    /// <summary>Thêm quản trị viên nền tảng. Trả về mật khẩu tạm (chỉ hiện một lần); người mới đăng nhập, quét mã 2 lớp, đổi mật khẩu.</summary>
+    [HttpPost("admins")]
+    public async Task<IActionResult> AddAdmin([FromBody] AdminRequest r)
+    {
+        var (db, me) = await Me(); await using var _ = db;
+        if (me is null) return Error(401, "Phiên đăng nhập đã hết hạn.");
+        var un = (r.Username ?? "").Trim().ToLowerInvariant();
+        var name = (r.Name ?? "").Trim();
+        if (!Passwords.ValidUsername(un)) return Error(400, Passwords.UsernameMessage);
+        if (name.Length is 0 or > 200) return Error(400, "Vui lòng nhập họ tên (tối đa 200 ký tự).");
+        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        if (await db.Admins.AnyAsync(a => a.Username == un)) return Error(409, $"Tên đăng nhập '{un}' đã có.");
+        var pw = SetupGuard.NewToken();
+        var a = new PlatformAdmin { Id = "pa-" + Guid.NewGuid().ToString("N")[..12], Username = un, Name = name, CreatedAt = DateTime.UtcNow, Active = true };
+        a.PasswordHash = PlatformCli.Hasher.HashPassword(a, pw);
+        db.Admins.Add(a);
+        Log(db, me.Username, "Thêm quản trị viên nền tảng", $"{un} ({name})", Ip);
+        await db.SaveChangesAsync();
+        return Ok(new { admin = AdminView(a, me.Id), password = pw });
+    }
+
+    [HttpPut("admins/{username}")]
+    public async Task<IActionResult> EditAdmin(string username, [FromBody] AdminRequest r)
+    {
+        var (db, me) = await Me(); await using var _ = db;
+        if (me is null) return Error(401, "Phiên đăng nhập đã hết hạn.");
+        var a = await db.Admins.FirstOrDefaultAsync(x => x.Username == username);
+        if (a is null) return Error(404, "Không tìm thấy quản trị viên.");
+        var name = (r.Name ?? "").Trim();
+        if (name.Length is 0 or > 200) return Error(400, "Vui lòng nhập họ tên (tối đa 200 ký tự).");
+        a.Name = name;
+        Log(db, me.Username, "Sửa họ tên quản trị viên nền tảng", $"{a.Username} ({name})", Ip);
+        await db.SaveChangesAsync();
+        return Ok(AdminView(a, me.Id));
+    }
+
+    /// <summary>Ngừng hoạt động một quản trị viên (không đăng nhập được, phiên đang mở bị thoát). Không tự khóa mình, không khóa người cuối cùng.</summary>
+    [HttpPost("admins/{username}/lock")]
+    public async Task<IActionResult> LockAdmin(string username, [FromBody] ConfirmRequest r)
+    {
+        var (db, me) = await Me(); await using var _ = db;
+        if (me is null) return Error(401, "Phiên đăng nhập đã hết hạn.");
+        var a = await db.Admins.FirstOrDefaultAsync(x => x.Username == username);
+        if (a is null) return Error(404, "Không tìm thấy quản trị viên.");
+        if (a.Id == me.Id) return Error(400, "Không thể tự khóa tài khoản đang đăng nhập. Hãy đăng nhập bằng quản trị viên khác để khóa.");
+        if (!a.Active) return Ok(AdminView(a, me.Id));
+        if (await db.Admins.CountAsync(x => x.Active) <= 1) return Error(400, "Phải còn ít nhất một quản trị viên đang hoạt động.");
+        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        a.Active = false;
+        Log(db, me.Username, "Khóa quản trị viên nền tảng", a.Username, Ip);
+        await db.SaveChangesAsync();
+        return Ok(AdminView(a, me.Id));
+    }
+
+    [HttpPost("admins/{username}/unlock")]
+    public async Task<IActionResult> UnlockAdmin(string username, [FromBody] ConfirmRequest r)
+    {
+        var (db, me) = await Me(); await using var _ = db;
+        if (me is null) return Error(401, "Phiên đăng nhập đã hết hạn.");
+        var a = await db.Admins.FirstOrDefaultAsync(x => x.Username == username);
+        if (a is null) return Error(404, "Không tìm thấy quản trị viên.");
+        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        a.Active = true; a.FailedCount = 0; a.LockoutUntil = null;
+        Log(db, me.Username, "Mở lại quản trị viên nền tảng", a.Username, Ip);
+        await db.SaveChangesAsync();
+        return Ok(AdminView(a, me.Id));
+    }
+
+    /// <summary>Đặt lại mật khẩu và xác thực 2 lớp cho quản trị viên khác (quên mật khẩu, mất điện thoại). Trả về mật khẩu tạm mới.</summary>
+    [HttpPost("admins/{username}/reset")]
+    public async Task<IActionResult> ResetAdmin(string username, [FromBody] ConfirmRequest r)
+    {
+        var (db, me) = await Me(); await using var _ = db;
+        if (me is null) return Error(401, "Phiên đăng nhập đã hết hạn.");
+        var a = await db.Admins.FirstOrDefaultAsync(x => x.Username == username);
+        if (a is null) return Error(404, "Không tìm thấy quản trị viên.");
+        if (a.Id == me.Id) return Error(400, "Không đặt lại cho chính mình. Dùng nút “Đổi mật khẩu” ở góc trên.");
+        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        var pw = SetupGuard.NewToken();
+        a.PasswordHash = PlatformCli.Hasher.HashPassword(a, pw); a.TotpSecret = null; a.TotpLastStep = 0; a.FailedCount = 0; a.LockoutUntil = null;
+        Log(db, me.Username, "Đặt lại mật khẩu và xác thực 2 lớp cho quản trị viên nền tảng", a.Username, Ip);
+        await db.SaveChangesAsync();
+        return Ok(new { admin = AdminView(a, me.Id), password = pw });
+    }
+
     [HttpGet("logs")]
     public async Task<IActionResult> Logs()
     {

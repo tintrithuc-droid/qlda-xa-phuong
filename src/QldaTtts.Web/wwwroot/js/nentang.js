@@ -6,7 +6,7 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('vi-VN') : '';
 const fmtTime = d => d ? new Date(d).toLocaleString('vi-VN') : '';
 const isoDate = d => d ? String(d).slice(0, 10) : '';
 const size = b => b == null ? '' : b < 1048576 ? (b / 1024).toFixed(0) + ' KB' : b < 1073741824 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1073741824).toFixed(2) + ' GB';
-const S = { me: null, base: '', version: '', tenants: [], logs: [], tab: 'xa', q: '' };
+const S = { me: null, base: '', version: '', tenants: [], logs: [], admins: [], tab: 'xa', q: '' };
 
 async function api(method, url, body) {
   const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'same-origin' });
@@ -25,6 +25,21 @@ function dlg(title, body, foot) {
   return o;
 }
 
+/** Hộp hỏi thay cho prompt/confirm của trình duyệt: label = null thì chỉ xác nhận, không có ô nhập. */
+function askDlg(title, o, run) {
+  const d = dlg(title, `${o.note ? `<p class="small">${o.note}</p>` : ''}${o.label ? `<div class="fld"><label for="ax">${o.label}</label><input id="ax" value="${esc(o.value || '')}" placeholder="${esc(o.placeholder || '')}" autocomplete="off"></div>` : ''}<div class="err" id="axe"></div>`,
+    `<button class="btn" data-x2>Hủy</button><button class="btn ${o.danger ? 'danger' : 'primary'}" id="axok">${o.ok}</button>`);
+  d.querySelector('[data-x2]').onclick = closeDlg;
+  const inp = $('#ax'); if (inp) { inp.focus(); inp.select(); }
+  const go = async () => {
+    const v = inp ? inp.value.trim() : '';
+    if (inp && o.required && !v) { $('#axe').textContent = o.required; return; }
+    const b = $('#axok'); b.disabled = true; $('#axe').textContent = '';
+    try { await run(v); } catch (e) { $('#axe').textContent = e.message; b.disabled = false; }
+  };
+  $('#axok').onclick = go; if (inp) inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
 async function init() {
   try { const m = await api('GET', '/api/portal/me'); S.me = m.user; S.base = m.baseDomain; S.version = m.version; }
   catch (e) { $('#root').innerHTML = `<div class="empty">Không kết nối được máy chủ: ${esc(e.message)}</div>`; return; }
@@ -34,6 +49,7 @@ async function init() {
 async function load() {
   S.tenants = await api('GET', '/api/portal/tenants');
   if (S.tab === 'log') S.logs = await api('GET', '/api/portal/logs');
+  if (S.tab === 'qt') S.admins = await api('GET', '/api/portal/admins');
 }
 function render() { S.me ? renderMain() : renderLogin(); }
 
@@ -85,7 +101,7 @@ function renderMain() {
     <div class="sp"></div><span class="who hide-sm">${esc(S.me.name || S.me.username)}</span>
     <button class="btn sm" id="pw">Đổi mật khẩu</button><button class="btn sm" id="out">Đăng xuất</button></div>
   <div class="wrap">
-    <div class="tabs"><button class="tab ${S.tab === 'xa' ? 'on' : ''}" data-tab="xa">Danh sách xã/phường</button><button class="tab ${S.tab === 'log' ? 'on' : ''}" data-tab="log">Nhật ký nền tảng</button></div>
+    <div class="tabs"><button class="tab ${S.tab === 'xa' ? 'on' : ''}" data-tab="xa">Danh sách xã/phường</button><button class="tab ${S.tab === 'qt' ? 'on' : ''}" data-tab="qt">Quản trị viên</button><button class="tab ${S.tab === 'log' ? 'on' : ''}" data-tab="log">Nhật ký nền tảng</button></div>
     ${S.tab === 'xa' ? `
     <div class="cards">
       <div class="card"><div class="n">${T.length}</div><div class="l">Tổng số đơn vị thuê</div></div>
@@ -103,7 +119,7 @@ function renderMain() {
           <td>${statusBadge(t)}</td><td class="small">${expiry(t)}</td><td class="hide-sm small muted">${esc(t.appVersion || '')}</td>
           <td><button class="btn sm" data-open="${esc(t.code)}">Chi tiết</button></td></tr>`).join('')}
       </tbody></table></div>` : `<div class="empty">${T.length ? 'Không có đơn vị phù hợp.' : 'Chưa có xã/phường nào. Bấm “Thêm xã/phường” để cấp đơn vị đầu tiên.'}</div>`}
-    </div>` : `
+    </div>` : S.tab === 'qt' ? adminsHtml() : `
     <div class="panel"><div style="overflow:auto"><table><thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Thao tác</th><th>Đối tượng</th><th class="hide-sm">IP</th></tr></thead><tbody>
       ${S.logs.map(l => `<tr><td class="small">${fmtTime(l.ts + 'Z')}</td><td>${esc(l.username || '')}</td><td>${esc(l.action)}</td><td class="small">${esc(l.target || '')}</td><td class="hide-sm small muted">${esc(l.ip || '')}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Chưa có nhật ký.</td></tr>'}
     </tbody></table></div></div>`}
@@ -111,6 +127,7 @@ function renderMain() {
   $('#out').onclick = async () => { await api('POST', '/api/portal/logout').catch(() => { }); S.me = null; render(); };
   $('#pw').onclick = changePassword;
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = async () => { S.tab = b.dataset.tab; await load().catch(e => toast(e.message)); renderMain(); });
+  if (S.tab === 'qt') return bindAdmins();
   if (S.tab !== 'xa') return;
   $('#q').oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; renderMain(); const i = $('#q'); i.focus(); i.setSelectionRange(pos, pos); };
   $('#reload').onclick = async () => { await load().catch(e => toast(e.message)); renderMain(); toast('Đã cập nhật danh sách.'); };
@@ -195,24 +212,18 @@ async function openTenant(code) {
       <button class="btn" id="a_2fa">Đặt lại xác thực 2 lớp cho một tài khoản</button>
       ${t.ready !== 'Ready' ? '<button class="btn" id="a_up">Chạy lại nâng cấp</button>' : ''}
     </div>`);
-  const act = async (fn, okMsg) => { try { await fn(); await load(); renderMain(); closeDlg(); if (okMsg) toast(okMsg); } catch (e) { toast(e.message); } };
+  const act = async (fn, okMsg) => { await fn(); await load(); renderMain(); closeDlg(); if (okMsg) toast(okMsg); };
   $('#a_edit').onclick = () => editTenant(t);
-  if ($('#a_lock')) $('#a_lock').onclick = () => {
-    const reason = prompt('Lý do tạm khóa (hiển thị cho người dùng của xã), ví dụ: Đơn vị chưa gia hạn hợp đồng.', 'Dịch vụ đang tạm dừng.');
-    if (reason === null) return;
-    act(() => api('POST', `/api/portal/tenants/${code}/lock`, { reason }), 'Đã tạm khóa ' + t.name + '.');
-  };
-  if ($('#a_unlock')) $('#a_unlock').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/unlock`), 'Đã mở lại ' + t.name + '.');
-  if ($('#a_token')) $('#a_token').onclick = async () => {
-    if (!confirm('Cấp mã khởi tạo mới? Mã cũ sẽ hết hiệu lực.')) return;
-    try { const r = await api('POST', `/api/portal/tenants/${code}/setup-token`); showToken(t, r.setupToken, r.setupUrl); } catch (e) { toast(e.message); }
-  };
-  $('#a_2fa').onclick = () => {
-    const u = prompt('Tên đăng nhập cần đặt lại xác thực 2 lớp (theo yêu cầu bằng văn bản của xã). Thao tác được ghi vào nhật ký của xã.');
-    if (!u) return;
-    act(() => api('POST', `/api/portal/tenants/${code}/reset-2fa`, { username: u }), 'Đã đặt lại. Lần đăng nhập sau tài khoản sẽ quét mã QR mới.');
-  };
-  if ($('#a_up')) $('#a_up').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/upgrade`), 'Đã nâng cấp xong.');
+  if ($('#a_lock')) $('#a_lock').onclick = () => askDlg('Tạm khóa ' + esc(t.name),
+    { note: 'Người dùng của xã không đăng nhập được cho đến khi mở lại; dữ liệu giữ nguyên. Lý do được hiển thị trên màn hình đăng nhập của xã.', label: 'Lý do tạm khóa', value: 'Dịch vụ đang tạm dừng, đề nghị liên hệ đơn vị cung cấp.', ok: 'Tạm khóa', danger: true, required: 'Vui lòng ghi lý do.' },
+    reason => act(() => api('POST', `/api/portal/tenants/${code}/lock`, { reason }), 'Đã tạm khóa ' + t.name + '.'));
+  if ($('#a_unlock')) $('#a_unlock').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/unlock`), 'Đã mở lại ' + t.name + '.').catch(e => toast(e.message));
+  if ($('#a_token')) $('#a_token').onclick = () => askDlg('Cấp lại mã khởi tạo cho ' + esc(t.name), { note: 'Mã khởi tạo cũ hết hiệu lực ngay. Mã mới dùng một lần, hiệu lực 30 ngày.', ok: 'Cấp mã mới' },
+    async () => { const r = await api('POST', `/api/portal/tenants/${code}/setup-token`); showToken(t, r.setupToken, r.setupUrl); });
+  $('#a_2fa').onclick = () => askDlg('Đặt lại xác thực 2 lớp: ' + esc(t.name),
+    { note: 'Chỉ thực hiện khi xã có đề nghị bằng văn bản (ví dụ cán bộ quản trị mất điện thoại). Mọi phiên đăng nhập của tài khoản đó bị thoát; lần đăng nhập sau phải quét mã QR mới. Thao tác được ghi vào nhật ký của xã và nhật ký nền tảng.', label: 'Tên đăng nhập trong phần mềm của xã', placeholder: 'ví dụ: admin', ok: 'Đặt lại', required: 'Vui lòng nhập tên đăng nhập.' },
+    u => act(() => api('POST', `/api/portal/tenants/${code}/reset-2fa`, { username: u }), 'Đã đặt lại. Lần đăng nhập sau tài khoản sẽ quét mã QR mới.'));
+  if ($('#a_up')) $('#a_up').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/upgrade`), 'Đã nâng cấp xong.').catch(e => toast(e.message));
   try {
     const s = await api('GET', `/api/portal/tenants/${code}/stats`);
     const st = o.querySelector('#st'); if (!st) return;
@@ -226,6 +237,82 @@ async function openTenant(code) {
       <div class="stat"><b>${size(s.backupSize)}</b><span>bản sao lưu trong phần mềm</span></div></div>
       <div class="muted">Đăng nhập gần nhất: ${s.lastLogin ? fmtTime(s.lastLogin + 'Z') : 'chưa có'} · Sao lưu gần nhất: ${s.lastBackup ? fmtTime(s.lastBackup + 'Z') : 'chưa có'}</div>`;
   } catch (e) { const st = o.querySelector('#st'); if (st) st.textContent = e.message; }
+}
+
+/* ---------- Quản trị viên nền tảng ---------- */
+function adminsHtml() {
+  const A = S.admins;
+  return `<div class="panel">
+    <div class="bar"><div class="small muted" style="flex:1">Tài khoản quản trị trang quản lý thuê bao. Mỗi người dùng một tài khoản riêng, bắt buộc xác thực 2 lớp. Các thao tác thêm, khóa, đặt lại cần nhập mã 6 số của bạn để xác nhận.</div>
+      <button class="btn primary" id="qa_add">+ Thêm quản trị viên</button></div>
+    <div style="overflow:auto"><table><thead><tr><th>Tên đăng nhập</th><th>Họ tên</th><th>Trạng thái</th><th class="hide-sm">Xác thực 2 lớp</th><th class="hide-sm">Đăng nhập gần nhất</th><th></th></tr></thead><tbody>
+    ${A.map(a => `<tr><td class="code">${esc(a.username)}</td><td><b>${esc(a.name)}</b>${a.self ? ' <span class="badge violet">Bạn</span>' : ''}</td>
+      <td>${a.active ? (a.locked ? '<span class="badge amber">Tạm khóa do nhập sai</span>' : '<span class="badge green">Đang hoạt động</span>') : '<span class="badge red">Đã khóa</span>'}</td>
+      <td class="hide-sm">${a.twoFactor ? '<span class="badge green">Đã bật</span>' : '<span class="badge gray">Chưa quét mã</span>'}</td>
+      <td class="hide-sm small">${a.lastLogin ? fmtTime(a.lastLogin + 'Z') : '<span class="muted">chưa đăng nhập</span>'}</td>
+      <td style="white-space:nowrap"><button class="btn sm" data-qe="${esc(a.username)}">Sửa tên</button>
+        ${a.self ? '' : `<button class="btn sm" data-qr="${esc(a.username)}">Đặt lại mật khẩu</button>
+        ${a.active ? `<button class="btn sm danger" data-ql="${esc(a.username)}">Khóa</button>` : `<button class="btn sm" data-qu="${esc(a.username)}">Mở lại</button>`}`}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">Chưa có quản trị viên.</td></tr>'}
+    </tbody></table></div></div>`;
+}
+function confirmCode(title, note, ok, run) {
+  const o = dlg(title, `${note ? `<p class="small">${note}</p>` : ''}<div class="fld"><label for="qc">Mã xác thực 6 số trên điện thoại của bạn</label><input id="qc" inputmode="numeric" autocomplete="one-time-code" maxlength="7"></div><div class="err" id="qce"></div>`,
+    `<button class="btn" data-x2>Hủy</button><button class="btn primary" id="qok">${ok}</button>`);
+  o.querySelector('[data-x2]').onclick = closeDlg;
+  $('#qc').focus();
+  const go = async () => { const b = $('#qok'); b.disabled = true; $('#qce').textContent = ''; try { await run($('#qc').value.trim()); } catch (e) { $('#qce').textContent = e.message; b.disabled = false; } };
+  $('#qok').onclick = go; $('#qc').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+function showPassword(a, pw, title) {
+  const host = location.host;
+  const msg = `Tài khoản quản trị trang quản lý thuê bao:\nĐịa chỉ: https://${host}\nTên đăng nhập: ${a.username}\nMật khẩu tạm: ${pw}\n\nLần đầu đăng nhập, quét mã QR bằng Google Authenticator hoặc Microsoft Authenticator, sau đó bấm “Đổi mật khẩu”.`;
+  const o = dlg(title, `<p>Mật khẩu tạm chỉ hiện <b>một lần</b>. Gửi cho <b>${esc(a.name)}</b> qua kênh tin cậy (gặp trực tiếp, gọi điện).</p>
+    <div class="section">Mật khẩu tạm của ${esc(a.username)}</div><div class="token">${esc(pw)}</div>
+    <div class="section">Nội dung gửi</div><div class="box">${esc(msg)}</div>`,
+    `<button class="btn" id="cp">Chép nội dung</button><button class="btn primary" data-x2>Xong</button>`);
+  o.querySelector('[data-x2]').onclick = closeDlg;
+  $('#cp').onclick = () => navigator.clipboard.writeText(msg).then(() => toast('Đã chép nội dung.'), () => toast('Không chép được, hãy bôi đen và chép thủ công.'));
+}
+function bindAdmins() {
+  const reload = async () => { S.admins = await api('GET', '/api/portal/admins'); renderMain(); };
+  $('#qa_add').onclick = () => {
+    const o = dlg('Thêm quản trị viên nền tảng', `<form id="qf" autocomplete="off">
+      <div class="fld"><label>Tên đăng nhập</label><input id="q_u" class="code" required placeholder="vd: kythuat, docaotri"><div class="small muted">3–32 ký tự: chữ thường không dấu, số, dấu chấm, gạch.</div></div>
+      <div class="fld"><label>Họ tên</label><input id="q_n" required placeholder="Họ tên người dùng tài khoản"></div>
+      <div class="fld"><label for="qc">Mã xác thực 6 số trên điện thoại của bạn</label><input id="qc" inputmode="numeric" autocomplete="one-time-code" maxlength="7"></div>
+      <div class="err" id="qce"></div></form>`,
+      `<button class="btn" data-x2>Hủy</button><button class="btn primary" id="qok">Thêm và cấp mật khẩu tạm</button>`);
+    o.querySelector('[data-x2]').onclick = closeDlg;
+    $('#q_u').focus();
+    $('#qok').onclick = async () => {
+      const b = $('#qok'); b.disabled = true; $('#qce').textContent = '';
+      try {
+        const r = await api('POST', '/api/portal/admins', { username: $('#q_u').value.trim().toLowerCase(), name: $('#q_n').value.trim(), code: $('#qc').value.trim() });
+        await reload(); showPassword(r.admin, r.password, 'Đã thêm quản trị viên ' + esc(r.admin.name));
+      } catch (e) { $('#qce').textContent = e.message; b.disabled = false; }
+    };
+  };
+  const find = u => S.admins.find(a => a.username === u);
+  document.querySelectorAll('[data-qe]').forEach(b => b.onclick = async () => {
+    const a = find(b.dataset.qe);
+    askDlg('Sửa tên quản trị viên ' + esc(a.username), { label: 'Họ tên', value: a.name, ok: 'Lưu', required: 'Vui lòng nhập họ tên.' },
+      async n => { await api('PUT', '/api/portal/admins/' + encodeURIComponent(a.username), { name: n }); closeDlg(); await reload(); toast('Đã lưu.'); });
+  });
+  document.querySelectorAll('[data-ql]').forEach(b => b.onclick = () => {
+    const a = find(b.dataset.ql);
+    confirmCode('Khóa quản trị viên ' + esc(a.username), `${esc(a.name)} sẽ không đăng nhập được nữa và bị thoát ngay nếu đang mở trang. Có thể mở lại sau.`, 'Khóa tài khoản',
+      async c => { await api('POST', `/api/portal/admins/${encodeURIComponent(a.username)}/lock`, { code: c }); closeDlg(); await reload(); toast('Đã khóa ' + a.username + '.'); });
+  });
+  document.querySelectorAll('[data-qu]').forEach(b => b.onclick = () => {
+    const a = find(b.dataset.qu);
+    confirmCode('Mở lại quản trị viên ' + esc(a.username), '', 'Mở lại',
+      async c => { await api('POST', `/api/portal/admins/${encodeURIComponent(a.username)}/unlock`, { code: c }); closeDlg(); await reload(); toast('Đã mở lại ' + a.username + '.'); });
+  });
+  document.querySelectorAll('[data-qr]').forEach(b => b.onclick = () => {
+    const a = find(b.dataset.qr);
+    confirmCode('Đặt lại mật khẩu cho ' + esc(a.username), `Cấp mật khẩu tạm mới và xóa xác thực 2 lớp cũ (dùng khi quên mật khẩu hoặc mất điện thoại). Lần đăng nhập sau ${esc(a.name)} sẽ quét lại mã QR.`, 'Đặt lại',
+      async c => { const r = await api('POST', `/api/portal/admins/${encodeURIComponent(a.username)}/reset`, { code: c }); await reload(); showPassword(r.admin, r.password, 'Đã đặt lại cho ' + esc(r.admin.name)); });
+  });
 }
 
 function changePassword() {

@@ -37,6 +37,8 @@ async function login(p, u, pw = PW) {
     await p.fill('#su_name', 'Nguyễn Quản Trị'); await p.fill('#su_pw', PW); await p.fill('#su_pw2', PW);
     // Chế độ cho thuê (hoặc máy chủ đặt Setup:Token): nhập mã khởi tạo, lấy từ biến SETUP_TOKEN
     if (await p.$('#su_token')) await p.fill('#su_token', process.env.SETUP_TOKEN || '');
+    // Xã thuê bao mặc định không nạp dữ liệu mẫu; kiểm thử cần dữ liệu mẫu nên đánh dấu rõ
+    await p.check('#su_sample');
     await p.click('#setup button[type=submit]');
   } else throw new Error('Cần cơ sở dữ liệu trống');
   // Tài khoản quản trị bắt buộc thiết lập xác thực 2 lớp ngay sau khởi tạo

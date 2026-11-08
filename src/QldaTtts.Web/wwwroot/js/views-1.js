@@ -142,7 +142,7 @@ function renderSetup(){
     <div class="fld"><label for="su_user">Tên đăng nhập</label><input id="su_user" required value="admin"></div>
     <div class="fld"><label for="su_pw">Mật khẩu (tối thiểu 8 ký tự, có chữ và số)</label><input id="su_pw" type="password" required autocomplete="new-password"></div>
     <div class="fld"><label for="su_pw2">Nhập lại mật khẩu</label><input id="su_pw2" type="password" required autocomplete="new-password"></div>
-    <label class="checks"><input type="checkbox" id="su_sample" checked> Nạp dữ liệu mẫu để chạy thử (6 dự án, nhiệm vụ cấp xã kèm kế hoạch vốn, nghiệm thu, quyết toán, GPMB và tài khoản mẫu)</label>
+    <label class="checks"><input type="checkbox" id="su_sample" ${Store.setupToken?'':'checked'}> Nạp dữ liệu mẫu để chạy thử (6 dự án, nhiệm vụ cấp xã kèm kế hoạch vốn, nghiệm thu, quyết toán, GPMB và tài khoản mẫu)</label>
     <div class="err" id="su_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Khởi tạo hệ thống</button>
     <p class="small muted" style="margin:0">Dữ liệu được lưu tập trung trong cơ sở dữ liệu riêng của đơn vị trên máy chủ.</p>

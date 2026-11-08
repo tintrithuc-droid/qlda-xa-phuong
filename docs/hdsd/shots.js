@@ -83,7 +83,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await shot(p, 'qt-khoi-tao', undefined, [{ sel: '#su_name', n: 1 }, { sel: '#su_user', n: 2 }, { sel: '#su_pw', n: 3 }, { sel: '#su_pw2', n: 4 }, { sel: '#setup label.checks', n: 5 }, { sel: '#setup button[type=submit]', n: 6 }]);
   await p.fill('#su_pw', PW); await p.fill('#su_pw2', PW); await p.click('#setup button[type=submit]');
   // Xác thực 2 lớp: thiết lập ngay sau khởi tạo
-  await p.waitForSelector('#mfa .qr svg', { timeout: 30000 }); SECRET = await p.evaluate(() => S.mfaStep.secret);
+  await p.waitForSelector('#mfa .qr svg', { timeout: 30000 }); SECRET = await p.evaluate(() => S.mfaStep.secret); fs.writeFileSync(path.join(os.tmpdir(), 'hdsd-secret'), SECRET);
   await p.setViewportSize({ width: 1440, height: 1000 });
   await shot(p, 'qt-2lop-thiet-lap', '#mfa', [{ sel: '.mfa-steps .qr', n: 1 }, { sel: '.otp-key', n: 2 }, { sel: '#mf_code', n: 3 }, { sel: '#mfa button[type=submit]', n: 4 }]);
   await p.fill('#mf_code', await totp()); await p.click('#mfa button[type=submit]');
@@ -209,11 +209,17 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await go(p, 'nhat-ky'); await shot(p, 'kt-nhat-ky', undefined, [{ sel: '.toolbar', n: 1 }, { sel: '.head .btn.primary', n: 2 }, { sel: '[data-act=diary-photo]', n: 3 }, { sel: '[data-act=edit-diaries]', n: 4 }]);
   await click(p, '.head .btn.primary'); await shot(p, 'kt-ghi-nhat-ky', '#ov .mform'); await closeModal(p);
   await click(p, '[data-act=diary-photo]'); await shot(p, 'kt-anh-nhat-ky', '#ov .mform', [{ sel: '#ov [data-cap]', n: 1 }, { sel: '#ov figure label', n: 2 }, { sel: '#ov .fld', text: 'Thêm ảnh', n: 3 }]); await closeModal(p);
-  await go(p, 'khoi-luong'); await p.selectOption('.content select >> nth=0', { index: 2 }).catch(() => { }); await wait(400);
-  await shot(p, 'kt-khoi-luong', undefined, [{ sel: '.content select', n: 1 }, { sel: '.content .tabs', n: 2 }, { sel: '[data-act=add-boq]', n: 3 }, { sel: '.card [data-act=add-vol]', n: 4 }, { sel: '[data-act=att-boq]', n: 5 }]);
+  await go(p, 'khoi-luong'); await p.evaluate(() => { S.f.klc = (D('contracts').find(c => /XL01/.test(c.number + ' ' + (get('packages', c.packageId) || {}).code)) || D('contracts').find(c => c.id === 'c1')).id; render(); }); await wait(400);
+  await shot(p, 'kt-khoi-luong', undefined, [{ sel: '.content select', n: 1 }, { sel: '.content .tabs', n: 2 }, { sel: '[data-act=imp]', n: 3 }, { sel: '[data-act=add-boq]', n: 4 }, { sel: '.card [data-act=vb-new]', n: 5 }, { sel: '[data-act=att-boq]', n: 6 }]);
   await click(p, '[data-act=add-boq]'); await shot(p, 'kt-them-boq', '#ov .mform'); await closeModal(p);
-  await click(p, '.card [data-act=add-vol]'); await shot(p, 'kt-cap-nhat-khoi-luong', '#ov .mform'); await closeModal(p);
-  await tab(p, 'Theo dõi nghiệm thu'); await shot(p, 'kt-nghiem-thu');
+  // Bản 1.7: lập đợt nghiệm thu trên bảng lưới
+  await click(p, '.card [data-act=vb-new]'); await wait(300);
+  await p.evaluate(() => { const rows = [...document.querySelectorAll('#ov .vb-grid tbody tr')]; rows.slice(0, 4).forEach((tr, i) => { const q = N(get('boq', tr.dataset.b).qty); tr.querySelector('[data-k=d]').value = Math.round(q * (i === 3 ? 0.2 : 0.06) * 100) / 100; }); rows[0].closest('tbody').dispatchEvent(new Event('input', { bubbles: true })); });
+  await p.click('#vb_copy'); await p.fill('#ov input[id$=number]', '05/BBNT-XL01').catch(() => { }); await wait(200);
+  await shot(p, 'kt-lap-dot-nghiem-thu', '#ov .mform', [{ sel: '#ov .fld', text: 'Tên đợt', n: 1 }, { sel: '#ov .fld', text: 'Số biên bản', n: 2 }, { sel: '#vb_copy', n: 3 }, { sel: '#vb_q', n: 4 }, { sel: '#ov .vb-grid thead th:nth-child(7)', n: 5 }, { sel: '#ov .vb-grid tfoot', n: 6 }]);
+  await p.click('#mform [type=submit]'); await wait(900); await closeModal(p);
+  await tab(p, 'Theo dõi nghiệm thu'); await p.evaluate(() => { const b = document.querySelector('.vb-list [data-act=vb-toggle]'); if (b) b.click(); }); await wait(400);
+  await shot(p, 'kt-nghiem-thu', undefined, [{ sel: '.vb-list .vb', n: 1 }, { sel: '.vb-list [data-act=wf]', text: 'Trình duyệt', n: 2 }, { sel: '.vb-list [data-act=vb-edit]', n: 3 }, { sel: '.card [data-act=imp]', n: 4 }]);
   await tab(p, 'Tổng hợp'); await shot(p, 'kt-tong-hop-khoi-luong');
   // phiên bản 1.1: giải phóng mặt bằng, nghiệm thu – bàn giao – bảo hành
   await go(p, 'gpmb'); await shot(p, 'gpmb', 'full', [{ sel: '.content .grid.g4', n: 1 }, { sel: '[data-act=add-clearances]', n: 2 }, { sel: '.content .card', text: 'Tiến độ bồi thường', n: 3 }]);
@@ -330,6 +336,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   // giao diện tối
   await go(p, 'tong-quan'); await click(p, '[data-act=theme]'); await wait(200); await click(p, '[data-act=theme]'); await wait(500); await p.evaluate(() => { $('#toast').hidden = true; });
   await shot(p, 'v12-giao-dien-toi', undefined, [{ sel: '.theme-btn', n: 1, pos: 'tr' }]);
+  await click(p, '[data-act=theme]'); await wait(300); // trả về Tự động theo máy (sáng) cho các ảnh sau
   await p.context().close();
   p = await newPage(DESK); await login(p, 'kythuat'); await go(p, 'trinh-duyet'); await p.click('button[data-g="td2"][data-id="soan"]'); await wait(300);
   await shot(p, 'v12-kt-bi-tra-lai', undefined, [{ sel: '.content .tabs button', text: 'Đang soạn thảo', n: 1 }, { sel: '.content td .small.muted', text: 'Trả lại', n: 2 }, { sel: '[data-act=wf]', text: 'Trình duyệt', n: 3 }]);

@@ -2,16 +2,22 @@
 const H10 = ['01/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.0', '1.0'];
 const H11 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: bổ sung Kế hoạch vốn – giải ngân, Giải phóng mặt bằng, Nghiệm thu – bàn giao – bảo hành, Quyết toán dự án hoàn thành; vai trò của Ban và người quyết định đầu tư; nhóm Lãnh đạo UBND xã', '1.1'];
 const H12 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: trình duyệt hồ sơ (phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu); nhập ngày theo ngày/tháng/năm, phân trang danh sách, giao diện sáng/tối; bảng nhập công việc nhật ký; kế hoạch thanh toán theo đợt; in, xuất báo cáo PDF và CSV', '1.2'];
+// Bộ hợp nhất 08/11/2026: trình bày đầy đủ chức năng của phần mềm đang dùng, không còn tài liệu bổ sung riêng
+const H17 = ['08/11/2026', 'Ban hành bộ hướng dẫn hợp nhất, trình bày đầy đủ các chức năng đang dùng: trình duyệt kế hoạch tiến độ; đợt nghiệm thu khối lượng có tư vấn giám sát xác nhận; nhập kế hoạch tiến độ, bảng khối lượng và khối lượng nghiệm thu từ tệp Excel; kiểm soát thanh toán theo giá trị đã nghiệm thu; xem trước tệp PDF; tùy chỉnh giao diện; biểu đồ tiến độ theo tuần, tháng, quý', '1.7'];
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', hist: [H10, H11, H12, ['03/11/2026', 'Nhóm Lãnh đạo UBND xã đổi thành Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…)', '1.2']] },
-  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', hist: [H10, H11, H12] },
-  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', hist: [H10, H11, H12] },
-  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', hist: [H10, H11, H12] },
-  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', hist: [H10, H11, H12] },
-  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2']] },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', v: 6, hist: [H10, H11, H12, ['03/11/2026', 'Nhóm Lãnh đạo UBND xã đổi thành Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…)', '1.2'], [H17[0], H17[1] + '; khởi tạo hệ thống bằng mã khởi tạo; Quản trị chính; bước kiểm tra hồ sơ trước khi duyệt', '1.7']] },
+  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', v: 5, hist: [H10, H11, H12, H17] },
+  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', v: 5, hist: [H10, H11, H12, H17] },
+  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', v: 5, hist: [H10, H11, H12, H17] },
+  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', v: 5, hist: [H10, H11, H12, H17] },
+  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2'], H17] },
   dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban, Lãnh đạo xã/phường', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
-    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2']] },
+    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2'], ['08/11/2026', 'Ban hành bộ hướng dẫn hợp nhất: biểu đồ tiến độ và dòng tổng cộng trên điện thoại, tư vấn giám sát xác nhận khối lượng nghiệm thu, xem trước tệp PDF, tùy chỉnh giao diện', '1.7']], v: 6 },
 };
+ROLES.ns = { name: 'Nhà sản xuất, vận hành dịch vụ', file: 'Nha san xuat - Van hanh dich vu cho thue', cover: 'NHÀ SẢN XUẤT, VẬN HÀNH DỊCH VỤ', coverSub: 'VẬN HÀNH MÁY CHỦ CHO THUÊ NHIỀU XÃ, PHƯỜNG',
+  audience: 'Cán bộ kỹ thuật của Công ty Cổ phần Tin học Tri Thức: quản trị nền tảng cho thuê, vận hành máy chủ, sao lưu và cập nhật phiên bản', org: 'Công ty Cổ phần Tin học Tri Thức (đơn vị cung cấp dịch vụ)', top: ['CÔNG TY CỔ PHẦN TIN HỌC TRI THỨC', 'BỘ PHẬN KỸ THUẬT, VẬN HÀNH'], v: 1,
+  terms: [['Xã thuê', 'Xã, phường sử dụng phần mềm theo hình thức thuê dịch vụ trên máy chủ của Tri Thức'], ['Quản trị nền tảng', 'Cán bộ Tri Thức quản lý danh sách xã thuê trên trang quản lý thuê bao'], ['Mã khởi tạo', 'Mã dùng một lần để xã tạo tài khoản quản trị đầu tiên'], ['DNS', 'Hệ thống tên miền; bản ghi A trỏ tên miền về địa chỉ IP'], ['CSDL', 'Cơ sở dữ liệu (PostgreSQL)']],
+  hist: [['08/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.7: trang quản lý thuê bao, cấp dịch vụ cho xã, quản trị viên nền tảng, cài đặt máy chủ, sao lưu, khôi phục, cập nhật phiên bản, theo dõi và xử lý sự cố', '1.7']] };
 const MODS = ['Tổng quan', 'Quản lý dự án', 'Kế hoạch vốn, giải ngân', 'Giải phóng mặt bằng', 'Mô hình hóa công trình', 'Gói thầu và hợp đồng', 'Quản lý tiến độ', 'Nhật ký thi công', 'Quản lý khối lượng', 'Nghiệm thu, bàn giao, bảo hành', 'Quản lý thanh toán', 'Quyết toán dự án', 'Báo cáo, thống kê', 'Quản trị hệ thống'];
 const E = 'Xem và cập nhật', V = 'Chỉ xem', N = 'Không truy cập';
 const PERM = {
@@ -25,10 +31,10 @@ const PERM = {
 const SCOPE = { qt: 'tất cả dự án', ld: 'tất cả dự án', kt: 'tất cả dự án', ke: 'tất cả dự án', gs: 'chỉ các dự án được quản trị hệ thống giao', ub: 'tất cả dự án của xã/phường' };
 const PURPOSE = {
   qt: 'quản lý tài khoản người dùng, nhóm quyền, danh mục dùng chung, theo dõi nhật ký hoạt động, quản lý kho tệp đính kèm, sao lưu và phục hồi dữ liệu, bảo đảm hệ thống vận hành ổn định và an toàn',
-  ld: 'theo dõi tổng thể tình hình thực hiện các dự án, giải ngân kế hoạch vốn, giải phóng mặt bằng, nghiệm thu và quyết toán; nắm bắt cảnh báo, chỉ đạo xử lý công việc, cập nhật thông tin dự án và khai thác báo cáo phục vụ điều hành',
-  kt: 'quản lý thông tin dự án, giải phóng mặt bằng, tệp mô hình công trình, gói thầu và hợp đồng, lập và cập nhật tiến độ, ghi nhật ký thi công, quản lý khối lượng, nghiệm thu, bàn giao và theo dõi bảo hành công trình',
+  ld: 'theo dõi tổng thể tình hình thực hiện các dự án, giải ngân kế hoạch vốn, giải phóng mặt bằng, nghiệm thu và quyết toán; duyệt kế hoạch tiến độ, đợt nghiệm thu khối lượng, phụ lục hợp đồng, hồ sơ thanh toán và biên bản nghiệm thu; nắm bắt cảnh báo, chỉ đạo xử lý công việc và khai thác báo cáo phục vụ điều hành',
+  kt: 'quản lý thông tin dự án, giải phóng mặt bằng, tệp mô hình công trình, gói thầu và hợp đồng, lập và trình duyệt kế hoạch tiến độ, cập nhật tiến độ thực tế, ghi nhật ký thi công, lập bảng khối lượng và các đợt nghiệm thu khối lượng, nghiệm thu, bàn giao và theo dõi bảo hành công trình',
   ke: 'nhập kế hoạch vốn được giao và theo dõi giải ngân so với kịch bản, lập kế hoạch thanh toán, lập và theo dõi hồ sơ thanh toán, xác nhận giá trị đã chi, đối chiếu khối lượng nghiệm thu, theo dõi quyết toán dự án hoàn thành và khai thác báo cáo giải ngân',
-  gs: 'ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ thực tế, tra cứu dự án, mô hình và khối lượng trong phạm vi được giao, kể cả trên điện thoại',
+  gs: 'ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ thực tế, xác nhận khối lượng các đợt nghiệm thu, tra cứu dự án, mô hình và khối lượng trong phạm vi được giao, kể cả trên điện thoại',
   ub: 'theo dõi, trên máy tính hoặc điện thoại, tình hình thực hiện các dự án đầu tư công của xã/phường: tiến độ, giải ngân kế hoạch vốn so với kịch bản, giải phóng mặt bằng, nghiệm thu bàn giao, quyết toán dự án hoàn thành; nắm bắt cảnh báo và khai thác báo cáo phục vụ chỉ đạo, điều hành',
 };
 
@@ -46,6 +52,8 @@ function common(k) {
   out.push({ p: `Tài khoản thuộc nhóm «${r.name}» được phân quyền mặc định như bảng dưới đây. Quản trị hệ thống có thể điều chỉnh quyền theo yêu cầu thực tế của Ban; khi đó phần mềm tự ẩn các chức năng không được phép sử dụng.` });
   out.push({ table: { head: ['TT', 'Phân hệ chức năng', 'Quyền mặc định'], widths: [800, 5200, 3000], rows: MODS.map((m, i) => [String(i + 1), m, PERM[k][i]]) }, cap: `Quyền mặc định của nhóm «${r.name}»` });
   out.push({ p: `Phạm vi dữ liệu: ${SCOPE[k]}.` });
+  if (k === 'gs') out.push({ p: 'Ngoài các quyền trên, nhóm Tư vấn giám sát / Nhà thầu được cấp sẵn quyền **Kiểm tra hồ sơ** ở phân hệ Quản lý khối lượng: xác nhận hoặc trả lại khối lượng của các đợt nghiệm thu do Cán bộ kỹ thuật lập, trước khi Lãnh đạo Ban duyệt.' });
+  if (k === 'ld') out.push({ p: 'Nhóm Lãnh đạo Ban được cấp sẵn quyền **Duyệt hồ sơ**: duyệt, trả lại, từ chối và thu hồi kế hoạch tiến độ, đợt nghiệm thu khối lượng, phụ lục hợp đồng, hồ sơ thanh toán và biên bản nghiệm thu (xem chương **Trình duyệt hồ sơ**).' });
   out.push({ h2: 'Quy ước trình bày' });
   out.push({ bullets: [
     'Khung đỏ có số thứ tự trên hình minh họa chỉ vị trí cần thao tác; bảng chú giải ngay dưới hình giải thích ý nghĩa từng số.',
@@ -90,16 +98,29 @@ function common(k) {
   ] });
   out.push({ imgs2: ['chung-tai-khoan', 'chung-doi-mat-khau'], caps: ['Hộp thông tin tài khoản', 'Hộp đổi mật khẩu'] });
   out.push(legend([[1, 'Đổi mật khẩu'], [2, 'Đăng xuất khỏi hệ thống']]));
-  out.push({ h2: 'Nhập ngày, xem danh sách dài, giao diện sáng/tối' });
+  out.push({ h2: 'Nhập ngày và xem danh sách dài' });
   out.push({ p: 'Mọi ô ngày trong phần mềm đều nhập theo dạng **ngày/tháng/năm** (1), không phụ thuộc cài đặt ngôn ngữ của máy tính. Có thể gõ đủ «03/11/2026» hoặc gõ liền «03112026», phần mềm tự thêm dấu «/». Muốn chọn trên lịch, nhấn biểu tượng lịch (2) bên phải ô. Ngày không hợp lệ (ví dụ 31/02) được tô đỏ và không cho lưu.' });
   out.push(img('v12-nhap-ngay', 'Ô nhập ngày theo ngày/tháng/năm và bảng nhập công việc', 12));
   out.push(legend([[1, 'Ô nhập ngày: gõ ngày/tháng/năm'], [2, 'Chọn ngày trên lịch'], [3, 'Bảng nhập công việc: công việc, khối lượng, đơn vị'], [4, 'Thêm dòng công việc']]));
   out.push({ p: 'Danh sách dài (hồ sơ, nhật ký, nhật ký hoạt động…) được chia trang, mặc định 20 dòng mỗi trang. Dùng các nút chuyển trang (1) phía dưới bảng; chọn số dòng mỗi trang (2): 20, 50, 100 hoặc **Tất cả**. Lựa chọn được ghi nhớ cho lần sau. Khi đổi điều kiện lọc, danh sách tự quay về trang đầu.' });
   out.push(img('v12-phan-trang', 'Thanh chuyển trang phía dưới danh sách', 12));
   out.push(legend([[1, 'Chuyển trang đầu, trang trước, trang sau, trang cuối'], [2, 'Chọn số dòng mỗi trang']]));
-  out.push({ p: 'Nút giao diện (1) ở thanh công cụ phía trên chuyển lần lượt giữa ba chế độ: **Tự động theo máy** (sáng hoặc tối theo cài đặt của máy tính, điện thoại), **Giao diện sáng** và **Giao diện tối**. Giao diện tối giúp đỡ mỏi mắt khi làm việc lâu hoặc ban đêm; số liệu không thay đổi.' });
+  out.push({ p: 'Bảng có nhiều cột (ví dụ báo cáo tổng hợp, theo dõi thanh toán) cuộn ngang được: kéo thanh cuộn dưới bảng, hoặc giữ phím Shift và lăn chuột. Cột đầu tiên luôn đứng yên để dễ đối chiếu.' });
+  out.push({ h2: 'Tùy chỉnh giao diện' });
+  out.push({ p: 'Mỗi người dùng chọn được chế độ sáng hoặc tối, tông màu, cỡ chữ và mật độ hiển thị theo thói quen của mình. Lựa chọn lưu theo tài khoản trên máy chủ: đăng nhập ở máy khác hoặc trên điện thoại, giao diện vẫn đúng như đã chọn; lựa chọn của người này không ảnh hưởng người khác.' });
+  out.push({ p: 'Nút giao diện (1) ở thanh công cụ phía trên chuyển nhanh giữa ba chế độ: **Tự động theo máy** (sáng hoặc tối theo cài đặt của máy tính, điện thoại), **Giao diện sáng** và **Giao diện tối**. Giao diện tối giúp đỡ mỏi mắt khi làm việc lâu hoặc ban đêm; số liệu không thay đổi.' });
   out.push(img('v12-giao-dien-toi', 'Giao diện tối', 16));
   out.push(legend([[1, 'Nút chuyển giao diện sáng/tối']]));
+  out.push({ p: 'Muốn chọn chi tiết hơn, nhấn nút bảng màu bên cạnh nút sáng/tối, hoặc nhấn vào tên tài khoản và chọn **Giao diện: màu sắc, cỡ chữ** (trên điện thoại: **Menu → Giao diện, màu sắc**). Hộp **Giao diện** gồm:' });
+  out.push({ bullets: [
+    '**Chế độ hiển thị**: Tự động theo máy, Sáng hoặc Tối.',
+    '**Tông màu chủ đạo**: Xanh hành chính (mặc định), Xanh ngọc, Tím than, Xanh lá, Cam đất, Than chì; tông màu đổi màu thanh điều hướng, nút chính và biểu đồ.',
+    '**Thanh điều hướng**: nền đậm theo tông màu hoặc nền sáng.',
+    '**Cỡ chữ**: Nhỏ, Vừa, Lớn, Rất lớn. Nên chọn Lớn hoặc Rất lớn khi trình chiếu trong cuộc họp.',
+    '**Mật độ hiển thị**: chọn Gọn để xem được nhiều dòng hơn trên một màn hình.',
+  ] });
+  out.push(img('chung-hop-giao-dien', 'Hộp tùy chỉnh giao diện', 11));
+  out.push({ p: 'Chọn đến đâu áp dụng ngay đến đó, không cần nhấn lưu. Nhấn **Khôi phục mặc định** để trở về giao diện ban đầu, nhấn **Xong** để đóng hộp.' });
   out.push(...attachCommon(k));
   if (k !== 'qt') out.push(...guideCommon(k));
   return out;
@@ -119,8 +140,10 @@ function attachCommon(k) {
     ] },
     img('chung-dinh-kem', 'Ô đính kèm tệp trong hộp nhập liệu', 12),
     legend([[1, 'Tệp đã lưu: tên tệp, dung lượng, người tải lên, thời điểm; nút Gỡ để gỡ tệp'], [2, 'Chọn tệp hoặc kéo thả tệp vào đây'], [3, 'Tệp mới chọn, sẽ tải lên khi nhấn Lưu']]),
-    { p: 'Trong các bảng danh sách, cột **Tệp** cho biết tệp đính kèm của từng dòng: nếu có một tệp, nhấn tên tệp để mở; nếu có nhiều tệp, nhấn nút **n tệp** để mở danh sách và chọn tệp cần xem. Tệp PDF và ảnh mở ngay trên trình duyệt; các loại khác (Word, Excel, bản vẽ…) được tải về máy.' },
+    { p: 'Trong các bảng danh sách, cột **Tệp** cho biết tệp đính kèm của từng dòng: nếu có một tệp, nhấn tên tệp để mở; nếu có nhiều tệp, nhấn nút **n tệp** để mở danh sách và chọn tệp cần xem. Ảnh mở ngay trên trình duyệt; tệp Word, Excel, bản vẽ… được tải về máy.' },
     img('chung-ds-tep', 'Danh sách tệp đính kèm của một bản ghi', 10),
+    { p: 'Tệp PDF (quyết định, hợp đồng, biên bản, chứng từ, tệp mô hình dạng PDF…) mở ngay trong khung **xem trước** của phần mềm, không phải tải về. Thanh công cụ của khung có lật trang, phóng to, thu nhỏ, vừa khung, tải về và in.' },
+    img('chung-xem-pdf', 'Xem trước tệp PDF ngay trên phần mềm', 16),
     { note: 'Mỗi tệp tối đa 500 MB; phần mềm không nhận tệp chương trình (.exe, .bat…). Tệp gỡ nhầm chưa mất ngay mà được chuyển vào thùng rác 30 ngày; đề nghị quản trị hệ thống khôi phục.' + (ro ? '' : ' Người dùng chỉ mở được tệp thuộc dự án trong phạm vi được giao.') },
   ];
 }
@@ -132,7 +155,7 @@ function guideCommon(k) {
     { p: 'Chọn **Hướng dẫn sử dụng** ở cuối thanh chức năng bên trái (trên điện thoại: **Menu → Hướng dẫn**). Trang chỉ hiển thị tài liệu và video hướng dẫn dành cho nhóm người dùng của tài khoản đang đăng nhập; tài liệu này cũng có sẵn tại đây.' },
     img('chung-huong-dan', 'Trang Hướng dẫn sử dụng theo nhóm người dùng', 16),
     legend([[1, 'Mục Hướng dẫn sử dụng trên thanh chức năng'], [2, 'Ô tìm kiếm trong hướng dẫn'], [3, 'Tài liệu hướng dẫn: nhấn Mở để xem ngay, Tải về để lưu vào máy'], [4, 'Video hướng dẫn: nhấn nút phát để xem']]),
-    { note: 'Nội dung hướng dẫn do quản trị hệ thống cập nhật; khi phần mềm có chức năng mới, kiểm tra lại trang này để có tài liệu mới nhất.' },
+    { note: 'Nội dung trang Hướng dẫn sử dụng do quản trị hệ thống của Ban quản lý; khi có tài liệu mới, quản trị hệ thống đưa lên trang này để mọi người cùng dùng.' },
   ];
 }
 
@@ -142,8 +165,9 @@ const tail = (k, mobile) => {
   out.push({ h1: 'CÂU HỎI THƯỜNG GẶP VÀ HỖ TRỢ' });
   out.push({ table: { head: ['Tình huống', 'Cách xử lý'], widths: [3600, 5400], rows: [
     ['Không đăng nhập được, báo sai tên đăng nhập hoặc mật khẩu', 'Kiểm tra bộ gõ tiếng Việt và phím Caps Lock. Sau 5 lần sai tài khoản bị khóa 15 phút; liên hệ quản trị hệ thống nếu quên mật khẩu.'],
-    ...(k === 'qt' ? [['Mã xác thực 2 lớp luôn báo sai', 'Kiểm tra đồng hồ điện thoại (bật Đặt giờ tự động); nhập mã đang hiển thị, không dùng lại mã vừa nhập. Mất điện thoại: dùng mã khôi phục hoặc nhờ quản trị khác đặt lại 2 lớp.']] : []),
+    ...(k === 'qt' ? [['Mã xác thực 2 lớp luôn báo sai', 'Kiểm tra đồng hồ điện thoại (bật Đặt giờ tự động); nhập mã đang hiển thị, không dùng lại mã vừa nhập. Mất điện thoại: dùng mã khôi phục hoặc nhờ Quản trị chính đặt lại 2 lớp. Ban chỉ có một quản trị và mất cả mã khôi phục: đề nghị đơn vị cung cấp dịch vụ đặt lại theo văn bản của Ban.']] : []),
     ['Thông báo «Tài khoản đã bị khóa»', 'Tài khoản bị quản trị hệ thống khóa hoặc đang trong thời gian khóa tạm. Liên hệ quản trị hệ thống.'],
+    ['Màn hình báo «Tạm ngừng phục vụ» thay cho trang đăng nhập', 'Dịch vụ phần mềm của đơn vị đang tạm ngừng, thường do hợp đồng thuê dịch vụ chưa được gia hạn; lý do ghi ngay trên màn hình. Dữ liệu vẫn được giữ nguyên. Báo lãnh đạo Ban để liên hệ đơn vị cung cấp dịch vụ.'],
     ['Không thấy một chức năng trên thanh bên trái', 'Nhóm người dùng của tài khoản chưa được cấp quyền phân hệ đó. Đề nghị quản trị hệ thống xem lại phân quyền.'],
     ['Không thấy dữ liệu của một dự án', 'Kiểm tra ô chọn dự án ở thanh công cụ phía trên; nếu vẫn không thấy, tài khoản chưa được giao phạm vi dự án đó.'],
     ['Trang Tổng quan báo «chậm giải ngân»', 'Tỷ lệ giải ngân của dự án thấp hơn kịch bản đến ngày hiện tại quá 10%. Mở **Kế hoạch vốn, giải ngân** để xem chi tiết; kiểm tra các hồ sơ thanh toán đã được xác nhận đã chi.'],
@@ -151,7 +175,10 @@ const tail = (k, mobile) => {
     ['Màn hình báo mất kết nối', 'Kiểm tra mạng; phần mềm tự kết nối lại. Thông tin đang nhập dở trong hộp nhập liệu chưa được lưu cho đến khi nhấn Lưu thành công.'],
     ['Tải tệp đính kèm không được', 'Mỗi tệp tối đa 500 MB; phần mềm không nhận tệp chương trình (.exe, .bat…) vì lý do an toàn.'],
     ['Gỡ nhầm tệp đính kèm hoặc xóa nhầm bản ghi có tệp', k === 'qt' ? 'Mở Quản trị hệ thống → thẻ Kho tệp, thùng rác, nhấn Khôi phục trên dòng tệp (trong 30 ngày). Bản ghi đã xóa: phục hồi từ bản sao lưu tự động.' : 'Báo quản trị hệ thống trong vòng 30 ngày để khôi phục tệp từ thùng rác.'],
-    ['Không sửa, không xóa được phụ lục, hồ sơ thanh toán, biên bản nghiệm thu', 'Hồ sơ đang chờ duyệt hoặc đã được duyệt nên bị khóa. Hồ sơ chờ duyệt: nhấn **Rút lại** để sửa tiếp. Hồ sơ đã duyệt: đề nghị Lãnh đạo Ban **Thu hồi** về soạn thảo (ghi rõ lý do).'],
+    ['Không sửa, không xóa được kế hoạch tiến độ, đợt nghiệm thu, phụ lục, hồ sơ thanh toán, biên bản nghiệm thu', 'Hồ sơ đang chờ xác nhận, chờ duyệt hoặc đã được duyệt nên bị khóa. Hồ sơ đang chờ: nhấn **Rút lại** để sửa tiếp. Hồ sơ đã duyệt: đề nghị Lãnh đạo Ban **Thu hồi** về soạn thảo (ghi rõ lý do).'],
+    ['Đã lập kế hoạch tiến độ nhưng tiến độ kế hoạch, cảnh báo chậm tiến độ không thay đổi', 'Chỉ kế hoạch tiến độ **đã duyệt** mới được tính. Kế hoạch đang soạn hoặc chờ duyệt hiện nền nhạt trên biểu đồ Gantt; trình duyệt và đề nghị Lãnh đạo Ban duyệt.'],
+    ['Đã lập đợt nghiệm thu nhưng khối lượng nghiệm thu của hợp đồng chưa tăng', 'Đợt chỉ được tính khi ở trạng thái **Đã nghiệm thu**: Cán bộ kỹ thuật trình, Tư vấn giám sát xác nhận khối lượng, Lãnh đạo Ban duyệt. Xem trạng thái đợt ở thẻ Theo dõi nghiệm thu.'],
+    ['Hồ sơ thanh toán khối lượng không trình được, báo vượt giá trị đã nghiệm thu', 'Lũy kế thanh toán khối lượng của hợp đồng không được vượt giá trị khối lượng đã nghiệm thu được duyệt. Duyệt thêm đợt nghiệm thu hoặc giảm giá trị đề nghị.'],
     ['Phụ lục hợp đồng đã nhập nhưng giá trị hợp đồng không thay đổi', 'Chỉ phụ lục **đã duyệt** mới được cộng vào giá trị và thời hạn hợp đồng. Kiểm tra trạng thái phụ lục tại khung Điều chỉnh, phụ lục hoặc trang **Trình duyệt hồ sơ**.'],
     ['Không mở được tệp, báo «không có quyền»', 'Tệp thuộc dự án nằm ngoài phạm vi được giao cho tài khoản. Đề nghị quản trị hệ thống kiểm tra phạm vi dữ liệu của nhóm.'],
   ] }, cap: 'Một số tình huống thường gặp' });
@@ -186,7 +213,8 @@ function mobileSection(k) {
   ] });
   out.push({ imgs2: ['dt-ghi-nhat-ky', 'dt-cap-nhat-tien-do'], caps: ['Ghi nhật ký trên điện thoại', 'Cập nhật tiến độ trên điện thoại'], mobile: true });
   out.push({ imgs2: ['dt-nhat-ky', 'dt-menu'], caps: ['Danh sách nhật ký trên điện thoại', 'Menu chức năng đầy đủ'], mobile: true });
-  out.push({ note: 'Trên điện thoại, các bảng dữ liệu tự chuyển thành dạng thẻ: mỗi dòng là một thẻ, nhãn cột hiện bên trái giá trị, không cần kéo ngang màn hình.' });
+  out.push({ note: 'Trên điện thoại, các bảng dữ liệu tự chuyển thành dạng thẻ: mỗi dòng là một thẻ, nhãn cột hiện bên trái giá trị, không cần kéo ngang màn hình; dòng tổng cộng cuối bảng cũng ghi tên cột cho từng số. Bảng nhập công việc chia hai tầng: tầng trên là tên công việc và nút xóa, tầng dưới là khối lượng và đơn vị. Biểu đồ tiến độ thu gọn còn tên công việc, thanh tiến độ và phần trăm; vuốt ngang để xem các tháng khác.' });
+  out.push({ imgs2: ['dt-gantt', 'dt-tong-cong'], caps: ['Biểu đồ tiến độ trên điện thoại', 'Dòng tổng cộng có tên cột'], mobile: true });
   return out;
 }
 
@@ -213,12 +241,14 @@ S.reports = () => [
   { steps: [
     'Chọn **Báo cáo, thống kê** trên thanh chức năng.',
     'Chọn loại báo cáo (1), dự án (2), gói thầu (3); nhập khoảng thời gian «Từ – Đến» và từ khóa tra cứu nếu cần. Bảng số liệu hiển thị ngay bên dưới.',
-    'Nhấn **Xuất Excel** (4) để tải tệp báo cáo về máy; tệp mở được bằng Microsoft Excel hoặc LibreOffice.',
+    'Nhấn **Xuất Excel** (4) để tải tệp báo cáo về máy. Tệp có sẵn tên đơn vị, tên báo cáo, dòng tiêu đề tô màu, kẻ khung, số tiền có dấu phân cách, dòng tổng in đậm và căn vừa khổ A4 khi in; mở được bằng Microsoft Excel hoặc LibreOffice.',
     'Nhấn **In / Xuất PDF** (5) để mở trang in khổ A4 nằm ngang, có quốc hiệu, tên đơn vị, số thứ tự, dòng tổng cộng và khung ký «Người lập biểu – Thủ trưởng đơn vị». Trong hộp thoại in, chọn máy in để in ngay hoặc chọn **Lưu thành PDF** để lưu tệp gửi cấp trên.',
-    'Nhấn **Xuất CSV** (6) để tải dữ liệu dạng CSV (tiếng Việt hiển thị đúng khi mở bằng Excel) dùng cho tổng hợp, nhập vào phần mềm khác.',
+    'Nhấn **Xuất CSV** (6) để tải dữ liệu dạng CSV (tiếng Việt hiển thị đúng khi mở bằng Excel) dùng cho tổng hợp; nhấn **Xuất JSON** (nút cuối cùng trên hàng nút) khi cần chuyển số liệu sang phần mềm khác.',
   ] },
   img('chung-bao-cao', 'Trang Báo cáo, thống kê', 16),
   legend([[1, 'Chọn loại báo cáo'], [2, 'Lọc theo dự án'], [3, 'Lọc theo gói thầu'], [4, 'Xuất báo cáo ra Excel'], [5, 'In hoặc lưu báo cáo thành PDF'], [6, 'Xuất báo cáo ra CSV']]),
+  img('chung-bao-cao-17', 'Hàng nút xuất báo cáo', 16),
+  legend([[1, 'Xuất Excel'], [2, 'In hoặc lưu thành PDF'], [3, 'Xuất CSV'], [4, 'Xuất JSON để chuyển sang phần mềm khác']]),
   img('v12-bao-cao-in', 'Mẫu báo cáo in, xuất PDF', 16),
   img('chung-bao-cao-tien-do', 'Ví dụ báo cáo tiến độ thực hiện dự án và các gói thầu', 16),
   img('chung-bao-cao-giai-ngan', 'Ví dụ báo cáo tình hình giải ngân kế hoạch vốn', 16),
@@ -282,7 +312,20 @@ S.scheduleView = () => [
   { p: 'Phần **Theo dõi tiến độ** có hai cách xem (1): **Theo dự án** và **Theo gói thầu**, cho biết tiến độ kế hoạch đến nay, thực tế, chênh lệch và số hạng mục chậm. Bên dưới là **Biểu đồ tiến độ (Gantt)**: thanh nhạt là thời gian kế hoạch, phần đậm là khối lượng đã hoàn thành, đường đứt nét đỏ là ngày hiện tại.' },
   img('ld-tien-do-theo-doi', 'Theo dõi tiến độ và biểu đồ Gantt', 16),
   legend([[1, 'Chuyển cách xem theo dự án hoặc theo gói thầu']]),
-  { note: 'Tiến độ của dự án được tính bình quân theo giá trị các gói thầu (gói thầu giá trị lớn ảnh hưởng nhiều hơn), không tính bình quân đơn giản. Tiến độ gói thầu tính theo trọng số các hạng mục.' },
+  ...S.ganttTools(),
+  { note: 'Tiến độ của dự án được tính bình quân theo giá trị các gói thầu (gói thầu giá trị lớn ảnh hưởng nhiều hơn), không tính bình quân đơn giản. Tiến độ gói thầu tính theo trọng số các hạng mục. Chỉ kế hoạch tiến độ đã được Lãnh đạo Ban duyệt mới được tính; kế hoạch đang soạn hoặc chờ duyệt hiện nền nhạt kèm nhãn trạng thái.' },
+];
+
+S.ganttTools = () => [
+  { h2: 'Công cụ của biểu đồ tiến độ' },
+  { bullets: [
+    '**Tuần, Tháng, Quý** (1): chọn thang thời gian ở góc trên biểu đồ; phần mềm nhớ lựa chọn cho lần mở sau.',
+    '**Hôm nay** (2): khi mở trang, biểu đồ tự cuộn tới ngày hiện tại (đường đỏ nét đứt (5)); sau khi cuộn đi xem, nhấn nút này để quay về.',
+    '**Thu gọn tất cả, Mở tất cả** (3) và nhấn tên gói thầu (4) để thu gọn hoặc mở từng gói; dòng gói thầu thu gọn vẫn hiện thanh tổng và phần trăm tiến độ. Phần mềm nhớ các gói đã thu gọn theo từng người dùng.',
+    'Khi cuộn ngang, cột Hạng mục bên trái và cột Thực tế bên phải đứng yên, chỉ phần biểu đồ cuộn. Nhấn tên công việc để xem chi tiết và lịch sử cập nhật.',
+  ] },
+  img('kt-gantt-cong-cu', 'Biểu đồ tiến độ xem theo quý, gói thầu thu gọn', 16),
+  legend([[1, 'Chọn thang thời gian Tuần, Tháng, Quý'], [2, 'Quay về ngày hiện tại'], [3, 'Thu gọn hoặc mở tất cả gói thầu'], [4, 'Nhấn tên gói thầu để thu gọn hoặc mở'], [5, 'Đường ngày hiện tại']]),
 ];
 
 S.contractView = () => [
@@ -364,22 +407,46 @@ S.packages = () => [
 
 S.schedule = () => [
   { h1: 'QUẢN LÝ TIẾN ĐỘ' },
+  { p: 'Kế hoạch tiến độ của gói thầu được lập theo từng hạng mục, công việc, có ngày bắt đầu, ngày kết thúc và trọng số (tỷ trọng giá trị trong gói thầu). Kế hoạch phải được Lãnh đạo Ban duyệt rồi mới dùng để tính tiến độ kế hoạch, tiến độ thực tế và cảnh báo chậm tiến độ. Trình tự: **lập kế hoạch** (nhập tay hoặc nhập từ Excel) → **trình duyệt** → Lãnh đạo Ban **duyệt** → **cập nhật tiến độ thực tế** định kỳ.' },
+  img('kt-tien-do-chua-duyet', 'Trang Quản lý tiến độ', 16),
+  legend([[1, 'Dòng nhắc số công việc chưa được duyệt'], [2, 'Nhập kế hoạch tiến độ từ tệp Excel'], [3, 'Lập kế hoạch tiến độ (nhập từng công việc)']]),
   { h2: 'Lập kế hoạch tiến độ' },
   { steps: [
-    'Chọn **Quản lý tiến độ**, nhấn **+ Lập kế hoạch tiến độ**.',
-    'Chọn gói thầu, nhập tên hạng mục/công việc, ngày bắt đầu và kết thúc kế hoạch, trọng số (tỷ trọng giá trị trong gói thầu, %); có thể gắn với hạng mục công trình và đính kèm bảng tiến độ được duyệt.',
-    'Nhấn **Lưu**. Tiến độ gói thầu được tính bình quân theo trọng số các hạng mục.',
+    'Chọn **Quản lý tiến độ**, nhấn **+ Lập kế hoạch tiến độ** (3).',
+    'Chọn gói thầu, nhập tên hạng mục/công việc, ngày bắt đầu và kết thúc kế hoạch, trọng số (%); có thể gắn với hạng mục công trình và đính kèm bảng tiến độ được duyệt. Dòng nhắc bên dưới hộp cho biết tổng trọng số hiện có của gói thầu, giúp giữ tổng bằng 100%.',
+    'Nhấn **Lưu**. Công việc mới ở trạng thái **Soạn thảo**, vẫn sửa, xóa được.',
   ] },
   img('kt-lap-ke-hoach', 'Hộp lập kế hoạch tiến độ', 12),
+  { h2: 'Nhập kế hoạch tiến độ từ tệp Excel' },
+  { p: 'Gói thầu có nhiều công việc nên nhập từ tệp Excel thay vì nhập từng dòng.' },
+  { steps: [
+    'Nhấn **Nhập từ Excel** (2) trên trang Quản lý tiến độ, chọn gói thầu.',
+    'Nhấn **Tải tệp mẫu** (1). Tệp mẫu có các cột: Tên công việc, Ngày bắt đầu, Ngày kết thúc, Trọng số (%), Mã hạng mục công trình; cột bắt buộc có tiêu đề in đậm và dấu *, trang thứ hai hướng dẫn cách điền.',
+    'Điền số liệu hoặc dán từ bảng tiến độ có sẵn. Ngày ghi dạng 15/11/2026 hoặc dùng kiểu ngày của Excel.',
+    'Nhấn **Chọn tệp** (2). Phần mềm hiện bảng xem trước: dòng **lỗi** (3) tô đỏ và bị bỏ qua (thiếu ngày, ngày kết thúc trước ngày bắt đầu, trọng số âm); dòng **cảnh báo** (4) tô vàng nhưng vẫn lưu (không ghi trọng số, không tìm thấy mã hạng mục).',
+    'Xem dòng tổng trọng số cuối bảng, nhấn **Lưu** (5). Các công việc được lưu ở trạng thái Soạn thảo.',
+  ] },
+  img('kt-nhap-excel-tien-do', 'Nhập kế hoạch tiến độ từ Excel: bảng xem trước và tổng trọng số', 14),
+  legend([[1, 'Tải tệp mẫu'], [2, 'Chọn tệp Excel đã điền'], [3, 'Dòng lỗi, bị bỏ qua'], [4, 'Dòng cảnh báo, vẫn được lưu'], [5, 'Lưu các dòng hợp lệ']]),
+  { h2: 'Trình duyệt kế hoạch tiến độ' },
+  { steps: [
+    'Kiểm tra lại các công việc trên biểu đồ Gantt: công việc chưa duyệt hiện nền nhạt (1) kèm nhãn trạng thái.',
+    'Nhấn **Trình duyệt** (2) trên dòng công việc. Trạng thái chuyển sang **Chờ duyệt**; Lãnh đạo Ban thấy công việc tại trang **Trình duyệt hồ sơ**.',
+    'Nếu bị trả lại, dòng công việc hiện nhãn **Bị trả lại** kèm ý kiến của Lãnh đạo Ban; sửa xong trình lại.',
+  ] },
+  img('kt-gantt-cho-duyet', 'Kế hoạch tiến độ chưa duyệt hiện nền nhạt, có nút Trình duyệt', 16),
+  legend([[1, 'Công việc chưa duyệt (nền nhạt)'], [2, 'Trình duyệt công việc']]),
+  { note: 'Sau khi duyệt, ngày và trọng số của công việc bị khóa; cán bộ chỉ cập nhật phần trăm hoàn thành. Muốn đổi ngày hoặc trọng số, đề nghị Lãnh đạo Ban thu hồi về soạn thảo, sửa rồi trình lại.' },
   { h2: 'Cập nhật tiến độ thực tế' },
   { steps: [
-    'Tại **Biểu đồ tiến độ (Gantt)**, nhấn **Cập nhật** (1) trên dòng hạng mục.',
-    'Nhập tiến độ thực tế lũy kế (%), ngày cập nhật và ghi chú hoặc nguyên nhân chậm; có thể đính kèm ảnh hiện trường, báo cáo tuần làm căn cứ. Nhấn **Lưu**. Thanh tiến độ đổi màu: xanh – đạt, vàng – chậm, đỏ – quá hạn.',
-    'Nhấn **⋯** (2) để xem chi tiết hạng mục và lịch sử các lần cập nhật kèm tệp của từng lần; tại đây có nút **Điều chỉnh kế hoạch** và **Xóa hạng mục**.',
+    'Tại **Biểu đồ tiến độ (Gantt)**, nhấn **Cập nhật** (1) trên dòng công việc đã duyệt.',
+    'Nhập tiến độ thực tế lũy kế (%), ngày cập nhật và ghi chú hoặc nguyên nhân chậm; có thể đính kèm ảnh hiện trường, báo cáo tuần làm căn cứ. Nhấn **Lưu**. Thanh tiến độ đổi màu: xanh là đạt, vàng là chậm, đỏ là quá hạn.',
+    'Nhấn **⋯** (2) để xem chi tiết công việc và lịch sử các lần cập nhật kèm tệp của từng lần; với công việc còn ở trạng thái soạn thảo hoặc bị trả lại, tại đây có thêm nút **Điều chỉnh kế hoạch** và **Xóa hạng mục**.',
   ] },
   img('kt-gantt', 'Biểu đồ tiến độ (Gantt)', 16),
   legend([[1, 'Cập nhật tiến độ thực tế'], [2, 'Xem chi tiết, lịch sử, điều chỉnh kế hoạch'], [3, 'Đường ngày hiện tại']]),
   { imgs2: ['kt-cap-nhat-tien-do', 'kt-chi-tiet-tien-do'], caps: ['Hộp cập nhật tiến độ', 'Chi tiết và lịch sử cập nhật'] },
+  ...S.ganttTools(),
 ];
 
 S.diary = (shot, addShot) => [
@@ -406,25 +473,54 @@ S.diary = (shot, addShot) => [
 
 S.volume = () => [
   { h1: 'QUẢN LÝ KHỐI LƯỢNG' },
-  { p: 'Phân hệ **Quản lý khối lượng** quản lý bảng khối lượng theo hợp đồng, các lần cập nhật khối lượng thực hiện và nghiệm thu, tổng hợp giá trị theo kỳ.' },
+  { p: 'Phân hệ **Quản lý khối lượng** quản lý bảng khối lượng theo hợp đồng và các **đợt nghiệm thu khối lượng**. Mỗi đợt ghi khối lượng thực hiện và khối lượng nghiệm thu của các công việc trong kỳ, kèm biên bản nghiệm thu; đợt được Cán bộ kỹ thuật lập, Tư vấn giám sát xác nhận và Lãnh đạo Ban duyệt. Chỉ đợt đã duyệt mới được tính vào khối lượng nghiệm thu của hợp đồng, báo cáo và điều kiện thanh toán.' },
   img('kt-khoi-luong', 'Bảng khối lượng hợp đồng', 16),
-  legend([[1, 'Chọn hợp đồng'], [2, 'Các thẻ: Khối lượng theo hợp đồng – Theo dõi nghiệm thu – Tổng hợp'], [3, 'Thêm công việc vào bảng khối lượng hợp đồng'], [4, 'Cập nhật khối lượng thực hiện'], [5, 'Đính kèm tệp bảng khối lượng, dự toán gốc của hợp đồng']]),
+  legend([[1, 'Chọn hợp đồng'], [2, 'Các thẻ: Khối lượng theo hợp đồng – Theo dõi nghiệm thu – Tổng hợp'], [3, 'Nhập bảng khối lượng từ tệp Excel'], [4, 'Thêm công việc vào bảng khối lượng hợp đồng'], [5, 'Lập đợt nghiệm thu khối lượng'], [6, 'Đính kèm tệp bảng khối lượng, dự toán gốc của hợp đồng']]),
   { h2: 'Lập bảng khối lượng hợp đồng' },
   { steps: [
-    'Chọn hợp đồng (1), tại thẻ **Khối lượng theo hợp đồng** nhấn **+ Thêm công việc** (3).',
+    'Chọn hợp đồng (1), tại thẻ **Khối lượng theo hợp đồng** nhấn **+ Thêm công việc** (4).',
     'Nhập mã hiệu, đơn vị tính, nội dung công việc, khối lượng hợp đồng và đơn giá; phần mềm tự tính thành tiền. Nhấn **Lưu**.',
-    'Lưu tệp bảng khối lượng, dự toán gốc của hợp đồng (Excel, PDF): nhấn **Đính kèm / gỡ tệp** (5) ở dòng **Bảng khối lượng, dự toán gốc của hợp đồng** phía trên bảng.',
+    'Lưu tệp bảng khối lượng, dự toán gốc của hợp đồng (Excel, PDF): nhấn **Đính kèm / gỡ tệp** (6) ở dòng **Bảng khối lượng, dự toán gốc của hợp đồng** phía trên bảng.',
   ] },
   img('kt-them-boq', 'Hộp thêm công việc vào bảng khối lượng', 12),
-  { h2: 'Cập nhật khối lượng thực hiện và nghiệm thu' },
+  { p: 'Bảng khối lượng dài nên nhập từ tệp Excel: nhấn **Nhập từ Excel** (3), tải tệp mẫu (các cột Mã hiệu, Nội dung công việc, Đơn vị tính, Khối lượng hợp đồng, Đơn giá), điền hoặc dán thẳng từ bảng dự toán rồi chọn tệp. Số viết kiểu 1.234,5 hay 1,234.5 đều đọc được; dòng «Tổng cộng» được tự bỏ qua. Mã hiệu đã có trong bảng được cập nhật thay vì thêm trùng; mã trùng trong cùng tệp, khối lượng bằng 0 hoặc đơn giá âm bị báo lỗi.' },
+  { h2: 'Lập đợt nghiệm thu khối lượng' },
   { steps: [
-    'Nhấn **+ Cập nhật khối lượng thực hiện** (4).',
-    'Chọn công việc, ngày, đợt/kỳ; nhập khối lượng thực hiện trong kỳ, khối lượng được nghiệm thu và số biên bản nghiệm thu; đính kèm bản scan **biên bản nghiệm thu** của đợt; nhấn **Lưu**. Biên bản gắn theo đợt/kỳ nên các công việc cùng đợt dùng chung một biên bản.',
-    'Phần mềm cộng dồn khối lượng lũy kế, tính % thực hiện và giá trị nghiệm thu. Khi khối lượng lũy kế vượt khối lượng hợp đồng, phần mềm hiển thị cảnh báo để kiểm tra (không chặn việc nhập).',
+    'Chọn hợp đồng, mở thẻ **Theo dõi nghiệm thu**, nhấn **+ Lập đợt nghiệm thu** (hoặc nút (5) ở thẻ Khối lượng theo hợp đồng).',
+    'Tên đợt (1) được gợi ý sẵn, ví dụ «Đợt 5». Ghi số biên bản (2) và ngày nghiệm thu.',
+    'Bảng bên dưới liệt kê toàn bộ công việc của hợp đồng, kèm khối lượng hợp đồng, lũy kế thực hiện và lũy kế nghiệm thu của các đợt trước. Chỉ cần điền hai cột cuối (5): **khối lượng thực hiện đợt này** và **khối lượng nghiệm thu đợt này**.',
+    'Nút **Chép khối lượng thực hiện sang nghiệm thu** (3) điền nhanh cột nghiệm thu bằng cột thực hiện. Ô tìm kiếm (4) và tùy chọn **Chỉ hiện công việc có số liệu** giúp làm việc với bảng dài.',
+    'Đính kèm bản scan biên bản nghiệm thu của đợt, nhấn **Lưu**. Đợt mới ở trạng thái **Dự thảo**.',
   ] },
-  img('kt-cap-nhat-khoi-luong', 'Hộp cập nhật khối lượng thực hiện', 12),
-  { p: 'Thẻ **Theo dõi nghiệm thu** liệt kê từng lần cập nhật kèm trạng thái, số biên bản và tệp biên bản nghiệm thu; thẻ **Tổng hợp** thể hiện giá trị thực hiện, nghiệm thu theo tháng và lũy kế.' },
-  img('kt-nghiem-thu', 'Theo dõi nghiệm thu', 16),
+  img('kt-lap-dot-nghiem-thu', 'Bảng lập đợt nghiệm thu khối lượng', 16),
+  legend([[1, 'Tên đợt (gợi ý sẵn)'], [2, 'Số biên bản nghiệm thu'], [3, 'Chép khối lượng thực hiện sang nghiệm thu'], [4, 'Tìm công việc trong bảng'], [5, 'Cột nhập khối lượng của đợt này'], [6, 'Dòng tổng: giá trị thực hiện và giá trị nghiệm thu của đợt']]),
+  { p: 'Phần mềm kiểm tra theo **lũy kế**. Khối lượng nghiệm thu đợt này được phép lớn hơn khối lượng thực hiện đợt này (ví dụ nghiệm thu bù phần đã thi công ở đợt trước), miễn là lũy kế nghiệm thu không vượt lũy kế thực hiện.' },
+  { bullets: [
+    'Dòng **tô đỏ**: lũy kế nghiệm thu vượt lũy kế thực hiện. Đợt không lưu được cho tới khi sửa lại.',
+    'Dòng **tô vàng**: lũy kế thực hiện vượt khối lượng hợp đồng. Đợt vẫn lưu được, nhưng cần lập phụ lục điều chỉnh hợp đồng trước khi thanh toán phần vượt.',
+    'Dòng tổng (6) cuối bảng cho biết giá trị thực hiện và giá trị nghiệm thu của đợt.',
+  ] },
+  { h2: 'Nhập khối lượng nghiệm thu từ tệp Excel' },
+  { steps: [
+    'Tại thẻ **Theo dõi nghiệm thu**, nhấn **Nhập từ Excel**, nhấn **Tải tệp mẫu**. Tệp mẫu gồm các cột: Mã hiệu, Nội dung công việc (để đối chiếu), Khối lượng thực hiện trong kỳ, Khối lượng nghiệm thu, Ngày, Đợt, Số biên bản / ghi chú. Ô Đơn vị tính chọn từ danh mục; trang thứ hai hướng dẫn cách điền.',
+    'Ghi ngày và đợt chung ở hộp nhập; dòng nào trong tệp để trống ngày, đợt sẽ dùng giá trị chung này.',
+    'Chọn tệp. Bảng xem trước kiểm tra theo lũy kế, gồm cả các đợt trước và các dòng phía trên trong cùng tệp: dòng **lỗi** (1) tô đỏ (mã hiệu không có trong bảng khối lượng, lũy kế nghiệm thu vượt lũy kế thực hiện, một mã ghi hai lần trong cùng đợt); dòng **cảnh báo** (2) tô vàng (lũy kế vượt khối lượng hợp đồng).',
+    'Nhấn **Lưu** (3). Các dòng cùng đợt được gom vào một đợt nghiệm thu ở trạng thái Dự thảo; mở đợt kiểm tra lại trên bảng rồi trình duyệt.',
+  ] },
+  img('kt-nhap-excel-khoi-luong', 'Bảng xem trước khi nhập khối lượng nghiệm thu: lỗi và cảnh báo', 14),
+  legend([[1, 'Dòng lỗi, bị bỏ qua'], [2, 'Dòng cảnh báo, vẫn được lưu'], [3, 'Lưu các dòng hợp lệ vào đợt nghiệm thu']]),
+  { h2: 'Trình đợt nghiệm thu, theo dõi xác nhận và duyệt' },
+  { steps: [
+    'Thẻ **Theo dõi nghiệm thu** liệt kê các đợt (1) của hợp đồng: tên đợt, số biên bản, ngày, số công việc, giá trị nghiệm thu và trạng thái. Nhấn **Sửa** (3) để sửa đợt đang dự thảo.',
+    'Nhấn **Trình duyệt** (2) trên đợt đã lập, nhập ý kiến kèm theo nếu cần và xác nhận. Đợt chuyển sang **Chờ TVGS xác nhận**.',
+    'Tư vấn giám sát đối chiếu với hiện trường rồi **Xác nhận khối lượng** hoặc **Trả lại** kèm lý do. Đợt đã xác nhận chuyển sang **Chờ duyệt nghiệm thu**.',
+    'Lãnh đạo Ban duyệt; đợt chuyển sang **Đã nghiệm thu** và được tính vào số liệu hợp đồng. Đợt bị từ chối hiện **Không nghiệm thu** và không được tính vào lũy kế.',
+  ] },
+  img('kt-nghiem-thu', 'Danh sách các đợt nghiệm thu của hợp đồng', 16),
+  legend([[1, 'Đợt nghiệm thu và trạng thái'], [2, 'Trình duyệt đợt'], [3, 'Sửa đợt đang dự thảo'], [4, 'Nhập khối lượng nghiệm thu từ Excel']]),
+  { imgs2: ['kt-trinh-dot', 'kt-dot-cho-xac-nhan'], caps: ['Hộp trình duyệt đợt nghiệm thu', 'Đợt đang chờ Tư vấn giám sát xác nhận'] },
+  { note: 'Khi đợt đang chờ xác nhận, chờ duyệt hoặc đã nghiệm thu, khối lượng của đợt bị khóa. Muốn sửa: đợt đang chờ thì nhấn **Rút lại**; đợt đã duyệt thì đề nghị Lãnh đạo Ban thu hồi về dự thảo.' },
+  { p: 'Thẻ **Tổng hợp** thể hiện giá trị thực hiện, nghiệm thu theo tháng và lũy kế của hợp đồng (chỉ tính các đợt đã nghiệm thu).' },
   img('kt-tong-hop-khoi-luong', 'Tổng hợp khối lượng theo kỳ', 16),
 ];
 
@@ -447,7 +543,7 @@ S.payments = () => [
   { h2: 'Lập và theo dõi hồ sơ thanh toán' },
   { steps: [
     'Chọn thẻ **Hồ sơ thanh toán**, nhấn **+ Lập hồ sơ thanh toán** (1).',
-    'Chọn hợp đồng và **Đợt thanh toán theo kế hoạch** (danh sách đợt tự lọc theo hợp đồng đã chọn); nhập số hồ sơ, ngày, loại thanh toán (tạm ứng, thanh toán khối lượng…), giá trị và nội dung; đính kèm bộ hồ sơ thanh toán (giấy đề nghị, bảng xác định giá trị, biên bản nghiệm thu…); nhấn **Lưu**. Hồ sơ mới ở trạng thái **Đề nghị**.',
+    'Chọn hợp đồng và **Đợt thanh toán theo kế hoạch** (danh sách đợt tự lọc theo hợp đồng đã chọn); nhập số hồ sơ, ngày, loại thanh toán (tạm ứng, thanh toán khối lượng, thu hồi tạm ứng…), giá trị và nội dung; đính kèm bộ hồ sơ thanh toán (giấy đề nghị, bảng xác định giá trị, biên bản nghiệm thu…); nhấn **Lưu**. Hồ sơ mới ở trạng thái **Đề nghị**. Ô **Trạng thái** trên hộp chỉ để xem: trạng thái tự chuyển theo các nút Trình duyệt, Duyệt, Trả lại và Xác nhận đã chi.',
     'Nhấn **Trình duyệt** trên dòng hồ sơ để trình Lãnh đạo Ban. Khi được duyệt, hồ sơ chuyển sang **Đang trình KBNN** (xem chương **Trình duyệt hồ sơ**).',
     'Khi Kho bạc đã chi, nhấn **Xác nhận đã chi** (2), nhập ngày Kho bạc chi và đính kèm **chứng từ Kho bạc** (giấy rút vốn, ủy nhiệm chi…); nhấn **Xác nhận đã chi**. Hồ sơ chuyển sang trạng thái «Đã thanh toán» và được cộng vào giá trị giải ngân.',
     'Nhấn **Sửa** (3) để sửa hồ sơ đang ở trạng thái Đề nghị hoặc bị trả lại; hồ sơ chờ duyệt, đã duyệt bị khóa để bảo đảm số liệu đã trình không bị thay đổi.',
@@ -456,26 +552,40 @@ S.payments = () => [
   legend([[1, 'Lập hồ sơ thanh toán'], [2, 'Xác nhận đã chi'], [3, 'Sửa hồ sơ']]),
   { imgs2: ['ke-lap-ho-so', 'ke-xac-nhan-chi'], caps: ['Hộp lập hồ sơ thanh toán', 'Hộp xác nhận đã chi kèm chứng từ Kho bạc'] },
   { p: 'Cột **Tệp** trong danh sách hồ sơ thanh toán gồm cả bộ hồ sơ đề nghị và chứng từ Kho bạc; nhấn để mở khi cần đối chiếu, kiểm tra.' },
+  { h2: 'Kiểm soát giá trị thanh toán' },
+  { p: 'Phần mềm kiểm tra giá trị hồ sơ thanh toán theo hai giới hạn:' },
+  { bullets: [
+    '**Theo giá trị hợp đồng**: tổng các hồ sơ đang chờ duyệt, đang trình Kho bạc và đã thanh toán không được vượt giá trị hợp đồng (gồm cả phụ lục đã duyệt). Hồ sơ **Thu hồi tạm ứng** được trừ đi khi tính tổng này và khi tính giá trị đã giải ngân.',
+    '**Theo giá trị đã nghiệm thu**: lũy kế các hồ sơ **thanh toán khối lượng** của một hợp đồng không được vượt giá trị khối lượng đã nghiệm thu (các đợt nghiệm thu đã duyệt). Hồ sơ tạm ứng không bị giới hạn theo nghiệm thu, chỉ bị giới hạn theo giá trị hợp đồng.',
+  ] },
+  { p: 'Khi lập hồ sơ vượt giá trị đã nghiệm thu, phần mềm báo (1) lũy kế sau khi lập, giá trị đã nghiệm thu và số tiền còn được thanh toán; nhấn **Lưu** lần nữa nếu vẫn muốn giữ hồ sơ ở dạng đề nghị để hoàn thiện sau. Khi trình hoặc duyệt, phần mềm chặn hồ sơ vượt mức: cần chờ duyệt thêm đợt nghiệm thu hoặc giảm giá trị đề nghị.' },
+  img('ke-vuot-nghiem-thu', 'Cảnh báo khi lập hồ sơ thanh toán vượt giá trị đã nghiệm thu', 12),
+  legend([[1, 'Thông báo vượt giá trị đã nghiệm thu: lũy kế, giá trị đã nghiệm thu, số còn được thanh toán'], [2, 'Ô Trạng thái chỉ để xem']]),
+  { h2: 'Hồ sơ thanh toán bị trả lại' },
+  { p: 'Khi Lãnh đạo Ban trả lại, hồ sơ hiện nhãn **Bị trả lại** (1) kèm ý kiến của người duyệt, tách khỏi các hồ sơ đang đề nghị. Hồ sơ bị trả lại không được tính vào ô **Đang đề nghị** và không tính vào phần kiểm tra giá trị còn được thanh toán. Nhấn **Sửa**, hoàn thiện theo ý kiến rồi trình lại.' },
+  img('ke-bi-tra-lai', 'Hồ sơ thanh toán bị trả lại kèm ý kiến', 16),
+  legend([[1, 'Hồ sơ bị trả lại và ý kiến của Lãnh đạo Ban']]),
   { h2: 'Tổng hợp thanh toán theo quý và theo dự án' },
   { p: 'Thẻ **Tổng hợp** so sánh kế hoạch và thực tế thanh toán theo quý, tổng hợp giá trị thanh toán theo dự án (tỷ lệ giải ngân so với tổng mức đầu tư) và lũy kế theo quý.' },
   img('ke-tong-hop', 'Tổng hợp thanh toán', 15),
   { h2: 'Đối chiếu khối lượng nghiệm thu' },
-  { p: 'Trước khi lập hồ sơ thanh toán, mở **Quản lý khối lượng** → thẻ **Theo dõi nghiệm thu** để đối chiếu khối lượng, giá trị đã nghiệm thu và số biên bản của hợp đồng (chỉ xem).' },
+  { p: 'Trước khi lập hồ sơ thanh toán khối lượng, mở **Quản lý khối lượng** → thẻ **Theo dõi nghiệm thu** để đối chiếu các đợt nghiệm thu của hợp đồng: số biên bản, giá trị nghiệm thu và trạng thái (chỉ xem). Chỉ đợt ở trạng thái **Đã nghiệm thu** mới được tính làm căn cứ thanh toán.' },
   img('ke-nghiem-thu', 'Đối chiếu khối lượng nghiệm thu', 16),
 ];
 
 // ===== Quản trị =====
 S.admin = () => [
   { h1: 'KHỞI TẠO HỆ THỐNG' },
-  { p: 'Lần đầu truy cập sau khi cài đặt, phần mềm hiển thị màn hình **Khởi tạo hệ thống** để tạo tài khoản quản trị đầu tiên.' },
+  { p: 'Khi đơn vị được cấp phần mềm, cán bộ được giao làm quản trị nhận từ đơn vị cung cấp dịch vụ hai thông tin: **địa chỉ truy cập** của đơn vị (ví dụ https://tan-hoa.qlda.trithucsoft.vn) và **mã khởi tạo** dùng một lần. Lần đầu mở địa chỉ này, phần mềm hiển thị màn hình **Khởi tạo hệ thống** để tạo tài khoản quản trị đầu tiên.' },
   { steps: [
-    'Nhập họ và tên (1), tên đăng nhập (2), mật khẩu (3) và nhập lại mật khẩu (4).',
-    'Chỉ đánh dấu **Nạp dữ liệu mẫu** (5) khi cần chạy thử; khi đưa vào sử dụng chính thức, bỏ đánh dấu.',
-    'Nhấn **Khởi tạo hệ thống** (6). Phần mềm tạo sẵn các nhóm quyền và danh mục dùng chung mặc định.',
+    'Nhập **Mã khởi tạo** (1) đúng như được cung cấp (dạng XXXX-XXXX-XXXX).',
+    'Nhập họ và tên (2), tên đăng nhập (3), mật khẩu (4) và nhập lại mật khẩu (tối thiểu 8 ký tự, có cả chữ và số).',
+    'Để trống ô **Nạp dữ liệu mẫu** (5) khi đưa vào sử dụng chính thức. Chỉ đánh dấu khi cần tập huấn, chạy thử với 6 dự án minh họa.',
+    'Nhấn **Khởi tạo hệ thống** (6). Phần mềm tạo sẵn các nhóm quyền và danh mục dùng chung mặc định, rồi chuyển sang bước thiết lập xác thực 2 lớp cho tài khoản quản trị.',
   ] },
-  img('qt-khoi-tao', 'Màn hình khởi tạo hệ thống', 16),
-  legend([[1, 'Họ và tên quản trị'], [2, 'Tên đăng nhập'], [3, 'Mật khẩu'], [4, 'Nhập lại mật khẩu'], [5, 'Tùy chọn nạp dữ liệu mẫu'], [6, 'Nút Khởi tạo hệ thống']]),
-  { note: 'Màn hình này chỉ xuất hiện một lần khi cơ sở dữ liệu chưa có người dùng. Ghi nhớ và bảo quản mật khẩu quản trị theo quy định an toàn thông tin của Ban.' },
+  img('xa-khoi-tao-ma', 'Màn hình khởi tạo hệ thống bằng mã khởi tạo', 16),
+  legend([[1, 'Mã khởi tạo do đơn vị cung cấp dịch vụ cấp'], [2, 'Họ và tên quản trị'], [3, 'Tên đăng nhập'], [4, 'Mật khẩu và nhập lại mật khẩu'], [5, 'Tùy chọn nạp dữ liệu mẫu (để trống khi dùng chính thức)'], [6, 'Nút Khởi tạo hệ thống']]),
+  { note: 'Màn hình này chỉ xuất hiện một lần, khi cơ sở dữ liệu của đơn vị chưa có người dùng. Mã khởi tạo chỉ dùng được một lần và có thời hạn 30 ngày; hết hạn hoặc thất lạc, đề nghị đơn vị cung cấp dịch vụ cấp lại. Trường hợp phần mềm được cài trên máy chủ riêng của đơn vị, màn hình không có ô mã khởi tạo. Tài khoản tạo ở bước này là **Quản trị chính** của đơn vị; ghi nhớ và bảo quản mật khẩu theo quy định an toàn thông tin của Ban.' },
 
   { h1: 'XÁC THỰC 2 LỚP' },
   { p: 'Để bảo vệ tài khoản có toàn quyền, mọi tài khoản thuộc nhóm **Quản trị hệ thống** bắt buộc dùng xác thực 2 lớp: ngoài mật khẩu, khi đăng nhập phải nhập thêm mã 6 số do ứng dụng xác thực trên điện thoại sinh ra. Mã đổi sau mỗi 30 giây và chỉ dùng được một lần, nên dù lộ mật khẩu, người khác vẫn không đăng nhập được nếu không cầm điện thoại của quản trị.' },
@@ -516,8 +626,8 @@ S.admin = () => [
   legend([[1, 'Trạng thái và số mã khôi phục còn lại'], [2, 'Tạo bộ mã khôi phục mới']]),
   { h2: 'Đặt lại khi quản trị mất điện thoại' },
   { bullets: [
-    'Một quản trị khác vào **Quản trị hệ thống → Người dùng**, nhấn **Đặt lại 2 lớp** trên dòng tài khoản đó và xác nhận. Mã cũ, mã khôi phục cũ và các phiên đăng nhập của tài khoản hết hiệu lực; lần đăng nhập sau người đó quét mã QR mới.',
-    'Quản trị không tự đặt lại được cho chính mình. Nếu Ban chỉ có một tài khoản quản trị và mất cả điện thoại lẫn mã khôi phục, đề nghị cán bộ phụ trách máy chủ thực hiện theo mục «Xác thực 2 lớp» của Hướng dẫn cài đặt.',
+    '**Quản trị chính** vào **Quản trị hệ thống → Người dùng**, nhấn **Đặt lại 2 lớp** trên dòng tài khoản đó và xác nhận. Mã cũ, mã khôi phục cũ và các phiên đăng nhập của tài khoản hết hiệu lực; lần đăng nhập sau người đó quét mã QR mới.',
+    'Quản trị không tự đặt lại được cho chính mình. Nếu Ban chỉ có một tài khoản quản trị và mất cả điện thoại lẫn mã khôi phục, Ban gửi văn bản đề nghị đơn vị cung cấp dịch vụ đặt lại xác thực 2 lớp cho tài khoản đó; việc đặt lại được ghi vào nhật ký của cả hai bên.',
     'Khuyến nghị: duy trì ít nhất hai tài khoản quản trị (ví dụ một cán bộ chính, một cán bộ dự phòng) để luôn có người đặt lại được.',
   ] },
   img('qt-2lop-dat-lai', 'Hộp xác nhận đặt lại xác thực 2 lớp', 9),
@@ -540,6 +650,16 @@ S.admin = () => [
     '**Xóa**: chỉ dùng cho tài khoản tạo nhầm. Phần mềm không cho phép tự khóa, tự xóa hoặc tự bỏ quyền quản trị của tài khoản đang đăng nhập.',
   ] },
   img('qt-dat-lai-mat-khau', 'Hộp đặt lại mật khẩu', 10),
+  { h2: 'Quản trị chính' },
+  { p: 'Tài khoản quản trị tạo lúc khởi tạo hệ thống là **Quản trị chính** của đơn vị, có nhãn riêng (1) trong danh sách người dùng. Quản trị chính bảo đảm luôn có một người chịu trách nhiệm cao nhất về tài khoản của đơn vị:' },
+  { bullets: [
+    'Chỉ Quản trị chính được sửa, khóa, đặt lại mật khẩu, đặt lại xác thực 2 lớp hoặc xóa tài khoản quản trị khác, và gán người dùng vào nhóm Quản trị hệ thống.',
+    'Các quản trị khác vẫn quản lý bình thường mọi tài khoản không phải quản trị.',
+    'Chuyển giao (khi cán bộ chuyển công tác): Quản trị chính nhấn **Chuyển giao quản trị chính** (2) trên dòng của quản trị nhận chuyển giao, rồi nhập mã 6 số trên điện thoại để xác nhận. Việc chuyển giao được ghi vào nhật ký hoạt động.',
+    'Phần mềm không có tài khoản ẩn: mọi tài khoản đăng nhập được vào dữ liệu của đơn vị đều hiện trong danh sách người dùng.',
+  ] },
+  img('qt-quan-tri-chinh', 'Danh sách người dùng có nhãn Quản trị chính', 16),
+  legend([[1, 'Nhãn Quản trị chính'], [2, 'Chuyển giao quản trị chính cho quản trị khác']]),
 
   { h1: 'NHÓM NGƯỜI DÙNG VÀ PHÂN QUYỀN' },
   { p: 'Phần mềm phân quyền theo nhóm. Mỗi nhóm được cấp quyền cho từng phân hệ ở một trong ba mức: **Không truy cập**, **Chỉ xem**, **Xem và cập nhật**; đồng thời có thể giới hạn **phạm vi dữ liệu** theo dự án. Quyền được kiểm tra trên máy chủ cho mọi thao tác.' },
@@ -555,12 +675,20 @@ S.admin = () => [
   { p: 'Cột **Duyệt hồ sơ** (1) cấp quyền duyệt, trả lại, từ chối và thu hồi hồ sơ trình duyệt của ba phân hệ: **Gói thầu và hợp đồng** (phụ lục hợp đồng), **Quản lý thanh toán** (hồ sơ thanh toán), **Nghiệm thu, bàn giao, bảo hành** (biên bản nghiệm thu). Mặc định chỉ nhóm Lãnh đạo Ban có quyền này. Người duyệt cần có thêm quyền xem phân hệ tương ứng.' },
   img('v12-quyen-duyet', 'Cấp quyền Duyệt hồ sơ cho nhóm Lãnh đạo Ban', 12),
   legend([[1, 'Cột cấp quyền Duyệt hồ sơ']]),
+  { p: 'Quyền Duyệt hồ sơ cũng áp dụng cho kế hoạch tiến độ (phân hệ **Quản lý tiến độ**) và đợt nghiệm thu khối lượng (phân hệ **Quản lý khối lượng**).' },
+  { h2: 'Bước kiểm tra hồ sơ trước khi duyệt' },
+  { p: 'Ở trang **Trình duyệt hồ sơ**, Quản trị hệ thống thấy khung **Bước kiểm tra trước khi duyệt**, mỗi loại hồ sơ có một ô đánh dấu (1). Khi bật, hồ sơ loại đó sau khi trình phải được người kiểm tra xác nhận rồi mới đến Lãnh đạo Ban. Đợt nghiệm thu khối lượng bật sẵn bước này, người kiểm tra là Tư vấn giám sát. Khi tắt bước kiểm tra, các hồ sơ đang chờ kiểm tra tự chuyển sang chờ duyệt.' },
+  img('qt-buoc-kiem-tra', 'Bật, tắt bước kiểm tra cho từng loại hồ sơ', 14),
+  legend([[1, 'Bước kiểm tra của đợt nghiệm thu khối lượng (bật sẵn)']]),
+  { p: 'Người kiểm tra là thành viên của nhóm có quyền **Kiểm tra hồ sơ** (1) ở phân hệ tương ứng, cấp tại hộp phân quyền nhóm. Nhóm Tư vấn giám sát / Nhà thầu được cấp sẵn quyền kiểm tra ở phân hệ Quản lý khối lượng.' },
+  img('qt-quyen-kiem-tra', 'Cột cấp quyền Kiểm tra hồ sơ trong hộp phân quyền', 12),
+  legend([[1, 'Cột cấp quyền Kiểm tra hồ sơ']]),
   { table: { head: ['Nhóm mặc định', 'Mô tả'], widths: [3000, 6000], rows: [
     ['Quản trị hệ thống', 'Toàn quyền, quản lý người dùng và cấu hình.'],
     ['Lãnh đạo Ban', 'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án.'],
     ['Cán bộ kỹ thuật', 'Quản lý kỹ thuật, tiến độ, nhật ký, khối lượng, nghiệm thu, giải phóng mặt bằng.'],
     ['Kế toán', 'Kế hoạch vốn, giải ngân, thanh toán, quyết toán.'],
-    ['Tư vấn giám sát / Nhà thầu', 'Cập nhật nhật ký, tiến độ hiện trường trong phạm vi dự án được giao.'],
+    ['Tư vấn giám sát / Nhà thầu', 'Cập nhật nhật ký, tiến độ hiện trường, xác nhận khối lượng các đợt nghiệm thu trong phạm vi dự án được giao.'],
     ['Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND; Chủ tịch UBND là người quyết định đầu tư)', 'Theo dõi tình hình dự án, giải ngân, giải phóng mặt bằng, nghiệm thu, quyết toán; nhận cảnh báo. Chỉ xem.'],
   ] }, cap: 'Các nhóm người dùng tạo sẵn khi khởi tạo hệ thống' },
 
@@ -594,13 +722,13 @@ S.admin = () => [
   img('qt-sao-luu', 'Sao lưu và phục hồi dữ liệu', 15),
   legend([[1, 'Tải tệp sao lưu dữ liệu (.json): dữ liệu nghiệp vụ, danh mục, nhóm, người dùng và danh sách tệp đính kèm'], [2, 'Tải bản sao lưu đầy đủ (.zip): dữ liệu kèm toàn bộ tệp đính kèm'], [3, 'Phục hồi dữ liệu từ tệp sao lưu'], [4, 'Sao lưu lên máy chủ ngay'], [5, 'Danh sách bản sao lưu tự động; nhấn tên để tải về']]),
   { h2: 'Sao lưu tự động hằng đêm' },
-  { p: 'Máy chủ tự sao lưu lúc 1 giờ sáng mỗi ngày: ghi một tệp dữ liệu .json và chép thêm các tệp đính kèm mới vào thư mục sao lưu (do người cài đặt cấu hình; máy chủ Linux: volume appdata của từng xã), giữ 14 bản gần nhất. Cùng lúc, phần mềm xóa hẳn các tệp đã nằm trong thùng rác quá 30 ngày. Nhấn **Sao lưu lên máy chủ ngay** (4) trước khi nâng cấp hoặc thao tác dữ liệu lớn.' },
+  { p: 'Máy chủ tự sao lưu dữ liệu của đơn vị hằng đêm và giữ các bản gần nhất trong danh sách (5); nhấn tên bản sao lưu để tải về. Cùng lúc, phần mềm xóa hẳn các tệp đã nằm trong thùng rác quá 30 ngày. Nhấn **Sao lưu lên máy chủ ngay** (4) trước khi thao tác dữ liệu lớn, ví dụ phục hồi từ tệp hoặc nhập nhiều số liệu từ Excel.' },
   { h2: 'Tải bản sao lưu về máy và phục hồi' },
   { steps: [
     'Sao lưu dữ liệu: nhấn **Tải tệp sao lưu dữ liệu (.json)** (1). Muốn có cả tệp đính kèm, nhấn **Tải bản sao lưu đầy đủ kèm tệp (.zip)** (2); thời gian đóng gói tùy dung lượng kho tệp. Lưu tệp vào nơi an toàn, tách biệt với máy chủ.',
     'Phục hồi: nhấn **Phục hồi từ tệp sao lưu** (3), chọn tệp .json, xác nhận. Dữ liệu trong tệp được ghi đè lên bản ghi trùng mã; tài khoản trùng tên đăng nhập được giữ nguyên; danh sách tệp đính kèm được phục hồi cùng dữ liệu.',
   ] },
-  { note: 'Nên đặt thư mục sao lưu tự động trên ổ đĩa khác hoặc ổ mạng (cấu hình Storage:BackupPath, xem «Hướng dẫn cài đặt»). Sao lưu trong phần mềm không thay thế sao lưu cơ sở dữ liệu định kỳ (PostgreSQL hoặc SQL Server) do cán bộ phụ trách hạ tầng thực hiện.' },
+  { note: 'Định kỳ (ví dụ cuối mỗi tháng) tải một bản sao lưu đầy đủ kèm tệp về lưu tại Ban, tách biệt với máy chủ. Ngoài sao lưu trong phần mềm, đơn vị quản lý máy chủ còn sao lưu toàn bộ cơ sở dữ liệu và kho tệp hằng đêm; khi cần khôi phục dữ liệu về một thời điểm cũ, Ban gửi văn bản đề nghị nêu rõ thời điểm.' },
 
   { h1: 'THÔNG TIN ĐƠN VỊ, GIAO DIỆN' },
   { p: 'Thẻ **Thông tin đơn vị, giao diện** cho phép quản trị thay logo, tên phần mềm, tên đơn vị, banner trang đăng nhập, chân trang… mà không cần cài lại phần mềm. Dùng khi đơn vị đổi tên hoặc khi triển khai phần mềm cho đơn vị khác. Thay đổi áp dụng ngay cho mọi người dùng ở lần mở trang tiếp theo.' },
@@ -616,7 +744,7 @@ S.admin = () => [
   { note: 'Mọi lần thay đổi được ghi vào Nhật ký hoạt động. Thông tin đơn vị và logo được lưu kèm trong tệp sao lưu dữ liệu.' },
 
   { h1: 'QUẢN LÝ HƯỚNG DẪN SỬ DỤNG' },
-  { p: 'Trang **Hướng dẫn sử dụng** (cuối thanh chức năng bên trái) chứa tài liệu, video hướng dẫn cho từng nhóm người dùng. Quản trị hệ thống xem toàn bộ; mỗi nhóm khác chỉ thấy hướng dẫn dành cho nhóm mình. Khi cài đặt, phần mềm tự tạo sẵn 7 hướng dẫn kèm tệp PDF của bộ tài liệu này cho từng vai trò.' },
+  { p: 'Trang **Hướng dẫn sử dụng** (cuối thanh chức năng bên trái) chứa tài liệu, video hướng dẫn cho từng nhóm người dùng. Quản trị hệ thống xem toàn bộ; mỗi nhóm khác chỉ thấy hướng dẫn dành cho nhóm mình. Khi khởi tạo hệ thống, phần mềm tạo sẵn các hướng dẫn kèm tệp PDF của bộ tài liệu này cho từng vai trò.' },
   img('qt-huong-dan', 'Quản lý hướng dẫn sử dụng', 16),
   legend([[1, 'Thêm hướng dẫn'], [2, 'Tìm kiếm trong hướng dẫn'], [3, 'Lọc hướng dẫn theo nhóm người dùng'], [4, 'Nhóm người dùng được xem hướng dẫn'], [5, 'Sửa hoặc xóa hướng dẫn'], [6, 'Tệp hướng dẫn: Mở hoặc Tải về']]),
   { h2: 'Thêm, sửa hướng dẫn và đính kèm tệp, video' },
@@ -635,7 +763,7 @@ S.admin = () => [
   ] },
 
   { h1: 'DANH MỤC CHỨC NĂNG' },
-  { p: 'Trang **Danh mục chức năng** (nhóm Tiện ích) liệt kê 77 chức năng của phần mềm theo 17 nhóm nghiệp vụ, nơi thực hiện từng chức năng và nút **Mở** để chuyển nhanh tới trang tương ứng; dùng khi giới thiệu, đào tạo người dùng mới hoặc kiểm tra, nghiệm thu phần mềm.' },
+  { p: 'Trang **Danh mục chức năng** (nhóm Tiện ích) liệt kê toàn bộ chức năng của phần mềm theo nhóm nghiệp vụ, nơi thực hiện từng chức năng và nút **Mở** để chuyển nhanh tới trang tương ứng; dùng khi giới thiệu, đào tạo người dùng mới hoặc kiểm tra, nghiệm thu phần mềm.' },
   img('qt-doi-chieu', 'Danh mục chức năng của phần mềm', 16),
 ];
 
@@ -730,18 +858,20 @@ S.settlement = (edit) => [
 S.approval = (k) => {
   const lead = k === 'ld';
   const out = [{ h1: 'TRÌNH DUYỆT HỒ SƠ' },
-    { p: 'Phụ lục hợp đồng, hồ sơ thanh toán và biên bản nghiệm thu được quản lý theo quy trình trình duyệt: **người lập** lưu hồ sơ ở trạng thái soạn thảo và bấm **Trình duyệt**; **Lãnh đạo Ban** (người được cấp quyền Duyệt hồ sơ) xem và **Duyệt**, **Trả lại** kèm ý kiến hoặc **Từ chối**. Chỉ hồ sơ đã duyệt mới được tính vào số liệu: phụ lục đã duyệt mới cộng vào giá trị và thời hạn hợp đồng; hồ sơ thanh toán được duyệt mới chuyển sang trình Kho bạc.' },
+    { p: 'Kế hoạch tiến độ, đợt nghiệm thu khối lượng, phụ lục hợp đồng, hồ sơ thanh toán và biên bản nghiệm thu được quản lý theo quy trình trình duyệt: **người lập** lưu hồ sơ ở trạng thái soạn thảo và nhấn **Trình duyệt**; **Lãnh đạo Ban** (người được cấp quyền Duyệt hồ sơ) xem và **Duyệt**, **Trả lại** kèm ý kiến hoặc **Từ chối**. Với loại hồ sơ có **bước kiểm tra** (mặc định là đợt nghiệm thu khối lượng), hồ sơ sau khi trình phải được người kiểm tra (Tư vấn giám sát) xác nhận rồi mới đến Lãnh đạo Ban. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.' },
     { table: { head: ['Hồ sơ', 'Người lập', 'Trạng thái khi lưu', 'Khi được duyệt'], widths: [2300, 2200, 2000, 2500], rows: [
+      ['Kế hoạch tiến độ', 'Cán bộ kỹ thuật', 'Soạn thảo', 'Đã duyệt: tính vào tiến độ kế hoạch, thực tế và cảnh báo chậm tiến độ'],
+      ['Đợt nghiệm thu khối lượng', 'Cán bộ kỹ thuật; Tư vấn giám sát xác nhận', 'Dự thảo', 'Đã nghiệm thu: tính vào khối lượng nghiệm thu, báo cáo và điều kiện thanh toán'],
       ['Phụ lục hợp đồng', 'Cán bộ kỹ thuật', 'Soạn thảo', 'Đã duyệt: cộng vào giá trị, thời hạn hợp đồng'],
       ['Hồ sơ thanh toán', 'Kế toán', 'Đề nghị', 'Đang trình KBNN; Kế toán xác nhận đã chi khi Kho bạc chi'],
       ['Biên bản nghiệm thu, bàn giao', 'Cán bộ kỹ thuật', 'Soạn thảo', 'Đã duyệt'],
     ] }, cap: 'Các loại hồ sơ theo quy trình trình duyệt' },
-    { p: 'Trang **Trình duyệt hồ sơ** (ngay dưới Tổng quan trên thanh chức năng) gom tất cả hồ sơ ở một nơi, gồm các thẻ: **Chờ tôi duyệt**, **Đang chờ duyệt**, **Đang soạn thảo, bị trả lại** và **Lịch sử duyệt**. Số màu đỏ bên cạnh tên trang là số hồ sơ đang chờ tài khoản duyệt.' },
+    { p: 'Trang **Trình duyệt hồ sơ** (ngay dưới Tổng quan trên thanh chức năng) gom tất cả hồ sơ ở một nơi, gồm các thẻ: **Chờ tôi xử lý**, **Đang chờ duyệt**, **Đang soạn thảo, bị trả lại** và **Lịch sử duyệt**. Số màu đỏ bên cạnh tên trang là số hồ sơ đang chờ tài khoản xử lý (duyệt hoặc xác nhận).' },
   ];
   if (!lead) out.push(
     { h2: 'Trình duyệt hồ sơ' },
     { steps: [
-      'Lập hồ sơ như bình thường (phụ lục hợp đồng, hồ sơ thanh toán hoặc biên bản nghiệm thu) và nhấn **Lưu**. Hồ sơ ở trạng thái soạn thảo (1), vẫn sửa, xóa được.',
+      'Lập hồ sơ như bình thường (kế hoạch tiến độ, đợt nghiệm thu, phụ lục hợp đồng, hồ sơ thanh toán hoặc biên bản nghiệm thu) và nhấn **Lưu**. Hồ sơ ở trạng thái soạn thảo (1), vẫn sửa, xóa được.',
       'Khi hồ sơ đã đủ, nhấn **Trình duyệt** (2) trên dòng hồ sơ; nhập ý kiến kèm theo nếu cần (ví dụ văn bản đề nghị của nhà thầu) và nhấn **Trình duyệt** trong hộp xác nhận. Hồ sơ chuyển sang **Chờ duyệt**.',
       'Trong khi chờ duyệt, hồ sơ bị khóa sửa. Cần sửa gấp: nhấn **Rút lại** để đưa hồ sơ về soạn thảo, sửa xong trình lại.',
     ] },
@@ -757,14 +887,19 @@ S.approval = (k) => {
   else out.push(
     { h2: 'Duyệt, trả lại, từ chối hồ sơ' },
     { steps: [
-      'Chọn **Trình duyệt hồ sơ** (1) trên thanh chức năng. Thẻ **Chờ tôi duyệt** (2) liệt kê hồ sơ đang chờ, kèm loại hồ sơ, dự án, giá trị, nội dung và người trình.',
-      'Kiểm tra hồ sơ; cần xem chi tiết hoặc tệp đính kèm, mở hồ sơ tại phân hệ tương ứng (Gói thầu và hợp đồng, Quản lý thanh toán, Nghiệm thu).',
+      'Chọn **Trình duyệt hồ sơ** (1) trên thanh chức năng. Thẻ **Chờ tôi xử lý** (2) liệt kê hồ sơ đang chờ, kèm loại hồ sơ, dự án, giá trị, nội dung và người trình.',
+      'Kiểm tra hồ sơ; cần xem chi tiết hoặc tệp đính kèm, mở hồ sơ tại phân hệ tương ứng (Quản lý tiến độ, Quản lý khối lượng, Gói thầu và hợp đồng, Quản lý thanh toán, Nghiệm thu).',
       'Nhấn **Duyệt** (3) nếu đồng ý; nhập ý kiến (không bắt buộc) và nhấn **Duyệt** trong hộp xác nhận.',
       'Nhấn **Trả lại** (4) khi hồ sơ cần sửa, bổ sung: bắt buộc ghi ý kiến để người lập biết cần làm gì. Hồ sơ về soạn thảo cho người lập sửa và trình lại.',
       'Nhấn **Từ chối** (5) khi không chấp thuận hồ sơ: bắt buộc ghi lý do. Hồ sơ bị từ chối không được tính vào số liệu.',
     ] },
     img('v12-ld-cho-duyet', 'Trang Trình duyệt hồ sơ, thẻ Chờ tôi duyệt', 16),
-    legend([[1, 'Trang Trình duyệt hồ sơ và số hồ sơ chờ duyệt'], [2, 'Các thẻ: Chờ tôi duyệt – Đang chờ duyệt – Đang soạn thảo, bị trả lại – Lịch sử duyệt'], [3, 'Duyệt hồ sơ'], [4, 'Trả lại hồ sơ kèm ý kiến'], [5, 'Từ chối hồ sơ']]),
+    legend([[1, 'Trang Trình duyệt hồ sơ và số hồ sơ chờ duyệt'], [2, 'Các thẻ: Chờ tôi xử lý – Đang chờ duyệt – Đang soạn thảo, bị trả lại – Lịch sử duyệt'], [3, 'Duyệt hồ sơ'], [4, 'Trả lại hồ sơ kèm ý kiến'], [5, 'Từ chối hồ sơ']]),
+    { h2: 'Duyệt kế hoạch tiến độ và đợt nghiệm thu khối lượng' },
+    { p: 'Kế hoạch tiến độ (2) do Cán bộ kỹ thuật trình hiện ngay trong thẻ **Chờ tôi xử lý**: kiểm tra tên công việc, thời gian và trọng số rồi duyệt. Sau khi duyệt, ngày và trọng số bị khóa, cán bộ chỉ cập nhật phần trăm hoàn thành; muốn sửa kế hoạch, nhấn **Thu hồi** để trả về soạn thảo.' },
+    { p: 'Đợt nghiệm thu khối lượng (1) chỉ đến Lãnh đạo Ban sau khi Tư vấn giám sát đã xác nhận khối lượng. Dòng hồ sơ ghi số biên bản, ngày, số công việc và giá trị nghiệm thu của đợt; mở **Quản lý khối lượng** → thẻ **Theo dõi nghiệm thu** để xem từng công việc trước khi nhấn **Duyệt** (3). Từ lúc duyệt, khối lượng nghiệm thu của đợt mới được tính vào số liệu hợp đồng và làm căn cứ thanh toán.' },
+    img('ld-cho-duyet-17', 'Đợt nghiệm thu và kế hoạch tiến độ chờ Lãnh đạo Ban duyệt', 16),
+    legend([[1, 'Đợt nghiệm thu khối lượng đã được Tư vấn giám sát xác nhận'], [2, 'Kế hoạch tiến độ chờ duyệt'], [3, 'Duyệt đợt nghiệm thu']]),
     { imgs2: ['v12-duyet', 'v12-tra-lai'], caps: ['Hộp xác nhận duyệt', 'Hộp trả lại hồ sơ: bắt buộc ghi ý kiến'] },
     { h2: 'Thu hồi hồ sơ đã duyệt, xem lịch sử' },
     { p: 'Hồ sơ đã duyệt bị khóa với người lập. Khi cần điều chỉnh, nhấn **Thu hồi** (1) trên dòng hồ sơ và ghi lý do: hồ sơ về soạn thảo để người lập sửa và trình lại. Hồ sơ thanh toán đã được Kho bạc chi thì không thu hồi được. Nhấn **Lịch sử** (2) để xem toàn bộ quá trình trình, duyệt, trả lại của một hồ sơ.' },
@@ -801,6 +936,7 @@ S.leaderMobile = () => [
 // ===== Lắp ráp theo vai trò =====
 function build(k) {
   if (k === 'dt') return require('./content-dt').build();
+  if (k === 'ns') return require('./content-ns').build();
   const out = common(k);
   if (k === 'ld') {
     out.push({ h1: 'THEO DÕI, ĐIỀU HÀNH' }, ...S.dashboard(k, 'ld-tong-quan').slice(0), ...S.contractView(), ...S.paymentView());
@@ -825,7 +961,21 @@ function build(k) {
       'Chọn **Quản lý tiến độ**, kéo xuống **Biểu đồ tiến độ (Gantt)**.',
       'Nhấn **Cập nhật** (1) trên dòng hạng mục, nhập tiến độ thực tế lũy kế (%), ngày cập nhật và ghi chú hoặc nguyên nhân chậm; đính kèm ảnh hiện trường, báo cáo tuần làm căn cứ (không bắt buộc); nhấn **Lưu**.',
     ] }, img('gs-tien-do', 'Cập nhật tiến độ trên biểu đồ Gantt', 16), legend([[1, 'Cập nhật tiến độ thực tế']]), img('kt-cap-nhat-tien-do', 'Hộp cập nhật tiến độ', 11),
-    { note: 'Tư vấn giám sát / Nhà thầu chỉ xem thông tin dự án, mô hình và khối lượng; không sửa được hợp đồng, khối lượng hợp đồng và thanh toán.' });
+    { p: 'Nút **Cập nhật** chỉ có ở công việc mà kế hoạch đã được Lãnh đạo Ban duyệt. Công việc đang soạn hoặc chờ duyệt hiện nền nhạt kèm nhãn trạng thái. Cách chọn thang thời gian Tuần, Tháng, Quý, quay về ngày hiện tại và thu gọn gói thầu được trình bày ở mục **Công cụ của biểu đồ tiến độ** dưới đây.' },
+    ...S.ganttTools());
+    out.push({ h1: 'XÁC NHẬN KHỐI LƯỢNG NGHIỆM THU' },
+      { p: 'Khối lượng thực hiện và nghiệm thu được Cán bộ kỹ thuật của Ban lập theo từng **đợt nghiệm thu**, kèm biên bản. Sau khi Cán bộ kỹ thuật trình, đợt chuyển sang trạng thái **Chờ TVGS xác nhận**: Tư vấn giám sát đối chiếu từng công việc với hiện trường và nhật ký thi công, rồi xác nhận hoặc trả lại. Chỉ đợt đã được xác nhận mới đến Lãnh đạo Ban duyệt.' },
+      { steps: [
+        'Chọn **Trình duyệt hồ sơ** (1) trên thanh chức năng (số màu đỏ là số đợt đang chờ xác nhận), mở thẻ **Chờ tôi xử lý** (2).',
+        'Xem dòng đợt nghiệm thu: hợp đồng, số biên bản, ngày, số công việc, giá trị nghiệm thu. Muốn xem từng công việc, mở **Quản lý khối lượng**, chọn hợp đồng, thẻ **Theo dõi nghiệm thu** và nhấn vào đợt.',
+        'Khối lượng đúng với hiện trường: nhấn **Xác nhận khối lượng** (3), ghi ý kiến (không bắt buộc) và nhấn xác nhận trong hộp. Đợt chuyển sang **Chờ duyệt nghiệm thu**.',
+        'Khối lượng chưa đúng: nhấn **Trả lại** (4) và ghi rõ công việc, khối lượng cần sửa. Đợt về dự thảo để Cán bộ kỹ thuật sửa và trình lại.',
+      ] },
+      img('gs-xac-nhan', 'Đợt nghiệm thu chờ Tư vấn giám sát xác nhận', 16),
+      legend([[1, 'Trang Trình duyệt hồ sơ'], [2, 'Thẻ Chờ tôi xử lý'], [3, 'Xác nhận khối lượng'], [4, 'Trả lại kèm ý kiến']]),
+      img('gs-xac-nhan-hop', 'Hộp xác nhận khối lượng nghiệm thu', 11),
+      { note: 'Việc xác nhận, trả lại được ghi vào lịch sử duyệt của đợt kèm tên người thực hiện và thời điểm, làm căn cứ khi kiểm tra. Tư vấn giám sát chỉ thấy đợt nghiệm thu của các dự án được giao.' });
+    out.push({ note: 'Tư vấn giám sát / Nhà thầu chỉ xem thông tin dự án, mô hình và khối lượng; không sửa được hợp đồng, bảng khối lượng hợp đồng và thanh toán.' });
     out.push(...tail(k, true));
   }
   if (k === 'ub') {

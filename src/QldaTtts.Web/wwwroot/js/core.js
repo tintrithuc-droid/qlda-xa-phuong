@@ -228,7 +228,10 @@ function boqAccAll(b){ return sum(D('volumes').filter(v=>v.boqId===b.id && volLi
 function contractAccPend(cid){ return sum(D('volumes').filter(v=>v.contractId===cid && volAccPend(v)), v=>N(v.acceptedQty)*N((get('boq',v.boqId)||{}).price)); }
 function contractDone(cid, upto){ return sum(D('boq').filter(b=>b.contractId===cid), b=>boqDone(b,upto)*N(b.price)); }
 function contractAcc(cid, upto){ return sum(D('boq').filter(b=>b.contractId===cid), b=>boqAcc(b,upto)*N(b.price)); }
-function contractPaid(cid, upto){ return sum(D('payments').filter(p=>p.contractId===cid && p.status==='Đã thanh toán' && (!upto||p.date<=upto)),'amount'); }
+/** Số tiền của hồ sơ thanh toán khi cộng dồn: thu hồi tạm ứng là khoản khấu trừ nên mang dấu âm. */
+const PAY_RECOVER='Thu hồi tạm ứng';
+const payAmt = p => p.kind===PAY_RECOVER ? -N(p.amount) : N(p.amount);
+function contractPaid(cid, upto){ return sum(D('payments').filter(p=>p.contractId===cid && p.status==='Đã thanh toán' && (!upto||p.date<=upto)),payAmt); }
 function expectedPct(s, date=TODAY){
   if(!s.planStart||!s.planEnd) return 0;
   if(date<=s.planStart) return 0; if(date>=s.planEnd) return 100;
@@ -277,8 +280,8 @@ function capPlan(pid, year){ return sum(D('capitals').filter(c=>c.projectId===pi
 function capMidTerm(pid){ return sum(D('capitals').filter(c=>c.projectId===pid && /trung hạn/i.test(c.kind||'')),'amount'); }
 /** Ngày Kho bạc chi (giải ngân) của hồ sơ thanh toán. */
 const payDay = p => p.paidDate || p.date || '';
-/** Giá trị giải ngân trong năm của dự án đến ngày upto (hồ sơ đã thanh toán, không tính thu hồi tạm ứng). */
-function disbursed(pid, year, upto){ const y=String(year); return sum(D('payments').filter(p=>p.status==='Đã thanh toán' && p.kind!=='Thu hồi tạm ứng' && payDay(p).startsWith(y) && (!upto||payDay(p)<=upto) && contractPid(get('contracts',p.contractId)||{})===pid),'amount'); }
+/** Giá trị giải ngân trong năm của dự án đến ngày upto (hồ sơ đã thanh toán; thu hồi tạm ứng được trừ ra). */
+function disbursed(pid, year, upto){ const y=String(year); return sum(D('payments').filter(p=>p.status==='Đã thanh toán' && payDay(p).startsWith(y) && (!upto||payDay(p)<=upto) && contractPid(get('contracts',p.contractId)||{})===pid),payAmt); }
 /** Kịch bản giải ngân lũy kế (%) đến hết quý q (1–4) của dự án trong năm; mặc định 20/45/70/100. */
 function capTarget(pid, year, q){ if(q>=4) return 100; const c=D('capitals').find(x=>x.projectId===pid && N(x.year)===N(year) && x.kind==='Kế hoạch vốn năm'); const d=[20,45,70][q-1]; const v=c&&c['targetQ'+q]; return v==null||v===''? d : N(v); }
 /** Kịch bản giải ngân đến ngày date: nội suy tuyến tính trong quý. */
@@ -287,7 +290,7 @@ function capTargetAt(pid, year, date=TODAY){ const y=N(year); if(N(date.slice(0,
   const a=q>1? capTarget(pid,y,q-1) : 0, b=capTarget(pid,y,q); return a+(b-a)*Math.min(1,days(qs,date)/Math.max(1,days(qs,qe))); }
 /* --- kế hoạch thanh toán: tình trạng từng đợt (dùng chung cho bảng, cảnh báo, báo cáo) --- */
 /** Số đã thanh toán của đợt kế hoạch: các hồ sơ thanh toán gắn với đợt ở trạng thái Đã thanh toán. */
-function planPaid(p){ return sum(D('payments').filter(x=>x.payPlanId===p.id && x.status==='Đã thanh toán'),'amount'); }
+function planPaid(p){ return sum(D('payments').filter(x=>x.payPlanId===p.id && x.status==='Đã thanh toán'),payAmt); }
 /** Tình trạng đợt: Đã thực hiện (có hồ sơ gắn đợt đã được chi) · Đang trình thanh toán · Quá hạn N ngày · Sắp đến hạn (15 ngày) · Chưa đến hạn. */
 function planState(p){
   const ps=D('payments').filter(x=>x.payPlanId===p.id), paid=planPaid(p);

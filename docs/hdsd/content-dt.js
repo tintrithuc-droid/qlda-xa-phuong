@@ -16,6 +16,7 @@ function build() {
     ['Cập nhật tiến độ thực hiện', E, E, V, V],
     ['Tra cứu dự án', V, E, E, V],
     ['Khối lượng thực hiện, nghiệm thu', V, E, V, N],
+    ['Xác nhận khối lượng đợt nghiệm thu, duyệt hồ sơ', 'Xác nhận', N, 'Duyệt', N],
     ['Nghiệm thu, bàn giao, bảo hành', V, E, V, V],
     ['Giải phóng mặt bằng', N, E, V, V],
     ['Kế hoạch vốn, giải ngân', N, V, V, V],
@@ -45,7 +46,7 @@ function build() {
     'Chọn **Thêm vào màn hình chính** (một số máy hiện **Cài đặt ứng dụng**), giữ tên «QLDA Xã/Phường» và chạm **Thêm**.',
     'Trên màn hình chính có biểu tượng mặt trống đồng nền xanh. Từ đây chạm biểu tượng để mở phần mềm toàn màn hình như một ứng dụng.',
   ] });
-  out.push({ p: 'Phần mềm không lưu dữ liệu nghiệp vụ trên điện thoại; mọi thông tin nằm trên máy chủ của Ban. Khi Ban nâng cấp phần mềm trên máy chủ, điện thoại tự dùng phiên bản mới ở lần mở tiếp theo, không cần cài lại.' });
+  out.push({ p: 'Phần mềm không lưu dữ liệu nghiệp vụ trên điện thoại; mọi thông tin nằm trên máy chủ của Ban.' });
   out.push({ bullets: [
     'Khi chọn ảnh đính kèm, điện thoại hỏi **Máy ảnh** hoặc **Tệp/Thư viện**: chọn máy ảnh để chụp trực tiếp tại hiện trường.',
     'Tệp tải về (tệp đính kèm, báo cáo Excel) được lưu vào thư mục **Tải xuống** của điện thoại.',
@@ -120,6 +121,8 @@ function build() {
   out.push({ p: 'Chạm **Menu** → **Quản lý tiến độ**, kéo xuống **Biểu đồ tiến độ (Gantt)**. Thanh màu xanh là hạng mục đúng tiến độ, vàng là chậm, đỏ là quá hạn. Chạm **Cập nhật** (4) trên dòng hạng mục để nhập phần trăm thực hiện như cách cập nhật nhanh.' });
   out.push({ imgs2: ['dt-td-nhanh', 'dt-tien-do'], caps: ['Hộp cập nhật tiến độ nhanh', 'Cập nhật trên biểu đồ Gantt'], mobile: true });
   out.push(legend([[1, 'Chọn hạng mục tiến độ'], [2, 'Tiến độ thực tế lũy kế (%)'], [3, 'Lưu'], [4, 'Cập nhật tiến độ trên dòng hạng mục']]));
+  out.push({ p: 'Chỉ hạng mục có kế hoạch đã được Lãnh đạo Ban duyệt mới cập nhật được phần trăm thực hiện. Trên điện thoại, biểu đồ thu gọn còn tên công việc, thanh tiến độ và phần trăm; vuốt ngang để xem các tháng khác, chạm tên gói thầu để thu gọn hoặc mở.' });
+  out.push({ imgs2: ['dt-gantt'], caps: ['Biểu đồ tiến độ thu gọn trên điện thoại'], mobile: true });
 
   out.push({ h1: 'TRA CỨU THÔNG TIN' });
   out.push({ h2: 'Tra cứu dự án' });
@@ -129,6 +132,10 @@ function build() {
   out.push({ h2: 'Tổng quan, cảnh báo và khối lượng' });
   out.push({ p: 'Trang **Tổng quan** hiển thị các chỉ tiêu chính, biểu đồ và danh sách **Cảnh báo và việc cần xử lý** (hạng mục quá hạn, chậm tiến độ, công việc sắp đến hạn); chạm **Xem** để mở ngay nội dung cần xử lý. Trang **Quản lý khối lượng** (mở từ Menu) cho xem giá trị hợp đồng, khối lượng thực hiện lũy kế, đã nghiệm thu và đã thanh toán của từng hợp đồng.' });
   out.push({ imgs2: ['dt-tong-quan', 'dt-canh-bao', 'dt-khoi-luong'], caps: ['Trang Tổng quan', 'Cảnh báo cần xử lý', 'Quản lý khối lượng'], mobile: true });
+  out.push({ p: 'Các bảng trên điện thoại hiện thành từng thẻ; dòng tổng cộng cuối bảng cũng ghi tên cột cho từng số. Tệp PDF đính kèm (hồ sơ pháp lý, biên bản) chạm vào là mở ngay trong khung xem trước của phần mềm.' });
+  out.push({ imgs2: ['dt-tong-cong'], caps: ['Dòng tổng cộng có tên cột'], mobile: true });
+  out.push({ h2: 'Xác nhận khối lượng, duyệt hồ sơ trên điện thoại' });
+  out.push({ p: 'Tư vấn giám sát xác nhận khối lượng các đợt nghiệm thu, Lãnh đạo Ban duyệt hồ sơ ngay trên điện thoại: chạm **Menu** → **Trình duyệt hồ sơ**, mở thẻ **Chờ tôi xử lý** rồi chạm **Xác nhận khối lượng** (hoặc **Duyệt**), **Trả lại** trên từng hồ sơ. Cách xử lý giống như trên máy tính, xem tài liệu hướng dẫn của vai trò tương ứng.' });
   out.push({ h2: 'Lãnh đạo Ban, Lãnh đạo xã/phường xem trên điện thoại' });
   out.push({ p: 'Tài khoản Lãnh đạo Ban xem được toàn bộ dự án. Trang **Báo cáo, thống kê** (mở từ Menu) cho chọn loại báo cáo, dự án, gói thầu, khoảng thời gian và chạm **Xuất Excel** để tải báo cáo về điện thoại: trên Android, tệp lưu tại Tải xuống/QLDA Xa Phuong; trên iPhone, chọn **Lưu vào Tệp** hoặc gửi qua ứng dụng khác.' });
   out.push({ imgs2: ['dt-ld-tong-quan', 'dt-ld-bao-cao'], caps: ['Tổng quan của Lãnh đạo Ban', 'Báo cáo, thống kê'], mobile: true });

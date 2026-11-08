@@ -80,8 +80,9 @@ public class ApprovalsController : ApiControllerBase
                 var held = new[] { WorkflowDef.Checking, "Chờ duyệt", "Đang trình KBNN", "Đã thanh toán" };
                 var otherPays = (await Db.Payments.AsNoTracking().Where(x => x.ContractId == cid && x.Id != pay.Id).ToListAsync())
                     .Where(x => held.Contains(x.Status ?? "")).ToList();
-                var others = otherPays.Sum(x => x.Amount ?? 0);
-                if (others + (pay.Amount ?? 0) > cv + 1)
+                // Thu hồi tạm ứng là khoản khấu trừ: trừ khỏi tổng, bản thân hồ sơ thu hồi không làm vượt giá trị hợp đồng
+                var others = otherPays.Sum(Payments.Signed);
+                if (!Payments.IsRecovery(pay.Kind) && others + (pay.Amount ?? 0) > cv + 1)
                     return Error(409, $"Tổng giá trị thanh toán đã trình ({Vnd(others + (pay.Amount ?? 0))} đ) vượt giá trị hợp đồng ({Vnd(cv)} đ). Kiểm tra lại số tiền hoặc các hồ sơ khác của hợp đồng.");
                 // Mục 31 (bản 1.7): thanh toán khối lượng hoàn thành không vượt giá trị đã nghiệm thu (đợt nghiệm thu đã duyệt),
                 // theo Nghị định 99/2021/NĐ-CP; tạm ứng không tính vào điều kiện này

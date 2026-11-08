@@ -17,8 +17,16 @@ done < <(ds_xa)
 # Kho tệp: ảnh chụp theo ngày, dùng chung tệp với bản hôm trước
 PREV="$(ls -1d "$ROOT"/20??-??-?? 2>/dev/null | grep -v "$DAY" | tail -1 || true)"
 mkdir -p "$OUT/tep"
-rsync -a --delete --exclude 'backups/' ${PREV:+--link-dest="$PREV/tep"} "$DIR/du-lieu/xa/" "$OUT/tep/" || LOI=1
-cp "$DIR/.env" "$OUT/env.txt"; rsync -a "$DIR/du-lieu/keys/" "$OUT/keys/" 2>/dev/null || true; chmod -R go-rwx "$OUT"
+if command -v rsync >/dev/null; then
+  rsync -a --delete --exclude 'backups/' ${PREV:+--link-dest="$PREV/tep"} "$DIR/du-lieu/xa/" "$OUT/tep/" || LOI=1
+  rsync -a "$DIR/du-lieu/keys/" "$OUT/keys/" 2>/dev/null || true
+else
+  # Máy chưa có rsync: chép đầy đủ bằng tar (không dùng chung tệp với bản hôm trước nên tốn dung lượng hơn)
+  echo "  Lưu ý: máy chủ chưa cài rsync, kho tệp được chép đầy đủ. Cài rsync để tiết kiệm dung lượng."
+  tar -C "$DIR/du-lieu/xa" --exclude='./*/backups' -cf - . | tar -C "$OUT/tep" -xf - || LOI=1
+  mkdir -p "$OUT/keys"; cp -a "$DIR/du-lieu/keys/." "$OUT/keys/" 2>/dev/null || true
+fi
+cp "$DIR/.env" "$OUT/env.txt"; chmod -R go-rwx "$OUT"
 echo "  Kho tệp: $(du -sh "$OUT/tep" | cut -f1) (dung lượng thực tế mới: $(du -sh --apparent-size "$OUT" | cut -f1))"
 # Dọn bản cũ: giữ N ngày gần nhất + bản ngày 01 của M tháng gần nhất
 mapfile -t ALL < <(ls -1d "$ROOT"/20??-??-?? 2>/dev/null | sort)

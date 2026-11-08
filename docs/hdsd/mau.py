@@ -60,4 +60,23 @@ subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'colo
   "drawtext=fontfile=" + FD + "DejaVuSans-Bold.ttf:text='Ghi nhật ký thi công':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=(h-text_h)/2-40,"
   "drawtext=fontfile=" + FD + "DejaVuSans.ttf:text='%{eif\\:t+1\\:d}/9':fontcolor=white:fontsize=40:x=(w-text_w)/2:y=(h/2)+60",
   '-c:v', 'libx264', '-pix_fmt', 'yuv420p', T + 'Video-ghi-nhat-ky-thi-cong.mp4'], check=True)
+# Tệp Excel minh họa nhập kế hoạch tiến độ và khối lượng nghiệm thu (shots-v17.js); có sẵn dòng lỗi, dòng cảnh báo
+import openpyxl
+def xlsx(fn, rows):
+    wb = openpyxl.Workbook(); ws = wb.active
+    for r in rows: ws.append(list(r))
+    wb.save(T + fn)
+xlsx('Ke-hoach-tien-do-XL01.xlsx', [
+    ('Tên công việc', 'Ngày bắt đầu', 'Ngày kết thúc', 'Trọng số (%)', 'Mã hạng mục công trình'),
+    ('Thảm bê tông nhựa đoạn Km2+100 – Km3+400', '15/11/2026', '31/01/2027', 12, None),
+    ('Lắp đặt hệ thống chiếu sáng nhánh rẽ', '01/12/2026', '28/02/2027', 6, None),
+    ('Hoàn trả mặt bằng, vệ sinh công trường', '20/02/2027', '10/02/2027', 2, None),
+    ('Sơn kẻ vạch, lắp biển báo', '01/03/2027', '31/03/2027', None, None)])
+xlsx('Khoi-luong-nghiem-thu-XL01.xlsx', [
+    ('Mã hiệu', 'Nội dung công việc (để đối chiếu)', 'Khối lượng thực hiện trong kỳ', 'Khối lượng nghiệm thu', 'Ngày', 'Đợt', 'Số biên bản / ghi chú'),
+    ('AD.23', 'Mặt đường bê tông nhựa chặt 12,5', 1800, 1800, None, None, None),
+    ('AF.82', 'Cống BTCT D600', 320, 300, None, None, None),
+    ('AB.65', 'Đắp lề đất K95', 150, 260, None, None, None),
+    ('AX.99', 'Hạng mục không có trong hợp đồng', 10, 10, None, None, None),
+    ('AF.82', 'Cống BTCT D600 (ghi lặp)', 20, 20, None, None, None)])
 print('Đã tạo', len(os.listdir(M)), 'tệp mẫu và', len(os.listdir(T)), 'tệp bổ sung')

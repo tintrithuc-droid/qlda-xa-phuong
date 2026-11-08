@@ -9,6 +9,12 @@ public static class Payments
     /// <summary>Hồ sơ thanh toán khối lượng hoàn thành (không gồm tạm ứng, thu hồi tạm ứng).</summary>
     public static bool IsVolumeKind(string? kind) => kind is not null && kind.Contains("khối lượng", StringComparison.OrdinalIgnoreCase) && !kind.Contains("tạm ứng", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Hồ sơ thu hồi tạm ứng: khoản khấu trừ vào giá trị thanh toán.</summary>
+    public static bool IsRecovery(string? kind) => string.Equals(kind?.Trim(), "Thu hồi tạm ứng", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Số tiền khi cộng dồn hạn mức hợp đồng: thu hồi tạm ứng mang dấu âm.</summary>
+    public static decimal Signed(Payment p) => IsRecovery(p.Kind) ? -(p.Amount ?? 0) : (p.Amount ?? 0);
+
     /// <summary>Giá trị khối lượng đã nghiệm thu của hợp đồng: dòng thuộc đợt đã duyệt, hoặc dòng nhập trước bản 1.7 (không có đợt).</summary>
     public static async Task<decimal> AcceptedValue(AppDbContext db, string contractId)
     {

@@ -25,6 +25,21 @@ function dlg(title, body, foot) {
   return o;
 }
 
+/** Hộp hỏi thay cho prompt/confirm của trình duyệt: label = null thì chỉ xác nhận, không có ô nhập. */
+function askDlg(title, o, run) {
+  const d = dlg(title, `${o.note ? `<p class="small">${o.note}</p>` : ''}${o.label ? `<div class="fld"><label for="ax">${o.label}</label><input id="ax" value="${esc(o.value || '')}" placeholder="${esc(o.placeholder || '')}" autocomplete="off"></div>` : ''}<div class="err" id="axe"></div>`,
+    `<button class="btn" data-x2>Hủy</button><button class="btn ${o.danger ? 'danger' : 'primary'}" id="axok">${o.ok}</button>`);
+  d.querySelector('[data-x2]').onclick = closeDlg;
+  const inp = $('#ax'); if (inp) { inp.focus(); inp.select(); }
+  const go = async () => {
+    const v = inp ? inp.value.trim() : '';
+    if (inp && o.required && !v) { $('#axe').textContent = o.required; return; }
+    const b = $('#axok'); b.disabled = true; $('#axe').textContent = '';
+    try { await run(v); } catch (e) { $('#axe').textContent = e.message; b.disabled = false; }
+  };
+  $('#axok').onclick = go; if (inp) inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
 async function init() {
   try { const m = await api('GET', '/api/portal/me'); S.me = m.user; S.base = m.baseDomain; S.version = m.version; }
   catch (e) { $('#root').innerHTML = `<div class="empty">Không kết nối được máy chủ: ${esc(e.message)}</div>`; return; }
@@ -197,24 +212,18 @@ async function openTenant(code) {
       <button class="btn" id="a_2fa">Đặt lại xác thực 2 lớp cho một tài khoản</button>
       ${t.ready !== 'Ready' ? '<button class="btn" id="a_up">Chạy lại nâng cấp</button>' : ''}
     </div>`);
-  const act = async (fn, okMsg) => { try { await fn(); await load(); renderMain(); closeDlg(); if (okMsg) toast(okMsg); } catch (e) { toast(e.message); } };
+  const act = async (fn, okMsg) => { await fn(); await load(); renderMain(); closeDlg(); if (okMsg) toast(okMsg); };
   $('#a_edit').onclick = () => editTenant(t);
-  if ($('#a_lock')) $('#a_lock').onclick = () => {
-    const reason = prompt('Lý do tạm khóa (hiển thị cho người dùng của xã), ví dụ: Đơn vị chưa gia hạn hợp đồng.', 'Dịch vụ đang tạm dừng.');
-    if (reason === null) return;
-    act(() => api('POST', `/api/portal/tenants/${code}/lock`, { reason }), 'Đã tạm khóa ' + t.name + '.');
-  };
-  if ($('#a_unlock')) $('#a_unlock').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/unlock`), 'Đã mở lại ' + t.name + '.');
-  if ($('#a_token')) $('#a_token').onclick = async () => {
-    if (!confirm('Cấp mã khởi tạo mới? Mã cũ sẽ hết hiệu lực.')) return;
-    try { const r = await api('POST', `/api/portal/tenants/${code}/setup-token`); showToken(t, r.setupToken, r.setupUrl); } catch (e) { toast(e.message); }
-  };
-  $('#a_2fa').onclick = () => {
-    const u = prompt('Tên đăng nhập cần đặt lại xác thực 2 lớp (theo yêu cầu bằng văn bản của xã). Thao tác được ghi vào nhật ký của xã.');
-    if (!u) return;
-    act(() => api('POST', `/api/portal/tenants/${code}/reset-2fa`, { username: u }), 'Đã đặt lại. Lần đăng nhập sau tài khoản sẽ quét mã QR mới.');
-  };
-  if ($('#a_up')) $('#a_up').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/upgrade`), 'Đã nâng cấp xong.');
+  if ($('#a_lock')) $('#a_lock').onclick = () => askDlg('Tạm khóa ' + esc(t.name),
+    { note: 'Người dùng của xã không đăng nhập được cho đến khi mở lại; dữ liệu giữ nguyên. Lý do được hiển thị trên màn hình đăng nhập của xã.', label: 'Lý do tạm khóa', value: 'Dịch vụ đang tạm dừng, đề nghị liên hệ đơn vị cung cấp.', ok: 'Tạm khóa', danger: true, required: 'Vui lòng ghi lý do.' },
+    reason => act(() => api('POST', `/api/portal/tenants/${code}/lock`, { reason }), 'Đã tạm khóa ' + t.name + '.'));
+  if ($('#a_unlock')) $('#a_unlock').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/unlock`), 'Đã mở lại ' + t.name + '.').catch(e => toast(e.message));
+  if ($('#a_token')) $('#a_token').onclick = () => askDlg('Cấp lại mã khởi tạo cho ' + esc(t.name), { note: 'Mã khởi tạo cũ hết hiệu lực ngay. Mã mới dùng một lần, hiệu lực 30 ngày.', ok: 'Cấp mã mới' },
+    async () => { const r = await api('POST', `/api/portal/tenants/${code}/setup-token`); showToken(t, r.setupToken, r.setupUrl); });
+  $('#a_2fa').onclick = () => askDlg('Đặt lại xác thực 2 lớp: ' + esc(t.name),
+    { note: 'Chỉ thực hiện khi xã có đề nghị bằng văn bản (ví dụ cán bộ quản trị mất điện thoại). Mọi phiên đăng nhập của tài khoản đó bị thoát; lần đăng nhập sau phải quét mã QR mới. Thao tác được ghi vào nhật ký của xã và nhật ký nền tảng.', label: 'Tên đăng nhập trong phần mềm của xã', placeholder: 'ví dụ: admin', ok: 'Đặt lại', required: 'Vui lòng nhập tên đăng nhập.' },
+    u => act(() => api('POST', `/api/portal/tenants/${code}/reset-2fa`, { username: u }), 'Đã đặt lại. Lần đăng nhập sau tài khoản sẽ quét mã QR mới.'));
+  if ($('#a_up')) $('#a_up').onclick = () => act(() => api('POST', `/api/portal/tenants/${code}/upgrade`), 'Đã nâng cấp xong.').catch(e => toast(e.message));
   try {
     const s = await api('GET', `/api/portal/tenants/${code}/stats`);
     const st = o.querySelector('#st'); if (!st) return;
@@ -285,8 +294,9 @@ function bindAdmins() {
   };
   const find = u => S.admins.find(a => a.username === u);
   document.querySelectorAll('[data-qe]').forEach(b => b.onclick = async () => {
-    const a = find(b.dataset.qe); const n = prompt('Họ tên mới cho ' + a.username, a.name); if (n === null || !n.trim()) return;
-    try { await api('PUT', '/api/portal/admins/' + encodeURIComponent(a.username), { name: n.trim() }); await reload(); toast('Đã lưu.'); } catch (e) { toast(e.message); }
+    const a = find(b.dataset.qe);
+    askDlg('Sửa tên quản trị viên ' + esc(a.username), { label: 'Họ tên', value: a.name, ok: 'Lưu', required: 'Vui lòng nhập họ tên.' },
+      async n => { await api('PUT', '/api/portal/admins/' + encodeURIComponent(a.username), { name: n }); closeDlg(); await reload(); toast('Đã lưu.'); });
   });
   document.querySelectorAll('[data-ql]').forEach(b => b.onclick = () => {
     const a = find(b.dataset.ql);

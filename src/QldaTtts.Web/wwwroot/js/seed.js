@@ -95,15 +95,16 @@ function makeSampleData(){
     pts.forEach((p,i)=>{ const f=(i+1)/pts.length; out.push({date:p, progress:Math.round(prog*Math.pow(f,1.15)), note:'Cập nhật định kỳ'}); });
     out[out.length-1].progress=prog; return out;
   }
+  // Trọng số (%) các hạng mục của mỗi gói thầu cộng đúng 100
   const sc = [
-    ['s1','p1','k1','i1','Nền, móng đường đoạn Km0–Km2','2025-06-01','2025-12-31',100,18],
-    ['s2','p1','k1','i2','Mặt đường bê tông nhựa','2025-10-01','2026-09-30',82,25],
-    ['s3','p1','k1','i3','Cống thoát nước dọc','2026-01-15','2026-11-30',64,40],
-    ['s4','p1','k2','i5','Chiếu sáng, biển báo','2026-06-01','2026-12-31',20,17],
-    ['s5','p1','k1','i1','Nền, móng đường đoạn Km2–Km4,2','2025-08-01','2026-06-30',100,30],
-    ['s6','p1','k2','i4','Cầu bản qua kênh ấp Tân Lợi','2026-01-01','2026-12-31',55,20],
+    ['s1','p1','k1','i1','Nền, móng đường đoạn Km0–Km2','2025-06-01','2025-12-31',100,15],
+    ['s2','p1','k1','i2','Mặt đường bê tông nhựa','2025-10-01','2026-09-30',82,30],
+    ['s3','p1','k1','i3','Cống thoát nước dọc','2026-01-15','2026-11-30',64,20],
+    ['s4','p1','k2','i5','Chiếu sáng, biển báo','2026-06-01','2026-12-31',20,25],
+    ['s5','p1','k1','i1','Nền, móng đường đoạn Km2–Km4,2','2025-08-01','2026-06-30',100,25],
+    ['s6','p1','k2','i4','Cầu bản qua kênh ấp Tân Lợi','2026-01-01','2026-12-31',55,40],
     ['s7','p1','k2','','Đường dẫn hai đầu cầu','2026-04-01','2027-03-31',25,35],
-    ['s8','p1','k1','','Vạch sơn, hoàn thiện lề','2026-10-01','2027-03-31',0,15],
+    ['s8','p1','k1','','Vạch sơn, hoàn thiện lề','2026-10-01','2027-03-31',0,10],
     ['s9','p2','k4','i6','Móng khối phòng học','2025-10-01','2026-05-31',100,20],
     ['s10','p2','k4','i6','Kết cấu thân khối phòng học','2026-04-01','2026-12-31',58,25],
     ['s11','p2','k4','i7','Khối hiệu bộ, nhà bếp','2026-03-01','2026-11-30',61,18],
@@ -122,32 +123,33 @@ function makeSampleData(){
   // Kế hoạch bổ sung đang chờ Lãnh đạo Ban duyệt (bản 1.5): chưa tính vào tiến độ, chưa cập nhật thực tế được
   D.schedule.push({id:'s22', projectId:'p2', packageId:'k4', itemId:'i8', name:'Nhà để xe giáo viên (bổ sung)', planStart:'2026-11-15', planEnd:'2027-01-31', progress:0, weight:5, history:[], status:'Chờ duyệt'});
   // Khối lượng hợp đồng (đơn giá, khối lượng) và tỷ lệ đã thực hiện / nghiệm thu
+  // Bảng khối lượng khớp giá trị hợp đồng sau phụ lục đã duyệt; thanh toán khối lượng không vượt giá trị đã nghiệm thu
   const bq = [
     ['c1','AB.11','Đào nền đường đất cấp II','m3',18500,62000,1,1],
     ['c1','AD.11','Móng cấp phối đá dăm loại 1','m3',8800,520000,1,.98],
     ['c1','AD.23','Mặt đường bê tông nhựa chặt 12,5','m2',25200,280000,.84,.72],
-    ['c1','AF.82','Cống BTCT D600','m',4200,1650000,.66,.55],
+    ['c1','AF.82','Cống BTCT D600','m',4200,960000,.66,.55],
     ['c1','AB.65','Đắp lề đất K95','m3',6200,95000,.58,.45],
-    ['c2','AF.12','Bê tông kết cấu cầu bản','m3',260,4100000,.7,.6],
-    ['c2','AF.61','Cốt thép cầu','tấn',38,21000000,.6,.5],
-    ['c2','BA.14','Cột đèn thép 8m, đèn LED','cột',140,14500000,.18,0],
-    ['c2','AL.17','Biển báo, vạch sơn','HT',1,180000000,0,0],
+    ['c2','AF.12','Bê tông kết cấu cầu bản','m3',260,4100000,.7,.7],
+    ['c2','AF.61','Cốt thép cầu','tấn',38,21000000,.6,.6],
+    ['c2','BA.14','Cột đèn thép 8m, đèn LED','cột',140,14500000,.18,.1],
+    ['c2','AL.17','Biển báo, vạch sơn, hoàn trả mặt bằng','HT',1,726000000,0,0],
     ['c3','TV','Chi phí tư vấn giám sát','gói',1,590000000,.52,.45],
     ['c4','AC.25','Cọc BTCT 250x250','m',3200,420000,1,1],
     ['c4','AF.11','Bê tông móng','m3',620,3600000,1,1],
     ['c4','AF.12','Bê tông thân nhà','m3',980,4200000,.6,.48],
     ['c4','AF.61','Cốt thép các loại','tấn',165,21000000,.68,.6],
-    ['c4','AE.22','Xây, tô, hoàn thiện','m2',5200,1150000,.05,0],
-    ['c4','BA.99','Hệ thống điện, nước, PCCC','HT',1,1850000000,0,0],
+    ['c4','AE.22','Xây, tô, hoàn thiện','m2',4150,1150000,.05,0],
+    ['c4','BA.99','Hệ thống điện, nước, PCCC','HT',1,1850500000,0,0],
     ['c5','TV','Chi phí tư vấn thiết kế','gói',1,520000000,1,1],
     ['c6','TV','Chi phí lập BCKTKT','gói',1,260000000,.45,0],
     ['c7','TB.01','Máy tính để bàn cấu hình văn phòng','bộ',12,16500000,.85,.75],
     ['c7','TB.02','Máy quét tài liệu tốc độ cao','cái',4,38000000,.75,.5],
-    ['c7','TB.03','Ki-ốt lấy số, màn hình tra cứu thủ tục','bộ',2,165000000,.5,0],
+    ['c7','TB.03','Ki-ốt lấy số, màn hình tra cứu thủ tục','bộ',2,165000000,.5,.3],
     ['c7','TB.04','Màn hình hiển thị, loa gọi số','bộ',3,85000000,.6,.3],
     ['c8','SH.01','Số hóa hồ sơ hộ tịch','trang',62000,5200,1,1],
     ['c8','SH.02','Số hóa hồ sơ đất đai','trang',85000,5300,.6,.3],
-    ['c8','SH.03','Nhập dữ liệu đặc tả, kiểm tra chất lượng','hồ sơ',9500,7100,.55,.3]
+    ['c8','SH.03','Nhập dữ liệu đặc tả, kiểm tra chất lượng','hồ sơ',10000,6710,.55,.3]
   ];
   const months=['2025-09-28','2025-12-26','2026-03-27','2026-06-26','2026-09-25'];
   let vn=0;
@@ -183,7 +185,7 @@ function makeSampleData(){
     ['c3','Đợt 2','2026-08-31',.15]];
   D.payplans = pp.map(([contractId,phase,planDate,amt],i)=>({id:'q'+(i+1), contractId, phase, planDate, amount:Math.round(amt*T)}));
   const pm=[['c1','TU-01','2025-06-12','Tạm ứng',2.54,'Đã thanh toán'],['c1','TT-01','2026-01-08','Thanh toán khối lượng',3.7,'Đã thanh toán'],['c1','TT-02','2026-07-06','Thanh toán khối lượng',4.1,'Đã thanh toán'],['c1','TT-03','2026-10-20','Thanh toán khối lượng',1.9,'Đang trình KBNN'],
-    ['c2','TU-01','2025-08-06','Tạm ứng',.69,'Đã thanh toán'],['c2','TT-01','2026-04-10','Thanh toán khối lượng',1.05,'Đã thanh toán'],['c2','TT-02','2026-10-10','Thanh toán khối lượng',.62,'Chờ duyệt'],
+    ['c2','TU-01','2025-08-06','Tạm ứng',.69,'Đã thanh toán'],['c2','TT-01','2026-04-10','Thanh toán khối lượng',1.05,'Đã thanh toán'],['c2','TT-02','2026-10-10','Thanh toán khối lượng',.35,'Chờ duyệt'],
     ['c4','TU-01','2025-10-12','Tạm ứng',2.64,'Đã thanh toán'],['c4','TT-01','2026-04-15','Thanh toán khối lượng',3.6,'Đã thanh toán'],['c4','TT-02','2026-09-08','Thanh toán khối lượng',3.9,'Đã thanh toán'],
     ['c3','TU-01','2025-06-02','Tạm ứng',.059,'Đã thanh toán'],['c3','TT-01','2026-07-02','Thanh toán khối lượng',.16,'Đã thanh toán'],['c5','TT-01','2025-10-05','Thanh toán khối lượng',.52,'Đã thanh toán'],
     ['c7','TU-01','2026-08-21','Tạm ứng',.28,'Đã thanh toán'],['c7','TT-01','2026-10-28','Thanh toán khối lượng',.35,'Đề nghị'],

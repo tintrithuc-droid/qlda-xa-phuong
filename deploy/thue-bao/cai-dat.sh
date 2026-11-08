@@ -23,6 +23,8 @@ fi
 cai_goi rsync curl cronie >/dev/null 2>&1 || cai_goi rsync curl >/dev/null 2>&1 || true
 command -v restic >/dev/null || cai_goi restic >/dev/null 2>&1 || true
 systemctl enable --now crond >/dev/null 2>&1 || true
+command -v rsync >/dev/null || echo "CẢNH BÁO: chưa cài được rsync; sao lưu vẫn chạy nhưng chép đầy đủ kho tệp mỗi đêm. Cài thủ công: dnf install rsync (hoặc apt-get install rsync)."
+command -v crontab >/dev/null || [[ -d /etc/cron.d ]] || echo "CẢNH BÁO: máy chưa có dịch vụ cron; sao lưu đêm và kiểm tra 5 phút sẽ không tự chạy."
 # Tường lửa họ Red Hat (firewalld): mở cổng web
 if systemctl is-active -q firewalld 2>/dev/null; then
   echo "== Mở cổng 80, 443 trên firewalld"; firewall-cmd -q --permanent --add-service=http --add-service=https; firewall-cmd -q --reload

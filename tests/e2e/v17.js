@@ -74,6 +74,8 @@ function totp(secret) {
   exp('Lập đợt 2', (await put(kt, 'vbatches', { id: 'vb17b', contractId: 'c17', name: 'Đợt 2', date: '2026-11-05' })).status(), 200);
   let p = await page(kt, 'khoi-luong');
   await p.evaluate(() => { S.f.klc = 'c17'; S.tab.kl = 'nt'; render(); }); await p.waitForTimeout(400);
+  // Hồ sơ thu hồi tạm ứng làm giảm giá trị đã thanh toán, không cộng thêm
+  exp('Thu hồi tạm ứng trừ vào đã thanh toán', await p.evaluate(() => [payAmt({ kind: 'Thu hồi tạm ứng', amount: 5 }), payAmt({ kind: 'Tạm ứng', amount: 5 })].join()), '-5,5');
   const vb = await p.evaluate(() => ({ list: document.querySelectorAll('.vb-list .vb').length, txt: document.querySelector('.vb-list')?.innerText || '' }));
   exp('Danh sách đợt của hợp đồng', vb.list, 2);
   if (!/Đã nghiệm thu/.test(vb.txt) || !/Dự thảo/.test(vb.txt)) errs.push('Nhãn trạng thái đợt chưa đúng: ' + vb.txt.slice(0, 200));

@@ -85,8 +85,8 @@ const accFields=()=>[projSel(),{key:'packageId',label:'Gói thầu (để trốn
   {key:'warrantyGuaranteeUntil',label:'Bảo lãnh bảo hành hiệu lực đến',type:'date'},{key:'note',label:'Tồn tại, ghi chú',type:'textarea'},
   {key:'att',label:'Biên bản nghiệm thu, bàn giao, bản vẽ hoàn công, bảo lãnh bảo hành',type:'attach',col:'acceptances'}];
 const accCheck=v=>{ if(v.packageId){ const k=pkgOf(v.packageId); if(k&&k.projectId!==v.projectId){ $('#mform_err').textContent='Gói thầu không thuộc dự án đã chọn.'; return false; } } return true; };
-ACT['add-acceptances']=()=>openForm({title:'Thêm biên bản nghiệm thu, bàn giao', fields:accFields(), onSave:v=>accCheck(v)?save('acceptances',v,(v.number||v.kind)):false});
-ACT['edit-acceptances']=(id)=>openForm({title:'Cập nhật nghiệm thu, bàn giao', fields:accFields(), value:get('acceptances',id), onSave:v=>accCheck(v)?save('acceptances',v,(v.number||v.kind)):false});
+ACT['add-acceptances']=()=>openForm({wf:'acceptances', title:'Thêm biên bản nghiệm thu, bàn giao', fields:accFields(), onSave:v=>accCheck(v)?save('acceptances',v,(v.number||v.kind)):false});
+ACT['edit-acceptances']=(id)=>openForm({wf:'acceptances', title:'Cập nhật nghiệm thu, bàn giao', fields:accFields(), value:get('acceptances',id), onSave:v=>accCheck(v)?save('acceptances',v,(v.number||v.kind)):false});
 
 /* ===== QUYẾT TOÁN DỰ ÁN HOÀN THÀNH ===== */
 VIEWS['quyet-toan']=()=>{
@@ -140,47 +140,171 @@ const clrCheck=v=>{ const e=$('#mform_err'); if(N(v.householdsPaid)>N(v.househol
 ACT['add-clearances']=()=>openForm({title:'Thêm khu vực giải phóng mặt bằng', fields:clrFields(), onSave:v=>clrCheck(v)?save('clearances',v,v.name):false});
 ACT['edit-clearances']=(id)=>openForm({title:'Cập nhật giải phóng mặt bằng', fields:clrFields(), value:get('clearances',id), onSave:v=>clrCheck(v)?save('clearances',v,v.name):false});
 
-/* ===== TRÌNH DUYỆT HỒ SƠ (bản 1.2) ===== */
-const WF_ACT = {submit:['Trình duyệt','Trình hồ sơ cho người có quyền duyệt.',false], withdraw:['Rút lại','Rút hồ sơ về soạn thảo để sửa tiếp.',false],
-  approve:['Duyệt','Duyệt hồ sơ.',false], check:['Kiểm tra, xác nhận','Xác nhận hồ sơ đúng, đủ để chuyển lãnh đạo duyệt.',false], return:['Trả lại','Trả hồ sơ về người lập để sửa, ghi rõ nội dung cần sửa.',true],
+/* ===== TRÌNH DUYỆT HỒ SƠ (bản 1.2; quy trình tự thiết lập, theo dõi hồ sơ, phiếu trình, thông báo: bản 1.8) ===== */
+const WF_ACT = {submit:['Chuyển duyệt','Chuyển hồ sơ sang bước xử lý đầu tiên của quy trình.',false], withdraw:['Rút lại','Rút hồ sơ vừa chuyển về để sửa tiếp (bước tiếp theo chưa xử lý).',false],
+  approve:['Duyệt','Duyệt hồ sơ.',false], check:['Kiểm tra đạt','Xác nhận hồ sơ đúng, đủ và chuyển sang bước tiếp theo.',false], return:['Trả lại','Trả hồ sơ về người lập để sửa, ghi rõ nội dung cần sửa.',true],
   reject:['Từ chối','Từ chối hồ sơ (không thực hiện), ghi rõ lý do.',true], recall:['Thu hồi','Thu hồi hồ sơ đã duyệt về soạn thảo để điều chỉnh, ghi rõ lý do.',true]};
+const WF_FIN = {addenda:'Sau khi duyệt, giá trị và thời hạn của phụ lục được cộng vào hợp đồng.', schedule:'Sau khi duyệt, kế hoạch được tính vào tiến độ gói thầu, dự án, đường cong S và cảnh báo; cán bộ được cập nhật tiến độ thực tế.',
+  vbatches:'Sau khi duyệt, khối lượng nghiệm thu của đợt được tính vào số liệu, báo cáo và là căn cứ lập hồ sơ thanh toán khối lượng hoàn thành.', payments:'Sau khi duyệt, hồ sơ chuyển sang trạng thái Đang trình KBNN; kế toán xác nhận khi Kho bạc chi.'};
 ACT.wf=(key)=>{
   const [col,id,a]=key.split('|'); const r=get(col,id); if(!r) return;
   if(a==='history') return wfHistory(col,r);
-  let [lb,desc,need]=WF_ACT[a]; const w=WF[col]; if(a==='check' && w.checkBtn) lb=w.checkBtn;
-  if(a==='check' && col==='vbatches') desc='Tư vấn giám sát xác nhận khối lượng thực hiện và nghiệm thu của đợt đúng với hiện trường, rồi chuyển lãnh đạo Ban duyệt.';
-  openForm({title:lb+': '+w.label(r), narrow:true, submit:lb, value:{},
-    fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0 0 6px">${esc(desc)}</p><p class="small muted" style="margin:0">${esc(w.info(r))}</p>${a==='approve'&&col==='addenda'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, giá trị và thời hạn của phụ lục được cộng vào hợp đồng.</p>':''}${a==='approve'&&col==='schedule'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, kế hoạch được tính vào tiến độ gói thầu, dự án, đường cong S và cảnh báo; cán bộ được cập nhật tiến độ thực tế.</p>':''}${a==='approve'&&col==='vbatches'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, khối lượng nghiệm thu của đợt được tính vào số liệu, báo cáo và là căn cứ lập hồ sơ thanh toán khối lượng hoàn thành.</p>':''}${a==='approve'&&col==='payments'?'<p class="small" style="margin:6px 0 0">Sau khi duyệt, hồ sơ chuyển sang trạng thái Đang trình KBNN; kế toán xác nhận khi Kho bạc chi.</p>':''}`},
-      {key:'note',label:need?'Ý kiến (bắt buộc)':'Ý kiến (nếu có)',type:'textarea',rows:3,req:need,full:true}],
-    onSave:async v=>{ const res=await api('POST','/api/approvals',{collection:col, id, action:a, note:v.note||''}); Store.setLocal(col,res.record); Store.setLocal('approvals',res.log); return res.record; }});
+  if(a==='print') return wfPrint(col,r);
+  const w=WF[col], st=wfState(col,r), pid=w.pid(r), on=wfOn(col,pid);
+  let [lb,desc,need]=WF_ACT[a], next=null, nextLast=false, fin=false;
+  if(a==='submit'){ const rt=on? wfRouteFor(wfFlow(col,pid), wfAmount(col,r)) : [];
+    if(rt.length){ next=rt[0]; nextLast=rt.length===1; desc=`Hồ sơ đi qua ${rt.length} bước: ${rt.map((s,i)=>(i+1)+'. '+s.label).join('; ')}.`; }
+    else { lb='Ghi nhận'; fin=true; desc=on? 'Giá trị hồ sơ không thuộc khoảng phải trình duyệt: hồ sơ được ghi nhận ngay.' : 'Loại hồ sơ này không qua trình duyệt: hồ sơ được ghi nhận ngay.'; } }
+  if((a==='check'||a==='approve') && st.step){ lb=st.step.verb||lb; desc=`Bước: ${st.step.label}.`+(st.isLast?' Đây là bước cuối của quy trình.':'');
+    if(st.isLast) fin=true; else { next=st.route[st.idx+1]; nextLast=st.idx+1===st.route.length-1; }
+    if(st.step.noteRequired) need=true; }
+  else if(a==='approve') fin=true;
+  if(a==='return' && st.step && st.step.returnTo==='prev' && st.idx>0) desc=`Trả hồ sơ về bước trước (${st.route[st.idx-1].label}), ghi rõ nội dung cần sửa.`;
+  if(a==='withdraw' && st.idx>0) desc=`Rút hồ sơ về bước "${st.route[st.idx-1].label}" để xử lý lại (bước hiện tại chưa xử lý).`;
+  if(a==='check' && col==='vbatches' && st.idx===0) desc='Tư vấn giám sát xác nhận khối lượng thực hiện và nghiệm thu của đợt đúng với hiện trường, rồi chuyển bước tiếp theo.';
+  const fields=[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0 0 6px">${esc(desc)}</p><p class="small muted" style="margin:0">${esc(w.info(r))}</p>${fin&&WF_FIN[col]?`<p class="small" style="margin:6px 0 0">${esc(WF_FIN[col])}</p>`:''}`}];
+  if(next){ const hs=wfHandlers(col,next,nextLast);
+    fields.push({key:'assignTo',label:`Chuyển cho (bước tiếp theo: ${next.label}${next.dueDays?', hạn '+next.dueDays+' ngày làm việc':''})`,type:'select',full:true,
+      options:()=>hs.map(u=>[u.id, u.name+(u.unit?' · '+u.unit:'')]), hint:hs.length?'Để trống: mọi người được phân công bước này đều xử lý được.':'Chưa có tài khoản nào được phân công bước này; quản trị hệ thống xử lý thay hoặc phân công ở Thiết lập quy trình.'}); }
+  fields.push({key:'note',label:need?'Ý kiến (bắt buộc)':'Ý kiến (nếu có)',type:'textarea',rows:3,req:need,full:true});
+  openForm({title:lb+': '+w.label(r), narrow:true, submit:lb, value:{}, fields,
+    onSave:async v=>{ const res=await api('POST','/api/approvals',{collection:col, id, action:a, note:v.note||'', assignTo:v.assignTo||null}); Store.setLocal(col,res.record); Store.setLocal('approvals',res.log); return res.record; }});
 };
+const wfActPill = x => pill(x.action, x.toStatus===(WF[x.collection]||{}).ok||x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'||x.action==='Rút lại'?'warn':'info');
+function wfStepOf(x){ if(!x.step) return ''; const r=get(x.collection,x.recordId); const st=r? wfState(x.collection,r) : null; const s=st && st.route.find(k=>k.key===x.step); return s? s.label : x.step; }
 function wfHistory(col, r){
-  const hs=D('approvals').filter(a=>a.collection===col && a.recordId===r.id).sort(by('at',-1));
-  openModal(`<div class="mform"><header><h3>Lịch sử trình duyệt: ${esc(WF[col].label(r))}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:14px 16px">
-    ${table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Thao tác',f:x=>pill(x.action, x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'?'warn':'info')},{h:'Trạng thái',f:x=>`<span class="small">${esc(x.fromStatus||'')} → <b>${esc(x.toStatus||'')}</b></span>`},{h:'Ý kiến',f:x=>esc(x.note||'')}], hs, {nopage:true, empty:'Chưa có lịch sử.'})}</div></div>`);
+  const hs=wfLogs(col,r.id);
+  openModal(`<div class="mform wide"><header><h3>Lịch sử trình duyệt: ${esc(WF[col].label(r))}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:14px 16px">
+    ${table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Thao tác',f:wfActPill},{h:'Chuyển tới',f:x=>x.step?`<span class="small">${esc(wfStepOf(x))}${x.assigneeName?' · '+esc(x.assigneeName):''}${x.due?' · hạn '+fmtDate(x.due):''}</span>`:`<span class="small"><b>${esc(x.toStatus||'')}</b></span>`},{h:'Ý kiến',f:x=>esc(x.note||'')}], hs, {nopage:true, empty:'Chưa có lịch sử.'})}</div></div>`);
 }
+/* Phiếu trình: thông tin hồ sơ, các bước của quy trình, ý kiến từng bước, ô ký */
+function wfPrint(col, r){
+  const w=WF[col], st=wfState(col,r), pj=projOf(w.pid(r))||{}, hs=wfLogs(col,r.id).reverse(), d=TODAY.split('-');
+  const html=`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Phiếu trình ${esc(w.label(r))}</title><style>
+  @page{size:A4; margin:16mm} body{font-family:"Times New Roman",serif; font-size:13px; color:#000}
+  .hd{display:grid; grid-template-columns:1fr 1.2fr; text-align:center; margin-bottom:12px} .hd b{display:block} .hd .u{display:inline-block; border-top:1px solid #000; width:40%; margin-top:2px}
+  h1{font-size:17px; text-align:center; margin:14px 0 4px} .sub{text-align:center; font-style:italic; margin-bottom:12px}
+  table{width:100%; border-collapse:collapse; margin-top:8px} th,td{border:1px solid #000; padding:4px 6px; vertical-align:top} th{background:#eee} dl{display:grid; grid-template-columns:150px 1fr; gap:4px 10px; margin:0} dt{font-weight:bold}
+  .sign{display:grid; grid-template-columns:1fr 1fr; text-align:center; margin-top:22px} .sign i{display:block} .sign .sp{height:80px}</style></head><body>
+  <div class="hd"><div>${esc((BR.orgName||'').toUpperCase())}<b>${esc((BR.unitName||BR.reportOrg||'').toUpperCase())}</b><span class="u"></span></div>
+    <div><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><b>Độc lập - Tự do - Hạnh phúc</b><span class="u"></span></div></div>
+  <h1>PHIẾU TRÌNH</h1><div class="sub">${esc(w.name)}</div>
+  <dl><dt>Hồ sơ</dt><dd>${esc(w.label(r))}</dd><dt>Dự án</dt><dd>${esc([pj.code,pj.name].filter(Boolean).join(' · '))}</dd><dt>Nội dung</dt><dd>${esc(w.info(r))}</dd>
+    <dt>Tình trạng</dt><dd>${esc(wfDisp(col,wfStatus(col,r),r))}</dd>${st.sub?`<dt>Người trình</dt><dd>${esc(st.sub.byName||st.sub.by||'')}, ${fmtDT(st.sub.at)}</dd>`:''}</dl>
+  <table><thead><tr><th style="width:36px">TT</th><th>Bước xử lý</th><th>Người xử lý</th><th>Thời gian</th><th>Ý kiến</th></tr></thead><tbody>
+  ${hs.map((x,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(x.action)}${x.step?` → ${esc(wfStepOf(x))}`:x.toStatus?` → ${esc(x.toStatus)}`:''}</td><td>${esc(x.byName||x.by||'')}</td><td>${fmtDT(x.at)}</td><td>${esc(x.note||'')}</td></tr>`).join('')}</tbody></table>
+  <div class="sign"><div><i>&nbsp;</i><b>NGƯỜI TRÌNH</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(st.sub?(st.sub.byName||''):'')}</div><div><i>…, ngày ${d[2]} tháng ${d[1]} năm ${d[0]}</i><b>LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div></div>
+  </body></html>`;
+  const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.title='In phiếu trình';
+  document.body.appendChild(fr); const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  setTimeout(()=>{ try{ fr.contentWindow.focus(); fr.contentWindow.print(); }finally{ setTimeout(()=>fr.remove(), 60000); } }, 250);
+  log('In phiếu trình', col, w.label(r));
+}
+/* Thông báo: hồ sơ chờ mình xử lý, hồ sơ bị trả lại, hồ sơ mình chuyển đã được duyệt (7 ngày gần nhất) */
+function wfNotices(){ if(!S.user) return []; const me=S.user.username, out=[], since=new Date(Date.now()-7*864e5).toISOString();
+  wfMine().forEach(x=>{ const st=wfState(x.col,x.r); out.push({col:x.col, r:x.r, act:true, kind:wfOverdue(x.col,x.r,st)?'bad':'warn', text:`Chờ bạn ${lcFirst(st.step.verb||'xử lý')}: ${WF[x.col].label(x.r)}`, at:st.since||x.r.updatedAt, sub:(st.last?'Chuyển bởi '+(st.last.byName||st.last.by):'')+(st.due?' · hạn '+fmtDate(st.due)+(wfOverdue(x.col,x.r,st)?' (quá hạn)':''):'')}); });
+  Object.keys(WF).filter(col=>can(WF[col].mod)).forEach(col=>D(col).forEach(r=>{ const ls=wfLogs(col,r.id); if(!ls.length) return; const l=ls[0], sub=ls.find(a=>a.route);
+    const mineSub=(sub&&sub.by===me) || r.updatedBy===me;
+    if(l.action==='Trả lại' && mineSub) out.push({col, r, act:true, kind:'bad', text:`Bị trả lại: ${WF[col].label(r)}`, at:l.at, sub:`${l.byName||l.by}: ${l.note||''}`});
+    else if(l.toStatus===WF[col].ok && sub && sub.by===me && l.by!==me && l.at>=since) out.push({col, r, kind:'ok', text:`Đã duyệt: ${WF[col].label(r)}`, at:l.at, sub:'Bởi '+(l.byName||l.by)});
+    else if(l.toStatus===WF[col].no && sub && sub.by===me && l.at>=since) out.push({col, r, kind:'bad', text:`Bị từ chối: ${WF[col].label(r)}`, at:l.at, sub:`${l.byName||l.by}: ${l.note||''}`}); }));
+  return out.sort(by('at',-1)); }
+function wfBell(){ if(!S.user) return ''; const n=wfNotices().filter(x=>x.act).length;
+  return `<button class="btn ghost sm bell" data-act="wf-bell" title="Thông báo trình duyệt" aria-label="Thông báo trình duyệt${n?': '+n+' việc cần xử lý':''}">${ic('bell').replace('<svg','<svg width="18" height="18"')}${n?`<span class="bcnt num">${n>99?'99+':n}</span>`:''}</button>`; }
+ACT['wf-bell']=()=>{ const ns=wfNotices();
+  openModal(`<div class="mform"><header><h3>Thông báo trình duyệt</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:8px 16px 16px">
+    ${ns.length? `<div class="list">${ns.slice(0,40).map(x=>`<button class="btn ghost" style="justify-content:flex-start;text-align:left;white-space:normal;display:block;width:100%" data-act="wf-go" data-id="${esc(x.col+'|'+(x.act?(x.kind==='bad'&&!wfWaiting(x.col,x.r)?'soan':'cho'):'xong'))}">${pill(x.kind==='ok'?'Đã duyệt':x.act&&wfWaiting(x.col,x.r)?'Cần xử lý':x.kind==='bad'?'Trả lại, từ chối':'Thông báo', x.kind)} <b style="font-weight:600">${esc(x.text)}</b><div class="small muted">${fmtDT(x.at)}${x.sub?' · '+esc(x.sub):''}</div></button>`).join('')}</div>`
+      : emptyBox('Không có thông báo mới.')}
+    <div class="toolbar" style="margin-top:10px"><button class="btn sm" data-act="wf-go" data-id="|cho">Mở Trình duyệt hồ sơ</button></div></div></div>`); };
+ACT['wf-go']=(k)=>{ const t=k.split('|')[1]||'cho'; closeModal(); S.tab.td2=t; if(location.hash==='#trinh-duyet') render(); else location.hash='trinh-duyet'; };
+
 VIEWS['trinh-duyet']=()=>{
-  const t=S.tab.td2||'cho';
+  const t=S.tab.td2||'cho', me=S.user.username;
   const vis=Object.keys(WF).filter(col=>can(WF[col].mod));
-  const all=vis.flatMap(col=>D(col).filter(r=>pidOk(WF[col].pid(r)) && (!S.pid||WF[col].pid(r)===S.pid)).map(r=>({col,r,id:col+'|'+r.id})));
-  const mine=wfMine().filter(x=>!S.pid||WF[x.col].pid(x.r)===S.pid).map(x=>({...x,id:x.col+'|'+x.r.id}));
-  const waiting=all.filter(x=>wfWaiting(x.col,x.r)), drafts=all.filter(x=>wfStatus(x.col,x.r)===WF[x.col].draft);
+  const all=vis.flatMap(col=>D(col).filter(r=>(r.status||!WF[col].opt) && pidOk(WF[col].pid(r)) && (!S.pid||WF[col].pid(r)===S.pid)).map(r=>({col,r,id:col+'|'+r.id,st:wfState(col,r)})));
+  const mine=wfMine().filter(x=>!S.pid||WF[x.col].pid(x.r)===S.pid).map(x=>({...x,id:x.col+'|'+x.r.id,st:wfState(x.col,x.r)}));
+  const cycle=x=>{ const i=x.st.sub? x.st.logs.indexOf(x.st.sub) : x.st.logs.length-1; return x.st.logs.slice(0,i+1); };
+  const waiting=all.filter(x=>wfWaiting(x.col,x.r));
+  const drafts=all.filter(x=>wfStatus(x.col,x.r)===WF[x.col].draft && (x.r.updatedBy===me || (x.st.sub&&x.st.sub.by===me)));
+  const sent=waiting.filter(x=>cycle(x).some(l=>l.by===me));
+  const done=all.filter(x=>wfLocked(x.col,x.r) && x.st.logs.some(l=>l.by===me)).sort((a,b)=>String((b.st.last||{}).at||'').localeCompare(String((a.st.last||{}).at||'')));
   const hist=D('approvals').filter(a=>vis.includes(a.collection) && (!S.pid||a.projectId===S.pid)).sort(by('at',-1));
-  const lastNote=x=>{ const h=D('approvals').filter(a=>a.collection===x.col && a.recordId===x.r.id).sort(by('at',-1))[0]; return h&&h.note? `<div class="small muted">${esc(h.action)} · ${esc(h.byName||'')}: ${esc(h.note)}</div>` : ''; };
+  const od=waiting.filter(x=>wfOverdue(x.col,x.r,x.st)).length;
+  const lastNote=x=>{ const h=x.st.last; return h&&h.note? `<div class="small muted">${esc(h.action)} · ${esc(h.byName||'')}: ${esc(h.note)}</div>` : ''; };
   const cols=[{h:'Loại hồ sơ',f:x=>`<span class="small">${esc(WF[x.col].name)}</span>`},{h:'Hồ sơ',f:x=>`<b style="font-weight:600">${esc(WF[x.col].label(x.r))}</b><div class="small muted">${esc(WF[x.col].info(x.r))}</div>${lastNote(x)}`},
-    {h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},{h:'Trạng thái',f:x=>wfPill(x.col,x.r)},{h:'Cập nhật',f:x=>`<span class="num small">${fmtDT(x.r.updatedAt)}</span><div class="small muted">${esc(x.r.updatedBy||'')}</div>`}];
-  const list=t==='cho'?mine:t==='dang'?waiting:drafts;
-  const tabs=[['cho','Chờ tôi xử lý',mine.length],['dang','Đang chờ duyệt',waiting.length],['soan','Đang soạn thảo, bị trả lại',drafts.length],['ls','Lịch sử duyệt',hist.length]];
-  const adm=myGroup()?.admin;
-  const ckCard=adm? `<div class="card"><h2>Bước kiểm tra trước khi duyệt</h2><p class="small muted" style="margin:0 0 8px">Bật cho loại hồ sơ nào thì hồ sơ đó sau khi trình phải được người có quyền "Kiểm tra hồ sơ" xác nhận rồi mới tới lãnh đạo duyệt. Giao quyền kiểm tra ở Quản trị hệ thống, Nhóm người dùng.</p>
-    <div class="list">${Object.keys(WF).map(col=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-act="wf-check" data-id="${col}" ${wfHasCheck(col)?'checked':''}> ${esc(WF[col].name)}${col==='vbatches'?' <span class="small muted">(tư vấn giám sát xác nhận khối lượng)</span>':''}</label>`).join('')}</div></div>` : '';
-  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Phụ lục hợp đồng, kế hoạch tiến độ, đợt nghiệm thu khối lượng, hồ sơ thanh toán và biên bản nghiệm thu do cán bộ lập rồi trình; nếu có bước kiểm tra thì bộ phận chuyên môn hoặc tư vấn giám sát xác nhận trước; Lãnh đạo Ban duyệt hoặc trả lại. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.</p></div></div>
-  <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="td2" data-id="${k}">${l}${n?` <span class="cnt" style="position:static;margin-left:4px">${n}</span>`:''}</button>`).join('')}</div>
-  <div class="card">${t==='ls'
-    ? table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Hồ sơ',f:x=>`<span class="small muted">${esc((WF[x.collection]||{}).name||'')}</span><div>${esc(x.target||'')}</div>`},{h:'Thao tác',f:x=>pill(x.action, x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'?'warn':'info')},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Ý kiến',f:x=>esc(x.note||'')}], hist, {empty:'Chưa có lịch sử trình duyệt.'})
-    : table(cols, list, {actions:x=>wfBtns(x.col,x.r), empty:t==='cho'?(Object.keys(WF).some(c=>can(WF[c].mod,'approve')||can(WF[c].mod,'check'))?'Không có hồ sơ nào chờ bạn kiểm tra hoặc duyệt.':'Tài khoản của bạn không có quyền duyệt. Hồ sơ bạn trình sẽ hiện ở thẻ Đang chờ duyệt.'):'Không có hồ sơ.'})}</div>${ckCard}`;
+    {h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},{h:'Đang ở bước',f:x=>wfPill(x.col,x.r)},
+    {h:'Cập nhật',f:x=>{ const l=x.st.last; return l? `<span class="num small">${fmtDT(l.at)}</span><div class="small muted">${esc(l.action)} · ${esc(l.byName||l.by||'')}</div>` : `<span class="num small">${fmtDT(x.r.updatedAt)}</span><div class="small muted">${esc(x.r.updatedBy||'')}</div>`; }}];
+  const lists={cho:mine, soan:drafts, chuyen:sent, xong:done, dang:waiting};
+  const tabs=[['cho','Chờ tôi xử lý',mine.length],['soan','Tôi đang soạn',drafts.length],['chuyen','Tôi đã chuyển',sent.length],['xong','Đã hoàn thành',done.length],['dang','Tất cả đang xử lý',waiting.length],['ls','Lịch sử duyệt',0],...(myGroup()?.admin?[['qt','Thiết lập quy trình',0]]:[])];
+  const empty={cho:Object.keys(WF).some(c=>can(WF[c].mod,'approve')||can(WF[c].mod,'check'))||D('approvals').length?'Không có hồ sơ nào chờ bạn xử lý.':'Tài khoản của bạn chưa được phân công bước duyệt nào. Hồ sơ bạn chuyển sẽ hiện ở thẻ Tôi đã chuyển.',
+    soan:'Không có hồ sơ nháp hoặc bị trả lại của bạn.', chuyen:'Không có hồ sơ bạn đã chuyển đang chờ xử lý.', xong:'Chưa có hồ sơ đã hoàn thành mà bạn tham gia.', dang:'Không có hồ sơ đang xử lý.'};
+  const body=t==='qt'? wfConfigView() : t==='ls'
+    ? `<div class="card">${table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Hồ sơ',f:x=>`<span class="small muted">${esc((WF[x.collection]||{}).name||'')}</span><div>${esc(x.target||'')}</div>`},{h:'Thao tác',f:wfActPill},{h:'Chuyển tới',f:x=>x.step?`<span class="small">${esc(wfStepOf(x))}${x.assigneeName?' · '+esc(x.assigneeName):''}</span>`:`<span class="small">${esc(x.toStatus||'')}</span>`},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Ý kiến',f:x=>esc(x.note||'')}], hist, {empty:'Chưa có lịch sử trình duyệt.'})}</div>`
+    : `<div class="card">${table(cols, lists[t]||[], {actions:x=>wfBtns(x.col,x.r), empty:empty[t]})}</div>`;
+  return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Hồ sơ do cán bộ lập rồi chuyển duyệt; mỗi bước do người được phân công xử lý: chuyển tiếp, trả lại hoặc từ chối. Người vừa chuyển được rút lại khi bước sau chưa xử lý. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.${od?` <b style="color:var(--red)">${od} hồ sơ quá hạn xử lý.</b>`:''}</p></div></div>
+  <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="td2" data-id="${k}">${l}${n?` <span class="cnt" style="position:static;margin-left:4px">${n}</span>`:''}</button>`).join('')}</div>${body}`;
 };
 
-ACT['wf-check']=async(col,el)=>{ const on=el.checked;
-  try{ await api('POST','/api/data/wf-check',{collection:col, enabled:on}); const a=Store.meta.wfCheck.filter(x=>x!==col); if(on) a.push(col); Store.meta.wfCheck=a; toast((on?'Đã bật':'Đã tắt')+' bước kiểm tra: '+WF[col].name); Store.soon(); render(); }
-  catch(ex){ el.checked=!on; toast(errText(ex),'err'); } };
+/* ----- Thiết lập quy trình duyệt (quản trị) ----- */
+const wfClone = o => JSON.parse(JSON.stringify(o));
+function wfSteps(fc){ return (fc.steps||[]).map((s,i)=>{ const gs=(s.groups||[]).map(id=>(get('groups',id)||{}).name).filter(Boolean), us=(s.users||[]).map(id=>(get('users',id)||{}).name).filter(Boolean);
+  const who=[...gs,...us].join(', ')||(i===fc.steps.length-1?'theo quyền Duyệt':'theo quyền Kiểm tra hồ sơ');
+  const amt=s.minAmount||s.maxAmount? ` · giá trị ${s.minAmount?'từ '+fmtTy(s.minAmount):''}${s.maxAmount?' dưới '+fmtTy(s.maxAmount):''}` : '';
+  return `<div class="small"><b>${i+1}. ${esc(s.label)}</b> <span class="muted">(${esc(s.verb)}; ${esc(who)}${s.dueDays?'; hạn '+s.dueDays+' ngày':''}${s.returnTo==='prev'?'; trả về bước trước':''}${amt})</span></div>`; }).join(''); }
+function wfConfigView(){ const c=wfCfg(), pid=S.f.wfp||'', pj=projOf(pid);
+  const rows=Object.keys(WF).map(col=>{ const own=pid && c.projects && c.projects[pid] && c.projects[pid][col]; const fc=own || c.flows[col] || {enabled:false,steps:[]};
+    return {id:col, col, fc, own:!!own}; });
+  return `<div class="card"><div class="ch"><h2>Quy trình duyệt theo loại hồ sơ</h2><select data-f="wfp" aria-label="Phạm vi" style="max-width:320px">${opts(projects().map(p=>[p.id,'Quy trình riêng: '+p.code]), pid, 'Quy trình chung (mọi dự án)')}</select></div>
+    <p class="small muted" style="margin-top:0">${pid?`Dự án ${esc(pj?pj.code:'')}: loại hồ sơ chưa thiết lập riêng thì dùng quy trình chung.`:'Bật loại hồ sơ nào thì hồ sơ đó phải chuyển duyệt qua các bước dưới đây; tắt thì hồ sơ được ghi nhận ngay khi lưu. Hồ sơ đang xử lý giữ nguyên các bước của lần chuyển duyệt.'}</p>
+    ${table([{h:'Loại hồ sơ',f:r=>`<b style="font-weight:600">${esc(WF[r.col].name)}</b>${pid?`<div class="small muted">${r.own?'Quy trình riêng của dự án':'Đang dùng quy trình chung'}</div>`:''}`},
+      {h:'Áp dụng',f:r=>`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-act="wf-on" data-id="${r.col}" ${r.fc.enabled?'checked':''}${pid&&!r.own?' disabled':''}> ${r.fc.enabled?'Có':'Không'}</label>`},
+      {h:'Các bước',f:r=>wfSteps(r.fc)||'<span class="muted small">Chưa có bước</span>'}], rows,
+      {nopage:true, actions:r=>`<button class="btn sm" data-act="wf-edit" data-id="${r.col}">${pid&&!r.own?'Thiết lập riêng':'Thiết lập bước'}</button>${pid&&r.own?`<button class="btn sm ghost danger" data-act="wf-own-off" data-id="${r.col}">Dùng quy trình chung</button>`:''}`})}</div>
+  <div class="card"><h2>Nguyên tắc xử lý</h2><div class="list">
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-act="wf-opt" data-id="assignedOnly" ${c.assignedOnly!==false?'checked':''}> Hồ sơ chuyển đích danh thì chỉ người được chọn (hoặc quản trị) xử lý</label>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-act="wf-opt" data-id="noSelfReview" ${c.noSelfReview!==false?'checked':''}> Người chuyển duyệt hồ sơ không tự xử lý các bước sau của chính hồ sơ đó</label></div>
+    <p class="small muted" style="margin:8px 0 0">Bước không chọn nhóm, người xử lý thì theo quyền "Kiểm tra hồ sơ" (bước giữa) hoặc "Duyệt" (bước cuối) của nhóm người dùng ở Quản trị hệ thống.</p></div>`; }
+async function wfSaveCfg(c){ const r=await api('PUT','/api/workflow',c); Store.meta.wf=r; Store.meta.wfCheck=Object.keys(r.flows).filter(k=>(r.flows[k].steps||[]).length>1); toast('Đã lưu quy trình duyệt'); render(); return r; }
+function wfTarget(c, col, pid, make){ if(!pid) return c.flows[col]; c.projects=c.projects||{}; const m=c.projects[pid]=c.projects[pid]||{}; if(!m[col] && make) m[col]=wfClone(c.flows[col]); return m[col]; }
+ACT['wf-on']=(col,el)=>{ const c=wfClone(wfCfg()), t=wfTarget(c,col,S.f.wfp||'',true); t.enabled=el.checked; wfSaveCfg(c).catch(ex=>{ el.checked=!el.checked; toast(errText(ex),'err'); }); };
+ACT['wf-opt']=(k,el)=>{ const c=wfClone(wfCfg()); c[k]=el.checked; wfSaveCfg(c).catch(ex=>{ el.checked=!el.checked; toast(errText(ex),'err'); }); };
+ACT['wf-own-off']=async(col)=>{ const pid=S.f.wfp||''; if(!pid) return; if(!await confirmBox('Bỏ quy trình riêng của dự án cho loại hồ sơ này và dùng quy trình chung?','Dùng quy trình chung')) return;
+  const c=wfClone(wfCfg()); if(c.projects&&c.projects[pid]){ delete c.projects[pid][col]; if(!Object.keys(c.projects[pid]).length) delete c.projects[pid]; } wfSaveCfg(c).catch(ex=>toast(errText(ex),'err')); };
+let WFED=null;
+ACT['wf-edit']=(col)=>{ const pid=S.f.wfp||'', c=wfCfg(); const src=(pid && c.projects && c.projects[pid] && c.projects[pid][col]) || c.flows[col] || {enabled:false, steps:[]};
+  WFED={col, pid, fc:wfClone(src)}; if(!WFED.fc.steps.length) WFED.fc.steps=[wfClone(WF_STEP0)]; wfEdRender(); };
+function wfEdRead(){ const ov=$('#ov'); if(!WFED||!ov) return; WFED.fc.enabled=!!($('#wfe_on')||{}).checked;
+  WFED.fc.steps.forEach((s,i)=>{ const v=k=>{ const el=ov.querySelector(`[data-wfe="${i}|${k}"]`); return el?el.value:''; };
+    s.label=v('label').trim(); s.verb=v('verb').trim(); s.returnTo=v('returnTo')||'author'; s.dueDays=Math.max(0,parseInt(v('dueDays'))||0);
+    s.minAmount=v('minAmount')===''?null:Number(v('minAmount')); s.maxAmount=v('maxAmount')===''?null:Number(v('maxAmount'));
+    s.noteRequired=!!(ov.querySelector(`[data-wfe="${i}|noteRequired"]`)||{}).checked;
+    s.groups=[...ov.querySelectorAll(`[data-wfg="${i}"]:checked`)].map(x=>x.value); s.users=[...ov.querySelectorAll(`[data-wfu="${i}"]:checked`)].map(x=>x.value); }); }
+function wfEdRender(){ const e=WFED, w=WF[e.col], n=e.fc.steps.length, pj=projOf(e.pid);
+  const gs=D('groups').filter(g=>!g.admin).sort(by('name')), us=D('users').filter(u=>u.active!==false).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
+  const step=(s,i)=>`<div class="card" style="margin:0 0 10px;padding:12px"><div class="ch" style="margin-bottom:6px"><h3 style="margin:0">Bước ${i+1}${i===n-1?' (bước cuối)':''}</h3><span style="display:flex;gap:4px">
+      <button type="button" class="btn sm ghost" data-act="wfe-mv" data-id="${i}|-1" ${i===0?'disabled':''} title="Đưa lên">↑</button><button type="button" class="btn sm ghost" data-act="wfe-mv" data-id="${i}|1" ${i===n-1?'disabled':''} title="Đưa xuống">↓</button><button type="button" class="btn sm ghost danger" data-act="wfe-rm" data-id="${i}" ${n===1?'disabled':''}>Xóa bước</button></span></div>
+    <div class="fgrid" style="padding:0">
+      <div class="fld"><label>Tên bước</label><input data-wfe="${i}|label" value="${esc(s.label||'')}" placeholder="Ví dụ: Kế toán kiểm tra"></div>
+      <div class="fld"><label>Chữ trên nút xử lý</label><input data-wfe="${i}|verb" value="${esc(s.verb||'')}" placeholder="Kiểm tra đạt, Xác nhận, Duyệt…"></div>
+      <div class="fld"><label>Khi trả lại</label><select data-wfe="${i}|returnTo">${opts([['author','Trả về người lập'],['prev','Trả về bước trước']], s.returnTo||'author')}</select></div>
+      <div class="fld"><label>Hạn xử lý (ngày làm việc, 0 = không đặt)</label><input type="number" min="0" data-wfe="${i}|dueDays" value="${N(s.dueDays)}"></div>
+      <div class="fld"><label>Chỉ áp dụng khi giá trị hồ sơ từ (đồng)</label><input type="number" min="0" data-wfe="${i}|minAmount" value="${s.minAmount??''}" ${w.amt?'':'disabled'}></div>
+      <div class="fld"><label>đến dưới (đồng)</label><input type="number" min="0" data-wfe="${i}|maxAmount" value="${s.maxAmount??''}" ${w.amt?'':'disabled'}></div>
+      <div class="fld full"><label>Nhóm người dùng xử lý</label><div style="display:flex;flex-wrap:wrap;gap:4px 14px">${gs.map(g=>`<label class="small" style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-wfg="${i}" value="${g.id}" ${(s.groups||[]).includes(g.id)?'checked':''}> ${esc(g.name)}</label>`).join('')}</div></div>
+      <div class="fld full"><details${(s.users||[]).length?' open':''}><summary class="small">Người cụ thể xử lý (${(s.users||[]).length})</summary><div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px">${us.map(u=>`<label class="small" style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-wfu="${i}" value="${u.id}" ${(s.users||[]).includes(u.id)?'checked':''}> ${esc(u.name)} <span class="muted">${esc((get('groups',u.groupId)||{}).name||'')}</span></label>`).join('')}</div></details></div>
+      <div class="fld full"><label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-wfe="${i}|noteRequired" ${s.noteRequired?'checked':''}> Bắt buộc ghi ý kiến khi xử lý bước này</label></div></div></div>`;
+  openModal(`<div class="mform wide"><header><h3>Quy trình duyệt: ${esc(w.name)}${e.pid?' · dự án '+esc(pj?pj.code:''):''}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header>
+    <div style="padding:14px 16px;max-height:70vh;overflow:auto"><label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="wfe_on" ${e.fc.enabled?'checked':''}> Áp dụng quy trình duyệt cho loại hồ sơ này</label>
+    <p class="small muted" style="margin:0 0 10px">Không chọn nhóm, người xử lý thì bước giữa theo quyền "Kiểm tra hồ sơ", bước cuối theo quyền "Duyệt" của phân hệ. Bước có điều kiện giá trị chỉ áp dụng cho hồ sơ có giá trị trong khoảng đó.</p>
+    ${e.fc.steps.map(step).join('')}<button type="button" class="btn sm" data-act="wfe-add">+ Thêm bước</button></div>
+    <footer><span class="small muted" id="wfe_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button type="button" class="btn primary" data-act="wfe-save">Lưu quy trình</button></footer></div>`); }
+ACT['wfe-add']=()=>{ wfEdRead(); const n=WFED.fc.steps.length; WFED.fc.steps.splice(Math.max(0,n-1),0,{key:'', label:'Bước '+n+': kiểm tra', verb:'Kiểm tra đạt', groups:[], users:[], returnTo:'author', dueDays:0}); wfEdRender(); };
+ACT['wfe-rm']=(i)=>{ wfEdRead(); WFED.fc.steps.splice(+i,1); wfEdRender(); };
+ACT['wfe-mv']=(k)=>{ wfEdRead(); const [i,d]=k.split('|').map(Number), a=WFED.fc.steps; const j=i+d; if(j<0||j>=a.length) return; [a[i],a[j]]=[a[j],a[i]]; wfEdRender(); };
+ACT['wfe-save']=async()=>{ wfEdRead(); const e=WFED; const bad=e.fc.steps.findIndex(s=>!s.label);
+  if(bad>=0){ $('#wfe_err').textContent=`Bước ${bad+1} chưa có tên.`; return; }
+  const bad2=e.fc.steps.findIndex(s=>s.minAmount!=null && s.maxAmount!=null && s.maxAmount<=s.minAmount);
+  if(bad2>=0){ $('#wfe_err').textContent=`Bước ${bad2+1}: khoảng giá trị không hợp lệ.`; return; }
+  const c=wfClone(wfCfg()); if(e.pid){ c.projects=c.projects||{}; (c.projects[e.pid]=c.projects[e.pid]||{})[e.col]=e.fc; } else c.flows[e.col]=e.fc;
+  try{ await wfSaveCfg(c); closeModal(); WFED=null; }catch(ex){ $('#wfe_err').textContent=errText(ex); } };
+

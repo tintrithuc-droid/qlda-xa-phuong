@@ -66,6 +66,13 @@ public class LoginGuard
         _c.TryRemove(UserKey(user), out _);
     }
 
+    /// <summary>Quản trị đặt lại mật khẩu: xóa đếm sai và chặn của tài khoản (người dùng đăng nhập lại không cần mã kiểm tra).</summary>
+    public void ResetUser(string user)
+    {
+        _c.TryRemove(UserKey(user), out _);
+        foreach (var k in _c.Keys.Where(k => k.StartsWith("p:") && k.EndsWith("|" + user)).ToList()) _c.TryRemove(k, out _);
+    }
+
     private void Bump(string key, int blockAfter)
     {
         var now = DateTime.UtcNow;

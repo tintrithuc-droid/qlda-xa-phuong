@@ -23,7 +23,10 @@ function totp(secret) {
   const check = (cond, msg) => { if (!cond) errs.push(msg); };
   const exp = (what, got, want) => { if (got !== want) errs.push(`${what}: ${JSON.stringify(got)} (cần ${JSON.stringify(want)})`); };
   const who = async (u, pw = 'Admin2026') => { const c = await b.newContext({ acceptDownloads: true, viewport: { width: 1400, height: 900 } }); const r = c.request;
-    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: pw } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s); return { c, r }; };
+    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: pw } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s);
+    if (['ketoan', 'giamsat', 'lanhdao', 'kythuat'].includes(u) && (await r.get(BASE + '/api/data', H)).status() === 403) {
+      for (const [o, n] of [[pw, pw + 'tmp'], [pw + 'tmp', pw]]) { const x = await r.post(BASE + '/api/auth/change-password', { ...H, data: { old: o, password: n } }); if (x.status() !== 200) errs.push('Đổi mật khẩu lần đầu ' + u + ': ' + x.status()); } }
+    return { c, r }; };
   const page = async (u, route) => { const p = await u.c.newPage(); p.on('pageerror', e => errs.push('PAGEERR ' + e.message));
     await p.goto(BASE + '/#' + route); await p.waitForSelector('#app, #pwfirst', { timeout: 15000 }); await p.waitForTimeout(700); return p; };
   const go = async (p, route, f) => { await p.evaluate(([r, f]) => { Object.assign(S.f, f || {}); if (location.hash === '#' + r) render(); else location.hash = r; }, [route, f]); await wait(700); };
@@ -164,6 +167,91 @@ function totp(secret) {
   const tplB64 = fs.readFileSync(tplPath).toString('base64');
   const rd = await pa.evaluate(async b64 => { const wb = XLSX.read(b64, { type: 'base64' }); const u8 = Uint8Array.from(atob(b64), ch => ch.charCodeAt(0)); const r = dkRead(u8); return { n: wb.SheetNames.length, c: (r.sheets && r.sheets.contracts || []).map(x => x.number) }; }, tplB64);
   exp('Số trang mẫu đầu kỳ', rd.n >= 13, true); check(rd.c.includes('DK-HD-01/2026'), 'Mẫu kèm dữ liệu thiếu hợp đồng đầu kỳ: ' + JSON.stringify(rd).slice(0, 200));
+
+  /* ===== ĐỢT 3 ===== */
+  // Quy trình duyệt tự thiết lập: phụ lục hợp đồng qua 3 bước (kế toán kiểm tra, TVGS thẩm định trả về bước trước, lãnh đạo duyệt)
+  // smoke.js cố ý nhập sai mật khẩu kế toán nhiều lần: quản trị đặt lại mật khẩu (xóa luôn yêu cầu mã kiểm tra của tài khoản)
+  for (const un of ['ketoan', 'giamsat', 'lanhdao']) { const uu = (await data(ad)).users.find(u => u.username === un);
+    exp('Quản trị đặt lại mật khẩu ' + un, (await ad.r.post(BASE + '/api/users/' + uu.id + '/reset-password', { ...H, data: { password: 'Admin2026' } })).status(), 200); }
+  const ld = await who('lanhdao'), ke = await who('ketoan'), gs = await who('giamsat');
+  const act = (u, col, id, action, note, assignTo) => u.r.post(BASE + '/api/approvals', { ...H, data: { collection: col, id, action, note, assignTo } });
+  const us = (await data(ad)).users, uid = n => (us.find(x => x.username === n) || {}).id;
+  let cfg = await (await ad.r.get(BASE + '/api/workflow', H)).json();
+  exp('Quy trình mặc định phụ lục bật', cfg.flows.addenda.enabled, true);
+  exp('Quy trình hợp đồng mặc định tắt', cfg.flows.contracts.enabled, false);
+  cfg.flows.addenda = { enabled: true, steps: [
+    { key: 'kt', label: 'Kế toán kiểm tra', verb: 'Kiểm tra đạt', groups: ['g-acc'], users: [], dueDays: 2 },
+    { key: 'gs', label: 'Tư vấn giám sát thẩm định', verb: 'Thẩm định đạt', groups: [], users: [uid('giamsat')], returnTo: 'prev', noteRequired: true },
+    { key: 'approve', label: 'Lãnh đạo Ban duyệt', verb: 'Duyệt', groups: [], users: [] }] };
+  cfg.flows.contracts = { enabled: true, steps: [{ key: 'approve', label: 'Lãnh đạo Ban duyệt hợp đồng', verb: 'Duyệt', minAmount: 1e9 }] };
+  exp('Cán bộ không sửa được quy trình', (await kt.r.put(BASE + '/api/workflow', { ...H, data: cfg })).status(), 403);
+  exp('Quản trị lưu quy trình', (await ad.r.put(BASE + '/api/workflow', { ...H, data: cfg })).status(), 200);
+  const pl = { id: 'pl18a', contractId: 'c18xl', number: 'PL-18A', date: '2026-11-10', content: 'Bổ sung khối lượng', valueChange: 50000000, daysChange: 10 };
+  exp('Lập phụ lục', (await put(kt, 'addenda', pl)).status(), 200);
+  exp('Chuyển đích danh cho người không xử lý bước', (await act(kt, 'addenda', 'pl18a', 'submit', '', uid('lanhdao'))).status(), 400);
+  exp('Chuyển duyệt cho kế toán', (await act(kt, 'addenda', 'pl18a', 'submit', '', uid('ketoan'))).status(), 200);
+  let lg = (await data(ad)).approvals.filter(a => a.recordId === 'pl18a').sort((a, b) => b.at.localeCompare(a.at));
+  check(lg[0] && lg[0].step === 'kt' && lg[0].assignee === uid('ketoan') && lg[0].due, 'Lần chuyển duyệt chưa ghi bước, người nhận, hạn: ' + JSON.stringify(lg[0]));
+  exp('Lãnh đạo xử lý bước của kế toán', (await act(ld, 'addenda', 'pl18a', 'check')).status(), 403);
+  exp('Kế toán kiểm tra đạt', (await act(ke, 'addenda', 'pl18a', 'check', 'Đủ hồ sơ')).status(), 200);
+  exp('Kế toán rút lại khi bước sau chưa xử lý', (await act(ke, 'addenda', 'pl18a', 'withdraw')).status(), 200);
+  exp('Kế toán chuyển lại', (await act(ke, 'addenda', 'pl18a', 'check', 'Đủ hồ sơ')).status(), 200);
+  exp('TVGS thẩm định không ghi ý kiến', (await act(gs, 'addenda', 'pl18a', 'check')).status(), 400);
+  exp('TVGS trả về bước trước', (await act(gs, 'addenda', 'pl18a', 'return', 'Bổ sung bản vẽ')).status(), 200);
+  let a18 = (await data(ad)).addenda.find(x => x.id === 'pl18a');
+  exp('Trả về bước kế toán (vẫn đang xử lý)', a18.status, 'Chờ kiểm tra');
+  // Kế toán xử lý trên giao diện: thẻ Chờ tôi xử lý, chuông thông báo
+  const pk = await page(ke, 'trinh-duyet'); await wait(400);
+  const tdt = await pk.textContent('#content');
+  check(/Chờ kế toán kiểm tra/.test(tdt) && tdt.includes('PL-18A'), 'Thẻ Chờ tôi xử lý chưa có phụ lục: ' + tdt.slice(0, 300));
+  check(await pk.$('.top .bell .bcnt'), 'Chuông thông báo chưa có số việc');
+  await shot(pk, '8-cho-toi-xu-ly');
+  await pk.click('[data-act=wf][data-id="addenda|pl18a|check"]'); await pk.waitForSelector('#f_assignTo');
+  check((await pk.$$eval('#f_assignTo option', o => o.map(x => x.textContent))).some(t => /giám sát/i.test(t) || t.length > 3), 'Không có danh sách chuyển cho bước sau');
+  await pk.fill('#f_note', 'Đã bổ sung'); await pk.click('#mform [type=submit]'); await pk.waitForSelector('#mform', { state: 'detached', timeout: 10000 }); await wait(400);
+  exp('TVGS thẩm định đạt', (await act(gs, 'addenda', 'pl18a', 'check', 'Đạt')).status(), 200);
+  a18 = (await data(ad)).addenda.find(x => x.id === 'pl18a'); exp('Sang bước cuối', a18.status, 'Chờ duyệt');
+  exp('Lãnh đạo duyệt', (await act(ld, 'addenda', 'pl18a', 'approve', '')).status(), 200);
+  exp('Phụ lục đã duyệt', (await data(ad)).addenda.find(x => x.id === 'pl18a').status, 'Đã duyệt');
+  // Hợp đồng: chỉ hợp đồng từ 1 tỷ phải duyệt; đã duyệt vẫn gia hạn bảo lãnh, ghi chú được
+  const hd = { id: 'c18n', packageId: 'k18xl', projectId: 'p1', number: 'HD-18N', contractor: 'Nhà thầu nhỏ', value: 500000000, start: '2026-11-01', end: '2026-12-31' };
+  exp('Lập hợp đồng nhỏ', (await put(kt, 'contracts', hd)).status(), 200);
+  exp('Hợp đồng mới ở trạng thái soạn thảo', (await data(kt)).contracts.find(x => x.id === 'c18n').status, 'Soạn thảo');
+  exp('Ghi nhận hợp đồng dưới 1 tỷ', (await act(kt, 'contracts', 'c18n', 'submit')).status(), 200);
+  let c18 = (await data(kt)).contracts.find(x => x.id === 'c18n'); exp('Hợp đồng dưới 1 tỷ được ghi nhận ngay', c18.status, 'Đã duyệt');
+  exp('Sửa ghi chú hợp đồng đã duyệt', (await put(kt, 'contracts', { ...c18, note: 'Gia hạn bảo lãnh', guaranteeUntil: '2027-03-01' })).status(), 200);
+  exp('Sửa giá trị hợp đồng đã duyệt', (await put(kt, 'contracts', { ...c18, note: 'Gia hạn bảo lãnh', guaranteeUntil: '2027-03-01', value: 600000000 })).status(), 403);
+  exp('Lập hợp đồng lớn', (await put(kt, 'contracts', { ...hd, id: 'c18l', number: 'HD-18L', value: 2000000000 })).status(), 200);
+  exp('Chuyển duyệt hợp đồng lớn', (await act(kt, 'contracts', 'c18l', 'submit')).status(), 200);
+  exp('Hợp đồng lớn chờ duyệt', (await data(kt)).contracts.find(x => x.id === 'c18l').status, 'Chờ duyệt');
+  // Loại hồ sơ tắt quy trình: kế hoạch thanh toán ghi nhận ngay
+  exp('Lập kế hoạch thanh toán', (await put(ke, 'payplans', { id: 'kh18', contractId: 'c18n', phase: 'Đợt 1', planDate: '2026-12-01', amount: 100000000 })).status(), 200);
+  exp('Kế hoạch thanh toán ghi nhận ngay', (await data(ke)).payplans.find(x => x.id === 'kh18').status, 'Đã duyệt');
+  // Quy trình riêng của dự án: dự án p1 tắt duyệt phụ lục
+  cfg = await (await ad.r.get(BASE + '/api/workflow', H)).json(); cfg.projects = { p1: { addenda: { enabled: false, steps: [{ key: 'approve', label: 'Duyệt' }] } } };
+  exp('Lưu quy trình riêng của dự án', (await ad.r.put(BASE + '/api/workflow', { ...H, data: cfg })).status(), 200);
+  exp('Phụ lục dự án p1', (await put(kt, 'addenda', { id: 'pl18p', contractId: 'c18n', number: 'PL-P1', date: '2026-11-12', content: 'Gia hạn', valueChange: 0, daysChange: 5 })).status(), 200);
+  exp('Phụ lục dự án tắt quy trình được ghi nhận ngay', (await data(kt)).addenda.find(x => x.id === 'pl18p').status, 'Đã duyệt');
+  // Biểu mẫu: Lưu nháp và Lưu và chuyển duyệt
+  const pt = await page(kt, 'goi-thau'); await wait(300);
+  await pt.evaluate(() => ACT['add-addendum'](D('contracts').find(c => c.number === 'DK-HD-01/2026').id)); await pt.waitForSelector('#mform');
+  const btns = await pt.$$eval('#mform footer button', b => b.map(x => x.textContent.trim()));
+  check(btns.includes('Lưu nháp') && btns.includes('Lưu và chuyển duyệt'), 'Biểu mẫu chưa có Lưu nháp / Lưu và chuyển duyệt: ' + btns.join(','));
+  await pt.fill('#f_number', 'PL-18B'); await pt.fill('#f_date_t', '12/11/2026'); await pt.press('#f_date_t', 'Enter'); await pt.fill('#f_content', 'Điều chỉnh đơn giá');
+  await pt.click('[data-send="1"]'); await pt.waitForSelector('#f_assignTo', { timeout: 10000 }); await wait(300);
+  check(/Chuyển duyệt/.test(await pt.textContent('#mform header')), 'Không mở bước chuyển duyệt sau khi lưu');
+  await pt.click('#mform [type=submit]'); await pt.waitForSelector('#mform', { state: 'detached', timeout: 10000 }); await wait(400);
+  check(((await data(kt)).addenda.find(x => x.number === 'PL-18B') || {}).status === 'Chờ kiểm tra', 'Lưu và chuyển duyệt chưa chuyển hồ sơ');
+  // Thẻ Tôi đã chuyển, phiếu trình
+  await go(pt, 'trinh-duyet'); await pt.evaluate(() => { S.tab.td2 = 'chuyen'; render(); }); await wait(300);
+  check((await pt.textContent('#content')).includes('PL-18B'), 'Thẻ Tôi đã chuyển chưa có phụ lục vừa chuyển');
+  await shot(pt, '9-toi-da-chuyen');
+  // Quản trị: màn hình thiết lập quy trình
+  await pa.reload(); await pa.waitForSelector('#app'); await wait(600);
+  await go(pa, 'trinh-duyet'); await pa.evaluate(() => { S.tab.td2 = 'qt'; render(); }); await wait(300);
+  check(/Tư vấn giám sát thẩm định/.test(await pa.textContent('#content')), 'Màn hình thiết lập quy trình chưa hiện các bước');
+  await pa.click('[data-act=wf-edit][data-id=addenda]'); await pa.waitForSelector('#wfe_on'); await shot(pa, '10-thiet-lap-quy-trinh');
+  await pa.click('[data-act=wfe-save]'); await pa.waitForSelector('#wfe_on', { state: 'detached', timeout: 10000 });
 
   console.log(errs.length ? 'LỖI:\n' + errs.join('\n') : 'KHÔNG CÓ LỖI');
   await b.close(); process.exit(errs.length ? 1 : 0);

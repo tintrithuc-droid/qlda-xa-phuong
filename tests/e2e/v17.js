@@ -20,7 +20,11 @@ function totp(secret) {
   const b = await chromium.launch(); const errs = [];
   const exp = (what, got, want) => { if (got !== want) errs.push(`${what}: ${JSON.stringify(got)} (cần ${JSON.stringify(want)})`); };
   const who = async (u, opt = {}) => { const c = await b.newContext({ acceptDownloads: true, viewport: { width: 1400, height: 900 }, ...opt }); const r = c.request;
-    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Admin2026' } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s); return { c, r }; };
+    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Admin2026' } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s);
+    // Bản 1.8: mật khẩu do quản trị đặt lại phải đổi ở lần đăng nhập đầu; đổi sang mật khẩu tạm rồi đổi về như cũ để các bước sau dùng chung
+    if (u !== 'admin' && (await r.get(BASE + '/api/data', H)).status() === 403) {
+      for (const [o, n] of [['Admin2026', 'Admin2026tmp'], ['Admin2026tmp', 'Admin2026']]) { const x = await r.post(BASE + '/api/auth/change-password', { ...H, data: { old: o, password: n } }); if (x.status() !== 200) errs.push('Đổi mật khẩu lần đầu ' + u + ': ' + x.status()); } }
+    return { c, r }; };
   const ad = await who('admin');
   const sec = fs.readFileSync(SHOTS + '/admin-totp.txt', 'utf8').trim();
   // mã vừa dùng ở v15.js không dùng lại được trong cùng 30 giây: lỗi thì chờ mã kế tiếp

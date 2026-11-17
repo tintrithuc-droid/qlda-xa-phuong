@@ -35,6 +35,14 @@ public class UserContext
         if (User?.GroupId is not null) Group = await _db.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == User.GroupId);
         // Tài khoản bắt buộc 2 lớp (quản trị, hoặc đã tự bật) mà phiên chưa qua bước mã thì coi như chưa đăng nhập
         if (User is not null && _tf.Required(User, Group) && !Mfa) { User = null; Group = null; }
+        // Bản 1.8: tài khoản thuộc đơn vị nhà thầu / tư vấn giám sát chỉ thấy các gói thầu có đơn vị này (và dự án của các gói đó)
+        if (User?.OrgId is { Length: > 0 } oid && Group is { Admin: false })
+        {
+            var ks = await _db.Packages.AsNoTracking().Select(k => new { k.Id, k.ProjectId, k.ContractorIds, k.SupervisorIds }).ToListAsync();
+            var mine = ks.Where(k => k.ContractorIds.Contains(oid) || k.SupervisorIds.Contains(oid)).ToList();
+            Packages = mine.Select(k => k.Id).ToHashSet();
+            _orgProjects = mine.Where(k => k.ProjectId is not null).Select(k => k.ProjectId!).ToHashSet();
+        }
         return this;
     }
 
@@ -48,8 +56,14 @@ public class UserContext
         return edit ? p == "edit" : p != "none";
     }
 
+    private HashSet<string>? _orgProjects;
+    /// <summary>Gói thầu được khai thác (tài khoản thuộc đơn vị); null = không giới hạn theo gói thầu.</summary>
+    public HashSet<string>? Packages { get; private set; }
+    /// <summary>Bản ghi không gắn gói thầu thì chỉ xét dự án.</summary>
+    public bool InPackage(string? packageId) => Packages is null || string.IsNullOrEmpty(packageId) || Packages.Contains(packageId);
+
     /// <summary>null = được khai thác tất cả dự án.</summary>
-    public HashSet<string>? Scope => Group is null || Group.Admin || Group.Scope.Count == 0 ? null : Group.Scope.ToHashSet();
+    public HashSet<string>? Scope => _orgProjects ?? (Group is null || Group.Admin || Group.Scope.Count == 0 ? null : Group.Scope.ToHashSet());
 
     public bool InScope(string? projectId) => Scope is null || (projectId is not null && Scope.Contains(projectId));
 

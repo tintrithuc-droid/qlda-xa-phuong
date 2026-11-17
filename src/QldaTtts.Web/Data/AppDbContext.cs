@@ -39,6 +39,7 @@ public class AppDbContext : DbContext
     public DbSet<Guide> Guides => Set<Guide>();
     public DbSet<AppSetting> Settings => Set<AppSetting>();
     public DbSet<ApprovalLog> ApprovalLogs => Set<ApprovalLog>();
+    public DbSet<Organization> Organizations => Set<Organization>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -62,6 +63,8 @@ public class AppDbContext : DbContext
         JsonColumn<UserGroup, Dictionary<string, string>>(b, x => x.Perms);
         JsonColumn<UserGroup, List<string>>(b, x => x.Scope);
         JsonColumn<Guide, List<string>>(b, x => x.Groups);
+        JsonColumn<Package, List<string>>(b, x => x.ContractorIds);
+        JsonColumn<Package, List<string>>(b, x => x.SupervisorIds);
 
         b.Entity<AppUser>().HasIndex(x => x.Username).IsUnique();
         b.Entity<Project>().HasIndex(x => x.Code);

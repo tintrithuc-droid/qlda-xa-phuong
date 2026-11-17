@@ -64,7 +64,7 @@ function renderTop(){
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
     <select id="gpid" data-f="__pid" aria-label="Lọc theo dự án">${opts(projOpts(), S.pid, 'Tất cả dự án')}</select>
-    ${themeBtn()}
+    ${themeBtn()}${wfBell()}
     <span class="mode ${Store.mode==='server'?'shared':''}" title="${Store.mode==='server'?'Dữ liệu lưu tập trung trên máy chủ, mọi người dùng cùng thấy':'Mất kết nối máy chủ: thay đổi chưa được lưu'}">${Store.mode==='server'?'Đã kết nối máy chủ':'Mất kết nối máy chủ'}</span>
     <div class="who"><button class="btn ghost sm" data-act="account" title="Tài khoản"><span class="avatar">${esc(initials(S.user.name))}</span><span class="nm" style="text-align:left;line-height:1.2">${esc(S.user.name)}<br><span class="small muted">${esc(g?g.name:'')}</span></span></button></div>`;
 }
@@ -113,7 +113,7 @@ ACT['att-all']=(ids)=>{ const list=String(ids).split(',').map(id=>get('attachmen
 const DEPS = {projects:[['packages','projectId'],['tasks','projectId'],['legal','projectId'],['items','projectId'],['schedule','projectId'],['diaries','projectId'],['models','projectId'],['capitals','projectId'],['acceptances','projectId'],['settlements','projectId'],['clearances','projectId']],
   packages:[['contracts','packageId'],['schedule','packageId'],['diaries','packageId'],['legal','packageId'],['acceptances','packageId']], contracts:[['boq','contractId'],['payments','contractId'],['payplans','contractId'],['addenda','contractId']],
   boq:[['volumes','boqId']], groups:[['users','groupId']], items:[['schedule','itemId']]};
-const COL_MOD = {projects:'du-an',tasks:'du-an',legal:'du-an',items:'mo-hinh',models:'mo-hinh',packages:'goi-thau',contracts:'goi-thau',addenda:'goi-thau',schedule:'tien-do',diaries:'nhat-ky',boq:'khoi-luong',volumes:'khoi-luong',payplans:'thanh-toan',payments:'thanh-toan',capitals:'von',acceptances:'nghiem-thu',settlements:'quyet-toan',clearances:'gpmb',users:'quan-tri',groups:'quan-tri',catalogs:'quan-tri'};
+const COL_MOD = {projects:'du-an',tasks:'du-an',legal:'du-an',items:'mo-hinh',models:'mo-hinh',packages:'goi-thau',orgs:'goi-thau',contracts:'goi-thau',addenda:'goi-thau',schedule:'tien-do',diaries:'nhat-ky',boq:'khoi-luong',volumes:'khoi-luong',payplans:'thanh-toan',payments:'thanh-toan',capitals:'von',acceptances:'nghiem-thu',settlements:'quyet-toan',clearances:'gpmb',users:'quan-tri',groups:'quan-tri',catalogs:'quan-tri'};
 ACT.del=async(id,el)=>{
   const col=el.dataset.col; const o=get(col,id); if(!o) return;
   if(!can(COL_MOD[col]||'quan-tri','edit')) return toast('Bạn không có quyền xóa dữ liệu này.','err');
@@ -467,17 +467,17 @@ ACT['task-done']=(id)=>{ const t=get('tasks',id); openForm({title:'Hoàn thành:
 /* Hồ sơ pháp lý dùng chung cho dự án (UC4) và gói thầu (UC11) */
 function legalCard(rows, pid, kid, mod, title){
   return `<div class="card"><div class="ch"><h2>${esc(title)}</h2>${can(mod,'edit')?`<button class="btn primary sm" data-act="add-legal" data-id="${pid}" data-k="${kid||''}" data-m="${mod}">+ Thêm hồ sơ</button>`:''}</div>
-  ${table([{h:'Loại hồ sơ',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Cơ quan ban hành',k:'issuer'},{h:'Trích yếu',k:'title'},{h:'Hiệu lực đến',f:r=>r.validUntil?`<span class="num" style="${r.validUntil<TODAY?'color:var(--red);font-weight:600':r.validUntil<=addDays(TODAY,30)?'color:var(--amber);font-weight:600':''}">${fmtDate(r.validUntil)}</span>`:'<span class="muted small">—</span>'},{h:'Tệp',f:r=>attCell(atts('legal',r.id))}], rows.sort(by('date')), {actions:r=>editBtns(mod,'legal',r.id), empty:'Chưa có hồ sơ pháp lý.'})}</div>`;
+  ${table([{h:'Loại hồ sơ',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Cơ quan ban hành',k:'issuer'},{h:'Trích yếu',k:'title'},{h:'Hiệu lực đến',f:r=>r.validUntil?`<span class="num" style="${r.validUntil<TODAY?'color:var(--red);font-weight:600':r.validUntil<=addDays(TODAY,30)?'color:var(--amber);font-weight:600':''}">${fmtDate(r.validUntil)}</span>`:'<span class="muted small">—</span>'},{h:'Tệp',f:r=>attCell(atts('legal',r.id))},...(wfOn('legal',S.pid||null)||rows.some(x=>x.status)?[{h:'Trình duyệt',f:r=>wfPill('legal',r)}]:[])], rows.sort(by('date')), {actions:r=>wfBtns('legal',r)+(wfEditable('legal',r)?editBtns(mod,'legal',r.id):''), empty:'Chưa có hồ sơ pháp lý.'})}</div>`;
 }
 const legalFields=()=>[{key:'type',label:'Loại hồ sơ',type:'select',options:()=>catalog('Loại hồ sơ pháp lý'),req:true},{key:'number',label:'Số hiệu văn bản',req:true},{key:'date',label:'Ngày ban hành',type:'date',req:true},{key:'issuer',label:'Cơ quan ban hành'},{key:'title',label:'Trích yếu nội dung',full:true,req:true},
   {key:'validUntil',label:'Hiệu lực đến (bảo lãnh, giấy phép… để cảnh báo trước 30 ngày)',type:'date'},{key:'att',label:'Tệp đính kèm (PDF, ảnh scan, Word, Excel…)',type:'attach',col:'legal'}];
-ACT['add-legal']=(pid,el)=>openForm({title:'Thêm hồ sơ pháp lý', fields:legalFields(), value:{type:el.dataset.t||''}, onSave:v=>save('legal',{...v, projectId:pid, packageId:el.dataset.k||''})});
-ACT['edit-legal']=(id)=>openForm({title:'Cập nhật hồ sơ pháp lý', fields:legalFields(), value:get('legal',id), onSave:v=>save('legal',v)});
+ACT['add-legal']=(pid,el)=>openForm({wf:'legal', title:'Thêm hồ sơ pháp lý', fields:legalFields(), value:{type:el.dataset.t||''}, onSave:v=>save('legal',{...v, projectId:pid, packageId:el.dataset.k||''})});
+ACT['edit-legal']=(id)=>openForm({wf:'legal', title:'Cập nhật hồ sơ pháp lý', fields:legalFields(), value:get('legal',id), onSave:v=>save('legal',v)});
 /* Văn bản pháp lý chính của dự án (chủ trương, phê duyệt, điều chỉnh) kèm tệp, hiển thị ở Thông tin chung */
 const KEY_LEGAL=['Quyết định chủ trương đầu tư','Quyết định phê duyệt dự án','Quyết định điều chỉnh dự án'];
 function keyLegalCard(p){
   const rows=D('legal').filter(l=>l.projectId===p.id && !l.packageId && KEY_LEGAL.includes(l.type)).sort(by('date'));
   const ed=can('du-an','edit');
   return `<div class="card"><div class="ch"><h2>Văn bản pháp lý chính</h2>${ed?`<button class="btn sm" data-act="add-legal" data-id="${p.id}" data-k="" data-t="Quyết định chủ trương đầu tư">+ QĐ chủ trương</button><button class="btn sm" data-act="add-legal" data-id="${p.id}" data-k="" data-t="Quyết định điều chỉnh dự án">+ QĐ điều chỉnh</button>`:''}</div>
-  ${table([{h:'Loại',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Tệp',f:r=>attCell(atts('legal',r.id))}], rows, {actions:r=>editBtns('du-an','legal',r.id), empty:'Chưa có quyết định chủ trương, phê duyệt hoặc điều chỉnh dự án.'})}</div>`;
+  ${table([{h:'Loại',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Tệp',f:r=>attCell(atts('legal',r.id))}], rows, {actions:r=>wfBtns('legal',r)+wfEditBtns('legal',r), empty:'Chưa có quyết định chủ trương, phê duyệt hoặc điều chỉnh dự án.'})}</div>`;
 }

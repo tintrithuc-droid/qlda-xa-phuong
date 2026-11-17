@@ -7,7 +7,11 @@ const H = { headers: { 'X-QLDA': '1' } };
 (async () => {
   const b = await chromium.launch(); const errs = [];
   const who = async u => { const c = await b.newContext({ acceptDownloads: true }); const r = c.request;
-    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Admin2026' } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s); return { c, r }; };
+    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Admin2026' } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s);
+    // Bản 1.8: mật khẩu do quản trị đặt lại phải đổi ở lần đăng nhập đầu; đổi sang mật khẩu tạm rồi đổi về như cũ để các bước sau dùng chung
+    if (u !== 'admin' && (await r.get(BASE + '/api/data', H)).status() === 403) {
+      for (const [o, n] of [['Admin2026', 'Admin2026tmp'], ['Admin2026tmp', 'Admin2026']]) { const x = await r.post(BASE + '/api/auth/change-password', { ...H, data: { old: o, password: n } }); if (x.status() !== 200) errs.push('Đổi mật khẩu lần đầu ' + u + ': ' + x.status()); } }
+    return { c, r }; };
   const kt = await who('kythuat'), ld = await who('lanhdao');
   const act = (u, id, action, note) => u.r.post(BASE + '/api/approvals', { ...H, data: { collection: 'addenda', id, action, note } });
   const put = (u, o) => u.r.put(BASE + '/api/data/addenda/' + o.id, { ...H, data: o });

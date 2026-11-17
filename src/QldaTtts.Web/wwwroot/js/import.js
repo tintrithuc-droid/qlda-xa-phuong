@@ -225,7 +225,9 @@ function impParse(t, sheets){
   const C=IMPORTS[t]; const names=C.cols.map(c=>[c.k, [c.h, ...(c.al||[])].map(impKey)]);
   const match=row=>{ const m={}, used=new Set(); const keys=row.map(impKey);
     for(const exact of [true,false]) names.forEach(([k,ns])=>{ if(m[k]!==undefined) return;
-      const j=keys.findIndex((x,jj)=>x && !used.has(jj) && ns.some(n=>exact? x===n : (n.length>2 && x.startsWith(n+' ')))); if(j>=0){ m[k]=j; used.add(j); } });
+      /* tên cột ưu tiên theo thứ tự khai báo: "Mã hiệu" trước, "STT" chỉ dùng khi tệp không có cột mã hiệu */
+      let j=-1; for(const n of ns){ j=keys.findIndex((x,jj)=>x && !used.has(jj) && (exact? x===n : (n.length>2 && x.startsWith(n+' ')))); if(j>=0) break; }
+      if(j>=0){ m[k]=j; used.add(j); } });
     return m; };
   const okMap=m=>Object.keys(m).length>=2 && C.cols.every(c=>!c.req || m[c.k]!==undefined);
   let sh=null, hdr=-1, map=null, depth=1;

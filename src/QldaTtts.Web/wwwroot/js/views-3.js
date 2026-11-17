@@ -296,7 +296,7 @@ ACT['export-report-pdf']=()=>{
 /* ===== QUẢN TRỊ HỆ THỐNG (UC49–53) ===== */
 VIEWS['quan-tri']=()=>{
   const t=S.tab.qt||'users';
-  const tabs=[['users','Người dùng'],['groups','Nhóm và phân quyền'],['cats','Danh mục dùng chung'],['logs','Nhật ký hoạt động'],['org','Thông tin đơn vị, giao diện'],['files','Kho tệp, thùng rác'],['sys','Sao lưu, hệ thống']];
+  const tabs=[['users','Người dùng'],['groups','Nhóm và phân quyền'],['cats','Danh mục dùng chung'],['logs','Nhật ký hoạt động'],['org','Thông tin đơn vị, giao diện'],['files','Kho tệp, thùng rác'],['dk','Dữ liệu đầu kỳ'],['sys','Sao lưu, hệ thống']];
   let body='';
   if(t==='users'){ const q=S.f.uq||'';
     const rows=D('users').filter(u=>has(u,q)).sort(by('username'));
@@ -318,12 +318,13 @@ VIEWS['quan-tri']=()=>{
     <p class="small muted" style="margin:8px 0 0">Máy chủ gửi 500 hoạt động gần nhất; dùng nút Xuất Excel hoặc bộ lọc để tra cứu.</p></div>`; }
   else if(t==='files') body=storageView();
   else if(t==='org') body=brandView();
+  else if(t==='dk') body=openingView();
   else { const cnt=COLS.filter(c=>c!=='logs').map(c=>[COL_LABEL[c], D(c).length]);
     body=`<div class="grid g2"><div class="card"><h2>Thông tin hệ thống</h2><dl class="kv"><dt>Chế độ lưu trữ</dt><dd>Cơ sở dữ liệu tập trung trên máy chủ</dd><dt>Kho tệp đính kèm</dt><dd>Thư mục App_Data/files trên máy chủ (tối đa 500 MB mỗi tệp)</dd><dt>Ngày hệ thống</dt><dd>${fmtDate(TODAY)}</dd></dl>
       <h3 style="margin-top:14px">Số bản ghi</h3>${table([{h:'Loại dữ liệu',f:r=>esc(r[0])},{h:'Số bản ghi',r:1,f:r=>r[1]}], cnt.map(x=>Object.assign(x,{id:x[0]})))}</div>
       <div class="card"><h2>Sao lưu và phục hồi dữ liệu</h2><p class="muted">Tệp sao lưu .json chứa toàn bộ dữ liệu nghiệp vụ, danh mục, nhóm quyền, người dùng (mật khẩu đã mã hóa) và danh sách tệp đính kèm. Bản sao lưu đầy đủ (.zip) chứa thêm toàn bộ tệp đính kèm. Chỉ quản trị hệ thống được sao lưu, phục hồi.</p>
       <div class="toolbar"><button class="btn primary" data-act="backup">Tải tệp sao lưu dữ liệu (.json)</button><button class="btn" data-act="backup-full">Tải bản sao lưu đầy đủ kèm tệp (.zip)</button><button class="btn" data-act="restore">Phục hồi từ tệp sao lưu</button></div>
-      <p class="small muted" style="margin-top:12px">Phục hồi sẽ ghi đè các bản ghi trùng mã và bổ sung bản ghi mới; không xóa dữ liệu hiện có.</p>
+      <p class="small muted" style="margin-top:12px">Khi phục hồi, chọn đưa dữ liệu về đúng thời điểm sao lưu (hồ sơ nhập sau sẽ bị thay thế) hoặc chỉ ghi đè, bổ sung để giữ hồ sơ nhập sau thời điểm sao lưu.</p>
       <h3 style="margin-top:16px">Sao lưu tự động trên máy chủ</h3>${autoBackupView()}</div></div>`; }
   return `<div class="head"><div class="grow"><h1>Quản trị hệ thống</h1><p>${D('users').length} người dùng, ${D('groups').length} nhóm quyền</p></div></div>
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="qt" data-id="${k}">${l}</button>`).join('')}</div>${body}`;

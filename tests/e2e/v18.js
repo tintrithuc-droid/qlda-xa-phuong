@@ -124,6 +124,47 @@ function totp(secret) {
   const sc = await pa.evaluate(() => D('schedule').filter(s => s.packageId === 'k18xl').map(s => [s.name, s.planStart, s.planEnd]));
   check(sc.length === 3 && sc.some(s => s[1] === '2026-11-19' && s[2] === '2026-12-08'), 'Tiến độ lưu sai: ' + JSON.stringify(sc));
 
+  // Dữ liệu đầu kỳ: kiểm tra trước, ghi nhận, nhập lại không nhân đôi
+  const dkBody = dry => ({ dryRun: dry, cutoff: '2026-10-31', basis: 'Biên bản bàn giao thử nghiệm', sheets: {
+    projects: [{ line: 5, code: 'DK-01', name: 'Đường giao thông ấp thử nghiệm', tmdt: 5000000000, start: '2026-01-10', end: '2027-06-30' }],
+    packages: [{ line: 5, projectCode: 'DK-01', code: 'XL-01', name: 'Thi công xây dựng', type: 'Xây lắp', estimate: 4000000000 }],
+    contracts: [{ line: 5, projectCode: 'DK-01', packageCode: 'XL-01', number: 'DK-HD-01/2026', contractor: 'Công ty xây dựng thử', value: 3900000000, signDate: '2026-03-01', start: '2026-03-05', end: '2026-12-31' }],
+    boq: [{ line: 5, contractNumber: 'DK-HD-01/2026', code: '1.1', section: '1. PHẦN NỀN', name: 'Đào đất', unit: 'm3', qty: 1000, price: 150000 },
+          { line: 6, contractNumber: 'DK-HD-01/2026', code: '1.2', section: '1. PHẦN NỀN', name: 'Đắp cát', unit: 'm3', qty: 800, price: 300000 }],
+    volumes: [{ line: 5, contractNumber: 'DK-HD-01/2026', boqCode: '1.1', doneQty: 600, acceptedQty: 500 }, { line: 6, contractNumber: 'DK-HD-01/2026', boqCode: '1.2', acceptedQty: 200 }],
+    payments: [{ line: 5, contractNumber: 'DK-HD-01/2026', number: 'TU-01', kind: 'Tạm ứng', amount: 500000000, paidDate: '2026-03-20' }],
+    capitals: [{ line: 5, projectCode: 'DK-01', year: 2026, kind: 'Kế hoạch vốn năm', source: 'Ngân sách xã/phường', amount: 2000000000, number: '15/QĐ-UBND', date: '2026-01-15' }] } });
+  let dk = await ad.r.post(BASE + '/api/opening/import', { ...H, data: dkBody(true) }); let dkj = await dk.json();
+  exp('Kiểm tra đầu kỳ', dk.status(), 200); check(!(dkj.errors || []).length, 'Đầu kỳ báo lỗi: ' + JSON.stringify(dkj.errors).slice(0, 400));
+  check(!(await data(ad)).projects.some(p => p.code === 'DK-01'), 'Kiểm tra trước đã ghi dữ liệu');
+  dk = await ad.r.post(BASE + '/api/opening/import', { ...H, data: dkBody(false) }); dkj = await dk.json();
+  exp('Ghi nhận đầu kỳ', dk.status(), 200); check(!(dkj.errors || []).length, 'Ghi nhận đầu kỳ báo lỗi: ' + JSON.stringify(dkj.errors).slice(0, 400));
+  dk = await ad.r.post(BASE + '/api/opening/import', { ...H, data: dkBody(false) }); exp('Nhập lại đầu kỳ', dk.status(), 200);
+  const dd = await data(ad); const dc = dd.contracts.find(c => c.number === 'DK-HD-01/2026');
+  check(dc, 'Không có hợp đồng đầu kỳ');
+  if (dc) {
+    exp('Hạng mục BOQ đầu kỳ', dd.boq.filter(x => x.contractId === dc.id).length, 2);
+    const bt = dd.vbatches.filter(x => x.contractId === dc.id);
+    check(bt.length === 1 && bt[0].name === 'Lũy kế đến 31/10/2026' && bt[0].status === 'Đã duyệt', 'Đợt nghiệm thu đầu kỳ sai: ' + JSON.stringify(bt));
+    exp('Khối lượng đầu kỳ', dd.volumes.filter(x => x.contractId === dc.id).length, 2);
+    const py = dd.payments.filter(x => x.contractId === dc.id);
+    check(py.length === 1 && py[0].status === 'Đã thanh toán', 'Thanh toán đầu kỳ sai: ' + JSON.stringify(py));
+    exp('Kế hoạch vốn đầu kỳ', dd.capitals.filter(x => x.projectId === dc.projectId).length, 1);
+  }
+  // Màn hình Dữ liệu đầu kỳ và bảng đối soát
+  await go(pa, 'quan-tri'); await pa.evaluate(() => { S.tab.qt = 'dk'; render(); }); await wait(500);
+  const dkt = await pa.textContent('#content');
+  check(/Bảng đối soát theo hợp đồng/.test(dkt) && dkt.includes('DK-HD-01/2026'), 'Màn hình đầu kỳ thiếu bảng đối soát: ' + dkt.slice(0, 300));
+  const rr = await pa.evaluate(() => dkReconRows('', '2026-10-31').find(r => String(r[2]).includes('DK-HD-01')));
+  check(rr, 'Không có dòng đối soát của hợp đồng đầu kỳ');
+  await shot(pa, '7-du-lieu-dau-ky');
+  // Tải mẫu kèm dữ liệu rồi đọc lại bằng bộ đọc của màn hình: đủ 13 trang, có hợp đồng đầu kỳ
+  const [dl] = await Promise.all([pa.waitForEvent('download', { timeout: 30000 }), pa.click('[data-act=dk-tpl][data-id=data]')]);
+  const tplPath = path.join(SHOTS, 'v18-mau-dau-ky.xlsx'); await dl.saveAs(tplPath);
+  const tplB64 = fs.readFileSync(tplPath).toString('base64');
+  const rd = await pa.evaluate(async b64 => { const wb = XLSX.read(b64, { type: 'base64' }); const u8 = Uint8Array.from(atob(b64), ch => ch.charCodeAt(0)); const r = dkRead(u8); return { n: wb.SheetNames.length, c: (r.sheets && r.sheets.contracts || []).map(x => x.number) }; }, tplB64);
+  exp('Số trang mẫu đầu kỳ', rd.n >= 13, true); check(rd.c.includes('DK-HD-01/2026'), 'Mẫu kèm dữ liệu thiếu hợp đồng đầu kỳ: ' + JSON.stringify(rd).slice(0, 200));
+
   console.log(errs.length ? 'LỖI:\n' + errs.join('\n') : 'KHÔNG CÓ LỖI');
   await b.close(); process.exit(errs.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });

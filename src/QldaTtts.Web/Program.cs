@@ -55,10 +55,11 @@ else
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();
 builder.Services.AddScoped<TwoFactor>();
+builder.Services.AddSingleton<LoginGuard>();
 builder.Services.AddScoped<FileStore>();
 builder.Services.AddScoped<BackupService>();
 builder.Services.AddHostedService<MaintenanceService>();
-builder.Services.AddControllersWithViews().AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
+builder.Services.AddControllersWithViews(o => o.Filters.Add<QldaTtts.Web.Services.PasswordChangeFilter>()).AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
 
 var keysDir = cfg["Storage:KeysPath"] is { Length: > 0 } kp ? kp : Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
 Directory.CreateDirectory(keysDir);
@@ -117,7 +118,9 @@ else using (var scope = app.Services.CreateScope())
         }
         foreach (var (table, col, type) in new[] {
             ("Users", "TotpSecret", "TEXT NULL"), ("Users", "TotpLastStep", "INTEGER NOT NULL DEFAULT 0"), ("Users", "RecoveryCodes", "TEXT NULL"),
-            ("LegalDocuments", "ValidUntil", "TEXT NULL"), ("Contracts", "GuaranteeUntil", "TEXT NULL"), ("Contracts", "AdvanceGuaranteeUntil", "TEXT NULL") })
+            ("LegalDocuments", "ValidUntil", "TEXT NULL"), ("Contracts", "GuaranteeUntil", "TEXT NULL"), ("Contracts", "AdvanceGuaranteeUntil", "TEXT NULL"),
+            ("Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0"),
+            ("Packages", "ContractorIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "SupervisorIds", "TEXT NOT NULL DEFAULT '[]'") })
             if (!Cols(table).Contains(col)) db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {col} {type}");
         if (Cols("Attachments").Count == 0)
         {

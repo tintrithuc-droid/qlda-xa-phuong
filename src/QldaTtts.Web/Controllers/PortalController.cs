@@ -380,6 +380,13 @@ public class PortalController : ControllerBase
         return null;
     }
 
+    /// <summary>Nhập sai mã 2 lớp khi xác nhận thao tác trên quản trị viên: ghi nhật ký nền tảng để theo dõi.</summary>
+    private async Task<IActionResult> ConfirmDenied(PlatformDbContext db, PlatformAdmin me, string? code, string err)
+    {
+        if (!string.IsNullOrWhiteSpace(code)) { Log(db, me.Username, "Xác nhận mã 2 lớp không thành công", err, Ip); await db.SaveChangesAsync(); }
+        return Error(403, err);
+    }
+
     private static object AdminView(PlatformAdmin a, string meId) => new
     {
         a.Username, a.Name, a.Active, a.CreatedAt, a.LastLogin,
@@ -410,7 +417,7 @@ public class PortalController : ControllerBase
         var name = (r.Name ?? "").Trim();
         if (!Passwords.ValidUsername(un)) return Error(400, Passwords.UsernameMessage);
         if (name.Length is 0 or > 200) return Error(400, "Vui lòng nhập họ tên (tối đa 200 ký tự).");
-        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        if (Confirm(me, r.Code) is { } err) return await ConfirmDenied(db, me, r.Code, err);
         if (await db.Admins.AnyAsync(a => a.Username == un)) return Error(409, $"Tên đăng nhập '{un}' đã có.");
         var pw = SetupGuard.NewToken();
         var a = new PlatformAdmin { Id = "pa-" + Guid.NewGuid().ToString("N")[..12], Username = un, Name = name, CreatedAt = DateTime.UtcNow, Active = true };
@@ -447,7 +454,7 @@ public class PortalController : ControllerBase
         if (a.Id == me.Id) return Error(400, "Không thể tự khóa tài khoản đang đăng nhập. Hãy đăng nhập bằng quản trị viên khác để khóa.");
         if (!a.Active) return Ok(AdminView(a, me.Id));
         if (await db.Admins.CountAsync(x => x.Active) <= 1) return Error(400, "Phải còn ít nhất một quản trị viên đang hoạt động.");
-        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        if (Confirm(me, r.Code) is { } err) return await ConfirmDenied(db, me, r.Code, err);
         a.Active = false;
         Log(db, me.Username, "Khóa quản trị viên nền tảng", a.Username, Ip);
         await db.SaveChangesAsync();
@@ -461,7 +468,7 @@ public class PortalController : ControllerBase
         if (me is null) return Error(401, "Phiên đăng nhập đã hết hạn.");
         var a = await db.Admins.FirstOrDefaultAsync(x => x.Username == username);
         if (a is null) return Error(404, "Không tìm thấy quản trị viên.");
-        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        if (Confirm(me, r.Code) is { } err) return await ConfirmDenied(db, me, r.Code, err);
         a.Active = true; a.FailedCount = 0; a.LockoutUntil = null;
         Log(db, me.Username, "Mở lại quản trị viên nền tảng", a.Username, Ip);
         await db.SaveChangesAsync();
@@ -477,7 +484,7 @@ public class PortalController : ControllerBase
         var a = await db.Admins.FirstOrDefaultAsync(x => x.Username == username);
         if (a is null) return Error(404, "Không tìm thấy quản trị viên.");
         if (a.Id == me.Id) return Error(400, "Không đặt lại cho chính mình. Dùng nút “Đổi mật khẩu” ở góc trên.");
-        if (Confirm(me, r.Code) is { } err) return Error(403, err);
+        if (Confirm(me, r.Code) is { } err) return await ConfirmDenied(db, me, r.Code, err);
         var pw = SetupGuard.NewToken();
         a.PasswordHash = PlatformCli.Hasher.HashPassword(a, pw); a.TotpSecret = null; a.TotpLastStep = 0; a.FailedCount = 0; a.LockoutUntil = null;
         Log(db, me.Username, "Đặt lại mật khẩu và xác thực 2 lớp cho quản trị viên nền tảng", a.Username, Ip);

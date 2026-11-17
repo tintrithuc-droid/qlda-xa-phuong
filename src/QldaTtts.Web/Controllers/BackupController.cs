@@ -27,7 +27,10 @@ public class BackupController : ApiControllerBase
         return File(bytes, "application/json", $"SaoLuu_QLDA_{DateTime.Now:yyyy-MM-dd_HHmm}.json");
     }
 
-    /// <summary>Ghi đè/thêm các bản ghi trong tệp sao lưu (không xóa bản ghi đang có).</summary>
+    /// <summary>Phục hồi từ tệp sao lưu. Mặc định (mode = "replace") đưa dữ liệu nghiệp vụ về đúng thời điểm sao lưu:
+    /// bản ghi nghiệp vụ, lịch sử trình duyệt phát sinh sau thời điểm đó bị xóa, tệp đính kèm của chúng chuyển vào thùng rác;
+    /// hệ thống tự sao lưu lên máy chủ trước khi phục hồi. mode = "merge": chỉ ghi đè/thêm, không xóa bản ghi đang có.
+    /// Tài khoản, nhóm quyền, danh mục, hướng dẫn, nhật ký hoạt động không bị xóa ở cả hai cách.</summary>
     [HttpPost, RequestSizeLimit(200L * 1024 * 1024)]
     public async Task<IActionResult> Restore([FromBody] JsonElement body)
     {
@@ -35,20 +38,35 @@ public class BackupController : ApiControllerBase
         if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được phục hồi dữ liệu.");
         if (!body.TryGetProperty("app", out var app) || app.GetString() != "qlda-ttts" || !body.TryGetProperty("data", out var data))
             return Error(400, "Tệp không đúng định dạng sao lưu của phần mềm.");
-        var n = 0;
+        var n = 0; var removed = 0;
+        var replace = !(body.TryGetProperty("mode", out var md) && md.ValueKind == JsonValueKind.String && md.GetString() == "merge");
+        string? before = null;
+        if (replace)
+        {
+            try { before = (await _bk.RunAsync(Db)).name; }
+            catch (Exception ex) { return Error(500, "Không sao lưu được dữ liệu hiện tại nên chưa phục hồi: " + ex.Message); }
+        }
+        // Dữ liệu nghiệp vụ (đưa về đúng thời điểm sao lưu) gồm cả lịch sử trình duyệt; nhóm quyền, danh mục, hướng dẫn luôn giữ
+        var business = Collections.All.Where(c => c.Module is not "quan-tri" || c.Name == "approvals").Select(c => c.Name).ToHashSet();
         try
         {
             foreach (var def in Collections.All)
             {
+                var inFile = new HashSet<string>();
                 if (!data.TryGetProperty(def.Name, out var arr) || arr.ValueKind != JsonValueKind.Array) continue;
                 foreach (var el in arr.EnumerateArray())
                 {
                     var o = (EntityBase)JsonSerializer.Deserialize(el.GetRawText(), def.Type, JsonConfig.Options)!;
                     if (!ValidId(o.Id)) continue;
+                    inFile.Add(o.Id);
                     var ex = await Db.FindAsync(def.Type, o.Id);
                     if (ex is null) Db.Add(o); else Db.Entry(ex).CurrentValues.SetValues(o);
                     n++;
                 }
+                // Đưa về đúng thời điểm sao lưu: bỏ bản ghi nghiệp vụ không có trong tệp (phát sinh sau khi sao lưu)
+                if (replace && business.Contains(def.Name))
+                    foreach (var x in await def.Query(Db).ToListAsync())
+                        if (!inFile.Contains(x.Id)) { Db.Remove(x); removed++; }
             }
             var pw = body.TryGetProperty("passwords", out var p) && p.ValueKind == JsonValueKind.Object ? p : default;
             if (data.TryGetProperty("users", out var ua) && ua.ValueKind == JsonValueKind.Array)
@@ -82,14 +100,22 @@ public class BackupController : ApiControllerBase
                     Db.Files.Add(f);
                 }
             if (data.TryGetProperty("attachments", out var aa) && aa.ValueKind == JsonValueKind.Array)
+            {
+                var inFile = new HashSet<string>();
                 foreach (var el in aa.EnumerateArray())
                 {
                     var a = el.Deserialize<Attachment>(JsonConfig.Options)!;
                     if (!ValidId(a.Id)) continue;
+                    inFile.Add(a.Id);
                     var ex = await Db.Attachments.FirstOrDefaultAsync(x => x.Id == a.Id);
                     if (ex is null) Db.Attachments.Add(a); else Db.Entry(ex).CurrentValues.SetValues(a);
                     n++;
                 }
+                // Tệp đính kèm của hồ sơ phát sinh sau thời điểm sao lưu: chuyển vào thùng rác (khôi phục lại được)
+                if (replace)
+                    foreach (var a in await Db.Attachments.Where(a => a.DeletedAt == null && business.Contains(a.Collection)).ToListAsync())
+                        if (!inFile.Contains(a.Id)) { a.DeletedAt = DateTime.UtcNow; a.DeletedBy = Uc.User.Name + " (phục hồi sao lưu)"; }
+            }
             if (data.TryGetProperty("settings", out var sa) && sa.ValueKind == JsonValueKind.Array)
                 foreach (var el in sa.EnumerateArray())
                 {
@@ -102,9 +128,11 @@ public class BackupController : ApiControllerBase
         catch (JsonException ex) { return Error(400, "Tệp sao lưu bị lỗi: " + ex.Message); }
         // Nhóm quản trị hệ thống luôn giữ toàn quyền, kể cả khi tệp sao lưu ghi khác
         if (await Db.Groups.FindAsync("g-admin") is { } ga) ga.Admin = true;
-        Uc.Log("Phục hồi dữ liệu", "Hệ thống", n + " bản ghi");
+        Uc.Log("Phục hồi dữ liệu", "Hệ thống", replace
+            ? $"Đưa về thời điểm sao lưu: {n} bản ghi, bỏ {removed} bản ghi phát sinh sau · bản sao lưu trước khi phục hồi: {before}"
+            : n + " bản ghi (chỉ ghi đè, thêm)");
         await Db.SaveChangesAsync();
-        return Ok(new { restored = n });
+        return Ok(new { restored = n, removed, backup = before, mode = replace ? "replace" : "merge" });
     }
 
     /// <summary>Danh sách bản sao lưu tự động trên máy chủ và cấu hình.</summary>

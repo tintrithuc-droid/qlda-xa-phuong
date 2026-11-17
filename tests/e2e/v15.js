@@ -20,7 +20,11 @@ function totp(secret) {
   const b = await chromium.launch(); const errs = [];
   const exp = (what, got, want) => { if (got !== want) errs.push(`${what}: ${JSON.stringify(got)} (cần ${JSON.stringify(want)})`); };
   const who = async (u, opt = {}) => { const c = await b.newContext({ acceptDownloads: true, ...opt }); const r = c.request;
-    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Admin2026' } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s); return { c, r }; };
+    const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Admin2026' } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s);
+    // Bản 1.8: mật khẩu do quản trị đặt lại phải đổi ở lần đăng nhập đầu; đổi sang mật khẩu tạm rồi đổi về như cũ để các bước sau dùng chung
+    if (u !== 'admin' && (await r.get(BASE + '/api/data', H)).status() === 403) {
+      for (const [o, n] of [['Admin2026', 'Admin2026tmp'], ['Admin2026tmp', 'Admin2026']]) { const x = await r.post(BASE + '/api/auth/change-password', { ...H, data: { old: o, password: n } }); if (x.status() !== 200) errs.push('Đổi mật khẩu lần đầu ' + u + ': ' + x.status()); } }
+    return { c, r }; };
   // Quản trị đã bật xác thực 2 lớp ở smoke.js (mã bí mật lưu ở shots/admin-totp.txt)
   const ad = await who('admin');
   const sec = fs.existsSync(SHOTS + '/admin-totp.txt') ? fs.readFileSync(SHOTS + '/admin-totp.txt', 'utf8').trim() : '';
@@ -96,7 +100,7 @@ function totp(secret) {
   exp('Tiến độ gói chỉ tính kế hoạch đã duyệt', Math.round(r15.pkg), 40); exp('Tiến độ dự án', Math.round(r15.proj), 40);
   exp('Không cảnh báo kế hoạch chưa duyệt', r15.al, 0); exp('Kế hoạch chưa duyệt không có trong danh sách cập nhật nhanh', r15.quick, false);
   const g = await p.evaluate(() => { const rows = [...document.querySelectorAll('.grow-row.draft')]; return rows.map(r => r.textContent); });
-  if (!g.some(t => t.includes('Đầu việc chưa duyệt') && t.includes('Chờ duyệt'))) errs.push('Biểu đồ không hiện kế hoạch chờ duyệt: ' + g.join(' | '));
+  if (!g.some(t => t.includes('Đầu việc chưa duyệt') && /Chờ (lãnh đạo Ban )?duyệt/.test(t))) errs.push('Biểu đồ không hiện kế hoạch chờ duyệt: ' + g.join(' | '));
   await p.screenshot({ path: SHOTS + '/v15-tien-do-cho-duyet.png', fullPage: true }); await p.close();
   p = await page(ld, 'trinh-duyet');
   if (!(await p.$('[data-act=wf][data-id="schedule|sch15b|approve"]'))) errs.push('Trang Trình duyệt hồ sơ không có kế hoạch tiến độ chờ duyệt');

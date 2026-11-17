@@ -74,6 +74,8 @@ public class LegalDocument : EntityBase, IHasProject
     [MaxLength(300)] public string? Url { get; set; }
     /// <summary>Hiệu lực đến (bảo lãnh, giấy phép…) để cảnh báo sắp hết hạn.</summary>
     public DateOnly? ValidUntil { get; set; }
+    /// <summary>Bản 1.8: trạng thái trình duyệt (khi quản trị bật quy trình duyệt hồ sơ pháp lý); trống = đã duyệt.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("ConstructionItems")]
@@ -117,6 +119,42 @@ public class Package : EntityBase, IHasProject
     [Column(TypeName = "decimal(20,0)")] public decimal? Estimate { get; set; }
     [MaxLength(100)] public string? Status { get; set; }
     [MaxLength(200)] public string? Duration { get; set; }
+    /// <summary>Bản 1.8: nhà thầu trúng thầu chọn từ danh mục (nhiều đơn vị = liên danh, đơn vị đầu tiên đứng đầu liên danh).</summary>
+    public List<string> ContractorIds { get; set; } = new();
+    /// <summary>Tên liên danh (để trống khi chỉ một nhà thầu).</summary>
+    [MaxLength(300)] public string? JointVenture { get; set; }
+    /// <summary>Các đơn vị tư vấn giám sát của gói thầu (chọn từ danh mục đơn vị giám sát).</summary>
+    public List<string> SupervisorIds { get; set; } = new();
+    /// <summary>Giai đoạn: "cb" chuẩn bị đầu tư, "dt" thực hiện đầu tư. Trống thì suy theo loại gói thầu.</summary>
+    [MaxLength(10)] public string? Phase { get; set; }
+}
+
+/// <summary>
+/// Bản 1.8: danh mục nhà thầu (Kind "nt") và đơn vị tư vấn giám sát (Kind "gs"). Gói thầu chọn đơn vị từ danh mục;
+/// tài khoản gắn với đơn vị chỉ thấy các gói thầu của đơn vị mình.
+/// </summary>
+[Table("Organizations")]
+public class Organization : EntityBase
+{
+    [MaxLength(10)] public string Kind { get; set; } = "nt";
+    [MaxLength(300)] public string Name { get; set; } = "";
+    [MaxLength(100)] public string? ShortName { get; set; }
+    [MaxLength(20)] public string? TaxCode { get; set; }
+    [MaxLength(500)] public string? Address { get; set; }
+    [MaxLength(50)] public string? Phone { get; set; }
+    [MaxLength(200)] public string? Email { get; set; }
+    [MaxLength(200)] public string? Representative { get; set; }
+    [MaxLength(100)] public string? RepTitle { get; set; }
+    [MaxLength(50)] public string? BankAccount { get; set; }
+    [MaxLength(200)] public string? BankName { get; set; }
+    [MaxLength(100)] public string? CertNo { get; set; }
+    [MaxLength(50)] public string? CertGrade { get; set; }
+    public DateOnly? CertDate { get; set; }
+    [MaxLength(300)] public string? Field { get; set; }
+    [MaxLength(200)] public string? ContactName { get; set; }
+    [MaxLength(50)] public string? ContactPhone { get; set; }
+    public bool Active { get; set; } = true;
+    public string? Note { get; set; }
 }
 
 [Table("Contracts")]
@@ -136,6 +174,8 @@ public class Contract : EntityBase, IHasProject
     public DateOnly? AdvanceGuaranteeUntil { get; set; }
     public double? AdvanceRate { get; set; }
     public string? Note { get; set; }
+    /// <summary>Bản 1.8: trạng thái trình duyệt hợp đồng (khi quản trị bật); trống = đã duyệt.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("ContractAddenda")]
@@ -210,6 +250,8 @@ public class BoqItem : EntityBase, IHasContract
 {
     [MaxLength(64)] public string? ContractId { get; set; }
     [MaxLength(50)] public string? Code { get; set; }
+    /// <summary>Nhóm công việc (phần, hạng mục) theo bảng khối lượng, ví dụ "1. PHẦN ĐƯỜNG GIAO THÔNG".</summary>
+    [MaxLength(300)] public string? Section { get; set; }
     [MaxLength(500)] public string Name { get; set; } = "";
     [MaxLength(30)] public string? Unit { get; set; }
     public double? Qty { get; set; }
@@ -252,6 +294,8 @@ public class PayPlan : EntityBase, IHasContract
     public DateOnly? PlanDate { get; set; }
     [Column(TypeName = "decimal(20,0)")] public decimal? Amount { get; set; }
     public string? Note { get; set; }
+    /// <summary>Bản 1.8: trạng thái trình duyệt kế hoạch thanh toán (khi quản trị bật); trống = đã duyệt.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("Payments")]
@@ -359,6 +403,8 @@ public class AppUser : EntityBase
     [MaxLength(50)] public string? Phone { get; set; }
     public bool Active { get; set; } = true;
     public bool Sample { get; set; }
+    /// <summary>Bắt buộc đổi mật khẩu ở lần đăng nhập tới (tài khoản do quản trị tạo hoặc đặt lại mật khẩu).</summary>
+    public bool MustChangePassword { get; set; }
     [JsonIgnore] public string PasswordHash { get; set; } = "";
     [JsonIgnore] public int FailedCount { get; set; }
     [JsonIgnore] public DateTime? LockoutUntil { get; set; }
@@ -371,6 +417,8 @@ public class AppUser : EntityBase
     [NotMapped] public bool TwoFactor => TotpSecret is not null;
     public DateTime? CreatedAt { get; set; }
     public DateTime? LastLogin { get; set; }
+    /// <summary>Bản 1.8: tài khoản thuộc đơn vị nhà thầu / tư vấn giám sát: chỉ thấy các gói thầu có đơn vị này.</summary>
+    [MaxLength(64)] public string? OrgId { get; set; }
 }
 
 [Table("UserGroups")]
@@ -441,6 +489,15 @@ public class ApprovalLog : EntityBase, IHasProject
     [MaxLength(64)] public string? By { get; set; }
     [MaxLength(200)] public string? ByName { get; set; }
     public DateTime At { get; set; }
+    /// <summary>Bản 1.8: bước hồ sơ đang chờ sau thao tác này (trống khi về soạn thảo hoặc đã xong).</summary>
+    [MaxLength(20)] public string? Step { get; set; }
+    /// <summary>Người được chuyển đích danh xử lý bước tiếp theo.</summary>
+    [MaxLength(64)] public string? Assignee { get; set; }
+    [MaxLength(200)] public string? AssigneeName { get; set; }
+    /// <summary>Hạn xử lý bước tiếp theo.</summary>
+    public DateOnly? Due { get; set; }
+    /// <summary>Các bước của lần chuyển duyệt (ghi ở lần chuyển duyệt đầu tiên, giữ nguyên khi quản trị đổi quy trình).</summary>
+    public string? Route { get; set; }
 }
 
 [Table("StoredFiles")]

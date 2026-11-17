@@ -52,7 +52,28 @@ public static class Upgrades
 
         // 7) Phiên bản 1.7: đợt nghiệm thu khối lượng, quyền kiểm tra của tư vấn giám sát, quản trị chính
         V17(db);
+
+        // 8) Phiên bản 1.8: đơn vị tính xây dựng cho bảng giá Mẫu số 11B, bảng dự toán
+        V18(db);
         Owner.Ensure(db);
+    }
+
+    /// <summary>Đơn vị tính theo định mức, đơn giá xây dựng (bảng khối lượng hợp đồng nhập từ Excel).</summary>
+    public static readonly string[] ConstructionUnits = { "100m", "100m2", "100m3", "km", "kg", "lít", "viên", "tấm", "md", "trụ", "cấu kiện", "1 cấu kiện", "công", "ca", "lần", "điểm", "hố", "mối nối" };
+
+    /// <summary>Bản 1.8: bổ sung một lần các đơn vị tính thường gặp trong bảng giá Mẫu số 11B, bảng dự toán (Quản trị có thể xóa bớt).</summary>
+    private static void V18(AppDbContext db)
+    {
+        const string key = "upgrade:1.8-don-vi-tinh";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        var units = db.Catalogs.Where(c => c.Type == "Đơn vị tính").ToList();
+        if (units.Count == 0) return;   // hệ thống chưa khởi tạo: danh mục mẫu đã có sẵn các đơn vị này
+        var order = units.Max(c => c.Order);
+        foreach (var v in ConstructionUnits)
+            if (!units.Any(c => string.Equals(c.Value, v, StringComparison.OrdinalIgnoreCase)))
+                db.Catalogs.Add(new Catalog { Id = "cat-" + Guid.NewGuid().ToString("N")[..12], Type = "Đơn vị tính", Value = v, Order = ++order, UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
     }
 
     /// <summary>Bản 1.7: khối lượng đã nhập được gom thành đợt nghiệm thu theo hợp đồng và tên đợt (coi là đã duyệt, giữ nguyên số liệu);

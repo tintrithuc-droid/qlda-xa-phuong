@@ -15,17 +15,25 @@ public class DataController : ApiControllerBase
 
     private Task<string?> ProjectOf(EntityBase e) => ProjectScope.ProjectOf(Db, e);
     private static bool Scoped(EntityBase e) => ProjectScope.Scoped(e);
+    private Task<string?> PackageOf(EntityBase e) => ProjectScope.PackageOf(Db, e);
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         var contractProject = await Db.Contracts.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.ProjectId);
+        var contractPackage = Uc.Packages is null ? null : await Db.Contracts.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.PackageId);
+        bool InPkg(EntityBase e) => Uc.Packages is null || Uc.InPackage(e switch
+        {
+            Package k => k.Id,
+            IHasContract hc => hc.ContractId != null && contractPackage!.TryGetValue(hc.ContractId, out var kid) ? kid : null,
+            _ => e.GetType().GetProperty("PackageId")?.GetValue(e) as string
+        });
         bool Visible(EntityBase e) => e switch
         {
             Project p => Uc.InScope(p.Id),
-            IHasProject hp => Uc.InScope(hp.ProjectId),
-            IHasContract hc => Uc.InScope(hc.ContractId != null && contractProject.TryGetValue(hc.ContractId, out var pid) ? pid : null),
+            IHasProject hp => Uc.InScope(hp.ProjectId) && InPkg(e),
+            IHasContract hc => Uc.InScope(hc.ContractId != null && contractProject.TryGetValue(hc.ContractId, out var pid) ? pid : null) && InPkg(e),
             _ => true
         };
         var result = new Dictionary<string, object>();
@@ -51,7 +59,11 @@ public class DataController : ApiControllerBase
         }
         // Bản 1.7: quản trị chính, các loại hồ sơ có bước kiểm tra
         result["ownerId"] = Owner.Ensure(Db) ?? "";
-        result["wfCheck"] = Workflow.All.Where(w => Workflow.CheckEnabled(Db, w)).Select(w => w.Collection).ToList();
+        // Bản 1.8: quy trình duyệt do quản trị thiết lập
+        var wfc = Workflow.Load(Db);
+        result["wf"] = wfc;
+        result["wfCheck"] = wfc.Flows.Where(f => f.Value.Steps.Count > 1).Select(f => f.Key).ToList();
+        result["orgId"] = Uc.User.OrgId ?? "";
         return Ok(result);
     }
 
@@ -64,13 +76,16 @@ public class DataController : ApiControllerBase
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được thay đổi quy trình duyệt.");
         var w = Workflow.Find(r.Collection); if (w is null) return Error(400, "Loại hồ sơ không hợp lệ.");
-        // Tắt bước kiểm tra: hồ sơ đang chờ kiểm tra chuyển thẳng sang chờ duyệt
-        if (!r.Enabled && Collections.Find(w.Collection) is { } cd)
-            foreach (var e in (await cd.Query(Db).ToListAsync()).Where(e => Workflow.StatusOf(e) == WorkflowDef.Checking)) Workflow.SetStatus(e, w.Waiting);
-        var key = Workflow.CheckKey(w.Collection);
-        var s = await Db.Settings.FirstOrDefaultAsync(x => x.Key == key);
-        if (s is null) Db.Settings.Add(new AppSetting { Key = key, Value = r.Enabled ? "1" : "0", UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username });
-        else { s.Value = r.Enabled ? "1" : "0"; s.UpdatedAt = DateTime.UtcNow; s.UpdatedBy = Uc.User.Username; }
+        // Bật: thêm bước kiểm tra trước bước cuối; tắt: bỏ các bước trước bước cuối, hồ sơ đang chờ kiểm tra chuyển thẳng sang chờ duyệt
+        var cfg = Workflow.Load(Db); var fc = cfg.Flows[w.Collection];
+        if (r.Enabled && fc.Steps.Count < 2) fc.Steps.Insert(0, Workflow.CheckStep(w));
+        if (!r.Enabled && fc.Steps.Count > 1)
+        {
+            fc.Steps = new() { fc.Steps[^1] };
+            if (Collections.Find(w.Collection) is { } cd)
+                foreach (var e in (await cd.Query(Db).ToListAsync()).Where(e => Workflow.StatusOf(e) == WorkflowDef.Checking)) Workflow.SetStatus(e, w.Waiting);
+        }
+        Workflow.Save(Db, cfg, Uc.User.Username);
         Uc.Log(r.Enabled ? "Bật bước kiểm tra" : "Tắt bước kiểm tra", "Quy trình duyệt", Collections.Find(w.Collection)?.Label ?? w.Collection);
         await Db.SaveChangesAsync();
         return Ok(new { ok = true });
@@ -106,12 +121,24 @@ public class DataController : ApiControllerBase
         var wf = Workflow.Find(collection);
         if (wf is not null)
         {
-            if (existing is null && string.IsNullOrEmpty(Workflow.StatusOf(obj))) Workflow.SetStatus(obj, wf.Draft);
-            if (!Workflow.CanApprove(Uc, wf) && Workflow.CheckDirectWrite(wf, existing, obj) is { } msg) return Denied(msg);
-            if (Workflow.CheckStatusChange(wf, existing, obj) is { } msg2) return Denied(msg2);
+            // Bản 1.8: loại hồ sơ tắt quy trình duyệt thì ghi nhận ngay (đã duyệt), không khóa sửa
+            var active = Workflow.Active(Workflow.Load(Db), wf, await ProjectOf(obj));
+            var ns = Workflow.StatusOf(obj);
+            if (existing is null && (string.IsNullOrEmpty(ns) || (!active && ns == wf.Draft))) Workflow.SetStatus(obj, active ? wf.Draft : wf.Approved);
+            if (active && !Workflow.CanApprove(Uc, wf) && Workflow.CheckDirectWrite(wf, existing, obj) is { } msg) return Denied(msg);
+            if (Workflow.CheckStatusChange(wf, existing, obj, active) is { } msg2) return Denied(msg2);
+        }
+        if (Uc.Packages is not null && (!Uc.InPackage(await PackageOf(obj)) || (existing is not null && !Uc.InPackage(await PackageOf(existing)))))
+            return Denied("Gói thầu này không thuộc đơn vị của bạn.");
+        if (obj is Package pk && (pk.ContractorIds.Count > 0 || pk.SupervisorIds.Count > 0))
+        {
+            var ids = pk.ContractorIds.Concat(pk.SupervisorIds).Distinct().ToList();
+            if (await Db.Organizations.CountAsync(o => ids.Contains(o.Id)) != ids.Count) return Error(400, "Nhà thầu hoặc đơn vị giám sát được chọn không có trong danh mục.");
         }
         // Dòng khối lượng thuộc đợt nghiệm thu (bản 1.7): đợt đang chờ hoặc đã duyệt thì khóa với người không có quyền duyệt
         if (obj is VolumeEntry ve && await VolumeLock(ve, existing as VolumeEntry) is { } vmsg) return Denied(vmsg);
+        // Hợp đồng tư vấn giai đoạn chuẩn bị đầu tư nghiệm thu theo giá trị sản phẩm: lũy kế nghiệm thu không vượt giá trị sản phẩm
+        if (obj is VolumeEntry pv && await PrepOver(pv) is { } pmsg) return Error(409, pmsg);
 
         obj.UpdatedAt = DateTime.UtcNow; obj.UpdatedBy = Uc.User.Username;
         if (existing is null) Db.Add(obj); else Db.Entry(existing).CurrentValues.SetValues(obj);
@@ -131,7 +158,14 @@ public class DataController : ApiControllerBase
         if (existing is null) return Error(404, "Bản ghi không còn tồn tại.");
         if (Scoped(existing) && !Uc.InScope(await ProjectOf(existing))) return Denied("Dự án này nằm ngoài phạm vi dữ liệu được giao.");
         if (id == "g-admin") return Denied("Không thể xóa nhóm quản trị hệ thống.");
-        if (Workflow.Find(collection) is { } wfd && !Workflow.CanApprove(Uc, wfd))
+        if (Uc.Packages is not null && !Uc.InPackage(await PackageOf(existing))) return Denied("Gói thầu này không thuộc đơn vị của bạn.");
+        if (existing is Organization org)
+        {
+            var nk = (await Db.Packages.AsNoTracking().Select(k => new { k.ContractorIds, k.SupervisorIds }).ToListAsync()).Count(k => k.ContractorIds.Contains(org.Id) || k.SupervisorIds.Contains(org.Id));
+            var nu = await Db.Users.CountAsync(u => u.OrgId == org.Id);
+            if (nk + nu > 0) return Error(409, $"Không xóa được: đơn vị đang được chọn ở {nk} gói thầu và gắn với {nu} tài khoản. Có thể chuyển sang ngừng sử dụng.");
+        }
+        if (Workflow.Find(collection) is { } wfd && !Workflow.CanApprove(Uc, wfd) && Workflow.Active(Workflow.Load(Db), wfd, await ProjectOf(existing)))
         {
             var st = Workflow.StatusOf(existing);
             if (wfd.IsPending(st) || wfd.IsLocked(st)) return Denied("Hồ sơ đang chờ duyệt hoặc đã duyệt nên không xóa được. Liên hệ người có quyền duyệt.");
@@ -149,6 +183,20 @@ public class DataController : ApiControllerBase
         Uc.Log("Xóa", def.Label, Collections.LabelOf(existing));
         await Db.SaveChangesAsync();
         return Ok(new { deleted = true });
+    }
+
+    private async Task<string?> PrepOver(VolumeEntry v)
+    {
+        if (string.IsNullOrEmpty(v.BoqId) || !await Phases.IsPrepContract(Db, v.ContractId)) return null;
+        var b = await Db.Boq.AsNoTracking().FirstOrDefaultAsync(x => x.Id == v.BoqId);
+        if (b is null) return null;
+        var rejected = await Db.VolumeBatches.AsNoTracking().Where(x => x.ContractId == v.ContractId && x.Status == "Từ chối").Select(x => x.Id).ToListAsync();
+        var others = await Db.Volumes.AsNoTracking().Where(x => x.BoqId == v.BoqId && x.Id != v.Id).ToListAsync();
+        var acc = others.Where(x => x.BatchId is null || !rejected.Contains(x.BatchId)).Sum(x => x.AcceptedQty ?? 0) + (v.AcceptedQty ?? 0);
+        var qty = b.Qty ?? 0;
+        if (acc <= qty * 1.0001 + 1e-9) return null;
+        var price = b.Price ?? 0;
+        return $"Lũy kế nghiệm thu sản phẩm \"{b.Name}\" ({acc * (double)price:N0} đồng) vượt giá trị theo hợp đồng ({qty * (double)price:N0} đồng). Cần phụ lục điều chỉnh hợp đồng trước.";
     }
 
     private async Task<string?> VolumeLock(VolumeEntry v, VolumeEntry? old)

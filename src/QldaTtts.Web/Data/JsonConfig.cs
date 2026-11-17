@@ -54,6 +54,22 @@ public class LenientNumberConverter<T> : JsonConverter<T?> where T : struct
     }
 }
 
+/// <summary>Mốc thời gian lưu theo UTC. SQL Server/SQLite trả DateTime Kind=Unspecified nên khi ghi ra JSON
+/// phải gắn hậu tố "Z", nếu không trình duyệt hiểu là giờ địa phương và hiển thị lệch 7 tiếng.</summary>
+public class UtcDateTimeConverter : JsonConverter<DateTime>
+{
+    public override DateTime Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o)
+    {
+        var d = r.GetDateTime();
+        return d.Kind switch { DateTimeKind.Local => d.ToUniversalTime(), DateTimeKind.Unspecified => DateTime.SpecifyKind(d, DateTimeKind.Utc), _ => d };
+    }
+    public override void Write(Utf8JsonWriter w, DateTime v, JsonSerializerOptions o)
+    {
+        var u = v.Kind switch { DateTimeKind.Local => v.ToUniversalTime(), DateTimeKind.Unspecified => DateTime.SpecifyKind(v, DateTimeKind.Utc), _ => v };
+        w.WriteStringValue(u.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture));
+    }
+}
+
 public static class JsonConfig
 {
     public static void Apply(JsonSerializerOptions o)
@@ -61,6 +77,7 @@ public static class JsonConfig
         o.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
         o.PropertyNameCaseInsensitive = true;
         o.Converters.Add(new LenientDateOnlyConverter());
+        o.Converters.Add(new UtcDateTimeConverter());
         o.Converters.Add(new LenientNumberConverter<int>());
         o.Converters.Add(new LenientNumberConverter<long>());
         o.Converters.Add(new LenientNumberConverter<double>());

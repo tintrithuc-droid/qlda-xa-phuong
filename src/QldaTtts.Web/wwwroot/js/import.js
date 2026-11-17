@@ -27,34 +27,55 @@ function impDate(v){
   return parseVNDate(t);
 }
 
+/** Đơn vị tính trong danh mục khớp với chữ trong tệp (không phân biệt hoa thường, m² = m2). */
+function unitMatch(u){ const k=x=>impKey(String(x||'').replace(/²/g,'2').replace(/³/g,'3')).replace(/ /g,''); return catalog('Đơn vị tính').find(x=>k(x)===k(u)); }
 const IMPORTS = {
   boq: {
     title:'Nhập bảng khối lượng hợp đồng từ Excel', file:'Mau nhap khoi luong hop dong.xlsx', mod:'khoi-luong',
-    intro:'Mỗi dòng là một công việc trong bảng khối lượng hợp đồng (dự toán trúng thầu). Mã hiệu đã có trong hợp đồng thì dòng đó được cập nhật nội dung, đơn vị, khối lượng, đơn giá.',
-    cols:[{k:'code',h:'Mã hiệu',req:true,al:['ma','ma cong viec','ma dinh muc','ma hieu dinh muc']},
-          {k:'name',h:'Nội dung công việc',req:true,al:['noi dung','ten cong viec','cong viec','noi dung cong viec','hang muc cong viec']},
-          {k:'unit',h:'Đơn vị tính',req:true,al:['dvt','don vi']},
-          {k:'qty',h:'Khối lượng hợp đồng',req:true,num:true,al:['khoi luong','kl','kl hop dong','khoi luong hd']},
-          {k:'price',h:'Đơn giá (đồng)',req:true,num:true,al:['don gia','don gia dong','don gia vnd']}],
-    sample:[['AB.11','Đào nền đường đất cấp II','m3',18500,62000],['AD.11','Móng cấp phối đá dăm loại 1','m3',8800,520000],['AD.23','Mặt đường bê tông nhựa chặt 12,5','m2',25200,280000]],
+    intro:'Chọn thẳng bảng giá Mẫu số 11B tải từ Hệ thống mạng đấu thầu quốc gia, bảng dự toán hoặc phụ lục khối lượng của hợp đồng; hoặc điền theo tệp mẫu. Phần mềm tự tìm dòng tiêu đề cột, nhận dòng nhóm (phần, hạng mục), bỏ dòng tổng cộng và phần chữ phía sau. Mã hiệu (hoặc STT) đã có trong hợp đồng thì dòng đó được cập nhật.',
+    extra:()=>can('quan-tri','edit')? [{key:'unitMode',label:'Đơn vị tính chưa có trong danh mục',type:'select',options:[['add','Tự thêm vào danh mục Đơn vị tính'],['err','Báo lỗi, không nhập dòng đó']],def:'add'}] : [],
+    cols:[{k:'code',h:'Mã hiệu',al:['ma','ma cong viec','ma dinh muc','ma hieu dinh muc','ma hieu cong viec','ma so','stt','so tt','tt']},
+          {k:'section',h:'Nhóm công việc',al:['nhom','phan viec','nhom cong viec']},
+          {k:'name',h:'Nội dung công việc',req:true,al:['noi dung','ten cong viec','cong viec','noi dung cong viec','hang muc cong viec','mo ta cong viec','danh muc cong viec','ten cong tac']},
+          {k:'unit',h:'Đơn vị tính',al:['dvt','don vi']},
+          {k:'qty',h:'Khối lượng hợp đồng',num:true,al:['khoi luong','kl','kl hop dong','khoi luong hd','khoi luong moi thau']},
+          {k:'price',h:'Đơn giá (đồng)',num:true,al:['don gia','don gia dong','don gia vnd','don gia du thau','don gia trung thau','don gia hop dong']},
+          {k:'amount',h:'Thành tiền (đồng)',num:true,al:['thanh tien','gia tri']}],
+    sample:[['1','','PHẦN ĐƯỜNG GIAO THÔNG','','','',''],['1.1','','Rải thảm mặt đường bê tông nhựa C12,5, dày 7 cm','100m2',29.6882,40392452,1199179193],['1.2','','Thi công móng cấp phối đá dăm loại I lớp trên','100m3',4.4532,66892435,297885392],
+      ['2','','PHẦN THOÁT NƯỚC','','','',''],['2.1','','Đào đất xây dựng mương','100m3',4.4944,3161655,14209742]],
+    /** Bảng giá Mẫu số 11B, bảng dự toán: dòng chỉ có STT và tên là dòng nhóm của các công việc bên dưới; dừng ở dòng tổng cộng. */
+    pre(rows){ let sec='', stop=false; const out=[];
+      rows.forEach(r=>{ if(stop) return; const v=r.v, c0=impKey(v.code).replace(/ /g,''), nm=impKey(v.name).replace(/ /g,'');
+        if(/^(tong|cong)/.test(c0) || (/^(tongcong|tonghop|cong)/.test(nm) && v.qty==null)){ if(out.length) stop=true; return; }
+        if(!v.name && v.qty==null && !v.unit) return;
+        if(v.name && v.qty==null && v.price==null && !v.unit){ sec=v.section || [v.code, String(v.name).replace(/[.:\s]+$/,'')].filter(Boolean).join('. '); return; }
+        if(!v.section) v.section=sec;
+        out.push(r); });
+      return out; },
     check(rows, x){
       const have=new Map(D('boq').filter(b=>b.contractId===x.cid).map(b=>[String(b.code).trim().toLowerCase(), b]));
-      const units=new Set(catalog('Đơn vị tính').map(u=>u.toLowerCase())); const seen=new Set();
+      const seen=new Set(); const auto=can('quan-tri','edit') && x.unitMode!=='err';
       rows.forEach(r=>{ const v=r.v, key=String(v.code||'').trim().toLowerCase();
+        if(!key) r.err.push('Thiếu mã hiệu hoặc STT');
+        if(!v.unit) r.err.push('Thiếu đơn vị tính');
+        if(v.qty==null){ if(!r.err.some(e=>e.startsWith('Khối lượng'))) r.err.push('Thiếu khối lượng'); } else if(!isNaN(v.qty) && v.qty<=0) r.err.push('Khối lượng phải lớn hơn 0');
+        if(v.price==null){ if(!r.err.some(e=>e.startsWith('Đơn giá'))) r.err.push('Thiếu đơn giá'); } else if(!isNaN(v.price) && v.price<0) r.err.push('Đơn giá không được âm');
         if(key && seen.has(key)) r.err.push('Trùng mã hiệu với dòng phía trên'); seen.add(key);
-        if(v.qty!=null && !isNaN(v.qty) && v.qty<=0) r.err.push('Khối lượng phải lớn hơn 0');
-        if(v.price!=null && !isNaN(v.price) && v.price<0) r.err.push('Đơn giá không được âm');
-        if(v.unit && units.size && !units.has(String(v.unit).toLowerCase())) r.warn.push('Đơn vị "'+v.unit+'" chưa có trong danh mục');
+        if(v.unit){ const u=unitMatch(v.unit); if(u) v.unit=u; else if(auto){ r.newUnit=true; r.warn.push('Thêm đơn vị "'+v.unit+'" vào danh mục'); } else r.err.push('Đơn vị "'+v.unit+'" chưa có trong danh mục, đề nghị Quản trị hệ thống bổ sung'); }
+        if(v.amount!=null && v.qty!=null && v.price!=null){ const t=v.qty*v.price; if(Math.abs(t-v.amount)>Math.max(1, Math.abs(v.amount)*1e-4)) r.warn.push('Thành tiền trong tệp '+fmtVND(v.amount)+' khác KL × đơn giá '+fmtVND(t)); }
         const old=have.get(key); if(old){ r.old=old; r.warn.push('Đã có mã này, sẽ cập nhật'); } });
     },
+    async prepare(ok){ const done=new Set();
+      for(const r of ok) if(r.newUnit && !unitMatch(r.v.unit) && !done.has(impKey(r.v.unit))){ done.add(impKey(r.v.unit)); await Store.put('catalogs',{type:'Đơn vị tính', value:String(r.v.unit).trim(), order:catalog('Đơn vị tính').length+1}); } },
     summary(ok, x){
       const c=get('contracts',x.cid); const upd=new Set(ok.filter(r=>r.old).map(r=>r.old.id));
       const keep=sum(D('boq').filter(b=>b.contractId===x.cid && !upd.has(b.id)), b=>N(b.qty)*N(b.price));
       const tv=keep+sum(ok, r=>N(r.v.qty)*N(r.v.price)), cv=c? contractValue(c) : 0, d=cv-tv;
-      return `Tổng thành tiền bảng khối lượng sau khi nhập: <b>${fmtVND(tv)} đ</b>; giá trị hợp đồng sau điều chỉnh: <b>${fmtVND(cv)} đ</b>.`
+      const grp=new Set(ok.map(r=>r.v.section).filter(Boolean)).size;
+      return `Tổng thành tiền bảng khối lượng sau khi nhập: <b>${fmtVND(tv)} đ</b>${grp?` (${grp} nhóm công việc)`:''}; giá trị hợp đồng sau điều chỉnh: <b>${fmtVND(cv)} đ</b>.`
         + (Math.abs(d)>1? ` <span style="color:var(--amber)">Chênh lệch ${fmtVND(d)} đ, kiểm tra lại đơn giá hoặc khối lượng trước khi lưu.</span>` : ' <span style="color:var(--green)">Khớp giá trị hợp đồng.</span>');
     },
-    build(r, x){ const v=r.v; return {...(r.old||{contractId:x.cid}), code:String(v.code).trim(), name:String(v.name).trim(), unit:String(v.unit).trim(), qty:v.qty, price:v.price}; },
+    build(r, x){ const v=r.v; return {...(r.old||{contractId:x.cid}), code:String(v.code).trim(), section:String(v.section||'').trim(), name:String(v.name).trim(), unit:unitMatch(v.unit)||String(v.unit).trim(), qty:v.qty, price:v.price}; },
     col:'boq', label:r=>r.v.code+' '+r.v.name
   },
 
@@ -63,13 +84,15 @@ const IMPORTS = {
     intro:'Mỗi dòng là khối lượng thực hiện và khối lượng được nghiệm thu trong đợt của một công việc, khớp theo Mã hiệu của bảng khối lượng hợp đồng. Ngày và đợt bỏ trống thì lấy theo ô bên dưới. Các dòng cùng đợt được gom vào một đợt nghiệm thu ở trạng thái Dự thảo, kiểm tra xong mới trình duyệt.',
     extra:x=>[{key:'date',label:'Ngày nghiệm thu (áp dụng cho dòng không ghi ngày)',type:'date',def:TODAY,req:true},
               {key:'period',label:'Đợt nghiệm thu (áp dụng cho dòng không ghi đợt)',def:vbNextName(x.cid),req:true}],
-    cols:[{k:'code',h:'Mã hiệu',req:true,al:['ma','ma cong viec','ma dinh muc']},
+    cols:[{k:'code',h:'Mã hiệu',req:true,al:['ma','ma cong viec','ma dinh muc','ma hieu cong viec','stt','so tt','tt']},
           {k:'name',h:'Nội dung công việc (để đối chiếu)',al:['noi dung','ten cong viec','cong viec','noi dung cong viec']},
-          {k:'doneQty',h:'Khối lượng thực hiện trong kỳ',req:true,num:true,al:['kl thuc hien','khoi luong thuc hien','thuc hien','kl thuc hien trong ky']},
-          {k:'acceptedQty',h:'Khối lượng nghiệm thu',num:true,al:['kl nghiem thu','nghiem thu','khoi luong duoc nghiem thu','kl duoc nghiem thu']},
+          {k:'doneQty',h:'Khối lượng thực hiện trong kỳ',req:true,num:true,al:['kl thuc hien','khoi luong thuc hien','thuc hien','kl thuc hien trong ky','khoi luong thuc hien ky nay','thuc hien ky nay','khoi luong thuc hien thuc hien ky nay','khoi luong thi cong ky nay']},
+          {k:'acceptedQty',h:'Khối lượng nghiệm thu',num:true,al:['kl nghiem thu','nghiem thu','khoi luong duoc nghiem thu','kl duoc nghiem thu','khoi luong nghiem thu ky nay','nghiem thu ky nay','khoi luong nghiem thu nghiem thu ky nay']},
           {k:'date',h:'Ngày',date:true,al:['ngay nghiem thu','ngay thuc hien']},
           {k:'period',h:'Đợt',al:['dot','ky','dot ky']},
           {k:'note',h:'Số biên bản / ghi chú',al:['so bien ban','bien ban','ghi chu']}],
+    /** Biên bản nghiệm thu thực tế: bỏ dòng nhóm, dòng công việc chưa thực hiện trong kỳ (trống cả hai cột khối lượng) và dòng tổng. */
+    pre(rows){ return rows.filter(r=>!(r.v.doneQty==null && r.v.acceptedQty==null) && !/^(tong|cong)/.test(impKey(r.v.code)||impKey(r.v.name))); },
     sample:[['AB.11','Đào nền đường đất cấp II',1200,1200,'','','BB 05/NT'],['AD.11','Móng cấp phối đá dăm loại 1',650,600,'','','BB 05/NT']],
     check(rows, x){
       const boq=new Map(D('boq').filter(b=>b.contractId===x.cid).map(b=>[String(b.code).trim().toLowerCase(), b]));
@@ -110,17 +133,31 @@ const IMPORTS = {
   sched: {
     title:'Nhập kế hoạch tiến độ từ Excel', file:'Mau nhap ke hoach tien do.xlsx', mod:'tien-do',
     intro:'Mỗi dòng là một đầu việc trong kế hoạch tiến độ của gói thầu chọn bên dưới. Các đầu việc nhập vào ở trạng thái Soạn thảo; trình duyệt xong mới được tính vào tiến độ.',
-    extra:x=>[{key:'packageId',label:'Gói thầu',type:'select',options:()=>pkgOpts(S.pid),req:true,full:true,def:x.kid||S.f.tdk||''}],
-    cols:[{k:'name',h:'Tên công việc',req:true,al:['ten hang muc','hang muc cong viec','cong viec','noi dung','ten dau viec']},
-          {k:'start',h:'Ngày bắt đầu',req:true,date:true,al:['bat dau','bat dau ke hoach','tu ngay']},
-          {k:'end',h:'Ngày kết thúc',req:true,date:true,al:['ket thuc','ket thuc ke hoach','den ngay','hoan thanh']},
+    extra:x=>{ const kid=x.kid||S.f.tdk||''; const c=kid&&contractOfPkg(kid);
+      return [{key:'packageId',label:'Gói thầu',type:'select',options:()=>pkgOpts(S.pid),req:true,full:true,def:kid},
+        {key:'base',label:'Ngày khởi công (khi tệp ghi ngày thứ 1, 2, 3…)',type:'date',def:(c&&c.start)||''}]; },
+    cols:[{k:'stt',h:'STT',al:['tt','so tt']},
+          {k:'name',h:'Tên công việc',req:true,al:['ten hang muc','hang muc cong viec','cong viec','noi dung','ten dau viec','ten hang muc cong viec','noi dung cong viec']},
+          {k:'days',h:'Thời gian (ngày)',num:true,al:['thoi gian','so ngay','thoi gian thi cong']},
+          {k:'start',h:'Ngày bắt đầu',req:true,raw:true,al:['bat dau','bat dau ke hoach','tu ngay']},
+          {k:'end',h:'Ngày kết thúc',raw:true,al:['ket thuc','ket thuc ke hoach','den ngay','hoan thanh']},
           {k:'weight',h:'Trọng số (%)',num:true,al:['trong so','ty trong','ti trong']},
           {k:'item',h:'Mã hạng mục công trình',al:['ma hang muc','hang muc']}],
-    sample:[['Đào đất hố móng','01/12/2026','20/12/2026',10,''],['Bê tông móng','21/12/2026','15/01/2027',25,''],['Xây thân, hoàn thiện','16/01/2027','31/03/2027',65,'']],
+    sample:[['1','Đào đất hố móng',20,'01/12/2026','20/12/2026',10,''],['2','Bê tông móng',26,'21/12/2026','15/01/2027',25,''],['3','Xây thân, hoàn thiện',75,'16/01/2027','31/03/2027',65,'']],
+    /** Bảng tiến độ dạng biểu đồ ngang: bỏ dòng nhóm (STT I, II, A, B), dòng tổng thời gian và biểu đồ nhân lực phía dưới. */
+    pre(rows){ const end=rows.findIndex(r=>/^(bieu do|so luong nhan su|so cong nhan)/.test(impKey(r.v.name)||impKey(r.v.stt)));
+      return (end>=0? rows.slice(0,end) : rows).filter(r=>r.v.name && !/^([IVXLC]+|[A-Z])\.?$/.test(String(r.v.stt||'').trim()) && !/^tong/.test(impKey(r.v.name))); },
     check(rows, x){
       const k=pkgOf(x.packageId); if(!k){ rows.forEach(r=>r.err.push('Chưa chọn gói thầu')); return; }
-      const items=D('items').filter(i=>i.projectId===k.projectId);
-      rows.forEach(r=>{ const v=r.v;
+      const items=D('items').filter(i=>i.projectId===k.projectId); const base=x.base||'';
+      /* Ô ngày: ngày thật, hoặc "ngày thứ" (1, 9, 120…) quy đổi theo ngày khởi công */
+      const dd=c=>{ if(c===null||c===undefined||c==='') return ''; if(typeof c==='number' && c>0 && c<3000) return base? addDays(base, Math.round(c)-1) : null; return impDate(c); };
+      rows.forEach(r=>{ const v=r.v; const s=dd(v.start); let e=dd(v.end);
+        if(s===null || e===null) r.err.push(base? 'Ngày không đúng dd/mm/yyyy' : 'Tệp ghi ngày thứ, cần nhập Ngày khởi công');
+        if(s==='' ) r.err.push('Thiếu ngày bắt đầu');
+        if(s && e==='' && v.days>0){ e=addDays(s, Math.round(v.days)-1); r.warn.push('Ngày kết thúc tính theo thời gian '+fmtN(v.days,0)+' ngày'); }
+        if(s && e==='') r.err.push('Thiếu ngày kết thúc');
+        v.start=s||''; v.end=e||'';
         if(v.start && v.end && v.end<v.start) r.err.push('Ngày kết thúc trước ngày bắt đầu');
         if(v.weight!=null && !isNaN(v.weight) && v.weight<0) r.err.push('Trọng số không được âm');
         if(v.item){ const it=items.find(i=>impKey(i.code)===impKey(v.item) || impKey(i.name)===impKey(v.item)); if(it) r.itemId=it.id; else r.warn.push('Không tìm thấy hạng mục "'+v.item+'", đầu việc không gắn hạng mục'); }
@@ -173,28 +210,48 @@ async function impTemplate(t){
   saveFile(C.file, new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
 }
 
-/** Đọc tệp: tìm dòng tiêu đề trong 15 dòng đầu (khớp ít nhất 2 cột), ghép cột theo tên; không thấy tiêu đề thì đọc theo thứ tự cột của mẫu. */
-function impParse(t, aoa){
+/** Nhãn cột của dòng tiêu đề i: một dòng, hoặc ghép n dòng (tiêu đề nhiều tầng: "Khối lượng" / "Thực hiện" / "Kỳ này").
+    Ô gộp ngang chỉ có giá trị ở ô đầu nên nhãn tầng trên được kéo sang các cột bên phải khi tầng dưới có chữ. */
+function impHeadRow(aoa, i, n){ const L=[...Array(n)].map((_,k)=>aoa[i+k]||[]); const w=Math.max(0,...L.map(r=>r.length)); const carry=Array(n).fill('');
+  return Array.from({length:w},(_,j)=>{ if(n===1) return String(L[0][j]??'').trim(); const parts=[];
+    for(let k=0;k<n;k++){ const t=String(L[k][j]??'').trim(); const below=L.slice(k+1).some(r=>String(r[j]??'').trim());
+      if(t) carry[k]=t; else if(k<n-1 && !below) carry[k]=''; const v=t||(k<n-1 && below? carry[k] : ''); if(v && parts[parts.length-1]!==v) parts.push(v); }
+    return parts.join(' '); }); }
+/** Đọc tệp: xét lần lượt các trang tính, tìm dòng tiêu đề (một, hai hoặc ba tầng) trong 60 dòng đầu, khớp ít nhất 2 cột và đủ cột bắt buộc;
+    ghép cột theo tên (đúng tên trước, sau đó tên bắt đầu bằng). Ô chữ lấy đúng như hiển thị trong Excel (giữ "1.10", "01").
+    Không thấy tiêu đề thì đọc trang đầu theo thứ tự cột của mẫu. */
+function impParse(t, sheets){
+  if(!Array.isArray(sheets[0]?.aoa)) sheets=[{aoa:sheets, txt:sheets}];
   const C=IMPORTS[t]; const names=C.cols.map(c=>[c.k, [c.h, ...(c.al||[])].map(impKey)]);
-  const match=row=>{ const m={}; (row||[]).forEach((cell,i)=>{ const key=impKey(cell); if(!key) return; const hit=names.find(([k,ns])=>m[k]===undefined && ns.includes(key)); if(hit) m[hit[0]]=i; }); return m; };
-  let hdr=-1, map=null;
-  for(let i=0;i<Math.min(15,aoa.length);i++){ const m=match(aoa[i]); if(Object.keys(m).length>=2){ hdr=i; map=m; break; } }
+  const match=row=>{ const m={}, used=new Set(); const keys=row.map(impKey);
+    for(const exact of [true,false]) names.forEach(([k,ns])=>{ if(m[k]!==undefined) return;
+      /* tên cột ưu tiên theo thứ tự khai báo: "Mã hiệu" trước, "STT" chỉ dùng khi tệp không có cột mã hiệu */
+      let j=-1; for(const n of ns){ j=keys.findIndex((x,jj)=>x && !used.has(jj) && (exact? x===n : (n.length>2 && x.startsWith(n+' ')))); if(j>=0) break; }
+      if(j>=0){ m[k]=j; used.add(j); } });
+    return m; };
+  const okMap=m=>Object.keys(m).length>=2 && C.cols.every(c=>!c.req || m[c.k]!==undefined);
+  let sh=null, hdr=-1, map=null, depth=1;
+  outer: for(const x of sheets) for(const n of [1,2,3]) for(let i=0;i<Math.min(60,x.aoa.length);i++){ const m=match(impHeadRow(x.aoa,i,n)); if(okMap(m)){ sh=x; hdr=i; map=m; depth=n; break outer; } }
+  if(!map){ sh=sheets[0]; for(let i=0;i<Math.min(15,sh.aoa.length);i++){ const m=match(impHeadRow(sh.aoa,i,1)); if(Object.keys(m).length>=2){ hdr=i; map=m; break; } } }
   if(!map){ map={}; C.cols.forEach((c,i)=>map[c.k]=i); }
   const miss=C.cols.filter(c=>c.req && map[c.k]===undefined).map(c=>c.h);
-  const rows=[];
-  aoa.slice(hdr+1).forEach((raw,i)=>{
+  let rows=[];
+  sh.aoa.slice(hdr+depth).forEach((raw,i)=>{
     if(!raw || raw.every(x=>x===null||x===undefined||String(x).trim()==='')) return;
+    const txt=(sh.txt||[])[hdr+depth+i]||[];
     const v={}, err=[], warn=[];
-    C.cols.forEach(c=>{ const cell=map[c.k]===undefined? null : raw[map[c.k]];
+    C.cols.forEach(c=>{ const j=map[c.k]; const cell=j===undefined? null : raw[j];
       if(c.num){ const n=impNum(cell); if(Number.isNaN(n)) err.push(c.h+' không phải là số'); v[c.k]=Number.isNaN(n)? null : n; }
       else if(c.date){ const d=impDate(cell); if(d===null) err.push(c.h+' không đúng ngày'); v[c.k]=d||''; }
-      else v[c.k]= cell==null? '' : String(cell).trim();
+      else if(c.raw) v[c.k]= cell instanceof Date || typeof cell==='number'? cell : (cell==null? '' : String(cell).trim());
+      else v[c.k]= cell==null? '' : String(typeof cell==='number' && txt[j]!=null && txt[j]!==''? txt[j] : cell).replace(/\s+/g,' ').trim();
       if(c.req && (v[c.k]===null || v[c.k]==='') && !err.some(e=>e.startsWith(c.h))) err.push('Thiếu '+c.h.toLowerCase()); });
     /* dòng tổng cộng của bảng dự toán: bỏ qua, không báo lỗi */
-    if(Object.values(v).some(x=>['tong','tong cong','cong'].includes(impKey(x)))) return;
-    rows.push({line:hdr+2+i, v, err, warn});
+    if(!C.pre && Object.values(v).some(x=>['tong','tong cong','cong'].includes(impKey(x)))) return;
+    rows.push({line:hdr+depth+1+i, v, err, warn, sheet:sh.name});
   });
-  return {rows, miss, hdr};
+  if(C.pre) rows=C.pre(rows);
+  return {rows, miss, hdr, sheet:sh.name};
 }
 
 /** Hộp thoại nhập: x là ngữ cảnh (hợp đồng, gói thầu…). */
@@ -213,11 +270,11 @@ ACT.imp=(key)=>{
     </div>
     <footer><span class="small muted" id="imp_msg" style="flex:1"></span><button type="button" class="btn ghost" data-close>Hủy</button><button type="button" class="btn primary" id="imp_save" disabled>Lưu</button></footer></div>`);
   const ov=$('#ov');
-  const ctxNow=()=>{ const o={...x}; extra.forEach(f=>{ const el=$('#f_'+f.key,ov); if(el) o[f.key]=el.value; }); return o; };
+  const ctxNow=()=>{ const o={...x}; extra.forEach(f=>{ const el=$('#f_'+f.key,ov); if(el) o[f.key]= f.type==='date'? (parseVNDate(el.value)||(/^\d{4}-\d\d-\d\d$/.test(el.value)?el.value:'')) : el.value; }); return o; };
   const show=()=>{
-    if(!st.rows) return; const o=ctxNow(); const rows=st.rows.map(r=>({...r, err:[...r.err], warn:[...r.warn]}));
+    if(!st.rows) return; const o=ctxNow(); const rows=st.rows.map(r=>({...r, v:{...r.v}, err:[...r.err], warn:[...r.warn]}));
     C.check(rows, o); const ok=rows.filter(r=>!r.err.length), bad=rows.length-ok.length; st.ok=ok; st.o=o;
-    const cols=[{h:'Dòng',f:r=>`<span class="num small">${r.line}</span>`}, ...C.cols.map(c=>({h:c.h, r:c.num, f:r=>{ const v=r.v[c.k]; return c.num? (v==null?'':fmtN(v,3)) : c.date? (v?`<span class="num">${fmtDate(v)}</span>`:'') : esc(v); }})),
+    const cols=[{h:'Dòng',f:r=>`<span class="num small">${r.line}</span>`}, ...C.cols.map(c=>({h:c.h, r:c.num, f:r=>{ const v=r.v[c.k]; return c.num? (v==null?'':fmtN(v,3)) : (c.date||c.raw)&&/^\d{4}-\d{2}-\d{2}$/.test(v||'')? `<span class="num">${fmtDate(v)}</span>` : esc(v instanceof Date? fmtDate(impDate(v)) : v); }})),
       {h:'Kiểm tra', f:r=> r.err.length? `<span class="pill bad">Lỗi</span><div class="small" style="color:var(--red)">${esc(r.err.join('; '))}</div>` : r.warn.length? `<span class="pill warn">Lưu ý</span><div class="small muted">${esc(r.warn.join('; '))}</div>` : '<span class="pill ok">Hợp lệ</span>'}];
     $('#imp_res',ov).innerHTML=`<div class="imp-sum small"><b>${esc(st.name)}</b>: ${rows.length} dòng, ${ok.length} dòng hợp lệ${bad?`, <span style="color:var(--red)">${bad} dòng lỗi sẽ bỏ qua</span>`:''}.</div>
       ${ok.length? `<div class="imp-sum small">${C.summary(ok,o)}</div>` : ''}
@@ -230,9 +287,9 @@ ACT.imp=(key)=>{
     const file=e.target.files[0]; if(!file) return; e.target.value='';
     if(!window.XLSX){ toast('Thư viện Excel chưa tải xong, thử lại sau.','err'); return; }
     try{
-      const wb=XLSX.read(await file.arrayBuffer(), {type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
-      const aoa=XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
-      const p=impParse(t, aoa);
+      const wb=XLSX.read(await file.arrayBuffer(), {type:'array', cellDates:true});
+      const sheets=wb.SheetNames.map(name=>{ const ws=wb.Sheets[name]; return {name, aoa:XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null}), txt:XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:null})}; });
+      const p=impParse(t, sheets);
       if(p.miss.length){ st.rows=null; $('#imp_res',ov).innerHTML=`<div class="alert bad">Tệp thiếu cột: ${esc(p.miss.join(', '))}. Hãy dùng tệp mẫu hoặc đặt đúng tên cột ở dòng tiêu đề.</div>`; $('#imp_save',ov).disabled=true; return; }
       st.rows=p.rows; st.name=file.name; show();
     }catch(ex){ console.error(ex); st.rows=null; $('#imp_res',ov).innerHTML='<div class="alert bad">Không đọc được tệp. Kiểm tra tệp có đúng định dạng Excel (.xlsx, .xls) không.</div>'; }

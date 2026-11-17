@@ -22,6 +22,8 @@ public static class Collections
         new("models", typeof(ModelFile), "mo-hinh", "Tệp mô hình", Q<ModelFile>, Array.Empty<(string,string)>()),
         new("packages", typeof(Package), "goi-thau", "Gói thầu", Q<Package>,
             new[] { ("contracts","PackageId"),("schedule","PackageId"),("diaries","PackageId"),("legal","PackageId"),("acceptances","PackageId") }),
+        // Bản 1.8: danh mục nhà thầu, đơn vị tư vấn giám sát (kiểm tra ràng buộc khi xóa ở DataController)
+        new("orgs", typeof(Organization), "goi-thau", "Nhà thầu, đơn vị giám sát", Q<Organization>, Array.Empty<(string,string)>()),
         new("contracts", typeof(Contract), "goi-thau", "Hợp đồng", Q<Contract>,
             new[] { ("boq","ContractId"),("payments","ContractId"),("payplans","ContractId"),("addenda","ContractId"),("vbatches","ContractId") }),
         new("addenda", typeof(Addendum), "goi-thau", "Phụ lục hợp đồng", Q<Addendum>, Array.Empty<(string,string)>()),

@@ -21,11 +21,19 @@ async function totp() {
   return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
 }
 async function newPage(opts) { const c = await b.newContext(opts); const p = await c.newPage(); p.on('pageerror', e => console.log('PAGEERR', e.message)); return p; }
+// Tài khoản do quản trị tạo phải đặt mật khẩu riêng ở lần đăng nhập đầu: chụp màn hình một lần, rồi đổi sang mật khẩu tạm và đổi lại
+async function pwFirst(p) {
+  if (!(await p.$('#pwfirst'))) return;
+  const f = path.join(__dirname, 'shots', 'chung-doi-mat-khau-lan-dau.png');
+  if (!fs.existsSync(f)) await p.screenshot({ path: f });
+  await p.evaluate(async pw => { for (const [o, n] of [[pw, pw + 'x'], [pw + 'x', pw]]) await fetch('/api/auth/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: JSON.stringify({ old: o, password: n }) }); }, PW);
+  await p.reload(); await p.waitForSelector('#app', { timeout: 20000 });
+}
 async function login(p, u) {
   await p.goto(BASE + '/'); await p.waitForSelector('#login,#app', { timeout: 20000 });
   if (await p.$('#login')) {
     await p.fill('#lg_user', u); await p.fill('#lg_pw', PW); await p.click('#login button[type=submit]');
-    await p.waitForSelector('#app,#mfa', { timeout: 20000 });
+    await p.waitForSelector('#app,#mfa,#pwfirst', { timeout: 20000 }); await pwFirst(p);
     if (await p.$('#mfa')) { await p.fill('#mf_code', await totp()); await p.click('#mfa button[type=submit]'); await p.waitForSelector('#app', { timeout: 20000 }); }
   }
   await wait(500);
@@ -82,7 +90,7 @@ const wfDo = async (p, id, note) => { await p.click(`[data-act=wf][data-id="${id
   await shot(p, 'kt-tien-do-chua-duyet', undefined, [{ sel: '.head p', n: 1 }, { sel: '.head [data-act=imp]', n: 2 }, { sel: '.head [data-act=add-sched]', n: 3 }]);
   await scrollIn(p, '.card', 'Biểu đồ tiến độ');
   await p.evaluate(() => { const r = [...document.querySelectorAll('.gplan.pend')].pop(); if (r) r.scrollIntoView({ block: 'center' }); }); await wait(300);
-  await shot(p, 'kt-gantt-cho-duyet', undefined, [{ sel: '.gplan.pend', n: 1 }, { sel: '[data-act=wf]', text: 'Trình duyệt', n: 2 }]);
+  await shot(p, 'kt-gantt-cho-duyet', undefined, [{ sel: '.gplan.pend', n: 1 }, { sel: '[data-act=wf]', text: 'Chuyển duyệt', n: 2 }]);
   // trình 1 kế hoạch để Lãnh đạo Ban duyệt
   await wfDo(p, 'schedule|s-hd1|submit', 'Kế hoạch thi công lớp thảm đoạn cuối tuyến');
   // nhập kế hoạch tiến độ từ Excel
@@ -149,7 +157,10 @@ const wfDo = async (p, id, note) => { await p.click(`[data-act=wf][data-id="${id
   await go(p, 'quan-tri'); await wait(400);
   await shot(p, 'qt-quan-tri-chinh', 'full', [{ sel: '.pill', text: 'Quản trị chính', n: 1 }, { sel: '[data-act=owner-to]', n: 2 }]);
   await go(p, 'trinh-duyet'); await wait(400);
-  await shot(p, 'qt-buoc-kiem-tra', '.content .card:has([data-act=wf-check])', [{ sel: '[data-act=wf-check][data-id=vbatches]', n: 1, pad: 6 }]);
+  await p.evaluate(() => { S.tab.td2 = 'qt'; render(); }); await wait(400);
+  await shot(p, 'qt-quy-trinh', 'full', [{ sel: '.content [data-act=tab][data-id=qt]', n: 1 }, { sel: '[data-wfp], .content select[data-f=wfp]', n: 2 }, { sel: 'tr:has([data-act=wf-on][data-id=contracts]) input', n: 3, pad: 6 }, { sel: '[data-act=wf-edit][data-id=vbatches]', n: 4 }, { sel: '.content .card', text: 'Nguyên tắc xử lý', n: 5 }]);
+  await p.click('[data-act=wf-edit][data-id=vbatches]'); await wait(500);
+  await shot(p, 'qt-sua-quy-trinh', '#ov .mform', [{ sel: '#wfe_on', n: 1, pad: 6 }, { sel: '#ov [data-act=wfe-add]', n: 2 }, { sel: '#ov [data-act=wfe-mv]', n: 3 }, { sel: '#ov [data-act=wfe-save]', n: 4 }]); await closeModal(p);
   await go(p, 'quan-tri'); await tab(p, 'Nhóm và phân quyền'); { const eg = await p.$$('[data-act=edit-groups]'); await eg[eg.length > 4 ? 4 : 1].click(); await wait(400); }
   await shot(p, 'qt-quyen-kiem-tra', '#ov .mform', [{ sel: '#ov table.perm th', text: 'Kiểm tra', n: 1 }]); await closeModal(p);
   await p.click('[data-act=appearance]').catch(async () => { await p.click('[data-act=account]'); await wait(300); await p.click('#ov [data-act=appearance]'); }); await wait(500);

@@ -240,7 +240,9 @@ async function login(p, u, pw = PW) {
   const pp = await p.evaluate(() => Store.data.payplans[0].id);
   await p.evaluate(id => ACT['edit-payplans'](id), pp); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   await p.click('[data-g=tt][data-id=hs]'); await p.waitForTimeout(200);
-  await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); await p.selectOption('#f_contractId', await p.evaluate(() => Store.data.contracts.find(c => contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
+  await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); // chọn trong các hợp đồng đang có trên biểu mẫu (giai đoạn Thực hiện đầu tư); thứ tự bản ghi khác nhau giữa các CSDL
+  await p.selectOption('#f_contractId', await p.evaluate(() => [...document.querySelectorAll('#f_contractId option')].map(o => o.value).filter(Boolean).map(id => get('contracts', id)).find(c => c && contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
+  await p.waitForFunction(() => Store.data.payments.some(x => x.number === 'TT-TEST'), null, { timeout: 10000 }).catch(async () => { throw new Error('Không lưu được hồ sơ thanh toán TT-TEST: ' + await p.evaluate(() => (document.querySelector('#mform_err') || {}).textContent)); });
   const pay = await p.evaluate(() => Store.data.payments.find(x => x.number === 'TT-TEST'));
   // Bản 1.7: trạng thái chỉ đổi qua trình duyệt; trình, duyệt xong (Đang trình KBNN) mới xác nhận đã chi
   await p.evaluate(async id => { for (const a of ['submit', 'approve']) { const r = await api('POST', '/api/approvals', { collection: 'payments', id, action: a, note: '' }); Store.setLocal('payments', r.record); } }, pay.id);
@@ -414,7 +416,13 @@ async function login(p, u, pw = PW) {
     // Mỗi vai trò chỉ thấy hướng dẫn của mình
     const roleView = async (u, pw = PW) => { const c = await b.newContext(); const r = c.request;
       await r.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: u, password: pw } });
-      const d = await (await r.get(BASE + '/api/data')).json(); return { c, r, d }; };
+      let res = await r.get(BASE + '/api/data');
+      // Bản 1.8: mật khẩu do quản trị đặt lại phải đổi ở lần đăng nhập đầu, chưa đổi thì máy chủ chặn dữ liệu (403 pwchange)
+      if (res.status() === 403 && (await res.json()).pwchange) {
+        const np = pw + 'X'; const cp = await r.post(BASE + '/api/auth/change-password', { headers: { 'X-QLDA': '1' }, data: { old: pw, password: np } });
+        if (cp.status() !== 200) errs.push('Đổi mật khẩu lần đầu lỗi ' + cp.status()); console.log('Đổi mật khẩu lần đầu (' + u + '):', cp.status());
+        res = await r.get(BASE + '/api/data'); }
+      const d = await res.json(); return { c, r, d }; };
     const gs = await roleView('giamsat', 'Moi2026abc'), ke = await roleView('ketoan');
     const gsT = gs.d.guides.map(g => g.title), keT = ke.d.guides.map(g => g.title);
     console.log('TVGS thấy:', gsT.length, '| Kế toán thấy:', keT.length);
@@ -443,7 +451,10 @@ async function login(p, u, pw = PW) {
   let last;
   for (let i = 0; i < 6; i++) last = await q.request.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'ketoan', password: 'sai' + i } });
   console.log('Sau 6 lần sai:', last.status());
-  if (last.status() !== 423) errs.push('Không tạm khóa khi nhập sai nhiều lần');
+  // Bản 1.8: sai từ lần thứ 3 phải nhập mã kiểm tra (428), không khóa tài khoản (người khác đoán sai không làm khóa tài khoản thật)
+  if (last.status() !== 428 || !(await last.json()).captcha) errs.push('Không yêu cầu mã kiểm tra khi nhập sai nhiều lần');
+  const okLogin = await (await b.newContext()).request.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'ketoan', password: PW } });
+  console.log('Đăng nhập đúng từ máy khác sau khi bị đoán sai:', okLogin.status());
 
   // Đăng xuất
   await p.click('[data-act=account]').catch(() => {}); await p.waitForTimeout(200);

@@ -9,7 +9,7 @@ const { ROLES, build } = require('./content');
 const DIR = __dirname, SHOTS = path.join(DIR, 'shots'), OUT = path.join(DIR, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 const FONT = 'Times New Roman', NAVY = '0D2A57', RED = 'C8102E', GREY = 'BFC5CE', TXT = 9071; // vùng chữ 16 cm ≈ 9070 DXA
-const DATE = '08.11.2026', DATE_VN = '08/11/2026', MONTH = 'tháng 11 năm 2026';
+const DATE = '17.11.2026', DATE_VN = '17/11/2026', MONTH = 'tháng 11 năm 2026';
 const TT = 'Công ty CP Tin học Tri Thức';
 // Lịch sử thay đổi theo vai trò: [ngày, nội dung]; phiên bản tài liệu = dòng cuối, số V trong tên tệp = số dòng
 const hist = role => role.hist.map((h, i) => [h[2] || '1.' + i, h[0], h[1]]);

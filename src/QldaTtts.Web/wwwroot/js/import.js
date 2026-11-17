@@ -91,6 +91,8 @@ const IMPORTS = {
           {k:'date',h:'Ngày',date:true,al:['ngay nghiem thu','ngay thuc hien']},
           {k:'period',h:'Đợt',al:['dot','ky','dot ky']},
           {k:'note',h:'Số biên bản / ghi chú',al:['so bien ban','bien ban','ghi chu']}],
+    /** Biên bản nghiệm thu thực tế: bỏ dòng nhóm, dòng công việc chưa thực hiện trong kỳ (trống cả hai cột khối lượng) và dòng tổng. */
+    pre(rows){ return rows.filter(r=>!(r.v.doneQty==null && r.v.acceptedQty==null) && !/^(tong|cong)/.test(impKey(r.v.code)||impKey(r.v.name))); },
     sample:[['AB.11','Đào nền đường đất cấp II',1200,1200,'','','BB 05/NT'],['AD.11','Móng cấp phối đá dăm loại 1',650,600,'','','BB 05/NT']],
     check(rows, x){
       const boq=new Map(D('boq').filter(b=>b.contractId===x.cid).map(b=>[String(b.code).trim().toLowerCase(), b]));

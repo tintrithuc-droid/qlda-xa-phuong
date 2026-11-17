@@ -17,6 +17,7 @@ function render(){
   if(Store.mode==='offline' && !S.user){ root.innerHTML=`<div id="loading" style="display:grid;place-items:center;min-height:100%;padding:40px;text-align:center" class="muted">Không kết nối được máy chủ ứng dụng.<br>${esc(Store.error)}<br>Hệ thống sẽ tự thử lại sau ít giây.</div>`; return; }
   if(!Store.initialized){ return renderSetup(); }
   if(!S.user) return S.mfaStep ? ($('#mfa')? undefined : renderMfa()) : renderLogin();
+  if(S.user.mustChangePassword) return $('#pwfirst')? undefined : renderPwFirst();
   if(!$('#app')) buildShell();
   let r=(location.hash||'').slice(1)||'tong-quan';
   if(!VIEWS[r]) r='tong-quan';
@@ -49,7 +50,8 @@ function renderNav(){
   MODULES.filter(m=>can(m.key)).forEach(m=>{
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`; }
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
-    if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`; }
+    if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`;
+      html+=`<a href="#canh-bao" title="Trung tâm cảnh báo" class="${S.route==='canh-bao'?'on':''}">${ic('bell')}<span>Trung tâm cảnh báo</span>${al.length?`<span class="cnt">${al.length}</span>`:''}</a>`; }
   });
   html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#" data-act="appearance">${ic('palette')}<span>Giao diện, màu sắc</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Danh mục chức năng</span></a>`;
   $('#nav').innerHTML=html;
@@ -57,7 +59,7 @@ function renderNav(){
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const m=MODULES.find(x=>x.key===S.route); const title=m?m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':'Danh mục chức năng';
+  const m=MODULES.find(x=>x.key===S.route); const title=m?m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
@@ -175,16 +177,21 @@ function renderLogin(){
     <div class="form-head"><h2>Đăng nhập hệ thống</h2><p class="muted small">Sử dụng tài khoản do quản trị hệ thống cấp.</p></div>
     <div class="fld"><label for="lg_user">Tên đăng nhập</label><input id="lg_user" autocomplete="username" required></div>
     <div class="fld"><label for="lg_pw">Mật khẩu</label><input id="lg_pw" type="password" autocomplete="current-password" required></div>
+    <div class="fld" id="lg_cap" hidden><label for="lg_capv">Mã kiểm tra</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="lg_capimg" style="display:inline-flex;border-radius:6px;overflow:hidden"></span><button type="button" class="btn sm ghost" id="lg_capnew">Đổi mã khác</button></div><input id="lg_capv" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" placeholder="Nhập 5 ký tự trong hình" style="margin-top:6px;text-transform:uppercase"></div>
     <div class="err" id="lg_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Đăng nhập</button>
     <p class="small muted" style="margin:0">Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại. ${Store.sampleUsers?'Tài khoản mẫu: lanhdao, kythuat, ketoan, giamsat, ubnd (mật khẩu như tài khoản quản trị lúc khởi tạo).':''}</p>
   </form><p class="auth-foot">${brandFoot()}</p></div></div>`;
+  /* Sau vài lần nhập sai, máy chủ yêu cầu mã kiểm tra (tự sinh, không dùng dịch vụ ngoài) */
+  let capId='';
+  const showCap=c=>{ if(!c) return; capId=c.id; $('#lg_cap').hidden=false; $('#lg_capimg').innerHTML=`<img class="cap-img" src="${esc(c.img)}" width="160" height="52" alt="Mã kiểm tra" draggable="false">`; $('#lg_capv').value=''; };
+  $('#lg_capnew').onclick=async()=>{ try{ showCap(await api('GET','/api/auth/captcha',undefined,{auth:true})); $('#lg_capv').focus(); }catch(ex){ $('#lg_err').textContent=errText(ex); } };
   $('#login').onsubmit=async e=>{
     e.preventDefault(); const err=$('#lg_err');
     const un=$('#lg_user').value.trim().toLowerCase(), pw=$('#lg_pw').value;
     const btn=$('#login button[type=submit]'); btn.disabled=true; err.textContent='';
-    try{ const r=await api('POST','/api/auth/login',{username:un, password:pw},{auth:true}); await authDone(r); }
-    catch(ex){ err.textContent=errText(ex); btn.disabled=false; }
+    try{ const r=await api('POST','/api/auth/login',{username:un, password:pw, ...(capId?{captchaId:capId, captcha:$('#lg_capv').value.trim()}:{})},{auth:true}); await authDone(r); }
+    catch(ex){ err.textContent=errText(ex); btn.disabled=false; if(ex.data&&ex.data.captcha){ showCap(ex.data.captcha); if(ex.status===428) $('#lg_capv').focus(); } else if(capId){ capId=''; $('#lg_cap').hidden=true; } }
   };
 }
 /* ===== Xác thực 2 lớp (bắt buộc với tài khoản quản trị) ===== */
@@ -192,7 +199,31 @@ async function authDone(r){
   if(r.mfa){ S.mfaStep=r; return renderMfa(); }
   if(r.recoveryCodes){ S.mfaStep={mfa:'codes', codes:r.recoveryCodes, user:r.user}; return renderMfa(); }
   S.mfaStep=null; S.user=r.user; S.mfa=r.recoveryLeft!=null?{enabled:true, required:true, recoveryLeft:r.recoveryLeft}:S.mfa;
+  if(S.user && S.user.mustChangePassword) return render();
   await Store.load(); render();
+}
+/* Lần đăng nhập đầu (hoặc sau khi quản trị đặt lại mật khẩu): bắt buộc tự đặt mật khẩu riêng trước khi dùng phần mềm */
+function renderPwFirst(){
+  authBox(`<form id="pwfirst">
+    <div class="form-head"><h2>Đặt mật khẩu của bạn</h2><p class="muted small">Tài khoản <b>${esc(S.user.username)}</b> đang dùng mật khẩu ban đầu do quản trị hệ thống cấp. Để bảo mật, vui lòng đặt mật khẩu riêng trước khi sử dụng phần mềm.</p></div>
+    <div class="fld"><label for="pf_old">Mật khẩu ban đầu</label><input id="pf_old" type="password" autocomplete="current-password" required></div>
+    <div class="fld"><label for="pf_pw">Mật khẩu mới (tối thiểu 8 ký tự, có chữ và số)</label><input id="pf_pw" type="password" autocomplete="new-password" required></div>
+    <div class="fld"><label for="pf_pw2">Nhập lại mật khẩu mới</label><input id="pf_pw2" type="password" autocomplete="new-password" required></div>
+    <div class="err" id="pf_err"></div>
+    <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Lưu mật khẩu và vào hệ thống</button>
+    <button class="btn ghost" type="button" id="pf_out" style="justify-content:center">Đăng xuất</button>
+  </form>`);
+  $('#pf_out').onclick=()=>ACT.logout();
+  $('#pf_old').focus();
+  $('#pwfirst').onsubmit=async e=>{ e.preventDefault(); const err=$('#pf_err'); err.textContent='';
+    const old=$('#pf_old').value, pw=$('#pf_pw').value;
+    if(!pwOk(pw)) return err.textContent='Mật khẩu mới cần tối thiểu 8 ký tự, gồm cả chữ và số.';
+    if(pw!==$('#pf_pw2').value) return err.textContent='Hai lần nhập mật khẩu mới không khớp.';
+    if(pw===old) return err.textContent='Mật khẩu mới phải khác mật khẩu ban đầu.';
+    const btn=$('#pwfirst button[type=submit]'); btn.disabled=true;
+    try{ await api('POST','/api/auth/change-password',{old, password:pw},{auth:true});
+      S.user={...S.user, mustChangePassword:false}; await Store.load(); render(); toast('Đã đặt mật khẩu mới.'); }
+    catch(ex){ err.textContent=errText(ex); btn.disabled=false; } };
 }
 function authBox(inner){ $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box">${inner}<p class="auth-foot">${brandFoot()}</p></div></div>`; }
 const codeField=(label)=>`<div class="fld"><label for="mf_code">${label}</label><input id="mf_code" class="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required></div>`;
@@ -300,8 +331,8 @@ VIEWS['tong-quan']=()=>{
   </div>
   <div class="grid g2">
     <div class="card"><h2>So sánh kế hoạch và thực tế (đường cong S)</h2>${sc?lineChart({labels:sc.labels, series:[{name:'Kế hoạch lũy kế',color:'var(--c5)',values:sc.plan,dash:true},{name:'Thực tế lũy kế',color:'var(--c1)',values:sc.act,area:true}]}):emptyBox('Chưa có kế hoạch tiến độ.')}</div>
-    <div class="card"><div class="ch"><h2>Cảnh báo và việc cần xử lý</h2></div><div class="list">${al.slice(0,7).map(a=>`<div class="alert ${a.lvl==='bad'?'bad':''}"><span style="flex:1">${a.text}</span><a href="#${a.mod}" class="small">Xem</a></div>`).join('')||'<div class="alert info">Không có cảnh báo.</div>'}
-      ${al.length>7?`<div class="small muted">Còn ${al.length-7} cảnh báo khác.</div>`:''}
+    <div class="card"><div class="ch"><h2>Cảnh báo và việc cần xử lý</h2><a href="#canh-bao" class="small" data-act="alerts-all">Xem tất cả cảnh báo →</a></div><div class="list">${al.slice(0,7).map(alertRow).join('')||'<div class="alert info">Không có cảnh báo.</div>'}
+      ${al.length>7?`<a href="#canh-bao" class="small" data-act="alerts-all">Còn ${al.length-7} cảnh báo khác, xem tất cả →</a>`:''}
       ${tasks.length?`<div class="eyebrow" style="margin-top:8px">Công việc đang mở</div>`+tasks.map(t=>`<div class="small" style="display:flex;gap:8px;justify-content:space-between"><span>${esc(t.name)} <span class="muted">· ${esc(t.assignee||'')}</span></span><span class="num ${t.due<TODAY?'':'muted'}" style="${t.due<TODAY?'color:var(--red)':''}">${fmtDate(t.due)}</span></div>`).join(''):''}</div></div>
   </div>
   <div class="card"><h2>Tình hình thực hiện các dự án</h2>${table([
@@ -309,6 +340,32 @@ VIEWS['tong-quan']=()=>{
     {h:'Tổng mức đầu tư',r:1,f:r=>fmtTy(r.tmdt)},{h:'Giá trị HĐ',r:1,f:r=>fmtTy(r.cv)},{h:'Đã thanh toán',r:1,f:r=>fmtTy(r.paid)},
     {h:'Tiến độ thực tế / kế hoạch',f:r=>`<div style="min-width:160px">${progBar(r.prog, r.exp-r.prog>10?'warn':'')}<div class="small muted">Kế hoạch ${Math.round(r.exp)}%</div></div>`}], pjRows)}</div>`;
 };
+ACT['alerts-all']=()=>{ S.f.cbp=S.pid||''; if(location.hash==='#canh-bao') render(); else location.hash='canh-bao'; };
+ACT['alerts-proj']=(id)=>{ S.f.cbp=id; location.hash='canh-bao'; };
+/* ===== TRUNG TÂM CẢNH BÁO: toàn bộ cảnh báo trên một màn hình, lọc, xuất Excel, mở đúng đối tượng ===== */
+function alertCenterRows(){ const lv=S.f.cbl||'', pid=S.pid||S.f.cbp||'', kd=S.f.cbk||'', q=S.f.cbq||'';
+  return alerts({all:true}).filter(a=>(!lv||a.lvl===lv) && (!pid||a.pid===pid) && (!kd||a.kind===kd) && (!q||norm(cellText(a.text)+' '+(a.who||'')).includes(norm(q)))); }
+const AL_LV={bad:'Đỏ', warn:'Vàng'};
+const AL_COLS=[{h:'Mức độ',f:a=>pill(AL_LV[a.lvl]||a.lvl, a.lvl),x:a=>AL_LV[a.lvl]||a.lvl},{h:'Nhóm',f:a=>esc(a.kind||''),x:a=>a.kind||''},
+  {h:'Dự án',f:a=>`<span class="num">${esc(a.pcode||'')}</span>`,x:a=>a.pcode||''},{h:'Gói thầu',f:a=>`<span class="num">${esc(a.kcode||'')}</span>`,x:a=>a.kcode||''},{h:'Hợp đồng',f:a=>`<span class="num small">${esc((get('contracts',a.cid)||{}).number||'')}</span>`,x:a=>(get('contracts',a.cid)||{}).number||''},
+  {h:'Nội dung',f:a=>a.text,x:a=>cellText(a.text)},{h:'Đơn vị thực hiện',f:a=>esc(a.who||''),x:a=>a.who||''},{h:'Thời hạn',f:a=>`<span class="num">${a.due?fmtDate(a.due):''}</span>`,x:a=>a.due?fmtDate(a.due):''}];
+VIEWS['canh-bao']=()=>{ const all=alerts({all:true}); const rows=alertCenterRows(); const pid=S.pid||S.f.cbp||'';
+  const nb=rows.filter(a=>a.lvl==='bad').length;
+  return `<div class="head"><div class="grow"><h1>Trung tâm cảnh báo</h1><p>${all.length} cảnh báo trong phạm vi được giao; đang hiển thị ${rows.length} (${nb} mức đỏ, ${rows.length-nb} mức vàng). Bấm Xem để mở đúng hồ sơ cần xử lý.</p></div><button class="btn" data-act="export-alerts">Xuất Excel</button></div>
+  <div class="toolbar"><select data-f="cbl" aria-label="Mức độ">${opts([['bad','Đỏ: quá hạn, nghiêm trọng'],['warn','Vàng: sắp đến hạn, cần theo dõi']],S.f.cbl||'','Mọi mức độ')}</select>
+    ${!S.pid?`<select data-f="cbp" aria-label="Dự án" style="max-width:340px">${opts(projOpts(),pid,'Tất cả dự án')}</select>`:''}<select data-f="cbk" aria-label="Nhóm cảnh báo">${opts(ALERT_KINDS,S.f.cbk||'','Mọi nhóm')}</select>
+    <input type="search" data-f="cbq" value="${esc(S.f.cbq||'')}" placeholder="Tìm nội dung, đơn vị…" aria-label="Tìm cảnh báo"></div>
+  <div class="card">${table(AL_COLS, rows.map((a,i)=>({...a,id:'al'+i})), {nopage:true, empty:'Không có cảnh báo phù hợp bộ lọc.', actions:a=>a.go?`<button class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''})}</div>`;
+};
+ACT['export-alerts']=()=>{ const rows=alertCenterRows(); const pid=S.pid||S.f.cbp||'';
+  exportXlsx(`CanhBao_${TODAY}.xlsx`, [{name:'Canh bao', title:'DANH SÁCH CẢNH BÁO, VIỆC CẦN XỬ LÝ', money:[], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(pid?' · Dự án '+((projOf(pid)||{}).code||''):''), head:AL_COLS.map(c=>c.h), rows:rows.map(a=>AL_COLS.map(c=>c.x(a)))}]);
+  log('Xuất danh sách','logs','Trung tâm cảnh báo'); };
+ACT['alert-go']=(id)=>{ const i=String(id).indexOf('|'), t=id.slice(0,i), x=id.slice(i+1); const go=h=>location.hash==='#'+h? render() : (location.hash=h);
+  if(t==='pkg'){ S.sel.pkg=x; go('goi-thau'); }
+  else if(t==='td'){ S.f.tdk=x; S.tab.td='goi-thau'; go('tien-do'); }
+  else if(t==='tt'){ S.f.ttc=x; go('thanh-toan'); }
+  else if(t==='mod'){ go(x); }
+  else { S.sel.project=x; S.tab.proj=t==='task'?'tasks':t==='legal'?'legal':'status'; go('du-an'); } };
 ACT['open-project']=(id)=>{ S.sel.project=id; S.tab.proj='info'; if(location.hash==='#du-an') render(); else location.hash='du-an'; };
 
 /* ===== QUẢN LÝ DỰ ÁN (UC1–5) ===== */
@@ -395,7 +452,7 @@ function projectDetail(p){
       <div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,p.tmdt))} TMĐT</div></div></div>
       <div class="grid g2"><div class="card"><h2>Đường cong S của dự án</h2>${sc?lineChart({labels:sc.labels, series:[{name:'Kế hoạch',color:'var(--c5)',values:sc.plan,dash:true},{name:'Thực tế',color:'var(--c1)',values:sc.act,area:true}]}):emptyBox('Chưa lập kế hoạch tiến độ.')}</div>
       <div class="card"><h2>Tình trạng từng gói thầu</h2>${table([{h:'Gói',k:'code'},{h:'Tiến độ',f:r=>`<div style="min-width:120px">${progBar(pkgProgress(r.id), pkgExpected(r.id)-pkgProgress(r.id)>10?'warn':'')}</div>`},{h:'KH đến nay',r:1,f:r=>fmtP(pkgExpected(r.id))},{h:'Trạng thái',f:r=>statusPill(r.status)}], ks, {rowAct:'open-pkg'})}</div></div>
-      <div class="list">${alerts().filter(a=>{ return SCHED().some(s=>s.projectId===p.id && a.text.includes(esc(s.name))) || cs.some(c=>a.text.includes(esc(c.number))); }).map(a=>`<div class="alert ${a.lvl==='bad'?'bad':''}">${a.text}</div>`).join('')}</div>`;
+      ${(()=>{ const al=alerts({all:true}).filter(a=>a.pid===p.id); return al.length?`<div class="card"><div class="ch"><h2>Cảnh báo của dự án (${al.length})</h2><button class="btn sm ghost" data-act="alerts-proj" data-id="${p.id}">Mở trong Trung tâm cảnh báo</button></div>${alertList(al)}</div>`:''; })()}`;
   }
   return `<div class="head"><div class="grow"><button class="btn ghost sm" data-act="back-project">← Danh sách dự án</button><h1 style="margin-top:8px">${esc(p.name)}</h1><p><span class="num">${esc(p.code)}</span> · ${statusPill(p.status)}</p></div>${can('du-an','edit')?`<button class="btn" data-act="edit-projects" data-id="${p.id}">Sửa thông tin</button><button class="btn ghost danger" data-act="del" data-col="projects" data-id="${p.id}">Xóa</button>`:''}</div>
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="proj" data-id="${k}">${l}</button>`).join('')}</div>${body}`;

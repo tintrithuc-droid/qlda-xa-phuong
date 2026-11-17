@@ -86,7 +86,8 @@ public class ApprovalsController : ApiControllerBase
                     return Error(409, $"Tổng giá trị thanh toán đã trình ({Vnd(others + (pay.Amount ?? 0))} đ) vượt giá trị hợp đồng ({Vnd(cv)} đ). Kiểm tra lại số tiền hoặc các hồ sơ khác của hợp đồng.");
                 // Mục 31 (bản 1.7): thanh toán khối lượng hoàn thành không vượt giá trị đã nghiệm thu (đợt nghiệm thu đã duyệt),
                 // theo Nghị định 99/2021/NĐ-CP; tạm ứng không tính vào điều kiện này
-                if (Payments.IsVolumeKind(pay.Kind))
+                // HĐ không lập bảng khối lượng chi tiết (tư vấn, mua sắm, dịch vụ) chỉ kiểm soát trần giá trị hợp đồng
+                if (Payments.IsVolumeKind(pay.Kind) && await Db.Boq.AnyAsync(b => b.ContractId == cid))
                 {
                     var acc = await Payments.AcceptedValue(Db, cid);
                     var paidVol = otherPays.Where(x => Payments.IsVolumeKind(x.Kind)).Sum(x => x.Amount ?? 0) + (pay.Amount ?? 0);

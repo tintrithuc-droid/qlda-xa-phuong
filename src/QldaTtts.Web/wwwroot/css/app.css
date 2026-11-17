@@ -584,3 +584,4 @@ tbody tr{transition:background .12s}
 .vb-grid tr.warn td{background:var(--amber-soft)}
 .vb-grid tfoot td{font-weight:600; background:var(--panel2); position:sticky; bottom:0}
 @media (max-width:820px){ .vb-h{gap:6px 12px} .vb-a,.vb-det{padding-left:12px} .vb-grid input.vbq{width:84px} }
+.cap-img{display:block; user-select:none; -webkit-user-select:none; pointer-events:none}

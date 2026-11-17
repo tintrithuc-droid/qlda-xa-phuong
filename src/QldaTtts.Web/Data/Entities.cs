@@ -359,6 +359,8 @@ public class AppUser : EntityBase
     [MaxLength(50)] public string? Phone { get; set; }
     public bool Active { get; set; } = true;
     public bool Sample { get; set; }
+    /// <summary>Bắt buộc đổi mật khẩu ở lần đăng nhập tới (tài khoản do quản trị tạo hoặc đặt lại mật khẩu).</summary>
+    public bool MustChangePassword { get; set; }
     [JsonIgnore] public string PasswordHash { get; set; } = "";
     [JsonIgnore] public int FailedCount { get; set; }
     [JsonIgnore] public DateTime? LockoutUntil { get; set; }

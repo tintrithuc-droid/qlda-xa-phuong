@@ -52,6 +52,9 @@ public class UsersController : ApiControllerBase
         return null;
     }
 
+    /// <summary>Tài khoản quản trị đã bắt buộc xác thực 2 lớp nên không áp dụng đổi mật khẩu lần đầu.</summary>
+    private Task<bool> PrivilegedGroup(string? groupId) => Db.Groups.AnyAsync(g => g.Id == groupId && g.Admin);
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] UserRequest r)
     {
@@ -63,7 +66,7 @@ public class UsersController : ApiControllerBase
         if (!Passwords.Strong(r.Password)) return Error(400, Passwords.WeakMessage);
         if (await CheckGroup(r.GroupId) is { } gerr) return Error(400, gerr);
         var now = DateTime.UtcNow;
-        var u = new AppUser { Id = "u-" + Guid.NewGuid().ToString("N")[..12], Username = un, Name = r.Name.Trim(), Unit = r.Unit, GroupId = r.GroupId, Email = r.Email, Phone = r.Phone, Active = true, CreatedAt = now, UpdatedAt = now, UpdatedBy = Uc.User!.Username };
+        var u = new AppUser { Id = "u-" + Guid.NewGuid().ToString("N")[..12], Username = un, Name = r.Name.Trim(), Unit = r.Unit, GroupId = r.GroupId, Email = r.Email, Phone = r.Phone, Active = true, MustChangePassword = !await PrivilegedGroup(r.GroupId), CreatedAt = now, UpdatedAt = now, UpdatedBy = Uc.User!.Username };
         u.PasswordHash = Passwords.Hash(u, r.Password!);
         Db.Users.Add(u);
         Uc.Log("Thêm mới", Mod, un);
@@ -105,7 +108,7 @@ public class UsersController : ApiControllerBase
         if (u is null) return Error(404, "Người dùng không còn tồn tại.");
         if (!Passwords.Strong(r.Password)) return Error(400, Passwords.WeakMessage);
         if (await PeerGuard(u, "đặt lại mật khẩu") is { } pg) return Denied(pg);
-        u.PasswordHash = Passwords.Hash(u, r.Password); u.FailedCount = 0; u.LockoutUntil = null;
+        u.PasswordHash = Passwords.Hash(u, r.Password); u.FailedCount = 0; u.LockoutUntil = null; u.MustChangePassword = u.Id != Uc.User!.Id && !await PrivilegedGroup(u.GroupId);
         u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = Uc.User!.Username;
         Uc.Log("Đặt lại mật khẩu", Mod, u.Username);
         await Db.SaveChangesAsync();

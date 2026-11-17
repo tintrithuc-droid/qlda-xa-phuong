@@ -161,7 +161,8 @@ const payFields=(cid, rec)=>[{key:'contractId',label:'Hợp đồng',type:'selec
 async function payCheck(v, self){ /* trả false để giữ biểu mẫu mở */ const c=get('contracts',v.contractId); const live=p=>p.contractId===c.id && p.id!==(self&&self.id) && p.status!=='Từ chối' && !wfReturned('payments',p);
   const others=sum(D('payments').filter(live),payAmt); if(v.kind!==PAY_RECOVER && others+N(v.amount)>contractValue(c)+1){ $('#mform_err').textContent=`Tổng giá trị thanh toán (${fmtVND(others+N(v.amount))} đ) vượt giá trị hợp đồng (${fmtVND(contractValue(c))} đ). Hồ sơ bị trả lại không tính vào hạn mức; hồ sơ đang lập, chờ duyệt, đã trình Kho bạc và đã chi đều được tính.`; return false; }
   /* Mục 31: thanh toán khối lượng hoàn thành không vượt giá trị đã nghiệm thu (đợt nghiệm thu đã duyệt). Khi lập chỉ nhắc; khi trình, duyệt máy chủ sẽ chặn. */
-  if(payIsVol(v)){ const acc=contractAcc(c.id), before=sum(D('payments').filter(p=>live(p) && payIsVol(p)),'amount'), room=Math.max(0, acc-before);
+  /* HĐ không lập bảng khối lượng chi tiết (tư vấn, mua sắm, dịch vụ) chỉ kiểm soát trần giá trị hợp đồng */
+  if(payIsVol(v) && contractHasBoq(c.id)){ const acc=contractAcc(c.id), before=sum(D('payments').filter(p=>live(p) && payIsVol(p)),'amount'), room=Math.max(0, acc-before);
     const key=c.id+'|'+N(v.amount); const f=$('#mform');
     if(before+N(v.amount)>acc+1 && !(f && f.dataset.warned===key)){ if(f) f.dataset.warned=key;
       $('#mform_err').innerHTML=`Lũy kế thanh toán khối lượng sẽ là ${fmtVND(before+N(v.amount))} đ, vượt giá trị đã nghiệm thu được duyệt ${fmtVND(acc)} đ; hồ sơ này chỉ được thanh toán tối đa ${fmtVND(room)} đ. Bấm Lưu lần nữa để vẫn lưu dự thảo (phần mềm sẽ không cho trình duyệt khi chưa đủ khối lượng nghiệm thu).`; return false; } }
@@ -188,12 +189,13 @@ function buildReport(type, f){
     rows:ps.map(p=>{ const c=cs.filter(x=>contractPid(x)===p.id); return [p.code,p.name,p.status,N(p.tmdt),ks.filter(k=>k.projectId===p.id).length,sum(c,contractValue),sum(c,x=>contractDone(x.id,upto)),sum(c,x=>contractAcc(x.id,upto)),sum(c,x=>contractPaid(x.id,upto)),+pct(sum(c,x=>contractPaid(x.id,upto)),p.tmdt).toFixed(2),+projProgress(p.id).toFixed(1),+projExpected(p.id).toFixed(1)]; })};
   if(type==='tiendo'){ const ss=SCHED().filter(s=>ks.some(k=>k.id===s.packageId)).sort((a,b)=>((pkgOf(a.packageId)||{}).code+a.planStart).localeCompare((pkgOf(b.packageId)||{}).code+b.planStart));
     return {head:['Dự án','Gói thầu','Hạng mục','Bắt đầu KH','Kết thúc KH','Trọng số','Kế hoạch đến nay (%)','Thực tế (%)','Chênh lệch (%)','Tình trạng'], rows:ss.map(s=>[(projOf(s.projectId)||{}).code,(pkgOf(s.packageId)||{}).code,s.name,fmtDate(s.planStart),fmtDate(s.planEnd),N(s.weight),+expectedPct(s).toFixed(1),N(s.progress),+(N(s.progress)-expectedPct(s)).toFixed(1),schedState(s).t])}; }
-  if(type==='hopdong') return {head:['Số hợp đồng','Gói thầu','Nhà thầu','Ngày ký','Giá trị ký kết','Điều chỉnh','Giá trị sau điều chỉnh','Thời hạn','Thời gian đã qua (%)','Giá trị thực hiện','Thực hiện (%)','Đã thanh toán','Còn lại'], money:[4,5,6,9,11,12],
-    rows:cs.map(c=>{ const cv=contractValue(c), e=contractEnd(c); const d=contractDone(c.id,upto); return [c.number,(pkgOf(c.packageId)||{}).code,c.contractor,fmtDate(c.signDate),N(c.value),cv-N(c.value),cv,fmtDate(c.start)+' – '+fmtDate(e),+Math.min(100,pct(Math.max(0,days(c.start,upto||TODAY)),days(c.start,e))).toFixed(1),d,+pct(d,cv).toFixed(1),contractPaid(c.id,upto),cv-contractPaid(c.id,upto)]; })};
+  if(type==='hopdong') return {head:['Số hợp đồng','Gói thầu','Nhà thầu','Ngày ký','Giá trị ký kết','Điều chỉnh','Giá trị sau điều chỉnh','Thời hạn','Thời gian đã qua (%)','Giá trị thực hiện','Thực hiện (%)','Giá trị nghiệm thu lũy kế','Đã thanh toán','Còn lại'], money:[4,5,6,9,11,12,13],
+    rows:cs.map(c=>{ const cv=contractValue(c), e=contractEnd(c); const d=contractDone(c.id,upto); return [c.number,(pkgOf(c.packageId)||{}).code,c.contractor,fmtDate(c.signDate),N(c.value),cv-N(c.value),cv,fmtDate(c.start)+' – '+fmtDate(e),+Math.min(100,pct(Math.max(0,days(c.start,upto||TODAY)),days(c.start,e))).toFixed(1),d,+pct(d,cv).toFixed(1),contractAcc(c.id,upto),contractPaid(c.id,upto),cv-contractPaid(c.id,upto)]; })};
   if(type==='khoiluong'){ const bq=D('boq').filter(b=>cs.some(c=>c.id===b.contractId)).sort((a,b)=>(a.contractId+a.code).localeCompare(b.contractId+b.code));
     const inR=v=>(!f.from||v.date>=f.from)&&(!f.to||v.date<=f.to);
-    return {head:['Hợp đồng','Mã hiệu','Nội dung công việc','ĐVT','KL hợp đồng','Đơn giá','KL thực hiện kỳ','KL nghiệm thu kỳ','KL thực hiện lũy kế','KL nghiệm thu lũy kế','Giá trị nghiệm thu lũy kế','Thực hiện (%)'], money:[5,10],
-      rows:bq.map(b=>{ const vs=D('volumes').filter(v=>v.boqId===b.id); const dq=sum(vs.filter(v=>!f.to||v.date<=f.to),'doneQty'), aq=sum(vs.filter(v=>!f.to||v.date<=f.to),'acceptedQty'); return [(get('contracts',b.contractId)||{}).number,b.code,b.name,b.unit,N(b.qty),N(b.price),sum(vs.filter(inR),'doneQty'),sum(vs.filter(inR),'acceptedQty'),dq,aq,aq*N(b.price),+pct(dq,b.qty).toFixed(1)]; })}; }
+    /* Đơn giá không cộng ở dòng Tổng cộng (khác đơn vị tính); thêm Thành tiền hợp đồng, Giá trị thực hiện lũy kế để đối soát */
+    return {head:['Hợp đồng','Mã hiệu','Nội dung công việc','ĐVT','KL hợp đồng','Đơn giá','Thành tiền hợp đồng','KL thực hiện kỳ','KL nghiệm thu kỳ','KL thực hiện lũy kế','KL nghiệm thu lũy kế','Giá trị thực hiện lũy kế','Giá trị nghiệm thu lũy kế','Thực hiện (%)'], money:[5,6,11,12], total:[6,11,12],
+      rows:bq.map(b=>{ const vs=D('volumes').filter(v=>v.boqId===b.id); const dq=sum(vs.filter(v=>!f.to||v.date<=f.to),'doneQty'), aq=sum(vs.filter(v=>!f.to||v.date<=f.to),'acceptedQty'); return [(get('contracts',b.contractId)||{}).number,b.code,b.name,b.unit,N(b.qty),N(b.price),N(b.qty)*N(b.price),sum(vs.filter(inR),'doneQty'),sum(vs.filter(inR),'acceptedQty'),dq,aq,dq*N(b.price),aq*N(b.price),+pct(dq,b.qty).toFixed(1)]; })}; }
   if(type==='giaingan'){ const Y=(f.to||TODAY).slice(0,4), upto=f.to||(Y===TODAY.slice(0,4)?TODAY:Y+'-12-31');
     return {head:['Mã dự án','Tên dự án','Vai trò của Ban','Nguồn vốn','KH trung hạn','Kế hoạch vốn năm '+Y,'Giải ngân đến '+fmtDate(upto),'Tỷ lệ giải ngân (%)','Kịch bản đến kỳ (%)','Chênh lệch (%)'], money:[4,5,6],
       rows:ps.map(p=>{ const plan=capPlan(p.id,Y), d=disbursed(p.id,Y,upto), tg=capTargetAt(p.id,Y,upto); return [p.code,p.name,p.boardRole||'',p.capital||'',capMidTerm(p.id),plan,d,+pct(d,plan).toFixed(2),+tg.toFixed(1),+(pct(d,plan)-tg).toFixed(2)]; }).filter(r=>r[4]||r[5]||r[6])}; }
@@ -202,15 +204,22 @@ function buildReport(type, f){
       return xs.map(x=>[p.code,p.name,p.status,fmtDate(x.completedDate),fmtDate(x.deadline),fmtDate(x.submittedDate),N(x.proposedValue),N(x.auditedValue),N(x.approvedValue),(x.number||'')+(x.approvalDate?' ngày '+fmtDate(x.approvalDate):''),fmtDate(x.closedDate),settleState(x).t]); })};
   // theo thời gian: gom theo tháng
   const m={}; const inR=d=>(!f.from||d>=f.from)&&(!f.to||d<=f.to);
-  D('volumes').filter(v=>cs.some(c=>c.id===v.contractId) && inR(v.date)).forEach(v=>{ const b=get('boq',v.boqId); if(!b) return; const c=get('contracts',v.contractId); const key=v.date.slice(0,7)+'|'+(pkgOf(c.packageId)||{}).code; const o=m[key]=m[key]||{dv:0,av:0,pd:0,pid:contractPid(c)}; o.dv+=N(v.doneQty)*N(b.price); o.av+=N(v.acceptedQty)*N(b.price); });
-  D('payments').filter(p=>p.status==='Đã thanh toán' && cs.some(c=>c.id===p.contractId) && inR(p.date)).forEach(p=>{ const c=get('contracts',p.contractId); const key=p.date.slice(0,7)+'|'+(pkgOf(c.packageId)||{}).code; const o=m[key]=m[key]||{dv:0,av:0,pd:0,pid:contractPid(c)}; o.pd+=payAmt(p); });
-  return {head:['Tháng','Dự án','Gói thầu','Giá trị thực hiện','Giá trị nghiệm thu','Giá trị thanh toán'], money:[3,4,5], rows:Object.entries(m).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,o])=>{ const [mo,kc]=k.split('|'); return [mo.slice(5)+'/'+mo.slice(0,4),(projOf(o.pid)||{}).code,kc,o.dv,o.av,o.pd]; })};
+  D('volumes').filter(v=>cs.some(c=>c.id===v.contractId) && inR(v.date)).forEach(v=>{ const b=get('boq',v.boqId); if(!b) return; const c=get('contracts',v.contractId); const key=v.date.slice(0,7)+'|'+c.packageId; const o=m[key]=m[key]||{dv:0,av:0,pd:0,pid:contractPid(c),kid:c.packageId}; o.dv+=N(v.doneQty)*N(b.price); o.av+=N(v.acceptedQty)*N(b.price); });
+  /* Gói thầu phân biệt theo mã gói (gắn với dự án), không theo ký hiệu chữ; kỳ giải ngân theo ngày Kho bạc chi */
+  D('payments').filter(p=>p.status==='Đã thanh toán' && cs.some(c=>c.id===p.contractId) && inR(payDay(p))).forEach(p=>{ const c=get('contracts',p.contractId); const key=payDay(p).slice(0,7)+'|'+c.packageId; const o=m[key]=m[key]||{dv:0,av:0,pd:0,pid:contractPid(c),kid:c.packageId}; o.pd+=payAmt(p); });
+  const pc=o=>(projOf(o.pid)||{}).code||'', kc=o=>(pkgOf(o.kid)||{}).code||'';
+  return {head:['Tháng','Dự án','Gói thầu','Giá trị thực hiện','Giá trị nghiệm thu','Giá trị thanh toán'], money:[3,4,5], rows:Object.entries(m).sort((a,b)=>a[0].slice(0,7).localeCompare(b[0].slice(0,7)) || (pc(a[1])+kc(a[1])).localeCompare(pc(b[1])+kc(b[1]))).map(([k,o])=>{ const mo=k.slice(0,7); return [mo.slice(5)+'/'+mo.slice(0,4),pc(o),kc(o),o.dv,o.av,o.pd]; })};
 }
+/* Gói thầu đang chọn không thuộc dự án đang xem (vừa đổi dự án) thì tự trả về "Tất cả gói thầu" */
+function rptFilter(){ const f={pid:S.pid||S.f.bcp||'', kid:S.f.bck||'', from:S.f.bcf||'', to:S.f.bctt||''};
+  if(f.kid && !pkgOpts(f.pid).some(o=>o[0]===f.kid)){ f.kid=''; S.f.bck=''; } return f; }
+/* Cột được cộng ở dòng Tổng cộng: mặc định các cột tiền; báo cáo có cột đơn giá thì khai báo riêng (total) */
+const rptTotalCols = R => R.total || R.money || [];
 VIEWS['bao-cao']=()=>{
-  const type=S.f.bct||'tonghop'; const f={pid:S.pid||S.f.bcp||'', kid:S.f.bck||'', from:S.f.bcf||'', to:S.f.bctt||''};
+  const type=S.f.bct||'tonghop'; const f=rptFilter();
   const R=buildReport(type,f); const q=S.f.bcq||''; const rows=R.rows.filter(r=>!q||norm(r.join(' ')).includes(norm(q)));
   const money=R.money||[]; const isNum=(v)=>typeof v==='number';
-  const totals=R.head.map((h,i)=> i===0?'Tổng cộng': money.includes(i)? fmtVND(sum(rows,r=>r[i])) : '');
+  const tc=rptTotalCols(R); const totals=R.head.map((h,i)=> i===0?'Tổng cộng': tc.includes(i)? fmtVND(sum(rows,r=>r[i])) : '');
   const title=REPORTS.find(r=>r[0]===type)[1];
   return `<div class="head"><div class="grow"><h1>Báo cáo, thống kê</h1><p>Chọn loại báo cáo, lọc theo dự án, gói thầu, thời gian rồi in hoặc xuất ra Excel, PDF, CSV</p></div><div class="toolbar" style="margin:0"><button class="btn" data-act="export-report-pdf" title="Mở hộp thoại in; chọn máy in hoặc Lưu thành PDF">In / Xuất PDF</button><button class="btn" data-act="export-report-csv">Xuất CSV</button><button class="btn" data-act="export-report-json" title="Tệp dữ liệu JSON để chia sẻ, liên thông với phần mềm khác">Xuất JSON</button><button class="btn primary" data-act="export-report">Xuất Excel</button></div></div>
   <div class="card"><div class="toolbar filters"><select data-f="bct" aria-label="Loại báo cáo" style="flex:1 1 320px;max-width:520px">${opts(REPORTS,type)}</select>
@@ -221,11 +230,11 @@ VIEWS['bao-cao']=()=>{
 };
 /** Số liệu báo cáo đang xem (cùng bộ lọc, tra cứu trên màn hình) để xuất Excel, PDF, CSV. */
 function reportNow(){
-  const type=S.f.bct||'tonghop'; const f={pid:S.pid||S.f.bcp||'', kid:S.f.bck||'', from:S.f.bcf||'', to:S.f.bctt||''};
+  const type=S.f.bct||'tonghop'; const f=rptFilter();
   const R=buildReport(type,f); const q=S.f.bcq||''; const rows=R.rows.filter(r=>!q||norm(r.join(' ')).includes(norm(q)));
   const name=REPORTS.find(r=>r[0]===type)[1];
   const sub=BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(f.pid?' · '+(projOf(f.pid)||{}).code:'')+(f.from||f.to?' · Kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):'');
-  const money=R.money||[]; const tot=R.head.map((h,i)=>i===0?'Tổng cộng':money.includes(i)?sum(rows,r=>r[i]):'');
+  const money=R.money||[]; const tc=rptTotalCols(R); const tot=R.head.map((h,i)=>i===0?'Tổng cộng':tc.includes(i)?sum(rows,r=>r[i]):'');
   return {type, f, R, rows, name, title:name.toUpperCase(), sub, money, tot};
 }
 ACT['export-report']=()=>{
@@ -378,11 +387,16 @@ ACT['storage-reload']=()=>admReload('storage');
 ACT['att-restore']=async(id)=>{ await api('POST','/api/attachments/'+encodeURIComponent(id)+'/restore'); toast('Đã khôi phục tệp'); admReload('storage'); Store.load(); };
 ACT['att-purge']=async(id)=>{ if(!await confirmBox('Xóa vĩnh viễn tệp này khỏi máy chủ? Không khôi phục được.')) return; await api('DELETE','/api/attachments/'+encodeURIComponent(id)+'/purge'); toast('Đã xóa vĩnh viễn'); admReload('storage'); };
 ACT['storage-cleanup']=async()=>{ if(!await confirmBox('Xóa vĩnh viễn các tệp không còn bản ghi nào sử dụng?','Dọn tệp')) return; const r=await api('POST','/api/attachments/cleanup'); toast(`Đã dọn ${r.removed} tệp (${fmtSize(r.size)})`); admReload('storage'); };
-ACT.restore=()=>openForm({title:'Phục hồi dữ liệu từ tệp sao lưu', narrow:true, submit:'Phục hồi', fields:[{key:'file',label:'Tệp sao lưu .json',type:'files',accept:'.json,application/json',req:true,full:true}], onSave:async v=>{
+const RESTORE_MODES=[['replace','Đưa dữ liệu về đúng thời điểm sao lưu (khuyến nghị)'],['merge','Chỉ ghi đè, bổ sung; giữ hồ sơ nhập sau thời điểm sao lưu']];
+ACT.restore=()=>openForm({title:'Phục hồi dữ liệu từ tệp sao lưu', narrow:true, submit:'Phục hồi', fields:[{key:'file',label:'Tệp sao lưu .json',type:'files',accept:'.json,application/json',req:true,full:true},
+  {key:'mode',label:'Cách phục hồi',type:'select',options:()=>RESTORE_MODES,def:'replace',req:true,full:true,hint:'Đưa về thời điểm sao lưu: hồ sơ nghiệp vụ nhập sau thời điểm đó bị xóa (tệp đính kèm vào thùng rác); phần mềm tự sao lưu dữ liệu hiện tại lên máy chủ trước. Tài khoản, nhóm quyền, danh mục, nhật ký luôn được giữ.'},
+  {key:'confirm',label:'Gõ PHUC HOI để xác nhận',req:true,full:true}], onSave:async v=>{
+  if(String(v.confirm||'').trim().toUpperCase()!=='PHUC HOI'){ $('#mform_err').textContent='Gõ đúng PHUC HOI để xác nhận.'; return false; }
   let o; try{ o=JSON.parse(await v.file[0].text()); }catch{ $('#mform_err').textContent='Tệp không đọc được.'; return false; }
   if(o.app!=='qlda-ttts'||!o.data){ $('#mform_err').textContent='Tệp không đúng định dạng sao lưu của phần mềm.'; return false; }
   $('#mform_err').textContent='Đang phục hồi…';
-  const r=await api('POST','/api/backup',o); await Store.load(); toast('Đã phục hồi '+r.restored+' bản ghi'); }});
+  const r=await api('POST','/api/backup',{...o, mode:v.mode||'replace'}); await Store.load();
+  toast(r.mode==='replace'?`Đã đưa dữ liệu về thời điểm sao lưu: ${r.restored} bản ghi, bỏ ${r.removed} bản ghi phát sinh sau. Bản sao lưu trước khi phục hồi: ${r.backup}`:'Đã phục hồi '+r.restored+' bản ghi'); }});
 
 /* ===== ỨNG DỤNG HIỆN TRƯỜNG TRÊN DI ĐỘNG (UC54–62) ===== */
 VIEWS['hien-truong']=()=>{

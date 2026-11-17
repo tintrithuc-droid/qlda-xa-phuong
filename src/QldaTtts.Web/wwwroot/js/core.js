@@ -1,5 +1,6 @@
 /* ===== Lõi: cấu hình phân hệ, lưu trữ, xác thực, tiện ích ===== */
 const ICON = {
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   dash:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
   proj:'<path d="M3 7h18v13H3zM8 7V4h8v3"/>',
   cube:'<path d="M12 2 3 7v10l9 5 9-5V7zM3 7l9 5 9-5M12 12v10"/>',
@@ -70,7 +71,7 @@ const MODULES = [
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
-const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet'];
+const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao'];
 const APP_VERSION = '1.7';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
@@ -114,7 +115,7 @@ function ssGet(k){ try{ return sessionStorage.getItem(k); }catch{ return null; }
 function ssSet(k,v){ try{ v==null? sessionStorage.removeItem(k) : sessionStorage.setItem(k,v); }catch{} }
 
 /* --- lưu trữ: máy chủ ứng dụng ASP.NET Core + CSDL (PostgreSQL / SQL Server / SQLite), giao tiếp qua API --- */
-class ApiError extends Error{ constructor(status,message){ super(message); this.status=status; } }
+class ApiError extends Error{ constructor(status,message,data){ super(message); this.status=status; this.data=data||null; } }
 async function api(method, url, body, opts={}){
   const init={method, headers:{'X-QLDA':'1'}, credentials:'same-origin'};
   if(body instanceof FormData) init.body=body;
@@ -122,7 +123,7 @@ async function api(method, url, body, opts={}){
   let r; try{ r=await fetch(url, init); }catch(e){ throw new ApiError(0,'Không kết nối được máy chủ. Kiểm tra mạng và thử lại.'); }
   if(r.status===401 && !opts.auth){ Store.signedOut(); throw new ApiError(401,'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'); }
   const data=(r.headers.get('content-type')||'').includes('json') ? await r.json().catch(()=>null) : null;
-  if(!r.ok) throw new ApiError(r.status, (data&&data.message)||('Lỗi máy chủ ('+r.status+').'));
+  if(!r.ok) throw new ApiError(r.status, (data&&data.message)||('Lỗi máy chủ ('+r.status+').'), data);
   return data;
 }
 const Store = {
@@ -135,12 +136,12 @@ const Store = {
       const [s,b]=await Promise.all([api('GET','/api/auth/state'), api('GET','/api/branding',undefined,{auth:true}).catch(()=>null)]);
       setBrand(b);
       this.initialized=s.initialized; this.sampleUsers=s.sampleUsers; this.setupToken=!!s.setupToken; S.user=s.user||null; S.mfa=s.mfa||null;
-      if(S.user) await this.load();
+      if(S.user && !S.user.mustChangePassword) await this.load();
       this.mode='server'; this.error='';
     }catch(e){ this.mode='offline'; this.error=e.message; setTimeout(()=>this.init(),10000); }
     onData();
     clearInterval(this._timer);
-    this._timer=setInterval(()=>{ if(S.user && document.visibilityState==='visible') this.load().catch(()=>{}); }, 30000);
+    this._timer=setInterval(()=>{ if(S.user && !S.user.mustChangePassword && document.visibilityState==='visible') this.load().catch(()=>{}); }, 30000);
   },
   async load(){
     const d=await api('GET','/api/data');
@@ -188,7 +189,7 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 /* --- phân quyền --- */
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
-  if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan'||mod==='trinh-duyet') return !!S.user;
+  if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(lvl==='approve') return (g.perms||{})[mod+':duyet']==='1';
   if(lvl==='check') return (g.perms||{})[mod+':kiemtra']==='1';
@@ -231,7 +232,8 @@ function contractAcc(cid, upto){ return sum(D('boq').filter(b=>b.contractId===ci
 /** Số tiền của hồ sơ thanh toán khi cộng dồn: thu hồi tạm ứng là khoản khấu trừ nên mang dấu âm. */
 const PAY_RECOVER='Thu hồi tạm ứng';
 const payAmt = p => p.kind===PAY_RECOVER ? -N(p.amount) : N(p.amount);
-function contractPaid(cid, upto){ return sum(D('payments').filter(p=>p.contractId===cid && p.status==='Đã thanh toán' && (!upto||p.date<=upto)),payAmt); }
+/* Lũy kế đã chi (giải ngân) của HĐ đến ngày upto, tính theo ngày Kho bạc chi; thu hồi tạm ứng được trừ */
+function contractPaid(cid, upto){ return sum(D('payments').filter(p=>p.contractId===cid && p.status==='Đã thanh toán' && (!upto||payDay(p)<=upto)),payAmt); }
 function expectedPct(s, date=TODAY){
   if(!s.planStart||!s.planEnd) return 0;
   if(date<=s.planStart) return 0; if(date>=s.planEnd) return 100;
@@ -316,58 +318,90 @@ function clearPct(c){ return N(c.area)? pct(N(c.handedArea),N(c.area)) : N(c.hou
 function catalog(type){ return D('catalogs').filter(c=>c.type===type).sort(by('order')).map(c=>c.value); }
 
 /* --- cảnh báo (UC19, UC37) --- */
-function alerts(){
-  const out=[];
-  SCHED().filter(s=>inFilter(s.projectId)).forEach(s=>{
-    const st=schedState(s); const k=pkgOf(s.packageId);
-    if(st.k==='bad') out.push({lvl:'bad', mod:'tien-do', text:`<b>${esc(s.name)}</b> (${esc(k?k.code:'')}) ${st.t.toLowerCase()}, mới đạt ${N(s.progress)}%.`});
-    else if(st.k==='warn') out.push({lvl:'warn', mod:'tien-do', text:`<b>${esc(s.name)}</b> (${esc(k?k.code:'')}) chậm so với kế hoạch: thực tế ${N(s.progress)}%, kế hoạch ${Math.round(expectedPct(s))}%.`});
+/* --- cảnh báo (UC19, UC37) ---
+   Mỗi cảnh báo gắn với đối tượng: pid (dự án), kid (gói thầu), cid (hợp đồng), go (mở đúng đối tượng),
+   kind (nhóm cảnh báo), who (đơn vị chịu trách nhiệm), due (thời hạn) để lọc, xuất Excel trong Trung tâm cảnh báo. */
+const ALERT_KINDS = ['Tiến độ','Hợp đồng','Bảo lãnh','Pháp lý','Thanh toán','Vốn đầu tư','Giải ngân','Mặt bằng','Bảo hành','Quyết toán','Công việc','Trình duyệt'];
+/* Dư nợ tạm ứng chưa thu hồi của HĐ (đã chi tạm ứng − đã thu hồi) */
+function advanceLeft(cid){ const ps=D('payments').filter(p=>p.contractId===cid && p.status==='Đã thanh toán');
+  return sum(ps.filter(p=>/tạm ứng/i.test(p.kind||'') && p.kind!==PAY_RECOVER),'amount')-sum(ps.filter(p=>p.kind===PAY_RECOVER),'amount'); }
+/* HĐ có bảng khối lượng chi tiết (xây lắp) hay nghiệm thu theo mốc, sản phẩm (tư vấn, mua sắm…) */
+const contractHasBoq = cid => D('boq').some(b=>b.contractId===cid);
+function alerts(o={}){
+  const out=[]; const ok=pid=>o.all? pidOk(pid) : inFilter(pid);
+  const pc=pid=>(projOf(pid)||{}).code||'';
+  const add=a=>{ const k=a.kid&&pkgOf(a.kid); a.pcode=pc(a.pid); a.kcode=k?k.code:''; out.push(a); };
+  const tag=(pid,k)=>`(${esc(pc(pid))}${k?' · '+esc(k.code):''})`;
+  SCHED().filter(s=>ok(s.projectId)).forEach(s=>{
+    const st=schedState(s); const k=pkgOf(s.packageId); const c=k&&D('contracts').find(x=>x.packageId===k.id);
+    const base={mod:'tien-do', kind:'Tiến độ', pid:s.projectId, kid:s.packageId, cid:c&&c.id, go:'td|'+(s.packageId||''), who:c?c.contractor||'':'', due:s.planEnd};
+    if(st.k==='bad') add({...base, lvl:'bad', text:`<b>${esc(s.name)}</b> ${tag(s.projectId,k)} ${st.t.toLowerCase()}, mới đạt ${N(s.progress)}%.`});
+    else if(st.k==='warn') add({...base, lvl:'warn', text:`<b>${esc(s.name)}</b> ${tag(s.projectId,k)} chậm so với kế hoạch: thực tế ${N(s.progress)}%, kế hoạch ${Math.round(expectedPct(s))}%.`});
   });
-  D('contracts').filter(c=>inFilter(contractPid(c))).forEach(c=>{
-    const e=contractEnd(c); const k=pkgOf(c.packageId); if(!e) return;
-    const done=pct(contractDone(c.id),contractValue(c));
+  D('contracts').filter(c=>ok(contractPid(c))).forEach(c=>{
+    const e=contractEnd(c); const k=pkgOf(c.packageId); const pid=contractPid(c); const base={mod:'goi-thau', kind:'Hợp đồng', pid, kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:c.contractor||''};
+    /* Ký hợp đồng vượt giá gói thầu được duyệt */
+    if(k && N(k.estimate)>0 && contractValue(c)>N(k.estimate)+1) add({...base, lvl:'bad', kind:'Vốn đầu tư', text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} có giá trị ${fmtVND(contractValue(c))} đ vượt giá gói thầu được duyệt ${fmtVND(k.estimate)} đ (vượt ${fmtVND(contractValue(c)-N(k.estimate))} đ).`});
+    if(!e) return;
     if(k && /thanh lý|nghiệm thu/i.test(k.status||'')) return;
+    /* HĐ không lập bảng khối lượng chi tiết (tư vấn, mua sắm, dịch vụ): đo mức hoàn thành theo giá trị đã thanh toán */
+    const boq=contractHasBoq(c.id); const done=boq? pct(contractDone(c.id),contractValue(c)) : pct(contractPaid(c.id),contractValue(c));
+    const what=boq? 'khối lượng thực hiện' : 'giá trị đã thanh toán';
     const left=days(TODAY,e);
-    if(left<0 && done<100) out.push({lvl:'bad', mod:'goi-thau', text:`Hợp đồng <b>${esc(c.number)}</b> đã hết hạn ${-left} ngày, khối lượng thực hiện ${fmtP(done)}.`});
-    else if(left>=0 && left<=60 && done<90) out.push({lvl:'warn', mod:'goi-thau', text:`Hợp đồng <b>${esc(c.number)}</b> còn ${left} ngày đến hạn (${fmtDate(e)}), khối lượng thực hiện ${fmtP(done)}.`});
+    if(left<0 && done<100) add({...base, lvl:'bad', due:e, text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} đã hết hạn ${-left} ngày, ${what} ${fmtP(done)}.`});
+    else if(left>=0 && left<=60 && done<90) add({...base, lvl:'warn', due:e, text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} còn ${left} ngày đến hạn (${fmtDate(e)}), ${what} ${fmtP(done)}.`});
   });
-  /* Bảo lãnh hợp đồng, giấy phép… sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực */
-  /* keep=true: nhắc mãi đến khi được cập nhật (bảo lãnh HĐ, giấy phép); bảo hành hết hạn là bình thường nên chỉ nhắc 90 ngày */
-  const expiry=(until, label, mod, keep=true)=>{ if(!until) return; const left=days(TODAY,until);
-    if(left<0 && (keep || left>=-90)) out.push({lvl:'bad', mod, text:`${label} đã hết hiệu lực từ ${fmtDate(until)} (${-left} ngày).`});
-    else if(left>=0 && left<=30) out.push({lvl:'warn', mod, text:`${label} sắp hết hiệu lực: còn ${left} ngày (đến ${fmtDate(until)}).`}); };
-  D('contracts').filter(c=>inFilter(contractPid(c))).forEach(c=>{ const k=pkgOf(c.packageId); if(k && /thanh lý/i.test(k.status||'')) return;
-    expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${esc(c.number)}</b>`, 'goi-thau');
-    if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${esc(c.number)}</b>`, 'goi-thau'); });
-  D('legal').filter(l=>l.validUntil && inFilter(l.projectId)).forEach(l=>{ const p=projOf(l.projectId); if(p && /hoàn thành|quyết toán/i.test(p.status||'')) return;
-    const k=l.packageId&&pkgOf(l.packageId); expiry(l.validUntil, `${esc(l.type)} <b>${esc(l.number)}</b> (${esc(k?k.code:(p?p.code:''))})`, k?'goi-thau':'du-an'); });
-  /* Đợt thanh toán quá hạn: nhắc cho đến khi đợt được thực hiện (không còn tự mất sau 60 ngày); nhiều đợt thì gom một dòng */
-  const lates=D('payplans').map(p=>({p, c:get('contracts',p.contractId), st:planState(p)})).filter(x=>x.c && inFilter(contractPid(x.c)) && x.st.late && pct(contractPaid(x.c.id),contractValue(x.c))<100).sort((a,b)=>b.st.late-a.st.late);
-  if(lates.length>3) out.push({lvl:lates.some(x=>x.st.late>30)?'bad':'warn', mod:'thanh-toan', text:`<b>${lates.length} đợt kế hoạch thanh toán quá hạn</b> chưa thực hiện, tổng ${fmtTy(sum(lates,x=>N(x.p.amount)))}; lâu nhất ${lates[0].st.late} ngày (đợt ${esc(lates[0].p.phase)} HĐ ${esc(lates[0].c.number)}).`});
-  else lates.forEach(({p,c,st})=>out.push({lvl:st.late>30?'bad':'warn', mod:'thanh-toan', text:`Kế hoạch thanh toán <b>${esc(p.phase)}</b> HĐ ${esc(c.number)} (${fmtTy(p.amount)}) đến hạn ${fmtDate(p.planDate)}, quá hạn ${st.late} ngày chưa thực hiện${st.proc?' (hồ sơ đang trình)':''}.`}));
-  /* Hồ sơ chờ người dùng duyệt (phụ lục, thanh toán, nghiệm thu) */
-  if(typeof WF!=='undefined'){ const mine=wfMine().filter(x=>inFilter(WF[x.col].pid(x.r))); if(mine.length) out.unshift({lvl:'warn', mod:'trinh-duyet', text:`Có <b>${mine.length} hồ sơ chờ bạn duyệt</b>: ${esc([...new Set(mine.map(x=>WF[x.col].name.toLowerCase()))].join(', '))}.`}); }
+  /* Tổng giá trị hợp đồng của dự án vượt tổng mức đầu tư */
+  projects().filter(p=>ok(p.id) && N(p.tmdt)>0).forEach(p=>{ const cv=sum(D('contracts').filter(c=>contractPid(c)===p.id),contractValue);
+    if(cv>N(p.tmdt)+1) add({mod:'du-an', kind:'Vốn đầu tư', lvl:'bad', pid:p.id, go:'proj|'+p.id, who:'', text:`Dự án <b>${esc(p.code)}</b>: tổng giá trị hợp đồng ${fmtVND(cv)} đ vượt tổng mức đầu tư ${fmtVND(p.tmdt)} đ (vượt ${fmtVND(cv-N(p.tmdt))} đ).`}); });
+  /* Bảo lãnh, giấy phép… sắp hết hiệu lực (trước 30 ngày) hoặc đã hết hiệu lực.
+     keep=true: nhắc đến khi được gia hạn (bảo lãnh HĐ, giấy phép); bảo hành hết hạn là bình thường nên chỉ nhắc 90 ngày */
+  const expiry=(until, label, base, keep=true)=>{ if(!until) return; const left=days(TODAY,until);
+    if(left<0 && (keep || left>=-90)) add({...base, lvl:'bad', due:until, text:`${label} đã hết hiệu lực từ ${fmtDate(until)} (${-left} ngày)${keep?', chưa gia hạn':''}.`});
+    else if(left>=0 && left<=30) add({...base, lvl:'warn', due:until, text:`${label} sắp hết hiệu lực: còn ${left} ngày (đến ${fmtDate(until)}).`}); };
+  D('contracts').filter(c=>ok(contractPid(c))).forEach(c=>{ const k=pkgOf(c.packageId); if(k && /thanh lý/i.test(k.status||'')) return;
+    const pid=contractPid(c); const base={mod:'goi-thau', kind:'Bảo lãnh', pid, kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:c.contractor||''};
+    /* Bảo lãnh thực hiện HĐ: hết nghĩa vụ khi HĐ đã thanh toán đủ */
+    if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${esc(c.number)}</b> ${tag(pid,k)}`, base);
+    /* Bảo lãnh tạm ứng: chỉ nhắc khi còn dư nợ tạm ứng chưa thu hồi */
+    const adv=advanceLeft(c.id); if(adv>1) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${esc(c.number)}</b> ${tag(pid,k)}, dư nợ tạm ứng ${fmtVND(adv)} đ`, base); });
+  D('legal').filter(l=>l.validUntil && ok(l.projectId)).forEach(l=>{ const p=projOf(l.projectId); if(p && /hoàn thành|quyết toán|bàn giao/i.test(p.status||'')) return;
+    const k=l.packageId&&pkgOf(l.packageId); expiry(l.validUntil, `${esc(l.type)} <b>${esc(l.number)}</b> ${tag(l.projectId,k)}`, {mod:k?'goi-thau':'du-an', kind:'Pháp lý', pid:l.projectId, kid:k?k.id:'', go:k?'pkg|'+k.id:'legal|'+l.projectId, who:l.issuer||''}); });
+  /* Đợt thanh toán quá hạn: nhắc cho đến khi đợt được thực hiện; nhiều đợt thì gom một dòng ở Tổng quan, Trung tâm cảnh báo liệt kê đủ */
+  const lates=D('payplans').map(p=>({p, c:get('contracts',p.contractId), st:planState(p)})).filter(x=>x.c && ok(contractPid(x.c)) && x.st.late && pct(contractPaid(x.c.id),contractValue(x.c))<100).sort((a,b)=>b.st.late-a.st.late);
+  const lateRow=({p,c,st})=>({mod:'thanh-toan', kind:'Thanh toán', pid:contractPid(c), kid:c.packageId, cid:c.id, go:'tt|'+c.id, who:'Kế toán Ban', due:p.planDate, lvl:st.late>30?'bad':'warn', text:`Kế hoạch thanh toán <b>${esc(p.phase)}</b> HĐ ${esc(c.number)} ${tag(contractPid(c),pkgOf(c.packageId))} (${fmtTy(p.amount)}) đến hạn ${fmtDate(p.planDate)}, quá hạn ${st.late} ngày chưa thực hiện${st.proc?' (hồ sơ đang trình)':''}.`});
+  if(lates.length>3 && !o.all) add({mod:'thanh-toan', kind:'Thanh toán', go:'tt|', who:'Kế toán Ban', lvl:lates.some(x=>x.st.late>30)?'bad':'warn', text:`<b>${lates.length} đợt kế hoạch thanh toán quá hạn</b> chưa thực hiện, tổng ${fmtTy(sum(lates,x=>N(x.p.amount)))}; lâu nhất ${lates[0].st.late} ngày (đợt ${esc(lates[0].p.phase)} HĐ ${esc(lates[0].c.number)}).`});
+  else lates.forEach(x=>add(lateRow(x)));
   /* Giải ngân năm hiện tại thấp hơn kịch bản */
   const Y=TODAY.slice(0,4);
-  projects().filter(p=>inFilter(p.id)).forEach(p=>{ const plan=capPlan(p.id,Y); if(!plan) return;
+  projects().filter(p=>ok(p.id)).forEach(p=>{ const plan=capPlan(p.id,Y); if(!plan) return;
     const done=pct(disbursed(p.id,Y),plan), tg=capTargetAt(p.id,Y);
-    if(tg-done>10) out.push({lvl:tg-done>25?'bad':'warn', mod:'von', text:`Dự án <b>${esc(p.code)}</b> giải ngân năm ${Y} mới đạt ${fmtP(done)} kế hoạch vốn (kịch bản đến nay ${fmtP(tg)}).`}); });
+    if(tg-done>10) add({mod:'von', kind:'Giải ngân', pid:p.id, go:'mod|von', who:'', due:Y+'-12-31', lvl:tg-done>25?'bad':'warn', text:`Dự án <b>${esc(p.code)}</b> giải ngân năm ${Y} mới đạt ${fmtP(done)} kế hoạch vốn (kịch bản đến nay ${fmtP(tg)}).`}); });
   /* Bảo hành, bảo lãnh bảo hành sắp hết hoặc đã hết */
-  D('acceptances').filter(a=>inFilter(a.projectId)).forEach(a=>{ const p=projOf(a.projectId)||{}; const k=a.packageId&&pkgOf(a.packageId);
-    const w=warrantyEnd(a); if(w) expiry(w, `Thời hạn bảo hành ${esc(k?k.code:p.code||'')} (${esc(a.number||a.kind||'')})`, 'nghiem-thu', false);
-    expiry(a.warrantyGuaranteeUntil, `Bảo lãnh bảo hành ${esc(k?k.code:p.code||'')}`, 'nghiem-thu', false); });
+  D('acceptances').filter(a=>ok(a.projectId)).forEach(a=>{ const p=projOf(a.projectId)||{}; const k=a.packageId&&pkgOf(a.packageId);
+    const base={mod:'nghiem-thu', kind:'Bảo hành', pid:a.projectId, kid:k?k.id:'', go:'mod|nghiem-thu', who:''};
+    const w=warrantyEnd(a); if(w) expiry(w, `Thời hạn bảo hành ${esc(k?k.code:p.code||'')} (${esc(a.number||a.kind||'')})`, base, false);
+    expiry(a.warrantyGuaranteeUntil, `Bảo lãnh bảo hành ${esc(k?k.code:p.code||'')}`, base, false); });
   /* Quyết toán quá hạn, đã phê duyệt mà chưa tất toán */
-  D('settlements').filter(x=>inFilter(x.projectId)).forEach(x=>{ const p=projOf(x.projectId)||{}; const st=settleState(x);
-    if(st.k==='bad'||st.k==='warn') out.push({lvl:st.k, mod:'quyet-toan', text:`Quyết toán dự án <b>${esc(p.code||'')}</b>: ${st.t.toLowerCase()} (hạn ${fmtDate(x.deadline)}).`});
-    else if(st.k==='acc' && days(x.approvalDate,TODAY)>60) out.push({lvl:'warn', mod:'quyet-toan', text:`Dự án <b>${esc(p.code||'')}</b> đã phê duyệt quyết toán ${days(x.approvalDate,TODAY)} ngày nhưng chưa tất toán tài khoản.`}); });
+  D('settlements').filter(x=>ok(x.projectId)).forEach(x=>{ const p=projOf(x.projectId)||{}; const st=settleState(x);
+    const base={mod:'quyet-toan', kind:'Quyết toán', pid:x.projectId, go:'mod|quyet-toan', who:'', due:x.deadline};
+    if(st.k==='bad'||st.k==='warn') add({...base, lvl:st.k, text:`Quyết toán dự án <b>${esc(p.code||'')}</b>: ${st.t.toLowerCase()} (hạn ${fmtDate(x.deadline)}).`});
+    else if(st.k==='acc' && days(x.approvalDate,TODAY)>60) add({...base, lvl:'warn', text:`Dự án <b>${esc(p.code||'')}</b> đã phê duyệt quyết toán ${days(x.approvalDate,TODAY)} ngày nhưng chưa tất toán tài khoản.`}); });
   /* Mặt bằng chưa bàn giao đúng hạn */
-  D('clearances').filter(c=>inFilter(c.projectId) && !c.handoverDate && c.handoverDue && c.handoverDue<TODAY).forEach(c=>{ const p=projOf(c.projectId)||{};
-    out.push({lvl:'bad', mod:'gpmb', text:`Mặt bằng <b>${esc(c.name)}</b> (${esc(p.code||'')}) chậm bàn giao ${days(c.handoverDue,TODAY)} ngày, đạt ${fmtP(clearPct(c))}.`}); });
-  D('tasks').filter(t=>inFilter(t.projectId) && t.status!=='Hoàn thành' && t.due && t.due<TODAY).forEach(t=>{
-    out.push({lvl:'bad', mod:'du-an', text:`Công việc <b>${esc(t.name)}</b> quá hạn ${days(t.due,TODAY)} ngày (${esc(t.assignee||'')}).`});
+  D('clearances').filter(c=>ok(c.projectId) && !c.handoverDate && c.handoverDue && c.handoverDue<TODAY).forEach(c=>{ const p=projOf(c.projectId)||{};
+    add({mod:'gpmb', kind:'Mặt bằng', pid:c.projectId, go:'mod|gpmb', who:'', due:c.handoverDue, lvl:'bad', text:`Mặt bằng <b>${esc(c.name)}</b> (${esc(p.code||'')}) chậm bàn giao ${days(c.handoverDue,TODAY)} ngày, đạt ${fmtP(clearPct(c))}.`}); });
+  D('tasks').filter(t=>ok(t.projectId) && t.status!=='Hoàn thành' && t.due && t.due<TODAY).forEach(t=>{
+    add({mod:'du-an', kind:'Công việc', pid:t.projectId, go:'task|'+t.projectId, who:t.assignee||'', due:t.due, lvl:'bad', text:`Công việc <b>${esc(t.name)}</b> (${esc(pc(t.projectId))}) quá hạn ${days(t.due,TODAY)} ngày (${esc(t.assignee||'')}).`});
   });
-  return out.sort((a,b)=>(a.lvl==='bad'?0:1)-(b.lvl==='bad'?0:1));
+  out.sort((a,b)=>(a.lvl==='bad'?0:1)-(b.lvl==='bad'?0:1) || String(a.due||'9').localeCompare(String(b.due||'9')));
+  /* Hồ sơ chờ người dùng duyệt: luôn đứng đầu */
+  if(typeof WF!=='undefined'){ const mine=wfMine().filter(x=>ok(WF[x.col].pid(x.r))); if(mine.length) out.unshift({lvl:'warn', mod:'trinh-duyet', kind:'Trình duyệt', go:'mod|trinh-duyet', pcode:'', kcode:'', who:'', text:`Có <b>${mine.length} hồ sơ chờ bạn duyệt</b>: ${esc([...new Set(mine.map(x=>WF[x.col].name.toLowerCase()))].join(', '))}.`}); }
+  return out;
 }
+/* Một dòng cảnh báo có nút "Xem" mở đúng đối tượng */
+function alertRow(a){ return `<div class="alert ${a.lvl==='bad'?'bad':''}"><span style="flex:1">${a.text}</span>${a.go?`<button type="button" class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''}</div>`; }
+function alertList(list, empty){ return list.length? `<div class="list">${list.map(alertRow).join('')}</div>` : (empty?`<div class="alert info">${empty}</div>`:''); }
+const cellText = h => { const d=document.createElement('div'); d.innerHTML=h; return d.textContent||''; };
 
 /* --- giao diện chung --- */
 function toast(msg, kind){ const t=$('#toast'); t.textContent=msg; t.className='toast'+(kind?' '+kind:''); t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, kind==='err'?6000:2600); }
@@ -418,7 +452,7 @@ function fieldHTML(f, v, rec={}){
   switch(f.type){
     case 'textarea': input=`<textarea id="${id}" rows="${f.rows||3}" placeholder="${esc(f.ph||'')}">${esc(val)}</textarea>`; break;
     case 'works': input=worksHTML(id, val, f); break;
-    case 'select': { const list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>`; break; }
+    case 'select': { const list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
     case 'money': input=`<input id="${id}" type="number" step="1" min="0" value="${esc(val)}" data-money><span class="hint" id="${id}_h">${val!==''?fmtVND(val)+' đồng':''}</span>`; break;
     case 'number': case 'percent': input=`<input id="${id}" type="number" step="any" ${f.type==='percent'?'min="0" max="100"':''} value="${esc(val)}">`; break;
     case 'date': input=`<input id="${id}" type="date" value="${esc(val)}">`; break;
@@ -578,6 +612,24 @@ function loadLib(src, test){
 }
 const loadExcel = () => loadLib('/lib/exceljs.min.js', ()=>!!window.ExcelJS);
 const XL = {font:'Times New Roman', head:'FF1F4E79', headInk:'FFFFFFFF', band:'FFF3F6FA', line:'FFB7C3D0', money:'#,##0', num:'#,##0.##'};
+/* Ô văn bản dạng số kiểu Việt Nam thành số thật để Excel tính được (SUM, nhân đơn giá…):
+   1 · 55 · 1.600.000 · 0,55 · 1.250,5 · 75% (thành 0,75 định dạng %). Cột mã hiệu, số hiệu, điện thoại… giữ nguyên dạng chữ. */
+const XL_TEXT_COL = /^(mã|ký hiệu|số hiệu|số hợp đồng|số hồ sơ|số văn bản|số quyết định|số qđ|điện thoại|tên đăng nhập|đợt|stt)/i;
+function numParse(s){
+  if(/^[-+]?(0|[1-9]\d{0,14})$/.test(s)) return Number(s);
+  if(/^[-+]?\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g,''));
+  if(/^[-+]?(\d{1,3}(\.\d{3})+|\d+),\d+$/.test(s)) return Number(s.replace(/\./g,'').replace(',','.'));
+  return null; }
+function numCell(v, head){ if(typeof v==='number') return v; if(head && XL_TEXT_COL.test(String(head))) return v;
+  const s=String(v==null?'':v).trim(); if(!s) return v;
+  const n=numParse(s); if(n!=null) return n;
+  const m=/^([-+]?[\d.,]+)\s*%$/.exec(s); if(m){ const x=numParse(m[1]); if(x!=null) return {pct:x/100}; }
+  return v; }
+/* Số nguyên không có phần thập phân thừa, số lẻ giữ phần thập phân, có phân cách hàng nghìn */
+const xlFmt = (n, money) => money? '#,##0' : Number.isInteger(n)? '#,##0' : '#,##0.0##';
+const xlPctFmt = p => Number.isInteger(Math.round(p*1e5)/1e3)? '0%' : '0.0#%';
+const XL_CENTER_COL = /^(stt|mã|ký hiệu|số hiệu|đvt|đơn vị tính|ngày|tháng|quý|thời hạn|gói thầu|gói|dự án|hợp đồng|số hợp đồng|số hồ sơ|trạng thái|tình trạng|đợt|mức độ|hạn)/i;
+const xlCenter = (head, v) => { const t=String(v??''); return /^\d{2}\/\d{2}\/\d{4}/.test(t) || (XL_CENTER_COL.test(String(head||'')) && t.length<=24); };
 function xlBorder(c, strong){ const t={style:'thin', color:{argb:XL.line}}; c.border={top:t,left:t,bottom:strong?{style:'double',color:{argb:'FF333333'}}:t,right:t}; }
 /** Một trang tính chuẩn văn phòng: tên đơn vị, tên báo cáo gộp ô, dòng tiêu đề tô màu, kẻ khung, số có phân cách hàng nghìn, dòng tổng in đậm. */
 function xlSheet(wb, s){
@@ -589,8 +641,12 @@ function xlSheet(wb, s){
   const hr=ws.getRow(5); s.head.forEach((h,i)=>{ const c=hr.getCell(i+1); c.value=h; c.font={name:XL.font, bold:true, color:{argb:XL.headInk}}; c.fill={type:'pattern', pattern:'solid', fgColor:{argb:XL.head}}; c.alignment={horizontal:'center', vertical:'middle', wrapText:true}; xlBorder(c); });
   hr.height=32;
   s.rows.forEach((r,ri)=>{ const row=ws.getRow(6+ri); const last=s.total && ri===s.rows.length-1;
-    r.forEach((v,i)=>{ const c=row.getCell(i+1); c.value=(v===''||v==null)?null:v; c.font={name:XL.font, bold:last}; c.alignment={vertical:'top', wrapText:typeof v==='string' && v.length>30};
-      if(typeof v==='number') c.numFmt=money.includes(i)?XL.money:XL.num;
+    r.forEach((v,i)=>{ const c=row.getCell(i+1); let nv=numCell(v, s.head[i]); const isP=nv&&typeof nv==='object'&&'pct' in nv; if(isP) nv=nv.pct; const isN=typeof nv==='number';
+      c.value=(nv===''||nv==null)?null:nv; c.font={name:XL.font, bold:last};
+      /* Số căn phải, định dạng theo quy tắc Việt Nam; ngày, mã hiệu, ĐVT căn giữa; diễn giải căn trái */
+      if(isN){ c.alignment={horizontal:'right', vertical:'top'}; c.numFmt=isP? xlPctFmt(nv) : xlFmt(nv, money.includes(i)); }
+      else if(xlCenter(s.head[i], v)) c.alignment={horizontal:'center', vertical:'top', wrapText:true};
+      else c.alignment={vertical:'top', wrapText:typeof v==='string' && v.length>30};
       if(!last && ri%2===1) c.fill={type:'pattern', pattern:'solid', fgColor:{argb:XL.band}};
       xlBorder(c, last); }); });
   s.head.forEach((h,i)=>{ const w=Math.max(String(h).length*0.9, ...s.rows.slice(0,300).map(r=>{ const v=r[i]; return typeof v==='number'? (money.includes(i)?fmtVND(v).length+2:String(v).length+1) : String(v??'').length; })); ws.getColumn(i+1).width=Math.max(9, Math.min(48, w+2)); });

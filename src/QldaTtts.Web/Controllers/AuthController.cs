@@ -19,7 +19,8 @@ public class AuthController : ApiControllerBase
     private readonly TwoFactor _tf;
     private readonly SetupGuard _guard;
     private readonly TenantContext _tc;
-    public AuthController(AppDbContext db, UserContext uc, TwoFactor tf, SetupGuard guard, TenantContext tc) : base(db, uc) { _tf = tf; _guard = guard; _tc = tc; }
+    public AuthController(AppDbContext db, UserContext uc, TwoFactor tf, SetupGuard guard, TenantContext tc, LoginGuard lg) : base(db, uc) { _tf = tf; _guard = guard; _tc = tc; _lg = lg; }
+    private readonly LoginGuard _lg;
 
     /// <summary>Trạng thái: hệ thống đã khởi tạo chưa, người dùng hiện tại là ai.</summary>
     [HttpGet("state")]
@@ -33,7 +34,15 @@ public class AuthController : ApiControllerBase
             var me = await Db.Users.AsNoTracking().FirstAsync(x => x.Id == Uc.User.Id);
             mfa = new { enabled = me.TotpSecret is not null, required = _tf.Required(me, Uc.Group), recoveryLeft = TwoFactor.RecoveryLeft(me) };
         }
-        return Ok(new { initialized, user = Uc.User, mfa, sampleUsers = initialized && await Db.Users.AnyAsync(u => u.Sample), setupToken = !initialized && _guard.Required });
+        return Ok(new { initialized, user = Uc.User, mfa, sampleUsers = initialized && await SampleHint(), setupToken = !initialized && _guard.Required });
+    }
+
+    /// <summary>Chỉ gợi ý tài khoản mẫu ở trang đăng nhập khi hệ thống còn là bản chạy thử (chưa có tài khoản nghiệp vụ thật).</summary>
+    private async Task<bool> SampleHint()
+    {
+        if (!await Db.Users.AnyAsync(u => u.Sample)) return false;
+        var adminGroups = await Db.Groups.Where(g => g.Admin).Select(g => g.Id).ToListAsync();
+        return !await Db.Users.AnyAsync(u => !u.Sample && (u.GroupId == null || !adminGroups.Contains(u.GroupId)));
     }
 
     public class SetupRequest
@@ -104,24 +113,49 @@ public class AuthController : ApiControllerBase
         return Ok(new { user = u });
     }
 
-    public record LoginRequest(string Username, string Password);
+    public record LoginRequest(string Username, string Password, string? CaptchaId = null, string? Captcha = null);
+
+    /// <summary>Lỗi đăng nhập kèm mã kiểm tra mới khi máy (IP) hoặc tài khoản đã nhập sai nhiều lần.</summary>
+    private ObjectResult LoginError(int status, string message, string ip, string key)
+    {
+        if (!_lg.NeedCaptcha(ip, key)) return Error(status, message);
+        var (id, img) = _lg.NewCaptcha();
+        return StatusCode(status, new { code = status, message, captcha = new { id, img } });
+    }
+
+    /// <summary>Mã kiểm tra mới (bấm "Đổi mã khác").</summary>
+    [HttpGet("captcha")]
+    public IActionResult NewCaptcha() { var (id, img) = _lg.NewCaptcha(); return Ok(new { id, img }); }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest r)
     {
         const string bad = "Tên đăng nhập hoặc mật khẩu không đúng.";
         var un = (r.Username ?? "").Trim().ToLowerInvariant();
+        var ip = Uc.Ip;
+        // Bộ đếm dùng chung cho mọi xã trên máy chủ thuê bao nên khóa đếm theo tài khoản có kèm mã xã
+        var key = un.Length == 0 ? "" : (_tc.Code is { } xa ? xa + "/" + un : un);
+        // Không khóa tài khoản trên toàn hệ thống: chỉ chặn tạm máy (IP) đang dò, máy khác vẫn đăng nhập bình thường
+        if (_lg.Blocked(ip, key) is { } left)
+            return Error(429, $"Máy này đã nhập sai quá nhiều lần nên tạm bị chặn đăng nhập tài khoản này trong {Math.Max(1, Math.Ceiling(left.TotalMinutes))} phút. Tài khoản vẫn đăng nhập bình thường từ máy khác.");
+        if (_lg.NeedCaptcha(ip, key) && !_lg.CheckCaptcha(r.CaptchaId, r.Captcha))
+            return LoginError(428, string.IsNullOrWhiteSpace(r.Captcha) ? "Đã nhập sai nhiều lần. Vui lòng nhập mã kiểm tra trong hình." : "Mã kiểm tra không đúng hoặc đã hết hạn, vui lòng nhập mã mới.", ip, key);
         var u = await Db.Users.FirstOrDefaultAsync(x => x.Username == un);
-        if (u is null) { Passwords.VerifyDummy(r.Password ?? ""); return Error(401, bad); }
+        if (u is null) { Passwords.VerifyDummy(r.Password ?? ""); _lg.Fail(ip, key); return LoginError(401, bad, ip, key); }
+        // Khóa tạm do nhập sai mã xác thực 2 lớp (chỉ người đã biết mật khẩu mới tới được bước này)
         if (u.LockoutUntil is { } until && until > DateTime.UtcNow)
-            return Error(423, $"Tài khoản tạm khóa do nhập sai mật khẩu nhiều lần. Thử lại sau {Math.Ceiling((until - DateTime.UtcNow).TotalMinutes)} phút.");
+            return Error(423, $"Tài khoản tạm khóa do nhập sai mã xác thực nhiều lần. Thử lại sau {Math.Ceiling((until - DateTime.UtcNow).TotalMinutes)} phút.");
         if (!Passwords.Verify(u, r.Password ?? ""))
         {
-            u.FailedCount++;
-            if (u.FailedCount >= MaxFailed) { u.LockoutUntil = DateTime.UtcNow + LockoutTime; u.FailedCount = 0; }
-            await Db.SaveChangesAsync();
-            return Error(401, bad);
+            _lg.Fail(ip, key);
+            if (_lg.Blocked(ip, key) is not null)
+            {
+                Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Chặn đăng nhập sai nhiều lần", Module = "Người dùng", Target = $"{u.Username} từ {ip}", Ip = ip });
+                await Db.SaveChangesAsync();
+            }
+            return LoginError(401, bad, ip, key);
         }
+        _lg.Success(ip, key);
         if (!u.Active) return Error(403, "Tài khoản đã bị khóa. Liên hệ quản trị hệ thống.");
         var g = u.GroupId is null ? null : await Db.Groups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == u.GroupId);
         if (_tf.Required(u, g))
@@ -269,7 +303,8 @@ public class AuthController : ApiControllerBase
         var u = await Db.Users.FirstAsync(x => x.Id == Uc.User.Id);
         if (!Passwords.Verify(u, r.Old ?? "")) return Error(400, "Mật khẩu hiện tại không đúng.");
         if (!Passwords.Strong(r.Password)) return Error(400, Passwords.WeakMessage);
-        u.PasswordHash = Passwords.Hash(u, r.Password);
+        if (r.Password == r.Old) return Error(400, "Mật khẩu mới phải khác mật khẩu hiện tại.");
+        u.PasswordHash = Passwords.Hash(u, r.Password); u.MustChangePassword = false;
         u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = u.Username;
         Uc.Log("Đổi mật khẩu", "Người dùng", u.Username);
         await Db.SaveChangesAsync();

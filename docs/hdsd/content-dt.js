@@ -67,7 +67,7 @@ function build() {
   ] });
   out.push(img('dt-dang-nhap-so', 'Màn hình đăng nhập trên điện thoại', 6.4));
   out.push(legend([[1, 'Ô nhập tên đăng nhập'], [2, 'Ô nhập mật khẩu'], [3, 'Nút Đăng nhập']]));
-  out.push({ note: 'Nhập sai mật khẩu 5 lần liên tiếp, tài khoản bị tạm khóa 15 phút.' });
+  out.push({ note: 'Nhập sai mật khẩu từ 3 lần, phần mềm hỏi thêm mã kiểm tra in trên ảnh: gõ dãy số trên ảnh rồi đăng nhập lại. Tài khoản không bị khóa.' });
   out.push({ h2: 'Bố cục màn hình' });
   out.push({ p: 'Sau khi đăng nhập, phần mềm mở trang **Hiện trường** gồm các ô thao tác nhanh. Các thành phần chính trên màn hình:' });
   out.push({ imgs2: ['dt-bo-cuc', 'dt-menu-day-du'], caps: ['Các thành phần trên màn hình', 'Menu chức năng đầy đủ'], mobile: true });
@@ -150,7 +150,7 @@ function build() {
     ['Không cài được ứng dụng', 'Chỉ cài tệp do quản trị hệ thống cung cấp. Nếu máy báo xung đột gói, gỡ ứng dụng cũ rồi cài lại và nhập lại địa chỉ máy chủ.'],
     ['Chụp nhầm ảnh hoặc tệp', 'Ảnh nhật ký: chạm Thêm ảnh, đánh dấu Bỏ ảnh này rồi Lưu. Tệp đính kèm: mở lại hộp nhập, chạm Gỡ rồi Lưu; tệp gỡ nhầm được quản trị hệ thống khôi phục trong 30 ngày.'],
     ['Không thấy một chức năng', 'Tài khoản chưa được phân quyền chức năng đó; đề nghị quản trị hệ thống xem lại.'],
-    ['Tài khoản bị tạm khóa', 'Do nhập sai mật khẩu 5 lần; chờ 15 phút hoặc đề nghị quản trị hệ thống đặt lại mật khẩu.'],
+    ['Phần mềm hỏi mã kiểm tra', 'Do đã nhập sai mật khẩu vài lần; gõ dãy số trên ảnh (chạm Đổi mã khác nếu khó đọc). Quên mật khẩu, đề nghị quản trị hệ thống đặt lại'],
   ] }, cap: 'Một số tình huống thường gặp trên điện thoại' });
   out.push({ p: 'Đầu mối hỗ trợ kỹ thuật: quản trị hệ thống của Ban Quản lý dự án; đơn vị phát triển phần mềm: Công ty Cổ phần Tin học Tri Thức. Khi báo lỗi, đề nghị ghi rõ tên đăng nhập, loại điện thoại, thời điểm, thao tác đang thực hiện và chụp màn hình thông báo lỗi (nếu có).' });
   return out;

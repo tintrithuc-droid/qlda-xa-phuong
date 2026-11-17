@@ -22,11 +22,19 @@ async function totp() {
   const h = require('crypto').createHmac('sha1', key).update(msg).digest(); const o = h[19] & 15;
   return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
 }
+// Tài khoản do quản trị tạo phải đặt mật khẩu riêng ở lần đăng nhập đầu: chụp màn hình một lần, rồi đổi sang mật khẩu tạm và đổi lại
+async function pwFirst(p) {
+  if (!(await p.$('#pwfirst'))) return;
+  const f = path.join(__dirname, 'shots', 'chung-doi-mat-khau-lan-dau.png');
+  if (!fs.existsSync(f)) await p.screenshot({ path: f });
+  await p.evaluate(async pw => { for (const [o, n] of [[pw, pw + 'x'], [pw + 'x', pw]]) await fetch('/api/auth/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: JSON.stringify({ old: o, password: n }) }); }, PW);
+  await p.reload(); await p.waitForSelector('#app', { timeout: 20000 });
+}
 async function login(p, u) {
   await p.goto(BASE + '/'); await p.waitForSelector('#login,#app', { timeout: 20000 });
   if (await p.$('#login')) {
     await p.fill('#lg_user', u); await p.fill('#lg_pw', PW); await p.click('#login button[type=submit]');
-    await p.waitForSelector('#app,#mfa', { timeout: 20000 });
+    await p.waitForSelector('#app,#mfa,#pwfirst', { timeout: 20000 }); await pwFirst(p);
     if (await p.$('#mfa')) { await p.fill('#mf_code', await totp()); await p.click('#mfa button[type=submit]'); await p.waitForSelector('#app', { timeout: 20000 }); }
   }
   await wait(400);
@@ -219,7 +227,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await shot(p, 'kt-lap-dot-nghiem-thu', '#ov .mform', [{ sel: '#ov .fld', text: 'Tên đợt', n: 1 }, { sel: '#ov .fld', text: 'Số biên bản', n: 2 }, { sel: '#vb_copy', n: 3 }, { sel: '#vb_q', n: 4 }, { sel: '#ov .vb-grid thead th:nth-child(7)', n: 5 }, { sel: '#ov .vb-grid tfoot', n: 6 }]);
   await p.click('#mform [type=submit]'); await wait(900); await closeModal(p);
   await tab(p, 'Theo dõi nghiệm thu'); await p.evaluate(() => { const b = document.querySelector('.vb-list [data-act=vb-toggle]'); if (b) b.click(); }); await wait(400);
-  await shot(p, 'kt-nghiem-thu', undefined, [{ sel: '.vb-list .vb', n: 1 }, { sel: '.vb-list [data-act=wf]', text: 'Trình duyệt', n: 2 }, { sel: '.vb-list [data-act=vb-edit]', n: 3 }, { sel: '.card [data-act=imp]', n: 4 }]);
+  await shot(p, 'kt-nghiem-thu', undefined, [{ sel: '.vb-list .vb', n: 1 }, { sel: '.vb-list [data-act=wf]', text: 'Chuyển duyệt', n: 2 }, { sel: '.vb-list [data-act=vb-edit]', n: 3 }, { sel: '.card [data-act=imp]', n: 4 }]);
   await tab(p, 'Tổng hợp'); await shot(p, 'kt-tong-hop-khoi-luong');
   // phiên bản 1.1: giải phóng mặt bằng, nghiệm thu – bàn giao – bảo hành
   await go(p, 'gpmb'); await shot(p, 'gpmb', 'full', [{ sel: '.content .grid.g4', n: 1 }, { sel: '[data-act=add-clearances]', n: 2 }, { sel: '.content .card', text: 'Tiến độ bồi thường', n: 3 }]);
@@ -319,8 +327,8 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await p.evaluate(async () => { const c = D('contracts').find(x => x.id === 'c1') || D('contracts')[0];
     await Store.put('addenda', { id: 'pl-hd', contractId: c.id, number: 'PL02', date: TODAY, content: 'Điều chỉnh khối lượng nền đường đoạn Km0+350 – Km0+620', valueChange: 180000000, daysChange: 15 }); });
   await go(p, 'goi-thau'); await click(p, '.content tr.click', 'XL01'); await scrollTo(p, '.card', 'Điều chỉnh, phụ lục');
-  await shot(p, 'v12-kt-phu-luc', undefined, [{ sel: '.card:has([data-act=add-addendum]) .pill', text: 'Soạn thảo', n: 1 }, { sel: '[data-act=wf]', text: 'Trình duyệt', n: 2 }, { sel: '.card:has([data-act=add-addendum]) .pill', text: 'Đã duyệt', n: 3 }]);
-  await click(p, '[data-act=wf]', 'Trình duyệt'); await p.fill('#f_note', 'Kèm văn bản đề nghị số 45/CV-NT của nhà thầu');
+  await shot(p, 'v12-kt-phu-luc', undefined, [{ sel: '.card:has([data-act=add-addendum]) .pill', text: 'Soạn thảo', n: 1 }, { sel: '[data-act=wf]', text: 'Chuyển duyệt', n: 2 }, { sel: '.card:has([data-act=add-addendum]) .pill', text: 'Đã duyệt', n: 3 }]);
+  await click(p, '[data-act=wf]', 'Chuyển duyệt'); await p.fill('#f_note', 'Kèm văn bản đề nghị số 45/CV-NT của nhà thầu');
   await shot(p, 'v12-trinh', '#ov .mform'); await p.click('#mform [type=submit]'); await wait(600);
   await p.context().close();
   // Lãnh đạo Ban duyệt, trả lại
@@ -339,7 +347,7 @@ async function scrollTo(p, sel, text) { await p.evaluate(([s, t]) => { const e =
   await click(p, '[data-act=theme]'); await wait(300); // trả về Tự động theo máy (sáng) cho các ảnh sau
   await p.context().close();
   p = await newPage(DESK); await login(p, 'kythuat'); await go(p, 'trinh-duyet'); await p.click('button[data-g="td2"][data-id="soan"]'); await wait(300);
-  await shot(p, 'v12-kt-bi-tra-lai', undefined, [{ sel: '.content .tabs button', text: 'Đang soạn thảo', n: 1 }, { sel: '.content td .small.muted', text: 'Trả lại', n: 2 }, { sel: '[data-act=wf]', text: 'Trình duyệt', n: 3 }]);
+  await shot(p, 'v12-kt-bi-tra-lai', undefined, [{ sel: '.content .tabs button', text: 'Tôi đang soạn', n: 1 }, { sel: '.content td .small.muted', text: 'Trả lại', n: 2 }, { sel: '[data-act=wf]', text: 'Chuyển duyệt', n: 3 }]);
   await p.context().close();
   p = await newPage(DESK); await login(p, 'admin'); await go(p, 'quan-tri'); await tab(p, 'Nhật ký hoạt động'); await wait(300);
   await p.evaluate(() => document.querySelector('.content .pager').scrollIntoView({ block: 'center' })); await wait(200);

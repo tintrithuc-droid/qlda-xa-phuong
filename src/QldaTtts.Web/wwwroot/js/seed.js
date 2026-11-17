@@ -253,7 +253,7 @@ function defaultCatalogs(){
     'Hình thức lựa chọn nhà thầu':['Đấu thầu rộng rãi','Đấu thầu hạn chế','Chỉ định thầu','Chỉ định thầu rút gọn','Chào hàng cạnh tranh','Mua sắm trực tuyến','Đàm phán giá','Lựa chọn nhà thầu trong trường hợp đặc biệt','Tham gia thực hiện của cộng đồng','Tự thực hiện'],
     'Trạng thái gói thầu':['Chưa lựa chọn nhà thầu','Đang lựa chọn nhà thầu','Đang thực hiện hợp đồng','Đã nghiệm thu','Đã thanh lý hợp đồng'],
     'Loại hợp đồng':['Trọn gói','Đơn giá cố định','Đơn giá điều chỉnh','Theo thời gian','Hỗn hợp'],
-    'Đơn vị tính':['m','m2','m3','tấn','cái','cột','cây','trạm','HT','gói','bộ'],
+    'Đơn vị tính':['m','m2','m3','tấn','cái','cột','cây','trạm','HT','gói','bộ','100m','100m2','100m3','km','kg','lít','viên','tấm','md','trụ','cấu kiện','1 cấu kiện','công','ca','lần','điểm','hố','mối nối'],
     'Thời tiết':['Nắng','Âm u','Mưa','Mưa chiều','Mưa lớn'],
     'Định dạng mô hình':['IFC','RVT','DWG','NWD','PDF','SKP'],
     'Loại thanh toán':['Tạm ứng','Thanh toán khối lượng','Thu hồi tạm ứng','Quyết toán'],

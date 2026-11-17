@@ -210,6 +210,8 @@ public class BoqItem : EntityBase, IHasContract
 {
     [MaxLength(64)] public string? ContractId { get; set; }
     [MaxLength(50)] public string? Code { get; set; }
+    /// <summary>Nhóm công việc (phần, hạng mục) theo bảng khối lượng, ví dụ "1. PHẦN ĐƯỜNG GIAO THÔNG".</summary>
+    [MaxLength(300)] public string? Section { get; set; }
     [MaxLength(500)] public string Name { get; set; } = "";
     [MaxLength(30)] public string? Unit { get; set; }
     public double? Qty { get; set; }

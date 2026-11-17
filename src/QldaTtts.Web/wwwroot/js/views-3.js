@@ -3,7 +3,8 @@ function pickContract(key){ const list=contractOpts(S.pid); let c=S.f[key]; if(!
 VIEWS['khoi-luong']=()=>{
   const cid=pickContract('klc'); const c=cid&&get('contracts',cid); const ed=can('khoi-luong','edit');
   if(!c) return `<div class="head"><div class="grow"><h1>Quản lý khối lượng</h1></div></div>`+emptyBox('Chưa có hợp đồng. Hãy nhập hợp đồng ở phân hệ Gói thầu và hợp đồng.');
-  const cv=contractValue(c); const bq=D('boq').filter(b=>b.contractId===cid).sort(by('code'));
+  const cv=contractValue(c); const bq=D('boq').filter(b=>b.contractId===cid).sort((a,b)=>byCode(a,b));
+  if(bq.some(b=>b.section)){ const first={}; bq.forEach((b,i)=>{ const k=b.section||''; if(!(k in first)) first[k]=i; }); bq.sort((a,b)=>first[a.section||'']-first[b.section||'']||byCode(a,b)); }
   const rows=bq.map(b=>({...b, val:N(b.qty)*N(b.price), dq:boqDone(b), aq:boqAcc(b)}));
   const tv=sum(rows,'val'), td=sum(rows,r=>r.dq*N(r.price)), ta=sum(rows,r=>r.aq*N(r.price)), paid=contractPaid(cid);
   const vols=D('volumes').filter(v=>v.contractId===cid).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -16,7 +17,7 @@ VIEWS['khoi-luong']=()=>{
   let body='';
   if(t==='hd') body=`<div class="card"><div class="ch"><h2>Bảng khối lượng hợp đồng</h2>${ed?`<button class="btn sm" data-act="imp" data-id="boq|${cid}">Nhập từ Excel</button><button class="btn sm" data-act="add-boq" data-id="${cid}">+ Thêm công việc</button><button class="btn primary sm" data-act="vb-new" data-id="${cid}">+ Lập đợt nghiệm thu</button>`:''}</div>
     ${table([{h:'Mã',k:'code'},{h:'Nội dung công việc',k:'name'},{h:'ĐVT',k:'unit'},{h:'KL hợp đồng',r:1,f:r=>fmtN(r.qty,2)},{h:'Đơn giá',r:1,f:r=>fmtVND(r.price)},{h:'Thành tiền',r:1,f:r=>fmtVND(r.val)},{h:'KL thực hiện lũy kế',r:1,f:r=>fmtN(r.dq,2)},{h:'% thực hiện',f:r=>`<div style="min-width:110px">${progBar(pct(r.dq,r.qty), r.dq>r.qty?'bad':'')}</div>`},{h:'KL nghiệm thu',r:1,f:r=>fmtN(r.aq,2)},{h:'Giá trị nghiệm thu',r:1,f:r=>fmtVND(r.aq*N(r.price))}],
-      rows, {actions:r=>editBtns('khoi-luong','boq',r.id), empty:'Chưa có bảng khối lượng hợp đồng.', foot:['Tổng cộng','','','','',fmtVND(tv),'',fmtP(pct(td,tv)),'',fmtVND(ta)]})}
+      rows, {actions:r=>editBtns('khoi-luong','boq',r.id), empty:'Chưa có bảng khối lượng hợp đồng.', group:boqGroupLabel(rows), foot:['Tổng cộng','','','','',fmtVND(tv),'',fmtP(pct(td,tv)),'',fmtVND(ta)]})}
     <div class="small" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>Bảng khối lượng, dự toán gốc của hợp đồng:</b> ${attLinks(atts('contracts',cid,'Bảng khối lượng hợp đồng'))}${ed?`<button class="btn sm ghost" data-act="att-boq" data-id="${cid}">${AICO.clip} Đính kèm / gỡ tệp</button>`:''}</div>
     ${Math.abs(tv-cv)>1 && rows.length?`<div class="alert info" style="margin-top:10px">Tổng thành tiền bảng khối lượng (${fmtVND(tv)} đ) khác giá trị hợp đồng sau điều chỉnh (${fmtVND(cv)} đ), chênh lệch ${fmtVND(cv-tv)} đ.</div>`:''}
     ${rows.some(r=>r.dq>r.qty)?`<div class="alert bad" style="margin-top:10px">Có công việc vượt khối lượng hợp đồng, cần lập phụ lục điều chỉnh trước khi thanh toán.</div>`:''}</div>`;
@@ -31,9 +32,13 @@ VIEWS['khoi-luong']=()=>{
     <div class="card kpi"><div class="eyebrow">Đã thanh toán</div><div class="v">${fmtTy(paid)}</div><div class="s">Nghiệm thu chưa thanh toán ${fmtTy(Math.max(0,ta-paid))}</div></div></div>
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="kl" data-id="${k}">${l}</button>`).join('')}</div>${body}`;
 };
-const boqFields=()=>[{key:'code',label:'Mã hiệu',req:true},{key:'unit',label:'Đơn vị tính',type:'select',options:()=>catalog('Đơn vị tính'),req:true},{key:'name',label:'Nội dung công việc',req:true,full:true},{key:'qty',label:'Khối lượng hợp đồng',type:'number',req:true},{key:'price',label:'Đơn giá (đồng)',type:'money',req:true}];
-ACT['add-boq']=(cid)=>openForm({title:'Thêm công việc vào bảng khối lượng hợp đồng', fields:boqFields(), onSave:v=>save('boq',{...v, contractId:cid})});
-ACT['edit-boq']=(id)=>openForm({title:'Cập nhật công việc', fields:boqFields(), value:get('boq',id), onSave:v=>save('boq',v)});
+/* Dòng nhóm công việc (phần, hạng mục) trong bảng khối lượng: tên nhóm + thành tiền của nhóm */
+function boqGroupLabel(rows){ if(!rows.some(r=>r.section)) return null; const t={}; rows.forEach(r=>{ const k=r.section||''; t[k]=(t[k]||0)+N(r.qty)*N(r.price); });
+  return r=>{ const k=r.section||''; return `${esc(k||'Công việc chưa xếp nhóm')}<span class="muted" style="float:right;font-weight:600">${fmtVND(t[k])} đ</span>`; }; }
+function boqSections(cid){ return [...new Set(D('boq').filter(b=>b.contractId===cid && b.section).sort(byCode).map(b=>b.section))]; }
+const boqFields=(cid)=>[{key:'code',label:'Mã hiệu',req:true},{key:'unit',label:'Đơn vị tính',type:'select',options:()=>catalog('Đơn vị tính'),req:true},{key:'section',label:'Nhóm công việc (phần, hạng mục)',full:true,suggest:()=>boqSections(cid),hint:'Không bắt buộc. Bấm chọn nhóm đã có hoặc gõ tên nhóm mới, ví dụ: 1. PHẦN ĐƯỜNG GIAO THÔNG'},{key:'name',label:'Nội dung công việc',req:true,full:true},{key:'qty',label:'Khối lượng hợp đồng',type:'number',req:true},{key:'price',label:'Đơn giá (đồng)',type:'money',req:true}];
+ACT['add-boq']=(cid)=>openForm({title:'Thêm công việc vào bảng khối lượng hợp đồng', fields:boqFields(cid), onSave:v=>save('boq',{...v, contractId:cid})});
+ACT['edit-boq']=(id)=>openForm({title:'Cập nhật công việc', fields:boqFields((get('boq',id)||{}).contractId), value:get('boq',id), onSave:v=>save('boq',v)});
 ACT['att-boq']=(cid)=>attachForm('Bảng khối lượng, dự toán gốc của hợp đồng','contracts',cid,'Bảng khối lượng hợp đồng',{label:'Tệp bảng khối lượng / dự toán (Excel, PDF…)'});
 
 /* ===== ĐỢT NGHIỆM THU KHỐI LƯỢNG (bản 1.7, mục 27–30) =====
@@ -71,7 +76,9 @@ ACT['vb-del']=async(id)=>{ const b=get('vbatches',id); if(!b) return; const vs=D
   if(!await confirmBox(`Xóa <b>${esc(b.name)}</b> cùng ${vs.length} dòng khối lượng của đợt? Thao tác này không hoàn tác được.`)) return;
   try{ for(const v of vs) await Store.del('volumes', v.id); await Store.del('vbatches', id); toast('Đã xóa đợt nghiệm thu'); }catch(ex){ toast(errText(ex),'err'); } };
 /** Tên đợt mới: Đợt n, với n lớn hơn số đợt lớn nhất đã có của hợp đồng (không tự nhảy khi thêm công việc vào cùng đợt). */
-function vbNextName(cid){ const ns=vbList(cid).map(b=>+(String(b.name).match(/(\d+)\s*$/)||[])[1]||0); return 'Đợt '+((ns.length?Math.max(...ns):0)+1); }
+/* Chỉ lấy số đứng sau chữ "Đợt" (tối đa 3 chữ số), không bắt nhầm năm trong "Lũy kế đến 31/12/2024" của dữ liệu đầu kỳ */
+const volPeriodNo = p => { const m=/(?:^|[^\p{L}])đợt\s*(?:số\s*|thứ\s*)?0*(\d{1,3})(?!\d)/iu.exec(String(p||'')); return m? +m[1] : 0; };
+function vbNextName(cid){ const ns=vbList(cid).map(b=>volPeriodNo(b.name)); return 'Đợt '+((ns.length?Math.max(...ns):0)+1); }
 function vbForm(cid, b){
   const bq=D('boq').filter(x=>x.contractId===cid).sort((x,y)=>String(x.code).localeCompare(String(y.code),'vi',{numeric:true}));
   if(!bq.length) return toast('Hợp đồng chưa có bảng khối lượng. Hãy nhập bảng khối lượng hợp đồng trước.','err');
@@ -85,7 +92,7 @@ function vbForm(cid, b){
     </tbody><tfoot><tr><td colspan="6">Giá trị của đợt</td><td class="r num" id="vb_td">0</td><td class="r num" id="vb_ta">0</td></tr></tfoot></table></div>
     <p class="small muted" style="margin:6px 0 0">Khối lượng nghiệm thu đợt này được lớn hơn khối lượng thực hiện đợt này (nghiệm thu phần đã thi công ở đợt trước), miễn là lũy kế nghiệm thu không vượt lũy kế thực hiện. Dòng tô đỏ: lũy kế nghiệm thu vượt lũy kế thực hiện; tô vàng: lũy kế thực hiện vượt khối lượng hợp đồng.</p>`;
   openForm({title:(b?'Sửa ':'Lập ')+'đợt nghiệm thu khối lượng'+(b?': '+b.name:''), wide:true, value:b||{name:vbNextName(cid), date:TODAY},
-    fields:[{key:'name',label:'Tên đợt',req:true},{key:'number',label:'Số biên bản nghiệm thu'},{key:'date',label:'Ngày nghiệm thu',type:'date',req:true},{key:'note',label:'Ghi chú'},
+    fields:[{key:'name',label:'Tên đợt',req:true,suggest:()=>b?[]:[vbNextName(cid)]},{key:'number',label:'Số biên bản nghiệm thu'},{key:'date',label:'Ngày nghiệm thu',type:'date',req:true},{key:'note',label:'Ghi chú'},
       {key:'grid',type:'html',label:'Khối lượng các công việc trong đợt',full:true,html:grid},
       {key:'att',label:'Biên bản nghiệm thu của đợt (bản scan PDF, ảnh)',type:'attach',col:'vbatches',kind:'Biên bản nghiệm thu',full:true}],
     onSave:async v=>{ const err=$('#mform_err'); const lines=vbRead(); const bad=[], over=[];
@@ -110,8 +117,8 @@ function vbForm(cid, b){
 }
 function vbRead(){ return [...$('#ov').querySelectorAll('.vb-grid tbody tr')].map(tr=>({id:tr.dataset.b, d:N(tr.querySelector('[data-k=d]').value), a:N(tr.querySelector('[data-k=a]').value)})); }
 /* Sửa một dòng khối lượng cũ (dữ liệu trước bản 1.7, chưa thuộc đợt nào) */
-const volFields=(cid)=>[{key:'boqId',label:'Công việc',type:'select',options:()=>D('boq').filter(b=>b.contractId===cid).sort(by('code')).map(b=>[b.id, b.code+' · '+b.name+' ('+b.unit+')']),req:true,full:true},
-  {key:'date',label:'Ngày',type:'date',req:true,def:TODAY},{key:'period',label:'Đợt / kỳ',req:true},
+const volFields=(cid)=>[{key:'boqId',label:'Công việc',type:'select',options:()=>D('boq').filter(b=>b.contractId===cid).sort(byCode).map(b=>[b.id, b.code+' · '+b.name+' ('+b.unit+')']),req:true,full:true},
+  {key:'date',label:'Ngày',type:'date',req:true,def:TODAY},{key:'period',label:'Đợt / kỳ',req:true,suggest:()=>vbList(cid).map(b=>b.name)},
   {key:'doneQty',label:'Khối lượng thực hiện trong kỳ',type:'number',req:true},{key:'acceptedQty',label:'Khối lượng được nghiệm thu',type:'number',def:0},{key:'note',label:'Số biên bản nghiệm thu / ghi chú',full:true}];
 /** Mục 29: kiểm tra theo lũy kế: lũy kế nghiệm thu không vượt lũy kế thực hiện; vượt khối lượng hợp đồng thì nhắc. */
 function volCheck(v, self){ const b=get('boq',v.boqId); const done=boqDone(b)-(self?N(self.doneQty):0)+N(v.doneQty), acc=boqAccAll(b)-(self?N(self.acceptedQty):0)+N(v.acceptedQty);

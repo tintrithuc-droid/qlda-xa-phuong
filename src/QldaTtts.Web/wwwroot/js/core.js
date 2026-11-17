@@ -72,7 +72,7 @@ const MODULES = [
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
 const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao'];
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -93,7 +93,9 @@ const pad = n => String(n).padStart(2,'0');
 const isoLocal = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const TODAY = isoLocal(new Date());
 const fmtDate = d => d ? String(d).slice(0,10).split('-').reverse().join('/') : '—';
-const fmtDT = s => { if(!s) return '—'; const d=new Date(s); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes()); };
+/* Giờ máy chủ thiếu múi giờ (không có Z/+07:00) là giờ UTC → thêm 'Z' để trình duyệt đổi đúng sang giờ Việt Nam */
+const parseTs = s => (typeof s==='string' && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s))? new Date(s.replace(' ','T')+'Z') : new Date(s);
+const fmtDT = s => { if(!s) return '—'; const d=parseTs(s); return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes()); };
 const N = v => Number(v)||0;
 const fmtN = (v,dg=0) => (v==null||v==='')?'—':Number(v).toLocaleString('vi-VN',{maximumFractionDigits:dg});
 const fmtVND = v => (v==null||v==='')?'—':Math.round(Number(v)).toLocaleString('vi-VN');
@@ -204,6 +206,8 @@ function inFilter(pid){ return pidOk(pid) && (!S.pid || S.pid===pid); }
 /* --- tính toán nghiệp vụ --- */
 const pkgOf = id => get('packages',id);
 const projOf = id => get('projects',id);
+/** Sắp xếp mã hiệu tự nhiên: 1.2 trước 1.10 */
+const byCode = (a,b)=> String(a.code??'').localeCompare(String(b.code??''),'vi',{numeric:true});
 const contractOfPkg = kid => D('contracts').find(c=>c.packageId===kid);
 const contractPid = c => c.projectId || (pkgOf(c.packageId)||{}).projectId;
 /* Phụ lục hợp đồng: chỉ phụ lục đã duyệt mới cộng vào giá trị, thời hạn hợp đồng (phụ lục nhập trước bản 1.2 không có trạng thái, coi là đã duyệt) */
@@ -273,7 +277,21 @@ function projProgress(pid){ const p=projOf(pid); if(p && /hoàn thành|quyết t
 function projExpected(pid){ return vavg(SCHED().filter(s=>s.projectId===pid), s=>expectedPct(s)); }
 function pkgProgress(kid){ return wavg(SCHED().filter(s=>s.packageId===kid), s=>N(s.progress)); }
 function pkgExpected(kid){ return wavg(SCHED().filter(s=>s.packageId===kid), s=>expectedPct(s)); }
-function itemProgress(it){ const ss=SCHED().filter(s=>s.itemId===it.id); return ss.length? vavg(ss,s=>N(s.progress)) : N(it.progress); }
+/* Hạng mục không có đầu việc tiến độ riêng → dự án đã hoàn thành thì 100%, chưa thì kế thừa tiến độ chung của dự án (nếu chưa tự nhập %). */
+const projDone = p => !!p && /hoàn thành|quyết toán|kết thúc/i.test((p.status||'')+' '+(p.phase||''));
+function itemProgress(it){ const ss=SCHED().filter(s=>s.itemId===it.id); if(ss.length) return vavg(ss,s=>N(s.progress)); const p=projOf(it.projectId); if(projDone(p)) return 100; return N(it.progress)|| (SCHED().some(s=>s.projectId===it.projectId)? projProgress(it.projectId) : 0); }
+function itemInherited(it){ return !SCHED().some(s=>s.itemId===it.id) && !N(it.progress) && (projDone(projOf(it.projectId)) || SCHED().some(s=>s.projectId===it.projectId)); }
+/* Gói thầu không theo dõi tiến độ thi công (tư vấn, mua sắm… hoặc chưa lập đầu việc) → tiến độ theo giá trị nghiệm thu
+   (HĐ không có bảng khối lượng thì theo giá trị đã thanh toán); gói đã nghiệm thu, thanh lý, hoàn thành → 100%. */
+const pkgClosed = k => !!k && /đã nghiệm thu|thanh lý|hoàn thành|quyết toán/i.test(k.status||'');
+function pkgTrack(k){
+  if(pkgClosed(k)) return {v:100, plan:100, mode:'done'};
+  const hasSch=SCHED().some(s=>s.packageId===k.id);
+  if(hasSch && (!k.type || /xây lắp|hỗn hợp/i.test(k.type))) return {v:pkgProgress(k.id), plan:pkgExpected(k.id), mode:'sched'};
+  const c=contractOfPkg(k.id); const cv=c? contractValue(c):0;
+  const got= !c?0 : D('boq').some(b=>b.contractId===c.id)? contractAcc(c.id) : contractPaid(c.id);
+  return {v: cv? Math.min(100,pct(got,cv)) : (hasSch? pkgProgress(k.id):0), plan: hasSch? pkgExpected(k.id) : null, mode:'acc'};
+}
 /* --- vốn đầu tư công, giải ngân (phân hệ Kế hoạch vốn) --- */
 const CAP_MINUS = 'Điều chỉnh giảm kế hoạch năm';
 const isAnnualCap = c => c.kind && !/trung hạn/i.test(c.kind);
@@ -436,7 +454,10 @@ function table(cols, rows, o={}){
     pg=pager(key, rows.length, page, size); rows=rows.slice((page-1)*size, page*size);
   }
   const head = cols.map(c=>`<th class="${c.r?'r':''}">${esc(c.h)}</th>`).join('') + (o.actions?'<th></th>':'');
-  const body = rows.map(r=>`<tr class="${o.rowAct?'click':''}" ${o.rowAct?`data-act="${o.rowAct}" data-id="${esc(r.id)}"`:''}>${cols.map(c=>`<td class="${c.r?'r':''}" data-label="${esc(c.h)}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}${o.actions?`<td class="acts">${o.actions(r)}</td>`:''}</tr>`).join('');
+  /* o.group(r): nhãn nhóm của dòng (phần, hạng mục của bảng khối lượng); đổi nhóm thì chèn một dòng tiêu đề nhóm */
+  const nc=cols.length+(o.actions?1:0); let gPrev;
+  const grpRow=(r,ri)=>{ if(!o.group) return ''; const g=o.group(r)||''; if(ri>0 && g===gPrev) return ''; gPrev=g; return g?`<tr class="grp"><td colspan="${nc}">${g}</td></tr>`:''; };
+  const body = rows.map((r,ri)=>grpRow(r,ri)+`<tr class="${o.rowAct?'click':''}" ${o.rowAct?`data-act="${o.rowAct}" data-id="${esc(r.id)}"`:''}>${cols.map(c=>`<td class="${c.r?'r':''}" data-label="${esc(c.h)}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}${o.actions?`<td class="acts">${o.actions(r)}</td>`:''}</tr>`).join('');
   /* dòng tổng cũng gắn nhãn cột: trên điện thoại bảng thành thẻ, thiếu nhãn thì chỉ thấy một cột số (góp ý Triển khai, mục 14) */
   const foot = o.foot? `<tfoot><tr>${o.foot.map((f,i)=>`<td class="${cols[i]&&cols[i].r?'r':''}"${i&&cols[i]?` data-label="${esc(cols[i].h)}"`:''}>${f??''}</td>`).join('')}${o.actions?'<td></td>':''}</tr></tfoot>`:'';
   return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>${pg}`;
@@ -444,6 +465,9 @@ function table(cols, rows, o={}){
 const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>` : extra;
 
 /* Hộp thoại biểu mẫu */
+/* Ô chữ có danh sách gợi ý (datalist + thẻ chọn nhanh 1 chạm); vẫn cho gõ giá trị mới */
+function fieldSuggest(f){ if(!f.suggest) return []; const l=typeof f.suggest==='function'?f.suggest():f.suggest; return [...new Set((l||[]).map(x=>String(x||'').trim()).filter(Boolean))]; }
+const normKey = x => String(x||'').normalize('NFC').replace(/\s+/g,' ').trim().toLocaleLowerCase('vi');
 function fieldHTML(f, v, rec={}){
   const id='f_'+f.key, req=f.req?' <span class="req">*</span>':'';
   const cls='fld'+(f.full||f.type==='textarea'||f.type==='works'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'');
@@ -461,7 +485,8 @@ function fieldHTML(f, v, rec={}){
     case 'files': input=`<input id="${id}" type="file" ${f.multiple?'multiple':''} accept="${esc(f.accept||'')}">${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break;
     case 'attach': input=attachHTML(f, rec); break;
     case 'html': input=f.html; break;
-    default: input=`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(f.ph||'')}">`;
+    default: { const sg=fieldSuggest(f);
+      input=`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(f.ph||'')}"${sg.length?` list="${id}_dl" autocomplete="off"`:''}>${sg.length?`<datalist id="${id}_dl">${sg.map(o=>`<option value="${esc(o)}"></option>`).join('')}</datalist><div class="chips" data-chips-for="${id}">${sg.slice(0,12).map(o=>`<button type="button" class="chip${o===val?' on':''}" data-chip="${esc(o)}" title="Chọn nhanh">${esc(o)}</button>`).join('')}</div>`:''}${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; }
   }
   return `<div class="${cls}"><label for="${id}">${esc(f.label)}${req}</label>${input}</div>`;
 }
@@ -477,6 +502,8 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu'}
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
   fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
+  ov.querySelectorAll('[data-chips-for]').forEach(box=>{ const inp=$('#'+box.dataset.chipsFor); const mark=()=>box.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', normKey(c.dataset.chip)===normKey(inp.value)));
+    box.addEventListener('click',e=>{ const c=e.target.closest('[data-chip]'); if(!c) return; e.preventDefault(); inp.value=c.dataset.chip; inp.dispatchEvent(new Event('input',{bubbles:true})); mark(); }); inp.addEventListener('input',mark); });
   /* Ô chọn phụ thuộc ô khác (dep): đổi ô gốc thì nạp lại danh sách */
   fields.filter(f=>f.dep && f.type==='select').forEach(f=>{ const src=$('#f_'+f.dep), el=$('#f_'+f.key); if(!src||!el) return;
     const fill=()=>{ const cur=el.value; el.innerHTML=opts(f.options(src.value), cur, f.req?null:'— Chọn —'); };
@@ -493,7 +520,7 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu'}
       else if(f.type==='password') v[f.key]=el.value;
       else if(f.type==='works'){ const r=worksRead(el); if(r.err){ err.textContent=r.err; return; } v[f.key]=r.text; }
       else if(['money','number','percent'].includes(f.type)) v[f.key]= el.value===''? null : Number(el.value);
-      else v[f.key]=el.value.trim();
+      else { v[f.key]=el.value.replace(/\s+/g,' ').trim(); if(f.suggest && v[f.key]){ const hit=fieldSuggest(f).find(o=>normKey(o)===normKey(v[f.key])); if(hit) v[f.key]=hit; } }
       if(f.req && (v[f.key]==null || v[f.key]==='' || (Array.isArray(v[f.key])&&!v[f.key].length))){ err.textContent='Vui lòng nhập "'+f.label+'".'; el.focus&&el.focus(); return; }
       if(f.type==='percent' && v[f.key]!=null && (v[f.key]<0||v[f.key]>100)){ err.textContent='"'+f.label+'" phải từ 0 đến 100.'; return; }
     }

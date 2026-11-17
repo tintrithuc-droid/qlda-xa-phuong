@@ -137,6 +137,8 @@ public class DataController : ApiControllerBase
         }
         // Dòng khối lượng thuộc đợt nghiệm thu (bản 1.7): đợt đang chờ hoặc đã duyệt thì khóa với người không có quyền duyệt
         if (obj is VolumeEntry ve && await VolumeLock(ve, existing as VolumeEntry) is { } vmsg) return Denied(vmsg);
+        // Hợp đồng tư vấn giai đoạn chuẩn bị đầu tư nghiệm thu theo giá trị sản phẩm: lũy kế nghiệm thu không vượt giá trị sản phẩm
+        if (obj is VolumeEntry pv && await PrepOver(pv) is { } pmsg) return Error(409, pmsg);
 
         obj.UpdatedAt = DateTime.UtcNow; obj.UpdatedBy = Uc.User.Username;
         if (existing is null) Db.Add(obj); else Db.Entry(existing).CurrentValues.SetValues(obj);
@@ -181,6 +183,20 @@ public class DataController : ApiControllerBase
         Uc.Log("Xóa", def.Label, Collections.LabelOf(existing));
         await Db.SaveChangesAsync();
         return Ok(new { deleted = true });
+    }
+
+    private async Task<string?> PrepOver(VolumeEntry v)
+    {
+        if (string.IsNullOrEmpty(v.BoqId) || !await Phases.IsPrepContract(Db, v.ContractId)) return null;
+        var b = await Db.Boq.AsNoTracking().FirstOrDefaultAsync(x => x.Id == v.BoqId);
+        if (b is null) return null;
+        var rejected = await Db.VolumeBatches.AsNoTracking().Where(x => x.ContractId == v.ContractId && x.Status == "Từ chối").Select(x => x.Id).ToListAsync();
+        var others = await Db.Volumes.AsNoTracking().Where(x => x.BoqId == v.BoqId && x.Id != v.Id).ToListAsync();
+        var acc = others.Where(x => x.BatchId is null || !rejected.Contains(x.BatchId)).Sum(x => x.AcceptedQty ?? 0) + (v.AcceptedQty ?? 0);
+        var qty = b.Qty ?? 0;
+        if (acc <= qty * 1.0001 + 1e-9) return null;
+        var price = b.Price ?? 0;
+        return $"Lũy kế nghiệm thu sản phẩm \"{b.Name}\" ({acc * (double)price:N0} đồng) vượt giá trị theo hợp đồng ({qty * (double)price:N0} đồng). Cần phụ lục điều chỉnh hợp đồng trước.";
     }
 
     private async Task<string?> VolumeLock(VolumeEntry v, VolumeEntry? old)

@@ -25,8 +25,8 @@ const DK_SHEETS = [
     ex:['DA-01','HM01','Mặt đường bê tông xi măng','BTXM M300 dày 20 cm',8400,0,'']},
   {key:'packages', sheet:'05 Goi thau', label:'Gói thầu', who:'kt', note:'Theo kế hoạch lựa chọn nhà thầu đã duyệt.',
     cols:[{key:'projectCode',h:'Mã dự án',req:true},{key:'code',h:'Mã gói thầu',req:true},{key:'name',h:'Tên gói thầu',req:true},{key:'type',h:'Loại gói thầu',cat:'Loại gói thầu'},
-      {key:'method',h:'Hình thức lựa chọn nhà thầu',cat:'Hình thức lựa chọn nhà thầu'},{key:'estimate',h:'Giá gói thầu (đồng)',type:'num'},{key:'status',h:'Trạng thái',cat:'Trạng thái gói thầu'},{key:'duration',h:'Thời gian thực hiện'}],
-    ex:['DA-01','XL01','Thi công xây dựng công trình','Xây lắp','Chỉ định thầu rút gọn',11200000000,'Đang thực hiện hợp đồng','180 ngày']},
+      {key:'method',h:'Hình thức lựa chọn nhà thầu',cat:'Hình thức lựa chọn nhà thầu'},{key:'estimate',h:'Giá gói thầu (đồng)',type:'num'},{key:'status',h:'Trạng thái',cat:'Trạng thái gói thầu'},{key:'duration',h:'Thời gian thực hiện'},{key:'phase',h:'Giai đoạn (Chuẩn bị đầu tư / Thực hiện đầu tư)'}],
+    ex:['DA-01','XL01','Thi công xây dựng công trình','Xây lắp','Chỉ định thầu rút gọn',11200000000,'Đang thực hiện hợp đồng','180 ngày','Thực hiện đầu tư']},
   {key:'contracts', sheet:'06 Hop dong', label:'Hợp đồng', who:'kt', note:'Hợp đồng đã ký. Số hợp đồng là mã liên kết ở các trang 07, 08, 10, 11, 12.',
     cols:[{key:'projectCode',h:'Mã dự án',req:true},{key:'packageCode',h:'Mã gói thầu',req:true},{key:'number',h:'Số hợp đồng',req:true},{key:'contractor',h:'Nhà thầu',req:true},
       {key:'signDate',h:'Ngày ký',type:'date'},{key:'value',h:'Giá trị hợp đồng (đồng)',req:true,type:'num'},{key:'start',h:'Ngày bắt đầu',type:'date'},{key:'end',h:'Ngày kết thúc',type:'date'},
@@ -80,7 +80,7 @@ function dkRowsOf(key){
     case 'projects': return D('projects').sort(by('code')).map(p=>[p.code,p.name,p.group,p.tmdt,p.capital,p.owner,p.location,fd(p.start),fd(p.end),p.status,p.phase,p.decision,p.desc,p.boardRole,p.decisionMaker,p.mgmtForm,p.projectKind,p.reportType]);
     case 'legal': return D('legal').map(l=>[pc(l.projectId),kc(l.packageId),l.type,l.number,fd(l.date),l.issuer,l.title,fd(l.validUntil)]);
     case 'items': return D('items').map(i=>[pc(i.projectId),i.code,i.name,i.structure,i.area,i.floors,i.desc]);
-    case 'packages': return D('packages').map(k=>[pc(k.projectId),k.code,k.name,k.type,k.method,k.estimate,k.status,k.duration]);
+    case 'packages': return D('packages').map(k=>[pc(k.projectId),k.code,k.name,k.type,k.method,k.estimate,k.status,k.duration,k.phase==='cb'?'Chuẩn bị đầu tư':k.phase==='dt'?'Thực hiện đầu tư':'']);
     case 'contracts': return D('contracts').map(c=>[pc(contractPid(c)),kc(c.packageId),c.number,c.contractor,fd(c.signDate),c.value,fd(c.start),fd(c.end),c.ctype,c.guarantee,fd(c.guaranteeUntil),c.advanceRate,fd(c.advanceGuaranteeUntil),c.note]);
     case 'addenda': return D('addenda').filter(a=>mk('addenda',a)).map(a=>[cn(a.contractId),a.number,fd(a.date),a.content,a.valueChange,a.daysChange]);
     case 'boq': return D('boq').sort(byCode).map(b=>[cn(b.contractId),b.code,b.name,b.unit,b.qty,b.price,b.section]);

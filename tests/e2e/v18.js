@@ -24,7 +24,7 @@ function totp(secret) {
   const exp = (what, got, want) => { if (got !== want) errs.push(`${what}: ${JSON.stringify(got)} (cần ${JSON.stringify(want)})`); };
   const who = async (u, pw = 'Admin2026') => { const c = await b.newContext({ acceptDownloads: true, viewport: { width: 1400, height: 900 } }); const r = c.request;
     const s = (await r.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: pw } })).status(); if (s !== 200) errs.push('Đăng nhập ' + u + ': ' + s);
-    if (['ketoan', 'giamsat', 'lanhdao', 'kythuat'].includes(u) && (await r.get(BASE + '/api/data', H)).status() === 403) {
+    if (['ketoan', 'giamsat', 'lanhdao', 'kythuat', 'nt18'].includes(u) && (await r.get(BASE + '/api/data', H)).status() === 403) {
       for (const [o, n] of [[pw, pw + 'tmp'], [pw + 'tmp', pw]]) { const x = await r.post(BASE + '/api/auth/change-password', { ...H, data: { old: o, password: n } }); if (x.status() !== 200) errs.push('Đổi mật khẩu lần đầu ' + u + ': ' + x.status()); } }
     return { c, r }; };
   const page = async (u, route) => { const p = await u.c.newPage(); p.on('pageerror', e => errs.push('PAGEERR ' + e.message));
@@ -252,6 +252,54 @@ function totp(secret) {
   check(/Tư vấn giám sát thẩm định/.test(await pa.textContent('#content')), 'Màn hình thiết lập quy trình chưa hiện các bước');
   await pa.click('[data-act=wf-edit][data-id=addenda]'); await pa.waitForSelector('#wfe_on'); await shot(pa, '10-thiet-lap-quy-trinh');
   await pa.click('[data-act=wfe-save]'); await pa.waitForSelector('#wfe_on', { state: 'detached', timeout: 10000 });
+
+  /* ===== ĐỢT 3: danh mục nhà thầu, đơn vị giám sát; tài khoản thuộc đơn vị ===== */
+  exp('Thêm nhà thầu vào danh mục', (await put(ad, 'orgs', { id: 'o18nt', kind: 'nt', name: 'Công ty Xây dựng Thử Nghiệm', taxCode: '1801234567', representative: 'Nguyễn Văn A', active: true })).status(), 200);
+  exp('Thêm đơn vị giám sát', (await put(ad, 'orgs', { id: 'o18gs', kind: 'gs', name: 'Công ty Tư vấn Giám sát Thử Nghiệm', active: true })).status(), 200);
+  const pk18 = { projectId: 'p1', method: 'Chỉ định thầu rút gọn', status: 'Đang thực hiện hợp đồng' };
+  exp('Gói thầu chọn đơn vị không có trong danh mục', (await put(ad, 'packages', { ...pk18, id: 'k18bad', code: 'BAD', name: 'Sai', type: 'Xây lắp', estimate: 1e8, contractorIds: ['khong-co'] })).status(), 400);
+  exp('Gói tư vấn chuẩn bị đầu tư', (await put(ad, 'packages', { ...pk18, id: 'k18cb', code: 'CBQ1', name: 'Tư vấn lập báo cáo kinh tế - kỹ thuật thử', type: 'Tư vấn', estimate: 4e8, phase: 'cb', contractorIds: ['o18nt'], supervisorIds: [] })).status(), 200);
+  exp('Gói thi công chọn nhà thầu và giám sát', (await put(ad, 'packages', { ...pk18, id: 'k18dt', code: 'DTQ1', name: 'Thi công thử nghiệm', type: 'Xây lắp', estimate: 9e8, phase: 'dt', contractorIds: ['o18nt'], supervisorIds: ['o18gs'] })).status(), 200);
+  const nu18 = await ad.r.post(BASE + '/api/users', { ...H, data: { username: 'nt18', name: 'Cán bộ nhà thầu', groupId: 'g-site', password: 'Admin2026', orgId: 'o18nt' } });
+  exp('Tạo tài khoản thuộc nhà thầu', nu18.status(), 200);
+  const nt18 = await who('nt18'); const dn18 = await data(nt18);
+  exp('Tài khoản biết đơn vị của mình', dn18.orgId, 'o18nt');
+  exp('Tài khoản nhà thầu chỉ thấy gói thầu của đơn vị', (dn18.packages || []).map(k => k.id).sort().join(','), 'k18cb,k18dt');
+    check((await ad.r.delete(BASE + '/api/data/orgs/o18nt', H)).status() !== 200, 'Xóa được nhà thầu đang được chọn ở gói thầu');
+
+  /* ===== ĐỢT 3: giai đoạn chuẩn bị đầu tư, nghiệm thu sản phẩm tư vấn theo giá trị ===== */
+  exp('Hợp đồng tư vấn', (await put(kt, 'contracts', { id: 'c18cb', packageId: 'k18cb', projectId: 'p1', number: 'HD-CBQ1', contractor: 'Công ty Xây dựng Thử Nghiệm', value: 300000000, start: '2026-10-01', end: '2027-03-31' })).status(), 200);
+  exp('Sản phẩm 1', (await put(kt, 'boq', { id: 'b18a', contractId: 'c18cb', code: 'SP1', name: 'Báo cáo kinh tế - kỹ thuật', unit: 'Sản phẩm', qty: 1, price: 200000000 })).status(), 200);
+  exp('Sản phẩm 2', (await put(kt, 'boq', { id: 'b18b', contractId: 'c18cb', code: 'SP2', name: 'Hồ sơ thiết kế bản vẽ thi công', unit: 'Sản phẩm', qty: 1, price: 100000000 })).status(), 200);
+  exp('Đợt nghiệm thu sản phẩm', (await put(kt, 'vbatches', { id: 'vb18', contractId: 'c18cb', name: 'Đợt 1', number: 'BB-01', date: '2026-11-15' })).status(), 200);
+  exp('Nghiệm thu đủ sản phẩm 1', (await put(kt, 'volumes', { id: 'v18a', contractId: 'c18cb', boqId: 'b18a', batchId: 'vb18', date: '2026-11-15', period: 'Đợt 1', doneQty: 1, acceptedQty: 1 })).status(), 200);
+  exp('Đợt 2', (await put(kt, 'vbatches', { id: 'vb18b', contractId: 'c18cb', name: 'Đợt 2', number: 'BB-02', date: '2026-11-16' })).status(), 200);
+  exp('Chặn nghiệm thu vượt giá trị sản phẩm', (await put(kt, 'volumes', { id: 'v18b', contractId: 'c18cb', boqId: 'b18a', batchId: 'vb18b', date: '2026-11-16', period: 'Đợt 2', doneQty: 0.5, acceptedQty: 0.5 })).status(), 409);
+  exp('Trình đợt nghiệm thu sản phẩm', (await act(kt, 'vbatches', 'vb18', 'submit')).status(), 200);
+  exp('Đợt sản phẩm tư vấn bỏ bước giám sát xác nhận', (await data(kt)).vbatches.find(x => x.id === 'vb18').status, 'Chờ duyệt');
+  exp('Lãnh đạo duyệt đợt', (await act(ld, 'vbatches', 'vb18', 'approve')).status(), 200);
+  exp('Đợt sản phẩm đã duyệt', (await data(kt)).vbatches.find(x => x.id === 'vb18').status, 'Đã duyệt');
+  // Giao diện: menu theo giai đoạn, danh mục đơn vị, nghiệm thu sản phẩm
+  const pc18 = await page(kt, 'goi-thau'); await go(pc18, 'cb-goi-thau', { kq: 'Q1' });
+  check(/Chuẩn bị đầu tư/.test(await pc18.textContent('#nav')) && /Thực hiện đầu tư/.test(await pc18.textContent('#nav')), 'Menu chưa chia theo giai đoạn');
+  let tx18 = await pc18.textContent('#content'); check(tx18.includes('CBQ1') && !tx18.includes('DTQ1'), 'Mục Chuẩn bị đầu tư › Gói thầu chưa đúng giai đoạn');
+  await go(pc18, 'goi-thau', { kq: 'Q1' }); tx18 = await pc18.textContent('#content'); check(tx18.includes('DTQ1') && !tx18.includes('CBQ1'), 'Mục Thực hiện đầu tư › Gói thầu chưa đúng giai đoạn');
+  check(tx18.includes('Giám sát: Công ty Tư vấn Giám sát Thử Nghiệm'), 'Danh sách gói thầu chưa hiện đơn vị giám sát');
+  await pc18.evaluate(() => ACT['open-pkg']('k18dt')); await wait(500);
+  check(/Nhà thầu và đơn vị giám sát/.test(await pc18.textContent('#content')), 'Chi tiết gói thầu chưa có thẻ nhà thầu, giám sát');
+  await pc18.evaluate(() => { S.sel.pkg = null; S.tab.gt = 'nt'; S.f.kq = ''; render(); }); await wait(300);
+  check((await pc18.textContent('#content')).includes('1801234567'), 'Danh mục nhà thầu chưa hiện mã số thuế'); await shot(pc18, '11-danh-muc-nha-thau');
+  await pc18.evaluate(() => { S.tab.gt = 'pkg'; }); await go(pc18, 'cb-thanh-toan', { ttcb: 'c18cb' }); await pc18.evaluate(() => { S.tab.ttcb = 'nt'; render(); }); await wait(300);
+  tx18 = await pc18.textContent('#content'); check(tx18.includes('Sản phẩm theo hợp đồng') && tx18.includes('Đã nghiệm thu đủ'), 'Nghiệm thu sản phẩm chưa hiện tình trạng sản phẩm');
+  check((await pc18.textContent('#top')).includes('Chuẩn bị đầu tư'), 'Tiêu đề chưa ghi giai đoạn');
+  await shot(pc18, '12-nghiem-thu-san-pham');
+  await pc18.evaluate(() => ACT['vb-new']('c18cb')); await pc18.waitForSelector('#mform .vb-grid');
+  await pc18.fill('#mform tr[data-b=b18b] input', '150000000'); await pc18.click('#mform [type=submit]'); await wait(500);
+  check(/vượt giá trị sản phẩm/.test(await pc18.textContent('#mform_err')), 'Biểu mẫu chưa chặn nghiệm thu vượt giá trị sản phẩm');
+  await pc18.fill('#mform tr[data-b=b18b] input', '60000000'); await pc18.click('#mform [type=submit]'); await pc18.waitForSelector('#mform', { state: 'detached', timeout: 10000 }); await wait(400);
+  check((await data(kt)).volumes.some(v => v.boqId === 'b18b' && Math.abs(v.acceptedQty - 0.6) < 1e-9), 'Chưa lưu giá trị nghiệm thu sản phẩm 2');
+  // Khối lượng (thực hiện đầu tư) không liệt kê hợp đồng tư vấn chuẩn bị đầu tư
+  await go(pc18, 'khoi-luong'); check(!(await pc18.$$eval('[data-f=klc] option', o => o.map(x => x.textContent))).some(x => x.includes('HD-CBQ1')), 'Quản lý khối lượng còn hợp đồng chuẩn bị đầu tư');
 
   console.log(errs.length ? 'LỖI:\n' + errs.join('\n') : 'KHÔNG CÓ LỖI');
   await b.close(); process.exit(errs.length ? 1 : 0);

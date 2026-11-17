@@ -44,11 +44,19 @@ function buildShell(){
     <div class="main"><header class="top" id="top"></header><main class="content" id="content"></main></div>
   </div><nav class="tabbar" id="tabbar"></nav>`;
 }
+/* Mục menu ứng với một cảnh báo: cảnh báo của gói thầu giai đoạn chuẩn bị đầu tư đếm vào mục của giai đoạn đó */
+const alertRoute = a => a.kid ? phRoute(a.mod, pkgPhase(pkgOf(a.kid))) : a.mod;
+function goRoute(r){ if(location.hash==='#'+r) render(); else location.hash=r; }
+/* Mở gói thầu, thanh toán của hợp đồng đúng mục menu theo giai đoạn */
+function goPkg(kid){ S.sel.pkg=kid; goRoute(phRoute('goi-thau', pkgPhase(pkgOf(kid)))); }
+function goPay(cid, tab){ const ph=cidPhase(cid); if(ph==='cb'){ S.f.ttcb=cid; if(tab) S.tab.ttcb=tab; } else { S.f.ttc=cid; if(tab) S.tab.tt=tab; } goRoute(phRoute('thanh-toan', ph)); }
 function renderNav(){
-  const al=alerts(); const cnt={}; al.forEach(a=>cnt[a.mod]=(cnt[a.mod]||0)+1);
+  const al=alerts(); const cnt={}; al.forEach(a=>{ const r=alertRoute(a); cnt[r]=(cnt[r]||0)+1; });
   let html='', grp='';
+  const link=(r,l,i,t)=>`<a href="#${r}" title="${esc(t||l)}" class="${S.route===r?'on':''}">${ic(i)}<span>${esc(l)}</span>${cnt[r]?`<span class="cnt">${cnt[r]}</span>`:''}</a>`;
   MODULES.filter(m=>can(m.key)).forEach(m=>{
-    if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`; }
+    if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;
+      if(grp==='Nghiệp vụ'){ const cb=NAV_CB.filter(([r])=>can(r)); if(cb.length) html+=`<div class="sub">${esc(PHASES.cb)}</div>`+cb.map(([r,l,i])=>link(r,l,i,PHASES.cb+': '+l)).join('')+`<div class="sub">${esc(PHASES.dt)}</div>`; } }
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
     if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`;
       html+=`<a href="#canh-bao" title="Trung tâm cảnh báo" class="${S.route==='canh-bao'?'on':''}">${ic('bell')}<span>Trung tâm cảnh báo</span>${al.length?`<span class="cnt">${al.length}</span>`:''}</a>`; }
@@ -59,7 +67,7 @@ function renderNav(){
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const m=MODULES.find(x=>x.key===S.route); const title=m?m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
+  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : m?m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
@@ -361,9 +369,9 @@ ACT['export-alerts']=()=>{ const rows=alertCenterRows(); const pid=S.pid||S.f.cb
   exportXlsx(`CanhBao_${TODAY}.xlsx`, [{name:'Canh bao', title:'DANH SÁCH CẢNH BÁO, VIỆC CẦN XỬ LÝ', money:[], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(pid?' · Dự án '+((projOf(pid)||{}).code||''):''), head:AL_COLS.map(c=>c.h), rows:rows.map(a=>AL_COLS.map(c=>c.x(a)))}]);
   log('Xuất danh sách','logs','Trung tâm cảnh báo'); };
 ACT['alert-go']=(id)=>{ const i=String(id).indexOf('|'), t=id.slice(0,i), x=id.slice(i+1); const go=h=>location.hash==='#'+h? render() : (location.hash=h);
-  if(t==='pkg'){ S.sel.pkg=x; go('goi-thau'); }
+  if(t==='pkg'){ goPkg(x); }
   else if(t==='td'){ S.f.tdk=x; S.tab.td='goi-thau'; go('tien-do'); }
-  else if(t==='tt'){ S.f.ttc=x; go('thanh-toan'); }
+  else if(t==='tt'){ goPay(x); }
   else if(t==='mod'){ go(x); }
   else { S.sel.project=x; S.tab.proj=t==='task'?'tasks':t==='legal'?'legal':'status'; go('du-an'); } };
 ACT['open-project']=(id)=>{ S.sel.project=id; S.tab.proj='info'; if(location.hash==='#du-an') render(); else location.hash='du-an'; };

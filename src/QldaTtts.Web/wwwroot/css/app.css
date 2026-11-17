@@ -99,6 +99,8 @@ h3{font-size:1rem; font-weight:600}
 .brand span{display:block; white-space:nowrap; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--side-mark); font-weight:600; margin-bottom:2px}
 .nav{display:flex; flex-direction:column; padding:4px 8px 16px; gap:1px}
 .nav .grp{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; opacity:.55; padding:14px 10px 4px}
+.nav .sub{font-size:11.5px; font-weight:600; opacity:.72; padding:8px 12px 3px; display:flex; align-items:center; gap:6px}
+.nav .sub::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--side-mark); opacity:.8}
 .nav a{display:flex; align-items:center; gap:11px; padding:8px 12px; border-radius:10px; transition:background .15s, color .15s; color:var(--side-ink); text-decoration:none; font-size:13.5px}
 .nav a:hover{background:var(--side-hi)}
 .nav a:hover{color:var(--side-strong)}

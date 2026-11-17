@@ -152,7 +152,7 @@ ACT.wf=(key)=>{
   if(a==='print') return wfPrint(col,r);
   const w=WF[col], st=wfState(col,r), pid=w.pid(r), on=wfOn(col,pid);
   let [lb,desc,need]=WF_ACT[a], next=null, nextLast=false, fin=false;
-  if(a==='submit'){ const rt=on? wfRouteFor(wfFlow(col,pid), wfAmount(col,r)) : [];
+  if(a==='submit'){ const rt=on? wfRouteFor(wfFlow(col,pid), wfAmount(col,r), col, r) : [];
     if(rt.length){ next=rt[0]; nextLast=rt.length===1; desc=`Hồ sơ đi qua ${rt.length} bước: ${rt.map((s,i)=>(i+1)+'. '+s.label).join('; ')}.`; }
     else { lb='Ghi nhận'; fin=true; desc=on? 'Giá trị hồ sơ không thuộc khoảng phải trình duyệt: hồ sơ được ghi nhận ngay.' : 'Loại hồ sơ này không qua trình duyệt: hồ sơ được ghi nhận ngay.'; } }
   if((a==='check'||a==='approve') && st.step){ lb=st.step.verb||lb; desc=`Bước: ${st.step.label}.`+(st.isLast?' Đây là bước cuối của quy trình.':'');

@@ -402,7 +402,7 @@ public class OpeningController : ApiControllerBase
             Upsert("packages", _packages, ex, NewId("gt", p.Id + "|" + K(code)), k =>
             {
                 k.ProjectId = p.Id; k.Code = code; k.Name = name; k.Type = type; k.Method = method; k.Estimate = est;
-                k.Status = status ?? k.Status; k.Duration = SN("duration");
+                k.Status = status ?? k.Status; k.Duration = SN("duration"); k.Phase = Phases.Normalize(SN("phase")) ?? k.Phase;
             });
         }
 

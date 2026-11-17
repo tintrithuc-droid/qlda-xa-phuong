@@ -71,7 +71,15 @@ const MODULES = [
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
-const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao'];
+const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao','cb-goi-thau','cb-thanh-toan'];
+/* Menu Nghiệp vụ chia theo giai đoạn. Quyền vẫn theo phân hệ (MODULES); hai mục của giai đoạn chuẩn bị đầu tư dùng chung quyền
+   với phân hệ tương ứng (ROUTE_PERM). Gói thầu thuộc một giai đoạn; hợp đồng và hồ sơ của hợp đồng theo giai đoạn của gói thầu. */
+const PHASES = {cb:'Chuẩn bị đầu tư', dt:'Thực hiện đầu tư'};
+const NAV_CB = [['cb-goi-thau','Gói thầu và hợp đồng','doc'],['cb-thanh-toan','Nghiệm thu, thanh toán','coin']];
+const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan'};
+const PH_ROUTE = {cb:{'goi-thau':'cb-goi-thau', 'thanh-toan':'cb-thanh-toan', 'khoi-luong':'cb-thanh-toan'}, dt:{}};
+const phRoute = (mod, ph) => (PH_ROUTE[ph]||{})[mod] || mod;
+const routePh = r => String(r||S.route).startsWith('cb-') ? 'cb' : 'dt';
 const APP_VERSION = '1.8';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
@@ -191,6 +199,7 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 /* --- phân quyền --- */
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
+  mod=ROUTE_PERM[mod]||mod;
   if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(lvl==='approve') return (g.perms||{})[mod+':duyet']==='1';
@@ -432,7 +441,14 @@ function progBar(v, k){ const w=Math.max(0,Math.min(100,N(v))); return `<div cla
 function opts(list, cur, empty){ return (empty!=null?`<option value="">${esc(empty)}</option>`:'') + list.map(o=>{ const [v,l]=Array.isArray(o)?o:[o,o]; return `<option value="${esc(v)}" ${String(v)===String(cur??'')?'selected':''}>${esc(l)}</option>`; }).join(''); }
 const projOpts = () => projects().map(p=>[p.id, p.code+' – '+p.name]);
 const pkgOpts = (pid) => D('packages').filter(k=>pidOk(k.projectId) && (!pid||k.projectId===pid)).sort(by('code')).map(k=>[k.id, k.code+' – '+k.name]);
-const contractOpts = (pid) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid)).sort(by('number')).map(c=>[c.id, c.number+' – '+((pkgOf(c.packageId)||{}).code||'')]);
+/* Giai đoạn của gói thầu: chọn ở biểu mẫu gói thầu; chưa chọn thì gói tư vấn (trừ tư vấn giám sát) thuộc chuẩn bị đầu tư */
+const isSupPkg = k => (/GS/i.test(k.code||'') && /tư vấn/i.test(k.type||'')) || /giám sát/i.test((k.name||'')+' '+(k.type||''));
+const pkgPhaseDef = k => /tư vấn/i.test(k.type||'') && !/phi tư vấn/i.test(k.type||'') && !isSupPkg(k) ? 'cb' : 'dt';
+const pkgPhase = k => !k ? 'dt' : (k.phase==='cb'||k.phase==='dt') ? k.phase : pkgPhaseDef(k);
+const contractPhase = c => pkgPhase(c && pkgOf(c.packageId));
+const cidPhase = cid => contractPhase(get('contracts',cid));
+const phaseOpts = () => Object.entries(PHASES);
+const contractOpts = (pid, ph) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid) && (!ph||contractPhase(c)===ph)).sort(by('number')).map(c=>[c.id, c.number+' – '+((pkgOf(c.packageId)||{}).code||'')]);
 function emptyBox(text, btn){ return `<div class="empty">${text}${btn?`<div style="margin-top:10px">${btn}</div>`:''}</div>`; }
 
 /* Bảng dữ liệu chung */
@@ -947,12 +963,14 @@ const wfWaiting = (col, r) => wfPendingS(col, wfStatus(col,r));
 const wfLocked = (col, r) => WF[col].locked.includes(wfStatus(col,r));
 const wfLogs = (col, id) => D('approvals').filter(a=>a.collection===col && a.recordId===id).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
 const wfAmount = (col, r) => WF[col].amt ? Math.abs(N(r[WF[col].amt])) : 0;
-const wfRouteFor = (fc, amt) => (fc.steps||[]).filter(s=>(s.minAmount==null || amt>=s.minAmount) && (s.maxAmount==null || amt<s.maxAmount));
+const wfRouteFor = (fc, amt, col, r) => (fc.steps||[]).filter(s=>(s.minAmount==null || amt>=s.minAmount) && (s.maxAmount==null || amt<s.maxAmount))
+  /* Đợt nghiệm thu sản phẩm tư vấn giai đoạn chuẩn bị đầu tư không qua bước tư vấn giám sát xác nhận */
+  .filter(s=>!(col==='vbatches' && s.key==='check' && r && cidPhase(r.contractId)==='cb'));
 /** Tình trạng xử lý: các bước, bước đang chờ, lần chuyển duyệt, thao tác gần nhất, người được chuyển đích danh, hạn xử lý. */
 function wfState(col, r){
   const logs=wfLogs(col,r.id), last=logs[0]||null, sub=logs.find(a=>a.route)||null; let route=null;
   if(sub){ try{ route=JSON.parse(sub.route); }catch{} }
-  if(!route) route=wfRouteFor(wfFlow(col, WF[col].pid(r)), wfAmount(col,r));
+  if(!route) route=wfRouteFor(wfFlow(col, WF[col].pid(r)), wfAmount(col,r), col, r);
   if(!route.length) route=[WF_STEP0];
   let idx=-1; const s=wfStatus(col,r);
   if(wfPendingS(col,s)){ idx=last&&last.step? route.findIndex(x=>x.key===last.step) : -1; if(idx<0) idx= s===WF_CHECK?0:route.length-1; }

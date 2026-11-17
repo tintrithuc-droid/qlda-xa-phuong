@@ -44,6 +44,8 @@ public class ApprovalsController : ApiControllerBase
                 if (!editor && !manager) return Denied();
                 if (from != w.Draft && !(string.IsNullOrEmpty(from) && !fc.Enabled)) return Error(409, $"Chỉ chuyển duyệt được hồ sơ đang \"{w.Draft}\".");
                 route = Workflow.RouteFor(fc, Workflow.AmountOf(w, rec));
+                // Nghiệm thu sản phẩm tư vấn giai đoạn chuẩn bị đầu tư: không có tư vấn giám sát nên bỏ bước TVGS xác nhận
+                if (rec is VolumeBatch pb && await Phases.IsPrepContract(Db, pb.ContractId)) route = route.Where(x => x.Key != "check").ToList();
                 if (!fc.Enabled || route.Count == 0) { to = w.Approved; label = "Ghi nhận"; route = null; break; }
                 next = 0; to = Workflow.StatusAt(w, route, 0); label = "Chuyển duyệt"; break;
             }

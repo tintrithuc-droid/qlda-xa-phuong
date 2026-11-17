@@ -240,7 +240,9 @@ async function login(p, u, pw = PW) {
   const pp = await p.evaluate(() => Store.data.payplans[0].id);
   await p.evaluate(id => ACT['edit-payplans'](id), pp); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   await p.click('[data-g=tt][data-id=hs]'); await p.waitForTimeout(200);
-  await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); await p.selectOption('#f_contractId', await p.evaluate(() => Store.data.contracts.find(c => contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
+  await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); // chọn trong các hợp đồng đang có trên biểu mẫu (giai đoạn Thực hiện đầu tư); thứ tự bản ghi khác nhau giữa các CSDL
+  await p.selectOption('#f_contractId', await p.evaluate(() => [...document.querySelectorAll('#f_contractId option')].map(o => o.value).filter(Boolean).map(id => get('contracts', id)).find(c => c && contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
+  await p.waitForFunction(() => Store.data.payments.some(x => x.number === 'TT-TEST'), null, { timeout: 10000 }).catch(async () => { throw new Error('Không lưu được hồ sơ thanh toán TT-TEST: ' + await p.evaluate(() => (document.querySelector('#mform_err') || {}).textContent)); });
   const pay = await p.evaluate(() => Store.data.payments.find(x => x.number === 'TT-TEST'));
   // Bản 1.7: trạng thái chỉ đổi qua trình duyệt; trình, duyệt xong (Đang trình KBNN) mới xác nhận đã chi
   await p.evaluate(async id => { for (const a of ['submit', 'approve']) { const r = await api('POST', '/api/approvals', { collection: 'payments', id, action: a, note: '' }); Store.setLocal('payments', r.record); } }, pay.id);

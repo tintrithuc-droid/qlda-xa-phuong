@@ -219,7 +219,9 @@ async function login(p, u, pw = PW) {
   await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100 && (!s.status || s.status === 'Đã duyệt')).id);
   await p.evaluate(id => ACT['edit-schedule'](id), sid); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   await p.evaluate(id => ACT['upd-sched'](id), sid); await p.waitForTimeout(200); await p.fill('#f_progress', '55'); await putFiles('att', [img]); await submit();
-  if (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1) errs.push('A7/A8: tệp tiến độ chưa gắn');
+  // Tệp gắn xong thì dữ liệu mới nạp lại sau khoảng 1 giây: chờ tối đa 8 giây thay vì đọc ngay (lúc chạy chậm trên CI dễ đọc hụt)
+  for (let i = 0; i < 16 && (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1); i++) { await p.evaluate(() => Store.load().catch(() => {})); await p.waitForTimeout(500); }
+  if (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1) errs.push('A7/A8: tệp tiến độ chưa gắn: ' + JSON.stringify(await p.evaluate(i => Store.data.attachments.filter(a => a.collection === 'schedule' && a.recordId === i).map(a => a.kind), sid)));
   const today = await p.evaluate(() => TODAY);
   if ((await p.evaluate(id => Store.data.attachments.find(a => a.recordId === id && a.kind === 'Cập nhật tiến độ').ref, sid)) !== today) errs.push('A8: ảnh cập nhật chưa gắn theo ngày');
   // A9: nhật ký: trang đã ký + chú thích ảnh, bỏ ảnh

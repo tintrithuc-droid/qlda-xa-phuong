@@ -6,41 +6,121 @@ VIEWS['khoi-luong']=()=>{
   const cv=contractValue(c); const bq=D('boq').filter(b=>b.contractId===cid).sort(by('code'));
   const rows=bq.map(b=>({...b, val:N(b.qty)*N(b.price), dq:boqDone(b), aq:boqAcc(b)}));
   const tv=sum(rows,'val'), td=sum(rows,r=>r.dq*N(r.price)), ta=sum(rows,r=>r.aq*N(r.price)), paid=contractPaid(cid);
-  const vols=D('volumes').filter(v=>v.contractId===cid).sort((a,b)=>b.date.localeCompare(a.date));
-  const per={}; vols.forEach(v=>{ const b=get('boq',v.boqId); if(!b) return; const k=v.date.slice(0,7); per[k]=per[k]||{m:k,dv:0,av:0,n:0}; per[k].dv+=N(v.doneQty)*N(b.price); per[k].av+=N(v.acceptedQty)*N(b.price); per[k].n++; });
+  const vols=D('volumes').filter(v=>v.contractId===cid).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const per={}; vols.forEach(v=>{ const b=get('boq',v.boqId); if(!b) return; const k=(v.date||'').slice(0,7); per[k]=per[k]||{m:k,dv:0,av:0,n:0}; if(volLive(v)) per[k].dv+=N(v.doneQty)*N(b.price); if(volAccOk(v)) per[k].av+=N(v.acceptedQty)*N(b.price); per[k].n++; });
   const pr=Object.values(per).sort(by('m'));
   let cum=0, cumA=0; pr.forEach(p=>{ cum+=p.dv; cumA+=p.av; p.cum=cum; p.cumA=cumA; });
+  const pend=contractAccPend(cid);
   const t=S.tab.kl||'hd';
   const tabs=[['hd','Khối lượng theo hợp đồng'],['nt','Theo dõi nghiệm thu'],['th','Tổng hợp']];
   let body='';
-  if(t==='hd') body=`<div class="card"><div class="ch"><h2>Bảng khối lượng hợp đồng</h2>${ed?`<button class="btn sm" data-act="imp" data-id="boq|${cid}">Nhập từ Excel</button><button class="btn sm" data-act="add-boq" data-id="${cid}">+ Thêm công việc</button><button class="btn primary sm" data-act="add-vol" data-id="${cid}">+ Cập nhật khối lượng thực hiện</button>`:''}</div>
+  if(t==='hd') body=`<div class="card"><div class="ch"><h2>Bảng khối lượng hợp đồng</h2>${ed?`<button class="btn sm" data-act="imp" data-id="boq|${cid}">Nhập từ Excel</button><button class="btn sm" data-act="add-boq" data-id="${cid}">+ Thêm công việc</button><button class="btn primary sm" data-act="vb-new" data-id="${cid}">+ Lập đợt nghiệm thu</button>`:''}</div>
     ${table([{h:'Mã',k:'code'},{h:'Nội dung công việc',k:'name'},{h:'ĐVT',k:'unit'},{h:'KL hợp đồng',r:1,f:r=>fmtN(r.qty,2)},{h:'Đơn giá',r:1,f:r=>fmtVND(r.price)},{h:'Thành tiền',r:1,f:r=>fmtVND(r.val)},{h:'KL thực hiện lũy kế',r:1,f:r=>fmtN(r.dq,2)},{h:'% thực hiện',f:r=>`<div style="min-width:110px">${progBar(pct(r.dq,r.qty), r.dq>r.qty?'bad':'')}</div>`},{h:'KL nghiệm thu',r:1,f:r=>fmtN(r.aq,2)},{h:'Giá trị nghiệm thu',r:1,f:r=>fmtVND(r.aq*N(r.price))}],
       rows, {actions:r=>editBtns('khoi-luong','boq',r.id), empty:'Chưa có bảng khối lượng hợp đồng.', foot:['Tổng cộng','','','','',fmtVND(tv),'',fmtP(pct(td,tv)),'',fmtVND(ta)]})}
     <div class="small" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>Bảng khối lượng, dự toán gốc của hợp đồng:</b> ${attLinks(atts('contracts',cid,'Bảng khối lượng hợp đồng'))}${ed?`<button class="btn sm ghost" data-act="att-boq" data-id="${cid}">${AICO.clip} Đính kèm / gỡ tệp</button>`:''}</div>
     ${Math.abs(tv-cv)>1 && rows.length?`<div class="alert info" style="margin-top:10px">Tổng thành tiền bảng khối lượng (${fmtVND(tv)} đ) khác giá trị hợp đồng sau điều chỉnh (${fmtVND(cv)} đ), chênh lệch ${fmtVND(cv-tv)} đ.</div>`:''}
     ${rows.some(r=>r.dq>r.qty)?`<div class="alert bad" style="margin-top:10px">Có công việc vượt khối lượng hợp đồng, cần lập phụ lục điều chỉnh trước khi thanh toán.</div>`:''}</div>`;
-  else if(t==='nt') body=`<div class="card"><div class="ch"><h2>Các lần cập nhật khối lượng thực hiện và nghiệm thu</h2>${ed?`<span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-act="imp" data-id="vol|${cid}">Nhập từ Excel</button><button class="btn primary sm" data-act="add-vol" data-id="${cid}">+ Cập nhật khối lượng</button></span>`:''}</div>
-    ${table([{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Đợt',k:'period'},{h:'Công việc',f:r=>{ const b=get('boq',r.boqId)||{}; return esc(b.code+' · '+b.name); }},{h:'KL thực hiện',r:1,f:r=>fmtN(r.doneQty,2)+' '+esc((get('boq',r.boqId)||{}).unit||'')},{h:'KL nghiệm thu',r:1,f:r=>fmtN(r.acceptedQty,2)},{h:'Trạng thái',f:r=>N(r.acceptedQty)>=N(r.doneQty)&&N(r.doneQty)>0?pill('Đã nghiệm thu đủ','ok'):N(r.acceptedQty)>0?pill('Nghiệm thu một phần','warn'):pill('Chờ nghiệm thu','info')},{h:'Biên bản',f:r=>`${esc(r.note||'')}${atts('contracts',cid,'Biên bản nghiệm thu',r.period||'').length?`<div>${attLinks(atts('contracts',cid,'Biên bản nghiệm thu',r.period||''),{max:2})}</div>`:''}`}], vols, {actions:r=>editBtns('khoi-luong','volumes',r.id), empty:'Chưa có lần cập nhật nào.'})}</div>`;
+  else if(t==='nt') body=vbView(cid, ed);
   else body=`<div class="grid g2"><div class="card"><h2>Giá trị thực hiện và nghiệm thu theo tháng</h2>${pr.length?barChart({labels:pr.map(p=>p.m.slice(5)+'/'+p.m.slice(2,4)), series:[{name:'Thực hiện',color:'var(--c1)',values:pr.map(p=>p.dv)},{name:'Nghiệm thu',color:'var(--c3)',values:pr.map(p=>p.av)}], fmt:v=>fmtN(v/1e9,1)+' tỷ'}):emptyBox('Chưa có số liệu.')}</div>
-    <div class="card"><h2>Tổng hợp theo kỳ</h2>${table([{h:'Tháng',f:r=>r.m.slice(5)+'/'+r.m.slice(0,4)},{h:'Số lần cập nhật',r:1,k:'n'},{h:'Giá trị thực hiện',r:1,f:r=>fmtVND(r.dv)},{h:'Giá trị nghiệm thu',r:1,f:r=>fmtVND(r.av)},{h:'Lũy kế thực hiện',r:1,f:r=>fmtVND(r.cum)}], pr.map(p=>({...p,id:p.m})), {foot:['Tổng',sum(pr,'n'),fmtVND(sum(pr,'dv')),fmtVND(sum(pr,'av')),'']})}</div></div>`;
+    <div class="card"><h2>Tổng hợp theo kỳ</h2>${table([{h:'Tháng',f:r=>r.m.slice(5)+'/'+r.m.slice(0,4)},{h:'Số lần cập nhật',r:1,k:'n'},{h:'Giá trị thực hiện',r:1,f:r=>fmtVND(r.dv)},{h:'Giá trị nghiệm thu',r:1,f:r=>fmtVND(r.av)},{h:'Lũy kế thực hiện',r:1,f:r=>fmtVND(r.cum)},{h:'Lũy kế nghiệm thu',r:1,f:r=>fmtVND(r.cumA)}], pr.map(p=>({...p,id:p.m})), {foot:['Tổng',sum(pr,'n'),fmtVND(sum(pr,'dv')),fmtVND(sum(pr,'av')),'','']})}
+    <p class="small muted" style="margin:8px 0 0">Giá trị nghiệm thu chỉ tính các đợt nghiệm thu đã được duyệt.</p></div></div>`;
   return `<div class="head"><div class="grow"><h1>Quản lý khối lượng</h1><p>${esc(c.contractor)}</p></div><select data-f="klc" aria-label="Hợp đồng" style="max-width:420px">${opts(contractOpts(S.pid),cid)}</select></div>
   <div class="grid g4"><div class="card kpi"><div class="eyebrow">Giá trị hợp đồng</div><div class="v">${fmtTy(cv)}</div><div class="s">${bq.length} công việc</div></div>
     <div class="card kpi"><div class="eyebrow">Thực hiện lũy kế</div><div class="v">${fmtTy(td)}</div><div class="s">${fmtP(pct(td,cv))} giá trị HĐ</div></div>
-    <div class="card kpi"><div class="eyebrow">Đã nghiệm thu</div><div class="v">${fmtTy(ta)}</div><div class="s">${fmtP(pct(ta,td))} khối lượng thực hiện</div></div>
+    <div class="card kpi"><div class="eyebrow">Đã nghiệm thu</div><div class="v">${fmtTy(ta)}</div><div class="s">${fmtP(pct(ta,td))} khối lượng thực hiện${pend>0?`<br><span style="color:var(--amber)">Chờ duyệt: ${fmtTy(pend)}</span>`:''}</div></div>
     <div class="card kpi"><div class="eyebrow">Đã thanh toán</div><div class="v">${fmtTy(paid)}</div><div class="s">Nghiệm thu chưa thanh toán ${fmtTy(Math.max(0,ta-paid))}</div></div></div>
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="kl" data-id="${k}">${l}</button>`).join('')}</div>${body}`;
 };
 const boqFields=()=>[{key:'code',label:'Mã hiệu',req:true},{key:'unit',label:'Đơn vị tính',type:'select',options:()=>catalog('Đơn vị tính'),req:true},{key:'name',label:'Nội dung công việc',req:true,full:true},{key:'qty',label:'Khối lượng hợp đồng',type:'number',req:true},{key:'price',label:'Đơn giá (đồng)',type:'money',req:true}];
 ACT['add-boq']=(cid)=>openForm({title:'Thêm công việc vào bảng khối lượng hợp đồng', fields:boqFields(), onSave:v=>save('boq',{...v, contractId:cid})});
 ACT['edit-boq']=(id)=>openForm({title:'Cập nhật công việc', fields:boqFields(), value:get('boq',id), onSave:v=>save('boq',v)});
-const volFields=(cid)=>[{key:'boqId',label:'Công việc',type:'select',options:()=>D('boq').filter(b=>b.contractId===cid).sort(by('code')).map(b=>[b.id, b.code+' · '+b.name+' ('+b.unit+')']),req:true,full:true},
-  {key:'date',label:'Ngày',type:'date',req:true,def:TODAY},{key:'period',label:'Đợt / kỳ',def:'Đợt '+(new Set(D('volumes').filter(v=>v.contractId===cid).map(v=>v.period)).size+1)},
-  {key:'doneQty',label:'Khối lượng thực hiện trong kỳ',type:'number',req:true},{key:'acceptedQty',label:'Khối lượng được nghiệm thu',type:'number',def:0},{key:'note',label:'Số biên bản nghiệm thu / ghi chú',full:true},
-  {key:'att',label:'Biên bản nghiệm thu của đợt (dùng chung cho các công việc cùng đợt)',type:'attach',col:'contracts',kind:'Biên bản nghiệm thu',refFrom:'period',cur:cid,rid:cid}];
 ACT['att-boq']=(cid)=>attachForm('Bảng khối lượng, dự toán gốc của hợp đồng','contracts',cid,'Bảng khối lượng hợp đồng',{label:'Tệp bảng khối lượng / dự toán (Excel, PDF…)'});
-function volCheck(v, self){ const b=get('boq',v.boqId); const done=boqDone(b)-(self?N(self.doneQty):0)+N(v.doneQty); if(N(v.acceptedQty)>N(v.doneQty)){ $('#mform_err').textContent='Khối lượng nghiệm thu không được lớn hơn khối lượng thực hiện.'; return false; } if(done>N(b.qty)*1.0001) toast(`Lưu ý: lũy kế ${fmtN(done,2)} vượt khối lượng hợp đồng ${fmtN(b.qty,2)} ${b.unit}.`,'err'); return true; }
-ACT['add-vol']=(cid)=>openForm({title:'Cập nhật khối lượng thực hiện', fields:volFields(cid), onSave:v=>volCheck(v)?save('volumes',{...v, contractId:cid},(get('boq',v.boqId)||{}).name+' '+v.period):false});
-ACT['edit-volumes']=(id)=>{ const o=get('volumes',id); openForm({title:'Sửa khối lượng thực hiện / nghiệm thu', fields:volFields(o.contractId), value:o, onSave:v=>volCheck(v,o)?save('volumes',v,(get('boq',v.boqId)||{}).name+' '+v.period):false}); };
+
+/* ===== ĐỢT NGHIỆM THU KHỐI LƯỢNG (bản 1.7, mục 27–30) =====
+   Mỗi đợt gắn một biên bản nghiệm thu (số, ngày, tệp scan) và gồm nhiều công việc của hợp đồng.
+   Cán bộ kỹ thuật lập đợt trên một bảng lưới, trình; tư vấn giám sát xác nhận; lãnh đạo Ban duyệt một lần cho cả đợt.
+   Khối lượng nghiệm thu chỉ được tính (thẻ chỉ số, báo cáo, điều kiện thanh toán) khi đợt đã duyệt. */
+/** Các đợt của hợp đồng; dòng khối lượng cũ chưa có đợt được gom theo tên đợt và coi là đã nghiệm thu. */
+function vbList(cid){
+  const real=D('vbatches').filter(b=>b.contractId===cid).map(b=>({...b, vols:D('volumes').filter(v=>v.batchId===b.id)}));
+  const old={}; D('volumes').filter(v=>v.contractId===cid && (!v.batchId || !get('vbatches',v.batchId))).forEach(v=>{ const k=v.period||'Đợt 1'; (old[k]=old[k]||{id:'old|'+cid+'|'+k, name:k, contractId:cid, date:'', number:'', status:'Đã duyệt', old:true, vols:[]}).vols.push(v); });
+  Object.values(old).forEach(o=>{ o.date=o.vols.map(v=>v.date).sort().pop()||''; o.number=(o.vols.find(v=>v.note)||{}).note||''; });
+  return [...real, ...Object.values(old)].map(b=>{ const val=f=>sum(b.vols, v=>N(v[f])*N((get('boq',v.boqId)||{}).price)); return {...b, dv:val('doneQty'), av:val('acceptedQty')}; })
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||'') || String(b.name).localeCompare(String(a.name),'vi',{numeric:true}));
+}
+function vbView(cid, ed){
+  const list=vbList(cid); const open=S.vbOpen||(S.vbOpen={});
+  const c=get('contracts',cid);
+  const rows=list.map(b=>{ const isOpen=!!open[b.id]; const bb=b.old? atts('contracts',cid,'Biên bản nghiệm thu',b.name) : atts('vbatches',b.id);
+    const acts=b.old? '' : wfBtns('vbatches',b)+(wfEditable('vbatches',b)&&ed?`<button class="btn sm ghost" data-act="vb-edit" data-id="${esc(b.id)}">Sửa</button><button class="btn sm ghost danger" data-act="vb-del" data-id="${esc(b.id)}">Xóa</button>`:'');
+    const pillH=b.old? pill('Đã nghiệm thu','ok') : wfPill('vbatches',b);
+    const det=isOpen? `<div class="vb-det">${table([{h:'Mã',f:v=>esc((get('boq',v.boqId)||{}).code||'')},{h:'Công việc',f:v=>esc((get('boq',v.boqId)||{}).name||'')},{h:'ĐVT',f:v=>esc((get('boq',v.boqId)||{}).unit||'')},{h:'KL thực hiện',r:1,f:v=>fmtN(v.doneQty,2)},{h:'KL nghiệm thu',r:1,f:v=>fmtN(v.acceptedQty,2)},{h:'Giá trị nghiệm thu',r:1,f:v=>fmtVND(N(v.acceptedQty)*N((get('boq',v.boqId)||{}).price))}],
+      b.vols.slice().sort((x,y)=>String((get('boq',x.boqId)||{}).code).localeCompare(String((get('boq',y.boqId)||{}).code),'vi',{numeric:true})), {nopage:true, foot:['Tổng cộng','','','','',fmtVND(b.av)], empty:'Đợt chưa có công việc.'})}${b.note?`<p class="small muted" style="margin:6px 0 0">${esc(b.note)}</p>`:''}</div>` : '';
+    return `<div class="vb ${isOpen?'open':''}"><div class="vb-h"><button type="button" class="vb-t" data-act="vb-toggle" data-id="${esc(b.id)}" aria-expanded="${isOpen}"><span class="vb-car">${isOpen?'▾':'▸'}</span><b>${esc(b.name)}</b>${b.number?` <span class="small muted">Biên bản ${esc(b.number)}</span>`:''}</button>
+      <span class="small num muted">${fmtDate(b.date)}</span><span class="small">${b.vols.length} công việc</span><span class="small num">Thực hiện ${fmtVND(b.dv)} đ</span><span class="small num"><b>Nghiệm thu ${fmtVND(b.av)} đ</b></span>${pillH}</div>
+      <div class="vb-a">${bb.length?attLinks(bb,{max:2}):''}${acts}</div>${det}</div>`; }).join('');
+  return `<div class="card"><div class="ch"><h2>Các đợt nghiệm thu khối lượng</h2>${ed?`<span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-act="imp" data-id="vol|${cid}">Nhập từ Excel</button><button class="btn primary sm" data-act="vb-new" data-id="${cid}">+ Lập đợt nghiệm thu</button></span>`:''}</div>
+    ${list.length? `<div class="vb-list">${rows}</div>` : emptyBox('Chưa có đợt nghiệm thu nào. Bấm "Lập đợt nghiệm thu" để nhập khối lượng của cả đợt trên một bảng.')}
+    <p class="small muted" style="margin:10px 0 0">Quy trình: cán bộ kỹ thuật lập đợt và trình${wfHasCheck('vbatches')?', tư vấn giám sát xác nhận khối lượng':''}, lãnh đạo Ban duyệt. Khối lượng nghiệm thu chỉ được tính vào số liệu và điều kiện thanh toán khi đợt đã duyệt.</p></div>`;
+}
+ACT['vb-toggle']=(id)=>{ const o=S.vbOpen||(S.vbOpen={}); o[id]=!o[id]; render(); };
+ACT['vb-new']=(cid)=>{ const draft=D('vbatches').filter(b=>b.contractId===cid && wfStatus('vbatches',b)==='Soạn thảo' && !wfReturned('vbatches',b)).sort(by('date',-1))[0];
+  vbForm(cid, null); };
+ACT['vb-edit']=(id)=>{ const b=get('vbatches',id); if(b) vbForm(b.contractId, b); };
+ACT['vb-del']=async(id)=>{ const b=get('vbatches',id); if(!b) return; const vs=D('volumes').filter(v=>v.batchId===id);
+  if(!await confirmBox(`Xóa <b>${esc(b.name)}</b> cùng ${vs.length} dòng khối lượng của đợt? Thao tác này không hoàn tác được.`)) return;
+  try{ for(const v of vs) await Store.del('volumes', v.id); await Store.del('vbatches', id); toast('Đã xóa đợt nghiệm thu'); }catch(ex){ toast(errText(ex),'err'); } };
+/** Tên đợt mới: Đợt n, với n lớn hơn số đợt lớn nhất đã có của hợp đồng (không tự nhảy khi thêm công việc vào cùng đợt). */
+function vbNextName(cid){ const ns=vbList(cid).map(b=>+(String(b.name).match(/(\d+)\s*$/)||[])[1]||0); return 'Đợt '+((ns.length?Math.max(...ns):0)+1); }
+function vbForm(cid, b){
+  const bq=D('boq').filter(x=>x.contractId===cid).sort((x,y)=>String(x.code).localeCompare(String(y.code),'vi',{numeric:true}));
+  if(!bq.length) return toast('Hợp đồng chưa có bảng khối lượng. Hãy nhập bảng khối lượng hợp đồng trước.','err');
+  const mine=b? D('volumes').filter(v=>v.batchId===b.id) : [];
+  const cur=id=>mine.find(v=>v.boqId===id);
+  const prevDone=x=>boqDone(x)-N((cur(x.id)||{}).doneQty), prevAcc=x=>boqAccAll(x)-N((cur(x.id)||{}).acceptedQty);
+  const grid=`<div class="vb-tools"><button type="button" class="btn sm" id="vb_copy">Chép khối lượng thực hiện sang nghiệm thu</button><label class="small"><input type="checkbox" id="vb_only"> Chỉ hiện công việc có số liệu</label><input type="search" id="vb_q" placeholder="Tìm mã, tên công việc…" aria-label="Tìm công việc" style="max-width:240px"></div>
+    <div class="tw vb-grid"><table><thead><tr><th>Mã</th><th>Công việc</th><th>ĐVT</th><th class="r">KL hợp đồng</th><th class="r">Lũy kế thực hiện trước</th><th class="r">Lũy kế nghiệm thu trước</th><th class="r">KL thực hiện đợt này</th><th class="r">KL nghiệm thu đợt này</th></tr></thead><tbody>
+    ${bq.map(x=>{ const v=cur(x.id)||{}; return `<tr data-b="${esc(x.id)}" data-q="${esc(norm(x.code+' '+x.name))}"><td class="num">${esc(x.code)}</td><td>${esc(x.name)}</td><td>${esc(x.unit||'')}</td><td class="r num">${fmtN(x.qty,2)}</td><td class="r num">${fmtN(prevDone(x),2)}</td><td class="r num">${fmtN(prevAcc(x),2)}</td>
+      <td class="r"><input type="number" step="any" min="0" class="num vbq" data-k="d" value="${v.doneQty??''}" aria-label="Khối lượng thực hiện ${esc(x.code)}"></td><td class="r"><input type="number" step="any" min="0" class="num vbq" data-k="a" value="${v.acceptedQty??''}" aria-label="Khối lượng nghiệm thu ${esc(x.code)}"></td></tr>`; }).join('')}
+    </tbody><tfoot><tr><td colspan="6">Giá trị của đợt</td><td class="r num" id="vb_td">0</td><td class="r num" id="vb_ta">0</td></tr></tfoot></table></div>
+    <p class="small muted" style="margin:6px 0 0">Khối lượng nghiệm thu đợt này được lớn hơn khối lượng thực hiện đợt này (nghiệm thu phần đã thi công ở đợt trước), miễn là lũy kế nghiệm thu không vượt lũy kế thực hiện. Dòng tô đỏ: lũy kế nghiệm thu vượt lũy kế thực hiện; tô vàng: lũy kế thực hiện vượt khối lượng hợp đồng.</p>`;
+  openForm({title:(b?'Sửa ':'Lập ')+'đợt nghiệm thu khối lượng'+(b?': '+b.name:''), wide:true, value:b||{name:vbNextName(cid), date:TODAY},
+    fields:[{key:'name',label:'Tên đợt',req:true},{key:'number',label:'Số biên bản nghiệm thu'},{key:'date',label:'Ngày nghiệm thu',type:'date',req:true},{key:'note',label:'Ghi chú'},
+      {key:'grid',type:'html',label:'Khối lượng các công việc trong đợt',full:true,html:grid},
+      {key:'att',label:'Biên bản nghiệm thu của đợt (bản scan PDF, ảnh)',type:'attach',col:'vbatches',kind:'Biên bản nghiệm thu',full:true}],
+    onSave:async v=>{ const err=$('#mform_err'); const lines=vbRead(); const bad=[], over=[];
+      if(!lines.some(l=>l.d||l.a)){ err.textContent='Chưa nhập khối lượng cho công việc nào.'; return false; }
+      lines.forEach(l=>{ const x=get('boq',l.id); const cd=prevDone(x)+l.d, ca=prevAcc(x)+l.a; if(l.d<0||l.a<0) bad.push(x.code+' (số âm)'); else if(ca>cd+1e-9) bad.push(`${x.code} (lũy kế nghiệm thu ${fmtN(ca,2)} > lũy kế thực hiện ${fmtN(cd,2)})`); if(cd>N(x.qty)*1.0001) over.push(x.code); });
+      if(bad.length){ err.textContent='Không lưu được: '+bad.slice(0,3).join('; ')+(bad.length>3?'…':''); return false; }
+      if(D('vbatches').some(o=>o.contractId===cid && o.id!==(b&&b.id) && norm(o.name)===norm(v.name))){ err.textContent='Hợp đồng đã có đợt tên "'+v.name+'".'; return false; }
+      const rec=await save('vbatches',{...(b||{}), contractId:cid, name:v.name, number:v.number, date:v.date, note:v.note});
+      for(const l of lines){ const old=cur(l.id); const x=get('boq',l.id);
+        if(!l.d && !l.a){ if(old) await Store.del('volumes', old.id); continue; }
+        await save('volumes',{...(old||{}), contractId:cid, boqId:l.id, batchId:rec.id, date:v.date, period:v.name, note:v.number||'', doneQty:l.d, acceptedQty:l.a}); }
+      if(over.length) toast(`Lưu ý: lũy kế thực hiện vượt khối lượng hợp đồng ở ${over.length} công việc (${over.slice(0,3).join(', ')}). Cần lập phụ lục điều chỉnh trước khi thanh toán.`,'err');
+      return rec; }});
+  const ov=$('#ov'); const tb=ov.querySelector('.vb-grid tbody');
+  const recalc=()=>{ let td=0, ta=0; tb.querySelectorAll('tr').forEach(tr=>{ const x=get('boq',tr.dataset.b); const d=N(tr.querySelector('[data-k=d]').value), a=N(tr.querySelector('[data-k=a]').value);
+      td+=d*N(x.price); ta+=a*N(x.price); const cd=prevDone(x)+d, ca=prevAcc(x)+a; tr.classList.toggle('bad', ca>cd+1e-9); tr.classList.toggle('warn', !(ca>cd+1e-9) && cd>N(x.qty)*1.0001); });
+    $('#vb_td',ov).textContent=fmtVND(td); $('#vb_ta',ov).textContent=fmtVND(ta); };
+  const filt=()=>{ const q=norm($('#vb_q',ov).value), only=$('#vb_only',ov).checked; tb.querySelectorAll('tr').forEach(tr=>{ const has=[...tr.querySelectorAll('.vbq')].some(i=>N(i.value)); tr.hidden=(q && !tr.dataset.q.includes(q)) || (only && !has); }); };
+  tb.addEventListener('input', recalc); $('#vb_q',ov).addEventListener('input', filt); $('#vb_only',ov).addEventListener('change', filt);
+  $('#vb_copy',ov).addEventListener('click', ()=>{ tb.querySelectorAll('tr').forEach(tr=>{ const d=tr.querySelector('[data-k=d]'), a=tr.querySelector('[data-k=a]'); if(d.value!=='' && a.value==='') a.value=d.value; }); recalc(); });
+  recalc();
+}
+function vbRead(){ return [...$('#ov').querySelectorAll('.vb-grid tbody tr')].map(tr=>({id:tr.dataset.b, d:N(tr.querySelector('[data-k=d]').value), a:N(tr.querySelector('[data-k=a]').value)})); }
+/* Sửa một dòng khối lượng cũ (dữ liệu trước bản 1.7, chưa thuộc đợt nào) */
+const volFields=(cid)=>[{key:'boqId',label:'Công việc',type:'select',options:()=>D('boq').filter(b=>b.contractId===cid).sort(by('code')).map(b=>[b.id, b.code+' · '+b.name+' ('+b.unit+')']),req:true,full:true},
+  {key:'date',label:'Ngày',type:'date',req:true,def:TODAY},{key:'period',label:'Đợt / kỳ',req:true},
+  {key:'doneQty',label:'Khối lượng thực hiện trong kỳ',type:'number',req:true},{key:'acceptedQty',label:'Khối lượng được nghiệm thu',type:'number',def:0},{key:'note',label:'Số biên bản nghiệm thu / ghi chú',full:true}];
+/** Mục 29: kiểm tra theo lũy kế: lũy kế nghiệm thu không vượt lũy kế thực hiện; vượt khối lượng hợp đồng thì nhắc. */
+function volCheck(v, self){ const b=get('boq',v.boqId); const done=boqDone(b)-(self?N(self.doneQty):0)+N(v.doneQty), acc=boqAccAll(b)-(self?N(self.acceptedQty):0)+N(v.acceptedQty);
+  if(N(v.doneQty)<0||N(v.acceptedQty)<0){ $('#mform_err').textContent='Khối lượng không được âm.'; return false; }
+  if(acc>done+1e-9){ $('#mform_err').textContent=`Lũy kế nghiệm thu (${fmtN(acc,2)}) vượt lũy kế thực hiện (${fmtN(done,2)}) ${b.unit||''}.`; return false; }
+  if(done>N(b.qty)*1.0001) toast(`Lưu ý: lũy kế ${fmtN(done,2)} vượt khối lượng hợp đồng ${fmtN(b.qty,2)} ${b.unit}.`,'err'); return true; }
+ACT['add-vol']=(cid)=>ACT['vb-new'](cid);
+ACT['edit-volumes']=(id)=>{ const o=get('volumes',id); const bt=batchOf(o); if(bt) return vbForm(bt.contractId, bt);
+  openForm({title:'Sửa khối lượng thực hiện / nghiệm thu', fields:volFields(o.contractId), value:o, onSave:v=>volCheck(v,o)?save('volumes',v,(get('boq',v.boqId)||{}).name+' '+v.period):false}); };
 
 /* ===== QUẢN LÝ THANH TOÁN (UC28–31) ===== */
 VIEWS['thanh-toan']=()=>{
@@ -75,12 +155,19 @@ VIEWS['thanh-toan']=()=>{
 const planFields=(cid)=>[{key:'contractId',label:'Hợp đồng',type:'select',options:()=>contractOpts(S.pid),req:true,full:true,def:cid},{key:'phase',label:'Đợt thanh toán',req:true},{key:'planDate',label:'Thời gian dự kiến',type:'date',req:true},{key:'amount',label:'Giá trị kế hoạch (đồng)',type:'money',req:true},{key:'note',label:'Ghi chú',type:'textarea'},{key:'att',label:'QĐ giao kế hoạch vốn, văn bản đăng ký kế hoạch',type:'attach',col:'payplans'}];
 ACT['add-plan']=(cid)=>openForm({title:'Thêm kế hoạch thanh toán', fields:planFields(cid), onSave:v=>save('payplans',v,v.phase)});
 ACT['edit-payplans']=(id)=>openForm({title:'Cập nhật kế hoạch thanh toán', fields:planFields(), value:get('payplans',id), onSave:v=>save('payplans',v,v.phase)});
-const payFields=(cid)=>[{key:'contractId',label:'Hợp đồng',type:'select',options:()=>contractOpts(S.pid),req:true,full:true,def:cid},{key:'number',label:'Số hồ sơ',req:true},{key:'date',label:'Ngày',type:'date',req:true,def:TODAY},
-  {key:'kind',label:'Loại thanh toán',type:'select',options:()=>catalog('Loại thanh toán'),req:true},{key:'status',label:'Trạng thái',type:'select',options:()=>can('thanh-toan','approve')? catalog('Trạng thái thanh toán') : ['Đề nghị'],req:true,def:'Đề nghị'},
+const payFields=(cid, rec)=>[{key:'contractId',label:'Hợp đồng',type:'select',options:()=>contractOpts(S.pid),req:true,full:true,def:cid},{key:'number',label:'Số hồ sơ',req:true},{key:'date',label:'Ngày',type:'date',req:true,def:TODAY},
+  {key:'kind',label:'Loại thanh toán',type:'select',options:()=>catalog('Loại thanh toán'),req:true},{key:'statusInfo',type:'html',label:'Trạng thái',html:`<div style="padding:7px 0">${rec? wfPill('payments',rec) : pill('Đề nghị')}<div class="small muted" style="margin-top:4px">Trạng thái tự chuyển theo các nút Trình duyệt, Duyệt, Xác nhận đã chi.</div></div>`},
   {key:'amount',label:'Giá trị (đồng)',type:'money',req:true},{key:'payPlanId',label:'Thuộc đợt kế hoạch thanh toán',type:'select',dep:'contractId',full:true,options:c=>D('payplans').filter(p=>p.contractId===c).sort(by('planDate')).map(p=>[p.id, `${p.phase} · hạn ${fmtDate(p.planDate)} · ${fmtVND(p.amount)} đ · ${planState(p).t}`])},{key:'content',label:'Nội dung',full:true},{key:'att',label:'Bộ hồ sơ thanh toán (giấy đề nghị, bảng xác định giá trị, biên bản nghiệm thu…)',type:'attach',col:'payments',kind:'Hồ sơ đề nghị thanh toán'}];
-function payCheck(v, self){ const c=get('contracts',v.contractId); const others=sum(D('payments').filter(p=>p.contractId===c.id && p.id!==(self&&self.id) && p.status!=='Từ chối' && !wfReturned('payments',p)),'amount'); if(others+N(v.amount)>contractValue(c)+1){ $('#mform_err').textContent=`Tổng giá trị thanh toán (${fmtVND(others+N(v.amount))} đ) vượt giá trị hợp đồng (${fmtVND(contractValue(c))} đ). Hồ sơ bị trả lại không tính vào hạn mức; hồ sơ đang lập, chờ duyệt, đã trình Kho bạc và đã chi đều được tính.`; return false; } return true; }
-ACT['add-pay']=(cid)=>openForm({title:'Lập hồ sơ thanh toán', fields:payFields(cid), onSave:v=>payCheck(v)? save('payments', v, v.number):false});
-ACT['edit-payments']=(id)=>{ const o=get('payments',id); openForm({title:'Cập nhật hồ sơ thanh toán', fields:payFields(), value:o, onSave:v=>payCheck(v,o)? save('payments', v, v.number):false}); };
+async function payCheck(v, self){ /* trả false để giữ biểu mẫu mở */ const c=get('contracts',v.contractId); const live=p=>p.contractId===c.id && p.id!==(self&&self.id) && p.status!=='Từ chối' && !wfReturned('payments',p);
+  const others=sum(D('payments').filter(live),'amount'); if(others+N(v.amount)>contractValue(c)+1){ $('#mform_err').textContent=`Tổng giá trị thanh toán (${fmtVND(others+N(v.amount))} đ) vượt giá trị hợp đồng (${fmtVND(contractValue(c))} đ). Hồ sơ bị trả lại không tính vào hạn mức; hồ sơ đang lập, chờ duyệt, đã trình Kho bạc và đã chi đều được tính.`; return false; }
+  /* Mục 31: thanh toán khối lượng hoàn thành không vượt giá trị đã nghiệm thu (đợt nghiệm thu đã duyệt). Khi lập chỉ nhắc; khi trình, duyệt máy chủ sẽ chặn. */
+  if(payIsVol(v)){ const acc=contractAcc(c.id), before=sum(D('payments').filter(p=>live(p) && payIsVol(p)),'amount'), room=Math.max(0, acc-before);
+    const key=c.id+'|'+N(v.amount); const f=$('#mform');
+    if(before+N(v.amount)>acc+1 && !(f && f.dataset.warned===key)){ if(f) f.dataset.warned=key;
+      $('#mform_err').innerHTML=`Lũy kế thanh toán khối lượng sẽ là ${fmtVND(before+N(v.amount))} đ, vượt giá trị đã nghiệm thu được duyệt ${fmtVND(acc)} đ; hồ sơ này chỉ được thanh toán tối đa ${fmtVND(room)} đ. Bấm Lưu lần nữa để vẫn lưu dự thảo (phần mềm sẽ không cho trình duyệt khi chưa đủ khối lượng nghiệm thu).`; return false; } }
+  return true; }
+ACT['add-pay']=(cid)=>openForm({title:'Lập hồ sơ thanh toán', fields:payFields(cid), onSave:async v=>await payCheck(v)? save('payments', {...v, status:'Đề nghị'}, v.number):false});
+ACT['edit-payments']=(id)=>{ const o=get('payments',id); openForm({title:'Cập nhật hồ sơ thanh toán', fields:payFields(null,o), value:o, onSave:async v=>await payCheck(v,o)? save('payments', {...v, status:o.status}, v.number):false}); };
 ACT['pay-done']=(id)=>{ const p=get('payments',id);
   openForm({title:'Xác nhận đã chi: '+p.number, narrow:true, submit:'Xác nhận đã chi', value:{...p, paidDate:TODAY},
     fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0">Hồ sơ <b>${esc(p.number)}</b> đã được Kho bạc chi <b>${fmtVND(p.amount)} đồng</b>?</p>`},{key:'paidDate',label:'Ngày Kho bạc chi',type:'date',req:true,full:true},{key:'att',label:'Chứng từ Kho bạc (giấy rút vốn, ủy nhiệm chi…)',type:'attach',col:'payments',kind:'Chứng từ Kho bạc',cur:null,full:true}],
@@ -125,7 +212,7 @@ VIEWS['bao-cao']=()=>{
   const money=R.money||[]; const isNum=(v)=>typeof v==='number';
   const totals=R.head.map((h,i)=> i===0?'Tổng cộng': money.includes(i)? fmtVND(sum(rows,r=>r[i])) : '');
   const title=REPORTS.find(r=>r[0]===type)[1];
-  return `<div class="head"><div class="grow"><h1>Báo cáo, thống kê</h1><p>Chọn loại báo cáo, lọc theo dự án, gói thầu, thời gian rồi in hoặc xuất ra Excel, PDF, CSV</p></div><div class="toolbar" style="margin:0"><button class="btn" data-act="export-report-pdf" title="Mở hộp thoại in; chọn máy in hoặc Lưu thành PDF">In / Xuất PDF</button><button class="btn" data-act="export-report-csv">Xuất CSV</button><button class="btn primary" data-act="export-report">Xuất Excel</button></div></div>
+  return `<div class="head"><div class="grow"><h1>Báo cáo, thống kê</h1><p>Chọn loại báo cáo, lọc theo dự án, gói thầu, thời gian rồi in hoặc xuất ra Excel, PDF, CSV</p></div><div class="toolbar" style="margin:0"><button class="btn" data-act="export-report-pdf" title="Mở hộp thoại in; chọn máy in hoặc Lưu thành PDF">In / Xuất PDF</button><button class="btn" data-act="export-report-csv">Xuất CSV</button><button class="btn" data-act="export-report-json" title="Tệp dữ liệu JSON để chia sẻ, liên thông với phần mềm khác">Xuất JSON</button><button class="btn primary" data-act="export-report">Xuất Excel</button></div></div>
   <div class="card"><div class="toolbar filters"><select data-f="bct" aria-label="Loại báo cáo" style="flex:1 1 320px;max-width:520px">${opts(REPORTS,type)}</select>
     ${!S.pid?`<select data-f="bcp" aria-label="Dự án">${opts(projOpts(),f.pid,'Tất cả dự án')}</select>`:''}<select data-f="bck" aria-label="Gói thầu">${opts(pkgOpts(f.pid),f.kid,'Tất cả gói thầu')}</select>
     <label class="small muted">Từ <input type="date" data-f="bcf" value="${esc(f.from)}"></label><label class="small muted">Đến <input type="date" data-f="bctt" value="${esc(f.to)}"></label><input type="search" data-f="bcq" value="${esc(q)}" placeholder="Tra cứu trong báo cáo…" aria-label="Tra cứu"></div></div>
@@ -143,9 +230,10 @@ function reportNow(){
 }
 ACT['export-report']=()=>{
   const x=reportNow();
-  exportXlsx(`BaoCao_${x.type}_${TODAY}.xlsx`, [{name:'Bao cao', title:x.title, sub:x.sub, head:x.R.head, rows:[...x.rows, ...(x.money.length?[x.tot]:[])]}]);
+  exportXlsx(`BaoCao_${x.type}_${TODAY}.xlsx`, [{name:'Bao cao', title:x.title, sub:x.sub, head:x.R.head, money:x.money, total:!!x.money.length, rows:[...x.rows, ...(x.money.length?[x.tot]:[])]}]);
   log('Xuất báo cáo','logs',x.name);
 };
+ACT['export-report-json']=()=>{ const x=reportNow(); exportJson(`BaoCao_${x.type}_${TODAY}.json`, {title:x.name, sub:x.sub, head:x.R.head, rows:x.rows}); log('Xuất báo cáo JSON','logs',x.name); };
 /** CSV (UTF-8 có BOM để Excel mở đúng tiếng Việt, phân cách dấu phẩy, số không định dạng). */
 ACT['export-report-csv']=()=>{
   const x=reportNow(); const cell=v=>{ const t=v==null?'':String(v); return /[",\n;]/.test(t)? '"'+t.replace(/"/g,'""')+'"' : t; };
@@ -197,8 +285,9 @@ VIEWS['quan-tri']=()=>{
   if(t==='users'){ const q=S.f.uq||'';
     const rows=D('users').filter(u=>has(u,q)).sort(by('username'));
     body=`<div class="card"><div class="ch"><h2>Người dùng</h2><input type="search" data-f="uq" value="${esc(q)}" placeholder="Tìm người dùng…" aria-label="Tìm người dùng" style="max-width:260px"><button class="btn primary sm" data-act="add-user">+ Thêm người dùng</button></div>
-    ${table([{h:'Tên đăng nhập',f:r=>`<span class="num">${esc(r.username)}</span>`},{h:'Họ và tên',k:'name'},{h:'Đơn vị',k:'unit'},{h:'Nhóm',f:r=>esc((get('groups',r.groupId)||{}).name||'—')},{h:'Trạng thái',f:r=>r.active===false?pill('Đã khóa','bad'):pill('Hoạt động','ok')},{h:'Xác thực 2 lớp',f:r=>r.twoFactor?pill('Đã bật','ok'):(get('groups',r.groupId)||{}).admin?pill('Chờ thiết lập','warn'):'<span class="muted small">Không bắt buộc</span>'},{h:'Đăng nhập gần nhất',f:r=>`<span class="num small">${fmtDT(r.lastLogin)}</span>`}], rows,
-      {actions:r=>`<button class="btn sm ghost" data-act="edit-users" data-id="${r.id}">Sửa</button><button class="btn sm ghost" data-act="reset-pw" data-id="${r.id}">Đặt lại mật khẩu</button>${r.id!==S.user.id?`${r.twoFactor&&myGroup()?.admin?`<button class="btn sm ghost" data-act="reset-2fa" data-id="${r.id}">Đặt lại 2 lớp</button>`:''}<button class="btn sm ghost" data-act="lock-user" data-id="${r.id}">${r.active===false?'Mở khóa':'Khóa'}</button><button class="btn sm ghost danger" data-act="del" data-col="users" data-id="${r.id}">Xóa</button>`:''}`})}</div>`; }
+    ${table([{h:'Tên đăng nhập',f:r=>`<span class="num">${esc(r.username)}</span>`},{h:'Họ và tên',f:r=>`${esc(r.name)}${r.id===Store.meta.ownerId?' <span class="pill acc" title="Được quản lý các tài khoản quản trị khác">Quản trị chính</span>':''}`},{h:'Đơn vị',k:'unit'},{h:'Nhóm',f:r=>esc((get('groups',r.groupId)||{}).name||'—')},{h:'Trạng thái',f:r=>r.active===false?pill('Đã khóa','bad'):pill('Hoạt động','ok')},{h:'Xác thực 2 lớp',f:r=>r.twoFactor?pill('Đã bật','ok'):(get('groups',r.groupId)||{}).admin?pill('Chờ thiết lập','warn'):'<span class="muted small">Không bắt buộc</span>'},{h:'Đăng nhập gần nhất',f:r=>`<span class="num small">${fmtDT(r.lastLogin)}</span>`}], rows,
+      {actions:r=>userBtns(r)})}
+    <p class="small muted" style="margin:10px 0 0">Quản trị chính là tài khoản quản trị duy nhất được tạo, sửa, khóa, xóa, đặt lại mật khẩu và xác thực 2 lớp cho các quản trị viên khác. Quản trị viên khác chỉ tự sửa tài khoản của mình và quản lý tài khoản nghiệp vụ.</p></div>`; }
   else if(t==='groups') body=`<div class="card"><div class="ch"><h2>Nhóm người dùng và phân quyền</h2><button class="btn primary sm" data-act="add-group">+ Thêm nhóm</button></div>
     ${table([{h:'Nhóm',f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(r.desc||'')}</div>`},{h:'Số người dùng',r:1,f:r=>D('users').filter(u=>u.groupId===r.id).length},{h:'Quyền chức năng',f:r=>r.admin?pill('Toàn quyền','acc'):MODULES.map(m=>{ const p=(r.perms||{})[m.key]; return p==='edit'?pill(m.label,'ok'):p==='view'?pill(m.label):''; }).join(' ')},{h:'Phạm vi dữ liệu',f:r=>r.admin||!(r.scope||[]).length?'Tất cả dự án':(r.scope||[]).map(id=>esc((get('projects',id)||{}).code||id)).join(', ')}], D('groups').sort(by('name')),
       {actions:r=>`<button class="btn sm ghost" data-act="edit-groups" data-id="${r.id}">Phân quyền</button>${r.id!=='g-admin'?`<button class="btn sm ghost danger" data-act="del" data-col="groups" data-id="${r.id}">Xóa</button>`:''}`})}
@@ -223,30 +312,45 @@ VIEWS['quan-tri']=()=>{
   return `<div class="head"><div class="grow"><h1>Quản trị hệ thống</h1><p>${D('users').length} người dùng, ${D('groups').length} nhóm quyền</p></div></div>
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="qt" data-id="${k}">${l}</button>`).join('')}</div>${body}`;
 };
-const userFields=(isNew)=>[{key:'username',label:'Tên đăng nhập',req:true},{key:'name',label:'Họ và tên',req:true},{key:'unit',label:'Đơn vị / phòng ban'},{key:'groupId',label:'Nhóm người dùng',type:'select',options:()=>D('groups').map(g=>[g.id,g.name]),req:true},{key:'email',label:'Thư điện tử'},{key:'phone',label:'Điện thoại'},...(isNew?[{key:'pw',label:'Mật khẩu ban đầu (≥ 8 ký tự, có chữ và số)',type:'password',req:true,full:true}]:[])];
-ACT['add-user']=()=>openForm({title:'Thêm người dùng', fields:userFields(true), onSave:async v=>{ v.username=v.username.toLowerCase(); const err=$('#mform_err');
+/** Mục 19 (bản 1.7): quản trị viên không thao tác được trên tài khoản quản trị khác, trừ Quản trị chính. */
+const isAdminUser = u => !!(get('groups',u.groupId)||{}).admin;
+const iAmOwner = () => S.user && S.user.id===Store.meta.ownerId;
+const canManageUser = u => u.id===S.user.id || !isAdminUser(u) || iAmOwner();
+function userBtns(r){
+  if(!canManageUser(r)) return '<span class="small muted">Chỉ Quản trị chính</span>';
+  const me=r.id===S.user.id; let h=`<button class="btn sm ghost" data-act="edit-users" data-id="${r.id}">Sửa</button><button class="btn sm ghost" data-act="reset-pw" data-id="${r.id}">Đặt lại mật khẩu</button>`;
+  if(!me){ if(r.twoFactor&&myGroup()?.admin) h+=`<button class="btn sm ghost" data-act="reset-2fa" data-id="${r.id}">Đặt lại 2 lớp</button>`;
+    h+=`<button class="btn sm ghost" data-act="lock-user" data-id="${r.id}">${r.active===false?'Mở khóa':'Khóa'}</button><button class="btn sm ghost danger" data-act="del" data-col="users" data-id="${r.id}">Xóa</button>`;
+    if(iAmOwner() && isAdminUser(r) && r.active!==false) h+=`<button class="btn sm ghost" data-act="owner-to" data-id="${r.id}">Chuyển giao quản trị chính</button>`; }
+  return h; }
+ACT['owner-to']=(id)=>{ const u=get('users',id); const need=!!(S.user&&S.user.twoFactor);
+  openForm({title:'Chuyển giao quyền Quản trị chính', narrow:true, submit:'Chuyển giao', value:{}, fields:[{key:'info',type:'html',label:'',full:true,html:`<p style="margin:0">Chuyển quyền Quản trị chính cho <b>${esc(u.name)}</b> (${esc(u.username)})? Sau khi chuyển, bạn trở thành quản trị viên thường và không còn sửa được tài khoản quản trị khác.</p>`},
+    ...(need?[{key:'code',label:'Mã xác thực 2 lớp của bạn',req:true,full:true}]:[])],
+    onSave:async v=>{ const r=await api('POST','/api/users/'+encodeURIComponent(id)+'/owner',{code:v.code||''}); Store.meta.ownerId=r.ownerId; Store.soon(); return r; }}); };
+const userFields=(isNew)=>[{key:'username',label:'Tên đăng nhập',req:true},{key:'name',label:'Họ và tên',req:true},{key:'unit',label:'Đơn vị / phòng ban'},{key:'groupId',label:'Nhóm người dùng',type:'select',options:()=>D('groups').filter(g=>!g.admin||iAmOwner()||(S.f._ug===g.id)).map(g=>[g.id,g.name]),req:true},{key:'email',label:'Thư điện tử'},{key:'phone',label:'Điện thoại'},...(isNew?[{key:'pw',label:'Mật khẩu ban đầu (≥ 8 ký tự, có chữ và số)',type:'password',req:true,full:true}]:[])];
+ACT['add-user']=()=>{ S.f._ug=''; return openForm({title:'Thêm người dùng', fields:userFields(true), onSave:async v=>{ v.username=v.username.toLowerCase(); const err=$('#mform_err');
   if(!/^[a-z0-9._-]{3,32}$/.test(v.username)){ err.textContent='Tên đăng nhập 3–32 ký tự: chữ thường không dấu, số, dấu chấm, gạch.'; return false; }
   if(D('users').some(u=>u.username===v.username)){ err.textContent='Tên đăng nhập đã tồn tại.'; return false; }
   if(!pwOk(v.pw)){ err.textContent='Mật khẩu cần ≥ 8 ký tự, gồm cả chữ và số.'; return false; }
-  const r=await api('POST','/api/users',{...v, password:v.pw}); Store.setLocal('users',r); }});
-ACT['edit-users']=(id)=>openForm({title:'Cập nhật người dùng', fields:userFields(false), value:get('users',id), onSave:async v=>{ v.username=v.username.toLowerCase(); if(D('users').some(u=>u.username===v.username&&u.id!==id)){ $('#mform_err').textContent='Tên đăng nhập đã tồn tại.'; return false; } const r=await api('PUT','/api/users/'+encodeURIComponent(id),v); Store.setLocal('users',r); if(id===S.user.id) S.user={...S.user,...r}; }});
+  const r=await api('POST','/api/users',{...v, password:v.pw}); Store.setLocal('users',r); }}); };
+ACT['edit-users']=(id)=>{ S.f._ug=(get('users',id)||{}).groupId; return openForm({title:'Cập nhật người dùng', fields:userFields(false), value:get('users',id), onSave:async v=>{ v.username=v.username.toLowerCase(); if(D('users').some(u=>u.username===v.username&&u.id!==id)){ $('#mform_err').textContent='Tên đăng nhập đã tồn tại.'; return false; } const r=await api('PUT','/api/users/'+encodeURIComponent(id),v); Store.setLocal('users',r); if(id===S.user.id) S.user={...S.user,...r}; }}); };
 ACT['reset-pw']=(id)=>{ const u=get('users',id); openForm({title:'Đặt lại mật khẩu cho '+u.username, narrow:true, fields:[{key:'pw',label:'Mật khẩu mới (≥ 8 ký tự, có chữ và số)',type:'password',req:true,full:true}], onSave:async v=>{ if(!pwOk(v.pw)){ $('#mform_err').textContent='Mật khẩu cần ≥ 8 ký tự, gồm cả chữ và số.'; return false; } await api('POST','/api/users/'+encodeURIComponent(id)+'/reset-password',{password:v.pw}); }}); };
 ACT['reset-2fa']=async(id)=>{ const u=get('users',id);
   if(!await confirmBox(`Đặt lại xác thực 2 lớp cho <b>${esc(u.username)}</b>? Dùng khi người dùng mất hoặc đổi điện thoại. Mã cũ và mã khôi phục hết hiệu lực; lần đăng nhập sau người dùng phải quét mã QR mới.`,'Đặt lại')) return;
   try{ const r=await api('POST','/api/users/'+encodeURIComponent(id)+'/reset-2fa'); Store.setLocal('users',r); toast('Đã đặt lại xác thực 2 lớp'); }catch(ex){ toast(errText(ex),'err'); } };
 ACT['lock-user']=async(id)=>{ const u=get('users',id); try{ const r=await api('POST','/api/users/'+encodeURIComponent(id)+'/active',{active:u.active===false}); Store.setLocal('users',r); toast(r.active?'Đã mở khóa tài khoản':'Đã khóa tài khoản'); }catch(ex){ toast(errText(ex),'err'); } };
 function groupForm(g){
-  const permHtml=`<table class="perm"><thead><tr><th>Phân hệ</th><th>Không truy cập</th><th>Chỉ xem</th><th>Xem và cập nhật</th><th>Duyệt hồ sơ</th></tr></thead><tbody>${MODULES.map(m=>{ const gp=(g&&g.perms)||{}, p=gp[m.key]||'none'; const wfm=Object.values(WF).some(w=>w.mod===m.key); return `<tr><td>${esc(m.label)}</td>${['none','view','edit'].map(l=>`<td><input type="radio" name="perm_${m.key}" value="${l}" ${p===l?'checked':''} aria-label="${esc(m.label)} ${l}"></td>`).join('')}<td>${wfm?`<input type="checkbox" name="duyet_${m.key}" ${gp[m.key+':duyet']==='1'?'checked':''} aria-label="${esc(m.label)} duyệt hồ sơ" title="Duyệt, trả lại, thu hồi hồ sơ trình duyệt của phân hệ">`:''}</td></tr>`; }).join('')}</tbody></table><p class="small muted" style="margin:6px 0 0">Duyệt hồ sơ: duyệt phụ lục hợp đồng (Gói thầu và hợp đồng), hồ sơ thanh toán, biên bản nghiệm thu. Người duyệt cần thêm quyền xem phân hệ.</p>`;
+  const permHtml=`<table class="perm"><thead><tr><th>Phân hệ</th><th>Không truy cập</th><th>Chỉ xem</th><th>Xem và cập nhật</th><th>Duyệt hồ sơ</th><th>Kiểm tra hồ sơ</th></tr></thead><tbody>${MODULES.map(m=>{ const gp=(g&&g.perms)||{}, p=gp[m.key]||'none'; const wfm=Object.values(WF).some(w=>w.mod===m.key); return `<tr><td>${esc(m.label)}</td>${['none','view','edit'].map(l=>`<td><input type="radio" name="perm_${m.key}" value="${l}" ${p===l?'checked':''} aria-label="${esc(m.label)} ${l}"></td>`).join('')}<td>${wfm?`<input type="checkbox" name="duyet_${m.key}" ${gp[m.key+':duyet']==='1'?'checked':''} aria-label="${esc(m.label)} duyệt hồ sơ" title="Duyệt, trả lại, thu hồi hồ sơ trình duyệt của phân hệ">`:''}</td><td>${wfm?`<input type="checkbox" name="kiemtra_${m.key}" ${gp[m.key+':kiemtra']==='1'?'checked':''} aria-label="${esc(m.label)} kiểm tra hồ sơ" title="Kiểm tra, xác nhận hồ sơ trước khi trình lãnh đạo duyệt (ví dụ tư vấn giám sát xác nhận khối lượng nghiệm thu)">`:''}</td></tr>`; }).join('')}</tbody></table><p class="small muted" style="margin:6px 0 0">Duyệt hồ sơ: duyệt phụ lục hợp đồng (Gói thầu và hợp đồng), kế hoạch tiến độ, đợt nghiệm thu khối lượng, hồ sơ thanh toán, biên bản nghiệm thu. Kiểm tra hồ sơ: xác nhận ở bước kiểm tra (nếu loại hồ sơ đó có bước kiểm tra), ví dụ tư vấn giám sát xác nhận khối lượng nghiệm thu. Người duyệt, người kiểm tra cần thêm quyền xem phân hệ.</p>`;
   openForm({title:g?'Phân quyền nhóm: '+g.name:'Thêm nhóm người dùng', value:g||{}, fields:[{key:'name',label:'Tên nhóm',req:true},{key:'desc',label:'Mô tả'},
     {key:'perm',label:'Phân quyền chức năng',type:'html',full:true,html:permHtml},{key:'scope',label:'Phạm vi dữ liệu: chỉ các dự án (để trống = tất cả dự án)',type:'checks',options:()=>D('projects').sort(by('code')).map(p=>[p.id,p.code])}],
-    onSave:v=>{ const perms={}; MODULES.forEach(m=>{ const r=document.querySelector(`input[name="perm_${m.key}"]:checked`); perms[m.key]=r?r.value:'none'; const d=document.querySelector(`input[name="duyet_${m.key}"]`); if(d&&d.checked) perms[m.key+':duyet']='1'; }); if(!perms['tong-quan']||perms['tong-quan']==='none') perms['tong-quan']='view'; return save('groups',{...v, perms, admin:!!(g&&g.admin)}, v.name); }});
+    onSave:v=>{ const perms={}; MODULES.forEach(m=>{ const r=document.querySelector(`input[name="perm_${m.key}"]:checked`); perms[m.key]=r?r.value:'none'; const d=document.querySelector(`input[name="duyet_${m.key}"]`); if(d&&d.checked) perms[m.key+':duyet']='1'; const k=document.querySelector(`input[name="kiemtra_${m.key}"]`); if(k&&k.checked) perms[m.key+':kiemtra']='1'; }); if(!perms['tong-quan']||perms['tong-quan']==='none') perms['tong-quan']='view'; return save('groups',{...v, perms, admin:!!(g&&g.admin)}, v.name); }});
 }
 ACT['add-group']=()=>groupForm(null);
 ACT['edit-groups']=(id)=>groupForm(get('groups',id));
 ACT['pick-cat']=(id)=>{ S.f.cty=id; render(); };
 ACT['add-cat']=(type)=>openForm({title:'Thêm giá trị danh mục', narrow:true, fields:[{key:'type',label:'Loại danh mục (nhập tên mới để tạo loại mới)',req:true,full:true,def:type},{key:'value',label:'Giá trị',req:true,full:true},{key:'order',label:'Thứ tự',type:'number',full:true,def:D('catalogs').filter(c=>c.type===type).length}], onSave:v=>save('catalogs',v,v.type+': '+v.value)});
 ACT['edit-catalogs']=(id)=>openForm({title:'Sửa giá trị danh mục', narrow:true, fields:[{key:'value',label:'Giá trị',req:true,full:true},{key:'order',label:'Thứ tự',type:'number',full:true}], value:get('catalogs',id), onSave:v=>save('catalogs',v,v.type+': '+v.value)});
-ACT['export-logs']=()=>exportXlsx(`NhatKyHoatDong_${TODAY}.xlsx`,[{name:'Nhat ky',title:'NHẬT KÝ HOẠT ĐỘNG HỆ THỐNG',sub:'Xuất ngày '+fmtDate(TODAY),head:['Thời gian','Tên đăng nhập','Họ tên','Thao tác','Phân hệ','Đối tượng'],rows:D('logs').sort(by('ts',-1)).map(l=>[fmtDT(l.ts),l.username,l.fullname,l.action,l.module,l.target])}]);
+ACT['export-logs']=()=>exportXlsx(`NhatKyHoatDong_${TODAY}.xlsx`,[{name:'Nhat ky',title:'NHẬT KÝ HOẠT ĐỘNG HỆ THỐNG',money:[],sub:'Xuất ngày '+fmtDate(TODAY),head:['Thời gian','Tên đăng nhập','Họ tên','Thao tác','Phân hệ','Đối tượng'],rows:D('logs').sort(by('ts',-1)).map(l=>[fmtDT(l.ts),l.username,l.fullname,l.action,l.module,l.target])}]);
 ACT.backup=()=>{ const a=document.createElement('a'); a.href='/api/backup'; a.download=''; document.body.appendChild(a); a.click(); a.remove(); toast('Đang tạo tệp sao lưu…'); };
 ACT['backup-full']=()=>{ const a=document.createElement('a'); a.href='/api/backup/full'; a.download=''; document.body.appendChild(a); a.click(); a.remove(); toast('Đang đóng gói dữ liệu và tệp đính kèm, có thể mất vài phút nếu kho tệp lớn…'); };
 /* Dữ liệu quản trị tải riêng khi mở thẻ (kho tệp, sao lưu tự động) */
@@ -377,7 +481,7 @@ function guideFiles(g){
   const list=atts('guides',g.id); if(!list.length) return '';
   const vids=list.filter(isVideo), imgs=list.filter(a=>!isVideo(a)&&/^image\//.test(a.contentType)), docs=list.filter(a=>!isVideo(a)&&!/^image\//.test(a.contentType));
   return `${docs.length?`<div class="guide-docs">${docs.map(a=>`<div class="guide-doc">${attIcon(a)}<div class="grow"><b>${esc(a.fileName)}</b><div class="small muted">${attMeta(a)}</div></div>
-      <a class="btn sm" href="${attUrl(a)}" target="_blank" rel="noopener">Mở</a><a class="btn sm ghost" href="${attUrl(a)}?download=true">Tải về</a></div>`).join('')}</div>`:''}
+      <a class="btn sm" href="${attUrl(a)}" target="_blank" rel="noopener" ${isPdf(a)?pdfAttr(attUrl(a),a.fileName):''}>Mở</a><a class="btn sm ghost" href="${attUrl(a)}?download=true">Tải về</a></div>`).join('')}</div>`:''}
     ${vids.map(a=>`<figure class="guide-video"><video controls preload="metadata" src="${attUrl(a)}"></video><figcaption class="small muted">${esc(a.fileName)} · ${fmtSize(a.size)}</figcaption></figure>`).join('')}
     ${imgs.length?`<div class="guide-imgs">${imgs.map(a=>`<a href="${attUrl(a)}" data-act="att-view" data-id="${esc(a.id)}"><img src="${attUrl(a)}" alt="${esc(a.fileName)}" loading="lazy"></a>`).join('')}</div>`:''}`;
 }

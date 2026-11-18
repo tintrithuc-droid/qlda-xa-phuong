@@ -1,4 +1,4 @@
-/* ===== NHẬP TỪ EXCEL (bản 1.5) =====
+/* ===== NHẬP TỪ EXCEL (bản 1.5, cập nhật 1.7) =====
    Bảng khối lượng hợp đồng, khối lượng thực hiện và nghiệm thu, kế hoạch tiến độ.
    Các bước: tải tệp mẫu, chọn tệp Excel, xem trước bảng kiểm tra (dòng lỗi được đánh dấu và bỏ qua), rồi mới lưu.
    Mỗi dòng được ghi qua /api/data như khi nhập tay, nên máy chủ vẫn kiểm tra quyền, phạm vi dự án và quy trình duyệt. */
@@ -60,9 +60,9 @@ const IMPORTS = {
 
   vol: {
     title:'Nhập khối lượng thực hiện, nghiệm thu từ Excel', file:'Mau nhap khoi luong nghiem thu.xlsx', mod:'khoi-luong',
-    intro:'Mỗi dòng là khối lượng thực hiện và khối lượng được nghiệm thu trong kỳ của một công việc, khớp theo Mã hiệu của bảng khối lượng hợp đồng. Ngày và đợt bỏ trống thì lấy theo ô bên dưới.',
+    intro:'Mỗi dòng là khối lượng thực hiện và khối lượng được nghiệm thu trong đợt của một công việc, khớp theo Mã hiệu của bảng khối lượng hợp đồng. Ngày và đợt bỏ trống thì lấy theo ô bên dưới. Các dòng cùng đợt được gom vào một đợt nghiệm thu ở trạng thái Dự thảo, kiểm tra xong mới trình duyệt.',
     extra:x=>[{key:'date',label:'Ngày nghiệm thu (áp dụng cho dòng không ghi ngày)',type:'date',def:TODAY,req:true},
-              {key:'period',label:'Đợt / kỳ (áp dụng cho dòng không ghi đợt)',def:'Đợt '+(new Set(D('volumes').filter(v=>v.contractId===x.cid).map(v=>v.period)).size+1),req:true}],
+              {key:'period',label:'Đợt nghiệm thu (áp dụng cho dòng không ghi đợt)',def:vbNextName(x.cid),req:true}],
     cols:[{k:'code',h:'Mã hiệu',req:true,al:['ma','ma cong viec','ma dinh muc']},
           {k:'name',h:'Nội dung công việc (để đối chiếu)',al:['noi dung','ten cong viec','cong viec','noi dung cong viec']},
           {k:'doneQty',h:'Khối lượng thực hiện trong kỳ',req:true,num:true,al:['kl thuc hien','khoi luong thuc hien','thuc hien','kl thuc hien trong ky']},
@@ -73,21 +73,37 @@ const IMPORTS = {
     sample:[['AB.11','Đào nền đường đất cấp II',1200,1200,'','','BB 05/NT'],['AD.11','Móng cấp phối đá dăm loại 1',650,600,'','','BB 05/NT']],
     check(rows, x){
       const boq=new Map(D('boq').filter(b=>b.contractId===x.cid).map(b=>[String(b.code).trim().toLowerCase(), b]));
-      const add={};
+      const bat=new Map(D('vbatches').filter(b=>b.contractId===x.cid).map(b=>[norm(b.name), b]));
+      const addD={}, addA={}, seen=new Set();
       rows.forEach(r=>{ const v=r.v; const b=boq.get(String(v.code||'').trim().toLowerCase());
         if(v.code && !b){ r.err.push('Không có mã hiệu này trong bảng khối lượng của hợp đồng'); return; }
         if(!b) return; r.boq=b;
+        const pn=String(v.period||x.period||'').trim(), bt=bat.get(norm(pn)); r.pname=pn;
+        if(bt && bt.status && bt.status!=='Soạn thảo'){ r.err.push(`${bt.name} đang ở trạng thái "${bt.status}", không nhập thêm được`); return; }
+        const key=norm(pn)+'|'+b.id; if(seen.has(key)){ r.err.push('Trùng mã hiệu trong cùng một đợt'); return; } seen.add(key);
+        r.old=bt? D('volumes').find(o=>o.batchId===bt.id && o.boqId===b.id) : null;
         if(v.doneQty!=null && !isNaN(v.doneQty) && v.doneQty<0) r.err.push('Khối lượng thực hiện không được âm');
         if(N(v.acceptedQty)<0) r.err.push('Khối lượng nghiệm thu không được âm');
-        if(N(v.acceptedQty)>N(v.doneQty)) r.err.push('Khối lượng nghiệm thu lớn hơn khối lượng thực hiện');
         if(r.err.length) return;
-        add[b.id]=(add[b.id]||0)+N(v.doneQty); const cum=boqDone(b)+add[b.id];
-        if(cum>N(b.qty)*1.0001) r.warn.push(`Lũy kế ${fmtN(cum,2)} vượt khối lượng hợp đồng ${fmtN(b.qty,2)} ${b.unit||''}`);
+        /* Mục 29: so theo lũy kế, gồm các đợt trước và các dòng phía trên trong tệp */
+        addD[b.id]=(addD[b.id]||0)+N(v.doneQty)-N(r.old&&r.old.doneQty); addA[b.id]=(addA[b.id]||0)+N(v.acceptedQty)-N(r.old&&r.old.acceptedQty);
+        const cd=boqDone(b)+addD[b.id], ca=boqAccAll(b)+addA[b.id];
+        if(ca>cd+1e-9){ r.err.push(`Lũy kế nghiệm thu ${fmtN(ca,2)} vượt lũy kế thực hiện ${fmtN(cd,2)} ${b.unit||''}`); addD[b.id]-=N(v.doneQty)-N(r.old&&r.old.doneQty); addA[b.id]-=N(v.acceptedQty)-N(r.old&&r.old.acceptedQty); return; }
+        if(cd>N(b.qty)*1.0001) r.warn.push(`Lũy kế ${fmtN(cd,2)} vượt khối lượng hợp đồng ${fmtN(b.qty,2)} ${b.unit||''}`);
+        if(r.old) r.warn.push('Đã có trong '+pn+', sẽ cập nhật');
         if(v.name && impKey(v.name)!==impKey(b.name)) r.warn.push('Nội dung khác bảng khối lượng: '+b.name); });
     },
     summary(ok){ const tv=sum(ok,r=>N(r.v.doneQty)*N(r.boq&&r.boq.price)), ta=sum(ok,r=>N(r.v.acceptedQty)*N(r.boq&&r.boq.price));
-      return `Giá trị thực hiện trong kỳ: <b>${fmtVND(tv)} đ</b>; giá trị nghiệm thu: <b>${fmtVND(ta)} đ</b>.`; },
-    build(r, x){ const v=r.v; return {contractId:x.cid, boqId:r.boq.id, date:v.date||x.date, period:String(v.period||x.period).trim(), doneQty:v.doneQty, acceptedQty:v.acceptedQty??0, note:String(v.note||'').trim()}; },
+      const ps=[...new Set(ok.map(r=>r.pname))];
+      return `Giá trị thực hiện: <b>${fmtVND(tv)} đ</b>; giá trị nghiệm thu: <b>${fmtVND(ta)} đ</b>. Ghi vào: <b>${esc(ps.join(', '))}</b> (dự thảo, cần trình duyệt sau khi kiểm tra).`; },
+    /** Tạo trước các đợt nghiệm thu dự thảo cho những đợt chưa có */
+    async prepare(ok, x){
+      x.bmap={}; D('vbatches').filter(b=>b.contractId===x.cid).forEach(b=>x.bmap[norm(b.name)]=b.id);
+      for(const pn of new Set(ok.map(r=>r.pname))){ if(x.bmap[norm(pn)]) continue;
+        const d=(ok.find(r=>r.pname===pn && r.v.date)||{v:{}}).v.date||x.date;
+        const rec=await Store.put('vbatches',{contractId:x.cid, name:pn, date:d, note:'Nhập từ Excel', status:'Soạn thảo'}); x.bmap[norm(pn)]=rec.id; }
+    },
+    build(r, x){ const v=r.v; return {...(r.old||{}), contractId:x.cid, boqId:r.boq.id, batchId:x.bmap[norm(r.pname)], date:v.date||x.date, period:r.pname, doneQty:v.doneQty, acceptedQty:v.acceptedQty??0, note:String(v.note||'').trim()}; },
     col:'volumes', label:r=>r.v.code+' '+(r.v.period||'')
   },
 
@@ -120,19 +136,41 @@ const IMPORTS = {
   }
 };
 
-/** Tệp mẫu: dòng tiêu đề, vài dòng ví dụ, thêm trang Hướng dẫn. */
-function impTemplate(t){
-  if(!window.XLSX){ toast('Thư viện Excel chưa tải xong, thử lại sau.','err'); return; }
-  const C=IMPORTS[t], wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet([C.cols.map(c=>c.h+(c.req?' *':'')), ...C.sample]);
-  ws['!cols']=C.cols.map(c=>({wch:Math.max(14, c.h.length+4)}));
-  XLSX.utils.book_append_sheet(wb, ws, 'Du lieu');
-  const guide=[['Hướng dẫn nhập'],[C.intro],[''],['Cột','Bắt buộc','Ghi chú'],
-    ...C.cols.map(c=>[c.h, c.req?'Có':'Không', c.num?'Số; có thể gõ 18.500 hoặc 1.234,5':c.date?'Ngày theo dạng ngày/tháng/năm, ví dụ 03/11/2026':'Chữ']),
-    [''],['Xóa các dòng ví dụ trước khi điền số liệu thật. Có thể dán từ bảng dự toán sẵn có, miễn là giữ đúng dòng tiêu đề.']];
-  const wg=XLSX.utils.aoa_to_sheet(guide); wg['!cols']=[{wch:34},{wch:10},{wch:60}];
-  XLSX.utils.book_append_sheet(wb, wg, 'Huong dan');
-  saveFile(C.file, new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+/** Mục 25: tệp mẫu có định dạng (ExcelJS): dòng tiêu đề tô màu, cột bắt buộc đánh dấu, kẻ khung, định dạng số và ngày,
+    ô Đơn vị tính chọn từ danh mục, kèm trang Hướng dẫn. Dòng tiêu đề nằm ở dòng 1 để đọc lại được ngay. */
+async function impTemplate(t){
+  try{ await loadExcel(); }catch(e){ toast('Không tải được thư viện Excel, thử lại sau.','err'); return; }
+  const C=IMPORTS[t], wb=new ExcelJS.Workbook(); wb.creator=BR.appName||'QLDA'; wb.created=new Date();
+  const thin={style:'thin',color:{argb:XL.line}}, box={top:thin,left:thin,bottom:thin,right:thin};
+  const ws=wb.addWorksheet('Du lieu',{views:[{state:'frozen', ySplit:1}], pageSetup:{paperSize:9, orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0}});
+  const hr=ws.getRow(1);
+  C.cols.forEach((c,i)=>{ const x=hr.getCell(i+1); x.value=c.h+(c.req?' *':''); x.font={name:XL.font, bold:true, color:{argb:XL.headInk}};
+    x.fill={type:'pattern', pattern:'solid', fgColor:{argb:c.req?XL.head:'FF5B7A99'}}; x.alignment={horizontal:'center', vertical:'middle', wrapText:true}; x.border=box;
+    ws.getColumn(i+1).width=c.num?18:c.date?14:Math.max(14, Math.min(46, c.h.length+6)); });
+  hr.height=36;
+  const toDate=v=>{ const d=impDate(v); return d? new Date(d+'T00:00:00Z') : null; };
+  const units=catalog('Đơn vị tính');
+  let lst=null; if(units.length && C.cols.some(c=>c.k==='unit')){ lst=wb.addWorksheet('Danh muc',{state:'hidden'}); units.forEach((u,i)=>lst.getCell(i+1,1).value=u); }
+  const N_ROWS=200;
+  for(let r=2;r<=N_ROWS+1;r++){ const row=ws.getRow(r); const smp=C.sample[r-2];
+    C.cols.forEach((c,i)=>{ const x=row.getCell(i+1); x.font={name:XL.font, color:{argb:smp?'FF7F7F7F':'FF000000'}, italic:!!smp}; x.border=box;
+      if(smp){ const v=smp[i]; x.value= v===''||v==null? null : c.date? toDate(v) : v; }
+      if(c.num){ x.numFmt='#,##0.###'; x.alignment={horizontal:'right'}; x.dataValidation={type:'decimal', operator:'greaterThanOrEqual', formulae:[0], allowBlank:true, showErrorMessage:true, errorTitle:'Số không hợp lệ', error:c.h+' phải là số không âm.'}; }
+      else if(c.date){ x.numFmt='dd/mm/yyyy'; x.alignment={horizontal:'center'}; x.dataValidation={type:'date', operator:'greaterThan', formulae:[new Date(Date.UTC(2000,0,1))], allowBlank:true, showErrorMessage:true, errorTitle:'Ngày không hợp lệ', error:'Gõ ngày theo dạng ngày/tháng/năm, ví dụ 03/11/2026.'}; }
+      else if(c.k==='unit' && lst){ x.dataValidation={type:'list', allowBlank:true, formulae:[`'Danh muc'!$A$1:$A$${units.length}`], showErrorMessage:false, promptTitle:'Đơn vị tính', prompt:'Chọn trong danh mục hoặc gõ đơn vị khác.', showInputMessage:true}; }
+    }); }
+  ws.autoFilter={from:{row:1,column:1}, to:{row:1,column:C.cols.length}};
+  const g=wb.addWorksheet('Huong dan'); g.getColumn(1).width=36; g.getColumn(2).width=12; g.getColumn(3).width=70;
+  g.mergeCells('A1:C1'); g.getCell('A1').value=C.title; g.getCell('A1').font={name:XL.font, size:14, bold:true};
+  g.mergeCells('A2:C2'); g.getCell('A2').value=C.intro; g.getCell('A2').alignment={wrapText:true, vertical:'top'}; g.getRow(2).height=48; g.getCell('A2').font={name:XL.font};
+  const gh=g.getRow(4); ['Cột','Bắt buộc','Cách điền'].forEach((h,i)=>{ const x=gh.getCell(i+1); x.value=h; x.font={name:XL.font, bold:true, color:{argb:XL.headInk}}; x.fill={type:'pattern', pattern:'solid', fgColor:{argb:XL.head}}; x.border=box; });
+  C.cols.forEach((c,i)=>{ const row=g.getRow(5+i); [c.h, c.req?'Có':'Không', c.num?'Số; có thể gõ 18.500 hoặc 1.234,5':c.date?'Ngày theo dạng ngày/tháng/năm, ví dụ 03/11/2026':c.k==='unit'?'Chọn trong danh sách (lấy từ danh mục Đơn vị tính của phần mềm)':'Chữ']
+    .forEach((v,k)=>{ const x=row.getCell(k+1); x.value=v; x.font={name:XL.font, bold:k===1&&c.req}; x.border=box; x.alignment={wrapText:true}; }); });
+  const tip=5+C.cols.length+1;
+  ['Cột có dấu * và tiêu đề màu xanh đậm là bắt buộc.','Các dòng chữ xám nghiêng là ví dụ, xóa đi trước khi điền số liệu thật.','Có thể dán từ bảng dự toán sẵn có, miễn là giữ nguyên dòng tiêu đề ở dòng 1.']
+    .forEach((v,k)=>{ g.mergeCells(tip+k,1,tip+k,3); const x=g.getCell(tip+k,1); x.value='• '+v; x.font={name:XL.font, italic:true}; });
+  const out=await wb.xlsx.writeBuffer();
+  saveFile(C.file, new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
 }
 
 /** Đọc tệp: tìm dòng tiêu đề trong 15 dòng đầu (khớp ít nhất 2 cột), ghép cột theo tên; không thấy tiêu đề thì đọc theo thứ tự cột của mẫu. */
@@ -203,6 +241,7 @@ ACT.imp=(key)=>{
     const ok=st.ok||[], o=st.o; if(!ok.length) return;
     for(const f of extra) if(f.req && !o[f.key]){ $('#imp_msg',ov).textContent='Vui lòng nhập '+f.label.toLowerCase()+'.'; return; }
     const b=$('#imp_save',ov); b.disabled=true; let done=0; const fail=[];
+    if(C.prepare){ try{ await C.prepare(ok,o); }catch(ex){ b.disabled=false; $('#imp_msg',ov).innerHTML=`<span style="color:var(--red)">${esc(errText(ex))}</span>`; return; } }
     for(const r of ok){
       try{ await Store.put(C.col, C.build(r,o)); done++; }catch(ex){ fail.push('dòng '+r.line+': '+errText(ex)); }
       b.textContent=`Đang lưu ${done+fail.length}/${ok.length}…`;

@@ -1442,6 +1442,49 @@ namespace QldaTtts.Web.Data.Migrations
                     b.ToTable("UserGroups");
                 });
 
+            modelBuilder.Entity("QldaTtts.Web.Data.VolumeBatch", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ContractId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateOnly?>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.ToTable("VolumeBatches");
+                });
+
             modelBuilder.Entity("QldaTtts.Web.Data.VolumeEntry", b =>
                 {
                     b.Property<string>("Id")
@@ -1450,6 +1493,10 @@ namespace QldaTtts.Web.Data.Migrations
 
                     b.Property<double?>("AcceptedQty")
                         .HasColumnType("float");
+
+                    b.Property<string>("BatchId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("BoqId")
                         .HasMaxLength(64)
@@ -1480,6 +1527,8 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasColumnType("nvarchar(64)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
 
                     b.HasIndex("BoqId");
 

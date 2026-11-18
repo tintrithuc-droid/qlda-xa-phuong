@@ -49,6 +49,39 @@ public static class Upgrades
 
         // 6) Phiên bản 1.5: trình duyệt kế hoạch tiến độ, chạy một lần
         V15(db);
+
+        // 7) Phiên bản 1.7: đợt nghiệm thu khối lượng, quyền kiểm tra của tư vấn giám sát, quản trị chính
+        V17(db);
+        Owner.Ensure(db);
+    }
+
+    /// <summary>Bản 1.7: khối lượng đã nhập được gom thành đợt nghiệm thu theo hợp đồng và tên đợt (coi là đã duyệt, giữ nguyên số liệu);
+    /// nhóm Tư vấn giám sát được quyền kiểm tra (xác nhận) đợt nghiệm thu, nhóm Lãnh đạo Ban được quyền duyệt.</summary>
+    private static void V17(AppDbContext db)
+    {
+        const string key = "upgrade:1.7-dot-nghiem-thu";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        var vols = db.Volumes.Where(v => v.BatchId == null || v.BatchId == "").ToList();
+        foreach (var g in vols.Where(v => v.ContractId != null).GroupBy(v => (v.ContractId, Name: string.IsNullOrWhiteSpace(v.Period) ? "Đợt 1" : v.Period!.Trim())))
+        {
+            var b = new VolumeBatch
+            {
+                Id = "vb-" + Guid.NewGuid().ToString("N")[..16], ContractId = g.Key.ContractId, Name = g.Key.Name,
+                Date = g.Max(v => v.Date), Number = g.Select(v => v.Note).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
+                Status = "Đã duyệt", UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong"
+            };
+            db.VolumeBatches.Add(b);
+            foreach (var v in g) v.BatchId = b.Id;
+        }
+        foreach (var g in db.Groups.ToList().Where(g => !g.Admin))
+        {
+            var p = new Dictionary<string, string>(g.Perms);
+            if (g.Id == "g-site" || g.Name.Contains("giám sát", StringComparison.OrdinalIgnoreCase)) p["khoi-luong:kiemtra"] = "1";
+            if (g.Id == "g-lead" || g.Name.Contains("Lãnh đạo Ban", StringComparison.OrdinalIgnoreCase)) p["khoi-luong:duyet"] = "1";
+            g.Perms = p;
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
     }
 
     /// <summary>Bản 1.5: kế hoạch tiến độ đang có được coi là đã duyệt (không đổi số liệu của đơn vị đang dùng);

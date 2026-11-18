@@ -22,7 +22,7 @@ VIEWS['mo-hinh']=()=>{
   <div class="toolbar"><input type="search" data-f="mhq" value="${esc(q)}" placeholder="Tìm tên tệp, nội dung thay đổi, hạng mục, kết cấu…" aria-label="Tìm kiếm mô hình"><select data-f="mhf" aria-label="Định dạng">${opts(catalog('Định dạng mô hình'),fm,'Mọi định dạng')}</select><select data-f="mhi" aria-label="Hạng mục">${opts(items.map(i=>[i.id,i.code+' · '+i.name]),it,'Mọi hạng mục')}</select></div>
   <div class="card"><div class="ch"><h2>Tệp mô hình công trình</h2></div>
   ${table([{h:'Tên tệp',f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(r.note||'')}</div>`},{h:'Định dạng',f:r=>pill(r.format,'info')},{h:'Phiên bản',r:1,f:r=>'v'+N(r.version)},{h:'Hạng mục',f:r=>esc(itemName(r.itemId))},{h:'Cập nhật',f:r=>`<span class="num">${fmtDate(r.date)}</span><div class="small muted">${esc(r.by||'')}</div>`},{h:'Dung lượng',r:1,f:r=>fmtSize(r.size)},
-    {h:'Tệp',f:r=>fileUrl(r)?`<a href="${esc(fileUrl(r))}" target="_blank" rel="noopener">Tải về</a>`:'<span class="small muted">Chưa có tệp</span>'}], latest,
+    {h:'Tệp',f:r=>fileUrl(r)?`<a href="${esc(fileUrl(r))}" target="_blank" rel="noopener" ${isPdf(r)?pdfAttr(fileUrl(r),r.fileName):''}>${isPdf(r)?'Xem':'Tải về'}</a>`:'<span class="small muted">Chưa có tệp</span>'}], latest,
     {actions:r=>`<button class="btn sm ghost" data-act="model-hist" data-id="${r.id}">Lịch sử (${files.filter(m=>keyOf(m)===keyOf(r)).length})</button>`+(ed?`<button class="btn sm ghost" data-act="model-ver" data-id="${r.id}">Cập nhật phiên bản</button><button class="btn sm ghost" data-act="edit-models" data-id="${r.id}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="models" data-id="${r.id}">Xóa</button>`:''), empty:q||fm||it?'Không có tệp phù hợp.':'Chưa có tệp mô hình.'})}
   <p class="small muted" style="margin:8px 0 0">Phần mềm lưu trữ, quản lý phiên bản và tra cứu tệp mô hình do đơn vị tư vấn, nhà thầu lập (IFC, RVT, DWG, NWD, PDF…). Việc dựng và xem chi tiết mô hình thực hiện trên phần mềm chuyên dụng sau khi tải tệp về.</p></div>
   <div class="card"><div class="ch"><h2>Thông tin các hạng mục công trình</h2>${ed?`<button class="btn primary sm" data-act="add-item" data-id="${pid}">+ Thêm hạng mục</button>`:''}</div>
@@ -48,7 +48,7 @@ ACT['add-model']=(pid)=>openForm({title:'Tải lên tệp mô hình', fields:mod
 ACT['edit-models']=(id)=>{ const m=get('models',id); openForm({title:'Sửa thông tin tệp mô hình', fields:modelFields(m.projectId).filter(f=>f.key!=='file'), value:m, onSave:v=>modelSave(v, m)}); };
 ACT['model-ver']=(id)=>{ const m=get('models',id); openForm({title:'Cập nhật phiên bản mới: '+m.name, fields:modelFields(m.projectId), value:{format:m.format, itemId:m.itemId, by:S.user.unit||m.by, name:m.name}, onSave:v=>{ const vs=D('models').filter(x=>(x.fileKey||x.id)===(m.fileKey||m.id)); return modelSave({...v, projectId:m.projectId, fileKey:m.fileKey||m.id, version:Math.max(...vs.map(x=>N(x.version)))+1}); }}); };
 ACT['model-hist']=(id)=>{ const m=get('models',id); const vs=D('models').filter(x=>(x.fileKey||x.id)===(m.fileKey||m.id)).sort(by('version',-1));
-  openModal(`<div class="mform"><header><h3>Lịch sử phiên bản: ${esc(m.name)}</h3><button class="icon-btn" data-close>×</button></header><div style="padding:16px;overflow:auto">${table([{h:'Phiên bản',f:r=>'v'+r.version},{h:'Ngày',f:r=>fmtDate(r.date)},{h:'Đơn vị',k:'by'},{h:'Nội dung thay đổi',k:'note'},{h:'Dung lượng',r:1,f:r=>fmtSize(r.size)},{h:'Tệp',f:r=>fileUrl(r)?`<a href="${esc(fileUrl(r))}" target="_blank" rel="noopener">Tải về</a>`:'—'}], vs)}</div></div>`); };
+  openModal(`<div class="mform"><header><h3>Lịch sử phiên bản: ${esc(m.name)}</h3><button class="icon-btn" data-close>×</button></header><div style="padding:16px;overflow:auto">${table([{h:'Phiên bản',f:r=>'v'+r.version},{h:'Ngày',f:r=>fmtDate(r.date)},{h:'Đơn vị',k:'by'},{h:'Nội dung thay đổi',k:'note'},{h:'Dung lượng',r:1,f:r=>fmtSize(r.size)},{h:'Tệp',f:r=>fileUrl(r)?`<a href="${esc(fileUrl(r))}" target="_blank" rel="noopener" ${isPdf(r)?pdfAttr(fileUrl(r),r.fileName):''}>${isPdf(r)?'Xem':'Tải về'}</a>`:'—'}], vs)}</div></div>`); };
 
 /* ===== GÓI THẦU VÀ HỢP ĐỒNG (UC10–14) ===== */
 const pkgFields=()=>[{key:'projectId',label:'Thuộc dự án',type:'select',options:projOpts,req:true,full:true,def:S.pid},{key:'code',label:'Ký hiệu gói thầu',req:true},{key:'type',label:'Loại gói thầu',type:'select',options:()=>catalog('Loại gói thầu'),req:true},
@@ -146,28 +146,69 @@ VIEWS['tien-do']=()=>{
   <div class="card"><div class="ch"><h2>Theo dõi tiến độ</h2><div class="tabs" style="border:0">${[['du-an','Theo dự án'],['goi-thau','Theo gói thầu']].map(([k,l])=>`<button class="${mode===k?'on':''}" data-act="tab" data-g="td" data-id="${k}">${l}</button>`).join('')}</div></div>${summary}</div>
   <div class="card"><div class="ch"><h2>Biểu đồ tiến độ (Gantt)</h2><span class="legend" style="margin:0"><span><i style="background:var(--accent)"></i>Đã thực hiện</span><span><i style="background:var(--amber)"></i>Chậm</span><span><i style="background:var(--red)"></i>Quá hạn</span><span><i style="background:transparent;border-left:2px dashed var(--red);border-radius:0"></i>Hôm nay</span></span></div>${gantt(sch, ed)}</div>`;
 };
+/* Bản 1.7 (mục 21–24): Gantt theo thang thời gian thật: chọn Tuần / Tháng / Quý, cuộn ngang với cột Hạng mục và cột Thực tế đứng yên,
+   tự cuộn tới hôm nay, thu gọn hoặc mở từng gói thầu (phần mềm nhớ lựa chọn theo từng người dùng). */
+const GZ={tuan:{l:'Tuần', px:9}, thang:{l:'Tháng', px:3.2}, quy:{l:'Quý', px:1.3}};
+function ganttFold(){ try{ return new Set(JSON.parse(lsGet('qlda-gantt-'+((S.user&&S.user.id)||''))||'[]')); }catch{ return new Set(); } }
+function ganttFoldSave(set){ lsSet('qlda-gantt-'+((S.user&&S.user.id)||''), JSON.stringify([...set])); }
 function gantt(sch, ed){
   if(!sch.length) return emptyBox('Chưa có kế hoạch tiến độ.');
   let st=sch.map(s=>s.planStart).sort()[0], en=sch.map(s=>s.planEnd).sort().slice(-1)[0];
-  st=st.slice(0,7)+'-01'; const e=new Date(en); en=isoLocal(new Date(e.getFullYear(), e.getMonth()+1, 0));
-  const span=Math.max(1,days(st,en)); const X=d=>Math.max(0,Math.min(100,days(st,d)/span*100));
-  let months=''; let d=new Date(st); const step=span>900?3:span>420?2:1; let i=0;
-  while(isoLocal(d)<=en){ if(i%step===0) months+=`<span class="gmonth" style="left:${X(isoLocal(d))}%">${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}</span>`; d=new Date(d.getFullYear(), d.getMonth()+1, 1); i++; }
-  const today=TODAY>=st&&TODAY<=en?`<span class="gtoday" style="left:${X(TODAY)}%"></span>`:'';
+  if(TODAY<st) st=TODAY; if(TODAY>en) en=TODAY;
+  const sp=days(st,en);
+  const z=GZ[S.f.gz]? S.f.gz : (lsGet('qlda-gantt-zoom') in GZ? lsGet('qlda-gantt-zoom') : (sp>540?'quy':'thang'));
+  const s0=new Date(st), e0=new Date(en);
+  /* căn đầu, cuối theo đơn vị thời gian đang xem */
+  if(z==='tuan'){ s0.setDate(s0.getDate()-((s0.getDay()+6)%7)); e0.setDate(e0.getDate()+(7-((e0.getDay()+6)%7))); }
+  else if(z==='thang'){ s0.setDate(1); e0.setMonth(e0.getMonth()+1, 0); }
+  else { s0.setMonth(Math.floor(s0.getMonth()/3)*3, 1); e0.setMonth(Math.floor(e0.getMonth()/3)*3+3, 0); }
+  st=isoLocal(s0); en=isoLocal(e0);
+  /* khung rộng hơn biểu đồ thì giãn thang cho vừa khung, không để khoảng trống bên phải */
+  const px=Math.max(GZ[z].px, (S._gfit||0)/(days(st,en)+1)), W=Math.max(320, Math.round((days(st,en)+1)*px)); const X=d=>Math.round(Math.max(0,Math.min(days(st,en)+1, days(st,d)))*px);
+  let ticks=''; const d=new Date(st);
+  while(isoLocal(d)<=en){ const iso=isoLocal(d); let lb, nx;
+    if(z==='tuan'){ lb=pad(d.getDate())+'/'+pad(d.getMonth()+1); nx=new Date(d.getFullYear(), d.getMonth(), d.getDate()+7); }
+    else if(z==='thang'){ lb=pad(d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2); nx=new Date(d.getFullYear(), d.getMonth()+1, 1); }
+    else { lb='Q'+(Math.floor(d.getMonth()/3)+1)+'/'+String(d.getFullYear()).slice(2); nx=new Date(d.getFullYear(), d.getMonth()+3, 1); }
+    ticks+=`<span class="gmonth${z==='tuan'&&d.getDate()<=7?' m1':''}" style="left:${X(iso)}px;width:${X(isoLocal(nx))-X(iso)}px">${lb}</span>`; d.setTime(nx.getTime()); }
+  const today=`<span class="gtoday" style="left:${X(TODAY)}px"></span>`;
   const groups={}; sch.forEach(s=>{ (groups[s.packageId]=groups[s.packageId]||[]).push(s); });
-  let rows='';
-  Object.entries(groups).sort((a,b)=>((pkgOf(a[0])||{}).code||'').localeCompare((pkgOf(b[0])||{}).code||'')).forEach(([kid,arr])=>{
-    const k=pkgOf(kid)||{code:'?',name:''};
-    rows+=`<div class="grow-row pk"><div>${esc(k.code)} · ${esc(k.name)}</div><div class="gtrack">${today}</div><div class="num small">${fmtP(pkgProgress(kid))}</div></div>`;
+  const fold=ganttFold(); let rows='';
+  const gs=Object.entries(groups).sort((a,b)=>((pkgOf(a[0])||{}).code||'').localeCompare((pkgOf(b[0])||{}).code||''));
+  gs.forEach(([kid,arr])=>{
+    const k=pkgOf(kid)||{code:'?',name:''}, shut=fold.has(kid);
+    const ps=arr.map(s=>s.planStart).sort()[0], pe=arr.map(s=>s.planEnd).sort().slice(-1)[0];
+    rows+=`<div class="grow-row pk${shut?' shut':''}" data-k="${esc(kid)}"><div class="gl"><button type="button" class="gtog" data-act="gt-tog" data-id="${esc(kid)}" aria-expanded="${!shut}" title="${shut?'Mở gói thầu':'Thu gọn gói thầu'}"><span class="car">▾</span>${esc(k.code)} · ${esc(k.name)}</button><span class="small muted">${arr.length} việc</span></div>
+      <div class="gtrack">${today}<div class="gsum" style="left:${X(ps)}px;width:${Math.max(4,X(pe)-X(ps))}px"><i style="width:${Math.min(100,N(pkgProgress(kid)))}%"></i></div></div><div class="gr num small">${fmtP(pkgProgress(kid))}</div></div>`;
     arr.sort(by('planStart')).forEach(s=>{
-      const ok=schedOk(s), stt=ok? schedState(s) : {k:'', t:''}; const l=X(s.planStart), w=Math.max(.8,X(s.planEnd)-l);
-      rows+=`<div class="grow-row${ok?'':' draft'}"><div><div>${esc(s.name)}</div><div class="small muted num">${fmtDate(s.planStart)} – ${fmtDate(s.planEnd)} ${ok? pill(stt.t, stt.k) : wfPill('schedule',s)}</div></div>
-        <div class="gtrack">${today}<div class="gplan ${ok?(stt.k==='warn'?'warn':stt.k==='bad'?'bad':''):'pend'}" style="left:${l}%;width:${w}%" title="${esc(s.name)}: ${ok? N(s.progress)+'%' : 'kế hoạch chưa duyệt'}"><i style="width:${ok?Math.min(100,N(s.progress)):0}%"></i></div></div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${ok?`<span class="num" style="font-weight:600">${N(s.progress)}%</span>${ed?`<button class="btn sm ghost" data-act="upd-sched" data-id="${s.id}">Cập nhật</button>`:''}`:wfBtns('schedule',s)}<button class="btn sm ghost" data-act="sched-more" data-id="${s.id}" aria-label="Chi tiết">⋯</button></div></div>`;
+      const ok=schedOk(s), stt=ok? schedState(s) : {k:'', t:''}; const l=X(s.planStart), w=Math.max(4,X(s.planEnd)-l);
+      rows+=`<div class="grow-row${ok?'':' draft'}" data-in="${esc(kid)}"${shut?' hidden':''}><div class="gl"><div class="gname" data-act="sched-more" data-id="${s.id}" role="button" tabindex="0" title="Xem chi tiết, lịch sử cập nhật">${esc(s.name)}</div><div class="small muted num">${fmtDate(s.planStart)} – ${fmtDate(s.planEnd)} ${ok? pill(stt.t, stt.k) : wfPill('schedule',s)}</div></div>
+        <div class="gtrack">${today}<div class="gplan ${ok?(stt.k==='warn'?'warn':stt.k==='bad'?'bad':''):'pend'}" style="left:${l}px;width:${w}px" title="${esc(s.name)}: ${fmtDate(s.planStart)} – ${fmtDate(s.planEnd)}, ${ok? N(s.progress)+'%' : 'kế hoạch chưa duyệt'}"><i style="width:${ok?Math.min(100,N(s.progress)):0}%"></i></div></div>
+        <div class="gr">${ok?`<span class="num" style="font-weight:600">${N(s.progress)}%</span>${ed?`<button class="btn sm ghost" data-act="upd-sched" data-id="${s.id}">Cập nhật</button>`:''}`:wfBtns('schedule',s)}<button class="btn sm ghost" data-act="sched-more" data-id="${s.id}" aria-label="Chi tiết">⋯</button></div></div>`;
     });
   });
-  return `<div class="tw" style="border:0"><div class="gantt"><div class="grow-row hd"><div>Hạng mục</div><div class="gtrack" style="height:24px">${months}</div><div style="text-align:right">Thực tế</div></div>${rows}</div></div>`;
+  S.after.push(()=>{ const w=$('#gwrap'); if(!w) return; const g=w.querySelector('.grow-row.hd');
+    const avail=w.clientWidth-g.children[0].offsetWidth-g.children[2].offsetWidth-2;
+    if(!S._gfitting && Math.abs(avail-(S._gfit||0))>8 && (W<avail || S._gfit)){ S._gfit=avail; S._gfitting=true; try{ w.parentElement.outerHTML=gantt(sch, ed); }finally{ S._gfitting=false; } }
+    ganttToday(false); });
+  const tools=`<div class="gtools"><div class="gseg" role="group" aria-label="Thang thời gian">${Object.entries(GZ).map(([k,o])=>`<button type="button" class="${k===z?'on':''}" data-act="gt-zoom" data-id="${k}">${o.l}</button>`).join('')}</div>
+    <button type="button" class="btn sm" data-act="gt-today">Hôm nay</button><span style="flex:1"></span>
+    ${gs.length>1?`<button type="button" class="btn sm ghost" data-act="gt-all" data-id="0">Thu gọn tất cả</button><button type="button" class="btn sm ghost" data-act="gt-all" data-id="1">Mở tất cả</button>`:''}</div>`;
+  return `<div class="gbox">${tools}<div class="gwrap" id="gwrap"><div class="gantt" style="--gw:${W}px" data-today="${X(TODAY)}"><div class="grow-row hd"><div class="gl">Hạng mục</div><div class="gtrack" style="height:26px">${ticks}${today}</div><div class="gr">Thực tế</div></div>${rows}</div></div></div>`;
 }
+/** Cuộn khung Gantt để ngày hôm nay nằm khoảng một phần ba bề rộng phần biểu đồ. */
+function ganttToday(smooth){ const w=$('#gwrap'); if(!w) return; const g=w.querySelector('.gantt'); const t=+g.dataset.today||0;
+  const left=(w.querySelector('.grow-row .gl')||{}).offsetWidth||0, right=(w.querySelector('.grow-row .gr')||{}).offsetWidth||0;
+  const vis=w.clientWidth-left-right; w.scrollTo({left:Math.max(0,t-vis/3), behavior:smooth?'smooth':'auto'}); }
+ACT['gt-zoom']=(z)=>{ S.f.gz=z; lsSet('qlda-gantt-zoom', z); render(); };
+ACT['gt-today']=()=>ganttToday(true);
+ACT['gt-tog']=(kid)=>{ const f=ganttFold(); const shut=!f.has(kid); shut? f.add(kid) : f.delete(kid); ganttFoldSave(f);
+  const w=$('#gwrap'); if(!w) return; const pk=w.querySelector(`.grow-row.pk[data-k="${CSS.escape(kid)}"]`); if(pk){ pk.classList.toggle('shut',shut); const b=pk.querySelector('.gtog'); b.setAttribute('aria-expanded',!shut); b.title=shut?'Mở gói thầu':'Thu gọn gói thầu'; }
+  w.querySelectorAll(`.grow-row[data-in="${CSS.escape(kid)}"]`).forEach(r=>r.hidden=shut); };
+ACT['gt-all']=(open)=>{ const w=$('#gwrap'); if(!w) return; const ids=[...w.querySelectorAll('.grow-row.pk')].map(r=>r.dataset.k); const f=ganttFold();
+  ids.forEach(id=>open==='1'? f.delete(id) : f.add(id)); ganttFoldSave(f);
+  w.querySelectorAll('.grow-row.pk').forEach(r=>{ r.classList.toggle('shut',open!=='1'); const b=r.querySelector('.gtog'); b.setAttribute('aria-expanded',open==='1'); });
+  w.querySelectorAll('.grow-row[data-in]').forEach(r=>r.hidden=open!=='1'); };
 const schedFields=()=>[{key:'packageId',label:'Gói thầu',type:'select',options:()=>pkgOpts(S.pid),req:true,full:true,def:S.f.tdk},{key:'name',label:'Tên hạng mục / công việc',req:true,full:true},
   {key:'planStart',label:'Bắt đầu kế hoạch',type:'date',req:true},{key:'planEnd',label:'Kết thúc kế hoạch',type:'date',req:true},{key:'weight',label:'Trọng số (tỷ trọng giá trị, %)',type:'number',def:10},
   {key:'att',label:'Tiến độ được duyệt, tài liệu kèm theo (PDF, Excel, MS Project…)',type:'attach',col:'schedule',kind:'Kế hoạch tiến độ'},

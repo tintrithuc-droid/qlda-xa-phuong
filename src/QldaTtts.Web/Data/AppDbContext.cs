@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<Diary> Diaries => Set<Diary>();
     public DbSet<BoqItem> Boq => Set<BoqItem>();
     public DbSet<VolumeEntry> Volumes => Set<VolumeEntry>();
+    public DbSet<VolumeBatch> VolumeBatches => Set<VolumeBatch>();
     public DbSet<PayPlan> PayPlans => Set<PayPlan>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<CapitalPlan> CapitalPlans => Set<CapitalPlan>();
@@ -70,6 +71,8 @@ public class AppDbContext : DbContext
         b.Entity<Diary>().HasIndex(x => new { x.PackageId, x.Date });
         b.Entity<BoqItem>().HasIndex(x => x.ContractId);
         b.Entity<VolumeEntry>().HasIndex(x => x.BoqId);
+        b.Entity<VolumeEntry>().HasIndex(x => x.BatchId);
+        b.Entity<VolumeBatch>().HasIndex(x => x.ContractId);
         b.Entity<Payment>().HasIndex(x => x.ContractId);
         b.Entity<CapitalPlan>().HasIndex(x => new { x.ProjectId, x.Year });
         b.Entity<Acceptance>().HasIndex(x => x.ProjectId);

@@ -610,3 +610,12 @@ tbody tr.grp td{background:var(--panel2); font-weight:700; color:var(--ink); bor
 .br-sec{grid-column:1/-1; margin:14px 0 0; padding-top:12px; border-top:1px solid var(--line); font-size:.95rem}
 .br-sec:first-child{margin-top:0; padding-top:0; border-top:0}
 .br-sec + .br-note{grid-column:1/-1; margin:-6px 0 0}
+/* Danh sách chọn có ô tìm (ô chọn nhiều mục) */
+.ss-pop{position:fixed; z-index:300; display:flex; flex-direction:column; gap:6px; padding:8px; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:10px; box-shadow:var(--sh-2)}
+.ss-pop input{width:100%}
+.ss-pop ul{list-style:none; margin:0; padding:0; overflow:auto; position:relative; min-height:0; flex:1}
+.ss-pop li{padding:7px 10px; border-radius:6px; cursor:pointer; font-size:14px; line-height:1.35}
+.ss-pop li.cur{font-weight:600}
+.ss-pop li.on{background:var(--accent); color:var(--accent-ink)}
+.ss-pop li.dis{opacity:.5; cursor:default}
+.ss-pop li.none{color:var(--muted); cursor:default}

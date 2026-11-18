@@ -109,6 +109,18 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
   const logs = await (await p.request.get(BASE + '/api/data')).json();
   check((logs.logs || []).some(l => /Ảnh nền trang đăng nhập/.test(l.target || '')), 'Nhật ký hoạt động ghi thao tác ảnh nền');
 
+  // 8. Ô chọn nhiều mục có ô gõ tìm (không dấu vẫn tìm được)
+  await p.evaluate(() => { const s = document.createElement('select'); s.id = 'ss_test'; s.setAttribute('aria-label', 'Dự án thử');
+    s.innerHTML = Array.from({ length: 15 }, (_, i) => `<option value="p${i}">${i === 7 ? 'Đường giao thông nông thôn ấp Phú Lợi' : 'Dự án số ' + i}</option>`).join('');
+    s.onchange = () => { window._ssChanged = s.value; }; document.querySelector('#app').prepend(s); });
+  await p.click('#ss_test'); await p.waitForSelector('.ss-pop input');
+  const n15 = await p.$$eval('.ss-pop li', a => a.map(x => x.textContent)); check(n15.length === 15, 'Bấm ô chọn dự án mở danh sách kèm ô tìm');
+  await p.keyboard.type('duong giao thong'); await p.waitForTimeout(100);
+  check(await p.$$eval('.ss-pop li[data-k]', a => a.length) === 1, 'Gõ không dấu lọc đúng dự án');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(100);
+  check(await p.evaluate(() => window._ssChanged === 'p7' && !document.querySelector('.ss-pop')), 'Chọn bằng phím Enter, ô chọn nhận giá trị và đóng danh sách');
+  await p.evaluate(() => document.querySelector('#ss_test').remove());
+
   await b.close();
   console.log(`\n${ok.length} đạt, ${errs.length} lỗi`); if (errs.length) { console.log(errs.join('\n')); process.exit(1); }
 })().catch(e => { console.error(e); process.exit(1); });

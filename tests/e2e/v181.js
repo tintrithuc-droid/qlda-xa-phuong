@@ -26,7 +26,10 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
   const lr = await ctx.request.post(BASE + '/api/auth/login', { ...H, data: { username: USER, password: PW } });
   if (lr.status() !== 200) throw new Error('Đăng nhập quản trị: ' + lr.status());
   const sec = fs.existsSync(SHOTS + '/admin-totp.txt') ? fs.readFileSync(SHOTS + '/admin-totp.txt', 'utf8').trim() : '';
-  if (sec) { const m = await ctx.request.post(BASE + '/api/auth/mfa', { ...H, data: { code: totp(sec) } }); if (m.status() !== 200) throw new Error('Mã 2 lớp: ' + m.status()); }
+  // Mỗi mã 2 lớp chỉ dùng một lần: bài chạy ngay trước có thể đã dùng mã của 30 giây này, khi đó chờ sang mã kế tiếp
+  if (sec) { let m = await ctx.request.post(BASE + '/api/auth/mfa', { ...H, data: { code: totp(sec) } });
+    if (m.status() !== 200) { await new Promise(r => setTimeout(r, 31000 - Date.now() % 30000)); m = await ctx.request.post(BASE + '/api/auth/mfa', { ...H, data: { code: totp(sec) } }); }
+    if (m.status() !== 200) throw new Error('Mã 2 lớp: ' + m.status()); }
   const p = await ctx.newPage();
   p.on('pageerror', e => errs.push('PAGEERR ' + e.message));
   await p.goto(BASE + '/'); await p.waitForSelector('#app', { timeout: 30000 });

@@ -42,7 +42,7 @@ public class TenantOps
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await db.Database.MigrateAsync(ct);
             Upgrades.Run(db);
-            GuideSeed.Run(db, scope.ServiceProvider.GetRequiredService<FileStore>(), Path.Combine(_env.ContentRootPath, "hdsd"));
+            GuideSeed.Run(db, scope.ServiceProvider.GetRequiredService<FileStore>(), GuideSeed.DirFor(Path.Combine(_env.ContentRootPath, "hdsd"), t.Code));
             _reg.SetState(t.Code, TenantRegistry.State.Ready);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

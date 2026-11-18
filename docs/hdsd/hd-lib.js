@@ -31,17 +31,22 @@ async function ann(p, a) {
   }, a);
 }
 // Đổi địa chỉ máy thử sang tên miền minh họa trước khi chụp (HD_REPLACE='[["cũ","mới"],...]')
-const REPL = process.env.HD_REPLACE ? JSON.parse(process.env.HD_REPLACE) : [];
-async function shot(p, name, clip, a) {
-  const vp = p.viewportSize(), tall = typeof clip === 'string' && clip.startsWith('#ov') && vp.width > 1000;
-  if (tall) { await p.setViewportSize({ width: vp.width, height: 1900 }); await wait(300); }
-  if (a) await ann(p, a);
-  if (REPL.length) await p.evaluate(pairs => {
+const REPL = process.env.HD_REPLACE ? JSON.parse(process.env.HD_REPLACE) : process.env.HD_REPLACE_FILE ? JSON.parse(fs.readFileSync(process.env.HD_REPLACE_FILE, 'utf8')) : [];
+// Đổi chữ trên giao diện trước khi chụp (HD_REPLACE hoặc HD_REPLACE_FILE: [["cũ","mới"],...]), dùng cho bộ ảnh của từng đơn vị
+async function repl(p) {
+  if (!REPL.length) return;
+  await p.evaluate(pairs => {
     const rep = t => pairs.reduce((x, [a, b]) => x.split(a).join(b), t);
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n;
     while ((n = w.nextNode())) { const v = rep(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
     document.querySelectorAll('input,textarea').forEach(e => { const v = rep(e.value); if (v !== e.value) e.value = v; });
   }, REPL);
+}
+async function shot(p, name, clip, a) {
+  const vp = p.viewportSize(), tall = typeof clip === 'string' && clip.startsWith('#ov') && vp.width > 1000;
+  if (tall) { await p.setViewportSize({ width: vp.width, height: 1900 }); await wait(300); }
+  await repl(p);
+  if (a) await ann(p, a);
   const file = path.join(OUT, name + '.png');
   if (clip === 'full') await p.screenshot({ path: file, fullPage: true });
   else if (clip) {
@@ -51,4 +56,4 @@ async function shot(p, name, clip, a) {
   } else await p.screenshot({ path: file });
   await p.evaluate(() => document.querySelectorAll('.hd-ann').forEach(x => x.remove())); if (tall) await p.setViewportSize(vp); console.log('✓', name);
 }
-module.exports = { OUT, wait, totp, ann, shot };
+module.exports = { OUT, wait, totp, ann, shot, repl };

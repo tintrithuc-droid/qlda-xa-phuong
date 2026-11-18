@@ -66,6 +66,7 @@ async function ann(p, a) {
 async function clearAnn(p) { await p.evaluate(() => document.querySelectorAll('.hd-ann').forEach(x => x.remove())); }
 // clip: undefined = khung nhìn; 'full' = cả trang; selector = vùng phần tử (+ lề 18px)
 async function shot(p, name, clip, a) {
+  await require('./hd-lib').repl(p);
   const vp = p.viewportSize(), tall = typeof clip === 'string' && clip.startsWith('#ov') && vp.width > 1000;
   if (tall) { await p.setViewportSize({ width: vp.width, height: 1900 }); await wait(300); }
   if (a) await ann(p, a);

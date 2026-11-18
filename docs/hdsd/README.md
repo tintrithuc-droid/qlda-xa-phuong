@@ -13,3 +13,9 @@ Tạo lại:
 5. `node build.js [qt|ld|kt|ke|gs|ub|dt|ns]` — dựng .docx và .pdf vào `out/` (cần `docx`, LibreOffice, poppler-utils, Pillow). Script tự đo bố cục bằng `measure.py`: hình, chú thích và bảng chú giải luôn liền trang; hình bị đẩy sang trang sau hoặc đuôi chương chỉ còn vài dòng thì tự thu nhỏ hình (không nhỏ hơn mức đọc được); lượt cuối ghi số trang vào mục lục.
 
 Nội dung: vai trò của xã trong `content.js` (các chương nâng cấp theo phần mềm TTTS trong `content-v18.js`), điện thoại trong `content-dt.js`, nhà sản xuất trong `content-ns.js`. Ngày ban hành và số V trong tên tệp đặt ở `build.js` (DATE) và `ROLES[k].v`.
+
+## Bộ riêng cho một đơn vị (ví dụ Công ty CP Tin học Tri Thức, mã `trithuc`)
+
+- Ảnh: chạy lại bước 2 với `HD_REPLACE_FILE=$PWD/tt-replace.json` (đổi tên đơn vị, tên nhóm trên giao diện trước khi chụp), ảnh lưu vào `shots/`. Ảnh bộ chuẩn nên chép sang thư mục khác trước.
+- Tài liệu: `HD_VARIANT=tt HD_SHOTS=… HD_OUT=… node build.js qt ld kt ke gs ub dt` (`variant-tt.js` đổi tên nhóm quyền, từ ngữ, bảng quyền; thêm chương xác nhận khối lượng và duyệt hồ sơ khi được giao cho Nhân viên, bỏ chương xác nhận khối lượng của Nhà thầu).
+- Nạp vào phần mềm: chép PDF vào `src/QldaTtts.Web/hdsd/trithuc/` cùng `tt-vai-tro.json` đổi tên thành `vai-tro.json`. Máy chủ cho thuê dùng thư mục `hdsd/<mã xã>` cho xã có thư mục riêng, các xã khác dùng bộ chuẩn trong `hdsd/`.

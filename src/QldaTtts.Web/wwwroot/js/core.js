@@ -213,7 +213,8 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
   mod=ROUTE_PERM[mod]||mod;
-  if(mod==='hien-truong'||mod==='doi-chieu'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
+  if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
+  if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(lvl==='approve') return (g.perms||{})[mod+':duyet']==='1';
   if(lvl==='check') return (g.perms||{})[mod+':kiemtra']==='1';
@@ -367,6 +368,13 @@ function advanceLeft(cid){ const ps=D('payments').filter(p=>p.contractId===cid &
   return sum(ps.filter(p=>/tạm ứng/i.test(p.kind||'') && p.kind!==PAY_RECOVER),'amount')-sum(ps.filter(p=>p.kind===PAY_RECOVER),'amount'); }
 /* HĐ có bảng khối lượng chi tiết (xây lắp) hay nghiệm thu theo mốc, sản phẩm (tư vấn, mua sắm…) */
 const contractHasBoq = cid => D('boq').some(b=>b.contractId===cid);
+/* Giá trị thực hiện để xem tổng quan: hợp đồng có bảng khối lượng thì theo khối lượng; hợp đồng tư vấn, trọn gói không lập bảng khối lượng
+   thì ước theo tiến độ của gói thầu (nếu có kế hoạch tiến độ), không có kế hoạch thì theo giá trị đã thanh toán. */
+function contractDoneEst(c){
+  if(contractHasBoq(c.id)) return contractDone(c.id);
+  if(c.packageId && SCHED().some(s=>s.packageId===c.packageId)) return contractValue(c)*Math.min(100,N(pkgProgress(c.packageId)))/100;
+  return Math.min(contractValue(c), contractPaid(c.id));
+}
 function alerts(o={}){
   const out=[]; const ok=pid=>o.all? pidOk(pid) : inFilter(pid);
   const pc=pid=>(projOf(pid)||{}).code||'';
@@ -767,8 +775,10 @@ function barChart({labels, series, h=240, fmt=v=>fmtN(v), max}){
   for(let i=0;i<=4;i++){ const y=T+ih-ih*i/4; g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${y+4}" text-anchor="end">${esc(fmt(mx*i/4))}</text>`; }
   labels.forEach((lb,i)=>{
     const x0=L+gw*i+(gw-bw*series.length)/2;
-    series.forEach((s,j)=>{ const v=N(s.values[i]); const bh=ih*Math.min(1,v/mx); g+=`<rect x="${x0+j*bw}" y="${T+ih-bh}" width="${bw-2}" height="${Math.max(0,bh)}" rx="2" fill="${s.color}"><title>${esc(s.name)}: ${esc(fmt(v))}</title></rect>`; });
-    const t=String(lb); g+=`<text x="${L+gw*i+gw/2}" y="${T+ih+16}" text-anchor="middle">${esc(t.length>14?t.slice(0,13)+'…':t)}</text>`;
+    series.forEach((s,j)=>{ const v=Math.max(0,N(s.values[i])); const bh=ih*Math.min(1,v/mx); g+=`<rect x="${x0+j*bw}" y="${T+ih-bh}" width="${Math.max(1,bw-2)}" height="${Math.max(0,bh)}" rx="2" fill="${s.color}"><title>${esc(lb)}, ${esc(s.name)}: ${esc(fmt(v))}</title></rect>`; });
+    // Nhiều cột thì thưa nhãn trục, tránh chữ chồng lên nhau
+    const t=String(lb), step=Math.ceil(labels.length*Math.min(80,Math.max(48,t.length*6.2))/iw);
+    if(i%step===0) g+=`<text x="${L+gw*i+gw/2}" y="${T+ih+16}" text-anchor="middle">${esc(t.length>14?t.slice(0,13)+'…':t)}</text>`;
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${g}</svg>${legend(series)}`;
 }

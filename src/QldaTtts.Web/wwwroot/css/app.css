@@ -189,9 +189,9 @@ tfoot td{font-weight:600; background:var(--panel2)}
 .kv{display:grid; grid-template-columns:minmax(120px,190px) minmax(0,1fr); gap:6px 14px; font-size:13.5px}
 .kv dt{color:var(--muted)} .kv dd{margin:0}
 .empty{padding:28px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:var(--r)}
-.alert{display:flex; gap:10px; padding:10px 14px; border-radius:var(--r-sm); border-left:3px solid var(--amber); background:var(--amber-soft); font-size:13px; align-items:flex-start}
-.alert.bad{border-left-color:var(--red); background:var(--red-soft)}
-.alert.info{border-left-color:var(--blue); background:var(--blue-soft)}
+.alert{display:flex; gap:10px; padding:10px 14px; border-radius:var(--r-sm); border:1px solid color-mix(in srgb, var(--amber) 30%, transparent); background:var(--amber-soft); font-size:13px; align-items:flex-start}
+.alert.bad{border-color:color-mix(in srgb, var(--red) 30%, transparent); background:var(--red-soft)}
+.alert.info{border-color:color-mix(in srgb, var(--blue) 30%, transparent); background:var(--blue-soft)}
 .alert b{font-weight:600}
 .list{display:flex; flex-direction:column; gap:8px}
 .chart{width:100%; height:auto; display:block}

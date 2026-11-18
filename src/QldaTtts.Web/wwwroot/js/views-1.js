@@ -421,12 +421,20 @@ function projForm(p){
 ACT['add-project']=()=>projForm(null);
 ACT['edit-projects']=(id)=>projForm(get('projects',id));
 ACT['back-project']=()=>{ S.sel.project=null; render(); };
+/* Danh sách dự án đang lọc (dùng chung cho bảng và Xuất Excel) */
+function projListRows(){ const q=S.f.pq||'', st=S.f.pst||'';
+  return projects().filter(p=>(!S.pid||p.id===S.pid) && has(p,q) && (!st||p.status===st)).map(p=>({...p, prog:projProgress(p.id), exp:projExpected(p.id), nk:D('packages').filter(k=>k.projectId===p.id).length})); }
+ACT['export-projects']=()=>{ const rows=projListRows(), st=S.f.pst||'', q=S.f.pq||'';
+  const head=['STT','Mã dự án','Tên dự án','Nhóm dự án','Giai đoạn','Trạng thái','Chủ đầu tư','Địa điểm','Nguồn vốn','Tổng mức đầu tư (đồng)','Số gói thầu','Ngày bắt đầu','Ngày kết thúc','Tiến độ thực tế (%)','Tiến độ kế hoạch (%)'];
+  exportXlsx(`DanhSachDuAn_${TODAY}.xlsx`, [{name:'Du an', title:'DANH SÁCH DỰ ÁN', money:[9], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(st?' · Trạng thái: '+st:'')+(q?' · Tìm: '+q:''), head,
+    rows:rows.map((r,i)=>[i+1, r.code||'', r.name||'', r.group||'', r.phase||'', r.status||'', r.owner||'', r.location||'', r.capital||'', +r.tmdt||0, r.nk, fmtDate(r.start), fmtDate(r.end), Math.round(+r.prog||0), Math.round(+r.exp||0)])}]);
+  log('Xuất danh sách','logs','Danh sách dự án'); };
 VIEWS['du-an']=()=>{
   const sel=S.sel.project && get('projects',S.sel.project);
   if(sel && pidOk(sel.id)) return projectDetail(sel);
   const q=S.f.pq||'', st=S.f.pst||'';
-  const rows=projects().filter(p=>(!S.pid||p.id===S.pid) && has(p,q) && (!st||p.status===st)).map(p=>({...p, prog:projProgress(p.id), exp:projExpected(p.id), nk:D('packages').filter(k=>k.projectId===p.id).length}));
-  return `<div class="head"><div class="grow"><h1>Danh sách dự án</h1><p>${rows.length} dự án, tổng mức đầu tư ${fmtTy(sum(rows,'tmdt'))}</p></div>${can('du-an','edit')?`<button class="btn primary" data-act="add-project">+ Thêm dự án</button>`:''}</div>
+  const rows=projListRows();
+  return `<div class="head"><div class="grow"><h1>Danh sách dự án</h1><p>${rows.length} dự án, tổng mức đầu tư ${fmtTy(sum(rows,'tmdt'))}</p></div><button class="btn" data-act="export-projects">Xuất Excel</button>${can('du-an','edit')?`<button class="btn primary" data-act="add-project">+ Thêm dự án</button>`:''}</div>
   <div class="toolbar"><input type="search" placeholder="Tìm theo mã, tên, địa điểm…" data-f="pq" value="${esc(q)}" aria-label="Tìm dự án"><select data-f="pst" aria-label="Trạng thái">${opts(catalog('Trạng thái dự án'),st,'Mọi trạng thái')}</select></div>
   ${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên dự án',f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(r.group||'')} · ${esc(r.phase||'')}</div>`},{h:'Trạng thái',f:r=>statusPill(r.status)},
     {h:'Tổng mức đầu tư',r:1,f:r=>fmtTy(r.tmdt)},{h:'Gói thầu',r:1,f:r=>r.nk},{h:'Thời gian',f:r=>`<span class="num small">${fmtDate(r.start)} – ${fmtDate(r.end)}</span>`},

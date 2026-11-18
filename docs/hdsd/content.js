@@ -5,15 +5,16 @@ const H12 = ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: tr�
 // Bộ hợp nhất 08/11/2026: trình bày đầy đủ chức năng của phần mềm đang dùng, không còn tài liệu bổ sung riêng
 const H17 = ['08/11/2026', 'Ban hành bộ hướng dẫn hợp nhất, trình bày đầy đủ các chức năng đang dùng: trình duyệt kế hoạch tiến độ; đợt nghiệm thu khối lượng có tư vấn giám sát xác nhận; nhập kế hoạch tiến độ, bảng khối lượng và khối lượng nghiệm thu từ tệp Excel; kiểm soát thanh toán theo giá trị đã nghiệm thu; xem trước tệp PDF; tùy chỉnh giao diện; biểu đồ tiến độ theo tuần, tháng, quý', '1.7'];
 const H18 = ['17/11/2026', 'Cập nhật: mã kiểm tra khi đăng nhập sai, mật khẩu riêng ở lần đăng nhập đầu, menu theo giai đoạn, Trung tâm cảnh báo, lưu nháp và chuyển duyệt, theo dõi hồ sơ, quy trình duyệt tự thiết lập, danh mục nhà thầu và đơn vị giám sát, nghiệm thu sản phẩm tư vấn, dữ liệu đầu kỳ', '1.8'];
+const H181 = ['18/11/2026', 'Cập nhật: quản trị tự thiết lập trang đăng nhập (ảnh nền, tiêu đề, dòng hướng dẫn), màu giao diện của đơn vị, mẫu in (quốc hiệu, địa danh, chức danh người ký); ô chọn nhiều mục có ô gõ tìm', '1.8.1'];
 const ROLES = {
-  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', v: 7, hist: [H10, H11, H12, ['03/11/2026', 'Nhóm Lãnh đạo UBND xã đổi thành Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…)', '1.2'], [H17[0], H17[1] + '; khởi tạo hệ thống bằng mã khởi tạo; Quản trị chính; bước kiểm tra hồ sơ trước khi duyệt', '1.7'], H18] },
-  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', v: 6, hist: [H10, H11, H12, H17, H18] },
-  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', v: 6, hist: [H10, H11, H12, H17, H18] },
-  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', v: 6, hist: [H10, H11, H12, H17, H18] },
-  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', v: 6, hist: [H10, H11, H12, H17, H18] },
-  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', v: 6, hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2'], H17, H18] },
+  qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', user: 'admin', v: 8, hist: [H10, H11, H12, ['03/11/2026', 'Nhóm Lãnh đạo UBND xã đổi thành Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…)', '1.2'], [H17[0], H17[1] + '; khởi tạo hệ thống bằng mã khởi tạo; Quản trị chính; bước kiểm tra hồ sơ trước khi duyệt', '1.7'], H18, H181] },
+  ld: { name: 'Lãnh đạo Ban', file: 'Lanh dao Ban', user: 'lanhdao', v: 7, hist: [H10, H11, H12, H17, H18, H181] },
+  kt: { name: 'Cán bộ kỹ thuật', file: 'Can bo ky thuat', user: 'kythuat', v: 7, hist: [H10, H11, H12, H17, H18, H181] },
+  ke: { name: 'Kế toán', file: 'Ke toan', user: 'ketoan', v: 7, hist: [H10, H11, H12, H17, H18, H181] },
+  gs: { name: 'Tư vấn giám sát / Nhà thầu', file: 'Tu van giam sat - Nha thau', user: 'giamsat', v: 7, hist: [H10, H11, H12, H17, H18, H181] },
+  ub: { name: 'Lãnh đạo xã/phường', file: 'Lanh dao xa phuong', user: 'ubnd', v: 7, hist: [['03/11/2026', 'Ban hành lần đầu, theo phần mềm phiên bản 1.1', '1.1'], H12, ['03/11/2026', 'Mở rộng thành vai trò Lãnh đạo xã/phường (Bí thư, Phó Bí thư, Chủ tịch, Phó Chủ tịch HĐND, UBND); bổ sung chương Xem trên điện thoại', '1.2'], H17, H18, H181] },
   dt: { name: 'Sử dụng trên điện thoại', file: 'Su dung tren dien thoai', audience: 'Cán bộ dùng phần mềm trên điện thoại: Tư vấn giám sát, Nhà thầu, Cán bộ kỹ thuật, Lãnh đạo Ban, Lãnh đạo xã/phường', cover: 'SỬ DỤNG TRÊN ĐIỆN THOẠI',
-    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2'], ['08/11/2026', 'Ban hành bộ hướng dẫn hợp nhất: biểu đồ tiến độ và dòng tổng cộng trên điện thoại, tư vấn giám sát xác nhận khối lượng nghiệm thu, xem trước tệp PDF, tùy chỉnh giao diện', '1.7'], H18], v: 7 },
+    hist: [H10, ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.1: thêm phần mềm ra màn hình chính trên Android và iPhone; tra cứu giải ngân, giải phóng mặt bằng, nghiệm thu trên điện thoại', '1.1'], ['03/11/2026', 'Cập nhật theo phần mềm phiên bản 1.2: bảng nhập công việc nhật ký, ô nhập ngày theo ngày/tháng/năm', '1.2'], ['03/11/2026', 'Bổ sung Lãnh đạo xã/phường xem trên điện thoại', '1.2'], ['08/11/2026', 'Ban hành bộ hướng dẫn hợp nhất: biểu đồ tiến độ và dòng tổng cộng trên điện thoại, tư vấn giám sát xác nhận khối lượng nghiệm thu, xem trước tệp PDF, tùy chỉnh giao diện', '1.7'], H18, H181], v: 8 },
 };
 ROLES.ns = { name: 'Nhà sản xuất, vận hành dịch vụ', file: 'Nha san xuat - Van hanh dich vu cho thue', cover: 'NHÀ SẢN XUẤT, VẬN HÀNH DỊCH VỤ', coverSub: 'VẬN HÀNH MÁY CHỦ CHO THUÊ NHIỀU XÃ, PHƯỜNG',
   audience: 'Cán bộ kỹ thuật của Công ty Cổ phần Tin học Tri Thức: quản trị nền tảng cho thuê, vận hành máy chủ, sao lưu và cập nhật phiên bản', org: 'Công ty Cổ phần Tin học Tri Thức (đơn vị cung cấp dịch vụ)', top: ['CÔNG TY CỔ PHẦN TIN HỌC TRI THỨC', 'BỘ PHẬN KỸ THUẬT, VẬN HÀNH'], v: 1,
@@ -88,11 +89,16 @@ function common(k) {
   out.push(legend([
     [1, 'Thanh chức năng: danh sách phân hệ được phép sử dụng, nhóm theo Điều hành – Nghiệp vụ – Khai thác – Tiện ích. Số màu đỏ bên phải là số việc cần chú ý (ví dụ hạng mục chậm tiến độ, dự án chậm giải ngân, bảo hành sắp hết hạn).'],
     [2, 'Tên trang đang mở.'],
-    [3, 'Ô chọn dự án làm việc: chọn một dự án để mọi trang chỉ hiển thị số liệu của dự án đó; chọn «Tất cả dự án» để xem toàn bộ.'],
+    [3, 'Ô chọn dự án làm việc: chọn một dự án để mọi trang chỉ hiển thị số liệu của dự án đó; chọn «Tất cả dự án» để xem toàn bộ. Khi có nhiều dự án, nhấn vào ô sẽ mở danh sách kèm ô gõ tìm (xem mục Tìm nhanh trong ô chọn).'],
     [4, 'Trạng thái kết nối: «Đã kết nối máy chủ» nghĩa là dữ liệu được lưu tập trung và tự làm mới khoảng 30 giây một lần.'],
     [5, 'Tài khoản đang đăng nhập; nhấn vào để đổi mật khẩu hoặc đăng xuất.'],
     [6, 'Vùng làm việc của trang đang mở.'],
   ]));
+  out.push({ h2: 'Tìm nhanh trong ô chọn' });
+  out.push({ p: 'Ô chọn có nhiều mục (từ 10 mục trở lên) như ô chọn dự án làm việc, gói thầu, hợp đồng, nhà thầu… khi nhấn vào sẽ mở danh sách kèm ô gõ tìm, không phải kéo lên xuống tìm từng dòng.' });
+  out.push(img('chung-tim-du-an', 'Gõ tìm trong ô chọn dự án', 16));
+  out.push(legend([[1, 'Nhấn vào ô chọn (hoặc nhấn phím Enter khi ô đang được chọn)'], [2, 'Gõ một phần tên hoặc mã; gõ có dấu hay không dấu đều tìm được'], [3, 'Danh sách chỉ còn các mục phù hợp; nhấn chọn mục cần dùng']]));
+  out.push({ bullets: ['Dùng phím mũi tên lên, xuống để di chuyển và phím Enter để chọn; phím Esc để đóng danh sách mà không thay đổi.', 'Mục đang được chọn có nền màu đậm hơn các mục còn lại.'] });
   if (k !== 'ub') out.push(...S18.menuPhases());
   out.push({ h2: 'Đổi mật khẩu và đăng xuất' });
   out.push({ steps: [
@@ -739,17 +745,21 @@ S.admin = () => [
   { note: 'Định kỳ (ví dụ cuối mỗi tháng) tải một bản sao lưu đầy đủ kèm tệp về lưu tại Ban, tách biệt với máy chủ. Ngoài sao lưu trong phần mềm, đơn vị quản lý máy chủ còn sao lưu toàn bộ cơ sở dữ liệu và kho tệp hằng đêm; khi cần khôi phục dữ liệu về một thời điểm cũ, Ban gửi văn bản đề nghị nêu rõ thời điểm.' },
 
   { h1: 'THÔNG TIN ĐƠN VỊ, GIAO DIỆN' },
-  { p: 'Thẻ **Thông tin đơn vị, giao diện** cho phép quản trị thay logo, tên phần mềm, tên đơn vị, banner trang đăng nhập, chân trang… mà không cần cài lại phần mềm. Dùng khi đơn vị đổi tên hoặc khi triển khai phần mềm cho đơn vị khác. Thay đổi áp dụng ngay cho mọi người dùng ở lần mở trang tiếp theo.' },
+  { p: 'Thẻ **Thông tin đơn vị, giao diện** cho phép quản trị tự thiết lập toàn bộ thông tin hiển thị của đơn vị mà không cần cài lại phần mềm: logo, tên phần mềm, tên đơn vị, trang đăng nhập (banner, ảnh nền, dòng chữ trong khung đăng nhập), màu giao diện chung của đơn vị, mẫu in (quốc hiệu, địa danh, chức danh người ký), chân trang. Dùng khi đơn vị đổi tên hoặc khi triển khai phần mềm cho đơn vị khác. Thay đổi áp dụng ngay cho mọi người dùng ở lần mở trang tiếp theo.' },
   img('qt-don-vi', 'Thông tin đơn vị và nhận diện giao diện', 16),
-  legend([[1, 'Các ô thông tin: tên đơn vị rút gọn, tên phần mềm, cơ quan chủ quản, đơn vị sử dụng, tiêu đề và mô tả banner, địa chỉ, chân trang, tên đơn vị trên báo cáo, chủ đầu tư mặc định, thông tin hỗ trợ'], [2, 'Lưu thông tin'], [3, 'Đưa các ô thông tin về mặc định'], [4, 'Xem trước logo và tên phần mềm như trên thanh chức năng'], [5, 'Chọn ảnh logo mới']]),
+  legend([[1, 'Các ô thông tin chia theo nhóm: Tên đơn vị và phần mềm; Trang đăng nhập; Màu giao diện; Báo cáo và mẫu in; Nhập liệu'], [2, 'Lưu thông tin'], [3, 'Đưa các ô thông tin về mặc định'], [4, 'Xem trước logo và tên phần mềm như trên thanh chức năng'], [5, 'Chọn hoặc thay ảnh logo'], [6, 'Xem trước ảnh nền trang đăng nhập'], [7, 'Chọn hoặc thay ảnh nền trang đăng nhập']]),
   { steps: [
     'Chọn **Quản trị hệ thống** → thẻ **Thông tin đơn vị, giao diện**.',
     'Sửa các ô thông tin (1). Ô **Chân trang** có thể ghi **{năm}**, phần mềm tự thay bằng năm hiện tại. Nhấn **Lưu thông tin** (2).',
-    'Thay logo: nhấn **Chọn ảnh logo** (5), chọn ảnh PNG, JPG hoặc WEBP tối đa 2 MB (nên dùng ảnh vuông, nền trong suốt). Logo hiện ngay ở khung xem trước (4), thanh chức năng và trang đăng nhập. Nhấn **Xóa logo** để dùng lại biểu tượng mặc định.',
-    'Muốn trở về thông tin ban đầu, nhấn **Khôi phục mặc định** (3) và xác nhận; logo được giữ nguyên.',
+    'Thay logo: ở mục **Logo đơn vị**, nhấn **Chọn ảnh** (hoặc **Thay ảnh khác**) (5), chọn ảnh PNG, JPG hoặc WEBP tối đa 2 MB (nên dùng ảnh vuông, nền trong suốt). Logo hiện ngay ở khung xem trước (4), thanh chức năng và trang đăng nhập. Nhấn **Xóa ảnh** bên cạnh để dùng lại biểu tượng mặc định.',
+    'Thay ảnh nền trang đăng nhập: ở mục **Ảnh nền trang đăng nhập**, nhấn **Chọn ảnh** (7), chọn ảnh ngang (trụ sở, công trình tiêu biểu) tối đa 5 MB. Phần mềm phủ một lớp màu chủ đạo lên ảnh để chữ trên banner luôn đọc rõ; khung xem trước (6) cho thấy ảnh sau khi phủ màu. Nhấn **Xóa ảnh** để dùng lại nền màu.',
+    'Nhóm **Trang đăng nhập**: đổi tiêu đề, dòng hướng dẫn trong khung đăng nhập, dòng hướng dẫn khi quên mật khẩu; chọn có hay không họa tiết trống đồng và vạch màu đỏ, vàng trên banner.',
+    'Nhóm **Màu giao diện**: chọn tông màu chủ đạo của đơn vị. Người dùng để tông màu **Theo đơn vị** (mặc định) trong hộp thoại Giao diện sẽ dùng màu này; người đã tự chọn màu khác vẫn giữ lựa chọn riêng.',
+    'Nhóm **Báo cáo và mẫu in**: tên đơn vị trên báo cáo Excel, địa danh ghi trước ngày tháng (ví dụ «Cần Thơ, ngày … tháng … năm …»), có in quốc hiệu, tiêu ngữ hay không, chức danh người ký báo cáo, phiếu trình, bảng đối soát.',
+    'Muốn trở về thông tin ban đầu, nhấn **Khôi phục mặc định** (3) và xác nhận; logo và ảnh nền được giữ nguyên.',
   ] },
-  img('qt-dang-nhap-don-vi', 'Trang đăng nhập sau khi thay logo và thông tin đơn vị', 16),
-  { note: 'Mọi lần thay đổi được ghi vào Nhật ký hoạt động. Thông tin đơn vị và logo được lưu kèm trong tệp sao lưu dữ liệu.' },
+  img('qt-dang-nhap-don-vi', 'Trang đăng nhập sau khi thay logo và ảnh nền', 16),
+  { note: 'Mọi lần thay đổi được ghi vào Nhật ký hoạt động. Thông tin đơn vị, logo và ảnh nền được lưu kèm trong tệp sao lưu dữ liệu. Logo cũng được dùng làm biểu tượng trên thẻ trình duyệt và khi cài phần mềm lên màn hình điện thoại.' },
 
   { h1: 'QUẢN LÝ HƯỚNG DẪN SỬ DỤNG' },
   { p: 'Trang **Hướng dẫn sử dụng** (cuối thanh chức năng bên trái) chứa tài liệu, video hướng dẫn cho từng nhóm người dùng. Quản trị hệ thống xem toàn bộ; mỗi nhóm khác chỉ thấy hướng dẫn dành cho nhóm mình. Khi khởi tạo hệ thống, phần mềm tạo sẵn các hướng dẫn kèm tệp PDF của bộ tài liệu này cho từng vai trò.' },

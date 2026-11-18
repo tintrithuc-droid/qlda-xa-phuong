@@ -60,6 +60,8 @@ builder.Services.AddScoped<FileStore>();
 builder.Services.AddScoped<BackupService>();
 builder.Services.AddHostedService<MaintenanceService>();
 builder.Services.AddControllersWithViews(o => o.Filters.Add<QldaTtts.Web.Services.PasswordChangeFilter>()).AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
+// Trang dựng ở máy chủ giữ nguyên chữ tiếng Việt có dấu (không đổi sang mã &#x...;)
+builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(o => o.TextEncoderSettings = new System.Text.Encodings.Web.TextEncoderSettings(System.Text.Unicode.UnicodeRanges.All));
 
 var keysDir = cfg["Storage:KeysPath"] is { Length: > 0 } kp ? kp : Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
 Directory.CreateDirectory(keysDir);

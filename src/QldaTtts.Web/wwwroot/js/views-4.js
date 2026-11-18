@@ -186,14 +186,13 @@ function wfPrint(col, r){
   h1{font-size:17px; text-align:center; margin:14px 0 4px} .sub{text-align:center; font-style:italic; margin-bottom:12px}
   table{width:100%; border-collapse:collapse; margin-top:8px} th,td{border:1px solid #000; padding:4px 6px; vertical-align:top} th{background:#eee} dl{display:grid; grid-template-columns:150px 1fr; gap:4px 10px; margin:0} dt{font-weight:bold}
   .sign{display:grid; grid-template-columns:1fr 1fr; text-align:center; margin-top:22px} .sign i{display:block} .sign .sp{height:80px}</style></head><body>
-  <div class="hd"><div>${esc((BR.orgName||'').toUpperCase())}<b>${esc((BR.unitName||BR.reportOrg||'').toUpperCase())}</b><span class="u"></span></div>
-    <div><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><b>Độc lập - Tự do - Hạnh phúc</b><span class="u"></span></div></div>
+  ${printHead()}
   <h1>PHIẾU TRÌNH</h1><div class="sub">${esc(w.name)}</div>
   <dl><dt>Hồ sơ</dt><dd>${esc(w.label(r))}</dd><dt>Dự án</dt><dd>${esc([pj.code,pj.name].filter(Boolean).join(' · '))}</dd><dt>Nội dung</dt><dd>${esc(w.info(r))}</dd>
     <dt>Tình trạng</dt><dd>${esc(wfDisp(col,wfStatus(col,r),r))}</dd>${st.sub?`<dt>Người trình</dt><dd>${esc(st.sub.byName||st.sub.by||'')}, ${fmtDT(st.sub.at)}</dd>`:''}</dl>
   <table><thead><tr><th style="width:36px">TT</th><th>Bước xử lý</th><th>Người xử lý</th><th>Thời gian</th><th>Ý kiến</th></tr></thead><tbody>
   ${hs.map((x,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${esc(x.action)}${x.step?` → ${esc(wfStepOf(x))}`:x.toStatus?` → ${esc(x.toStatus)}`:''}</td><td>${esc(x.byName||x.by||'')}</td><td>${fmtDT(x.at)}</td><td>${esc(x.note||'')}</td></tr>`).join('')}</tbody></table>
-  <div class="sign"><div><i>&nbsp;</i><b>NGƯỜI TRÌNH</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(st.sub?(st.sub.byName||''):'')}</div><div><i>…, ngày ${d[2]} tháng ${d[1]} năm ${d[0]}</i><b>LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div></div>
+  <div class="sign"><div><i>&nbsp;</i><b>NGƯỜI TRÌNH</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(st.sub?(st.sub.byName||''):'')}</div><div><i>${printDate()}</i><b>${esc(BR.signApprove)}</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div></div>
   </body></html>`;
   const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.title='In phiếu trình';
   document.body.appendChild(fr); const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();

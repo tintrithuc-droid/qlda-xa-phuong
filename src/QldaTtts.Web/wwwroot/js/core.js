@@ -85,10 +85,23 @@ const APP_VERSION = '1.8';
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
   address:'Địa chỉ: …', footer:'© {năm} Ban Quản lý dự án đầu tư xây dựng xã/phường …',
-  reportOrg:'Ban QLDA đầu tư xây dựng xã/phường …', ownerDefault:'UBND xã/phường …', support:'Hỗ trợ: quản trị hệ thống của đơn vị', logo:null};
-let BR = {...BR_DEF};
-function setBrand(b){ BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; }
+  reportOrg:'Ban QLDA đầu tư xây dựng xã/phường …', ownerDefault:'UBND xã/phường …', support:'Hỗ trợ: quản trị hệ thống của đơn vị',
+  loginTitle:'Đăng nhập hệ thống', loginHint:'Sử dụng tài khoản do quản trị hệ thống cấp.', forgotText:'Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại.', bannerDeco:'1',
+  color:'navy', printNation:'1', place:'…', signReport:'THỦ TRƯỞNG ĐƠN VỊ', signApprove:'LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN', signTech:'CÁN BỘ KỸ THUẬT', signAcc:'KẾ TOÁN',
+  logo:null, loginBg:null};
+let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy'};
+function setBrand(b){
+  BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; lsSet('qlda-brcolor', BR.color);
+  const fi=document.getElementById('favicon'); if(fi){ const h=BR.logo||'/icons/icon.svg'; if(fi.getAttribute('href')!==h){ fi.setAttribute('href',h); if(BR.logo) fi.removeAttribute('type'); else fi.type='image/svg+xml'; } }
+  try{ if(UI.p && UI.p.color==='unit') UI.apply(UI.p); }catch{}
+}
 const brandMark = () => BR.logo ? `<img src="${esc(BR.logo)}" alt="Logo ${esc(BR.orgShort)}">` : drumSVG();
+/* Mẫu in: phần đầu (tên đơn vị, quốc hiệu, tiêu ngữ) và dòng địa danh, ngày tháng theo thiết lập của đơn vị */
+const printHead = (unit) => {
+  const left=`<div>${esc((BR.orgName||'').toUpperCase())}<b>${esc((unit||BR.unitName||BR.reportOrg||'').toUpperCase())}</b><span class="u"></span></div>`;
+  return BR.printNation==='0' ? `<div class="hd" style="grid-template-columns:1fr">${left}</div>`
+    : `<div class="hd">${left}<div><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><b>Độc lập - Tự do - Hạnh phúc</b><span class="u"></span></div></div>`; };
+const printDate = (iso=TODAY) => { const d=String(iso).slice(0,10).split('-'); return `${esc(BR.place||'…')}, ngày ${d[2]} tháng ${d[1]} năm ${d[0]}`; };
 const brandFoot = () => esc(BR.footer.replace(/\{năm\}/g, new Date().getFullYear()));
 const COLS = ['projects','tasks','legal','items','models','packages','orgs','contracts','addenda','schedule','diaries','boq','volumes','vbatches','payplans','payments','capitals','acceptances','settlements','clearances','users','groups','catalogs','logs','attachments','guides','approvals'];
 const COL_LABEL = {approvals:'Lịch sử trình duyệt',guides:'Hướng dẫn sử dụng',projects:'Dự án',tasks:'Công việc',legal:'Hồ sơ pháp lý',items:'Hạng mục công trình',models:'Tệp mô hình',packages:'Gói thầu',orgs:'Nhà thầu, đơn vị giám sát',contracts:'Hợp đồng',addenda:'Phụ lục hợp đồng',schedule:'Tiến độ',diaries:'Nhật ký thi công',boq:'Khối lượng hợp đồng',volumes:'Khối lượng thực hiện',vbatches:'Đợt nghiệm thu khối lượng',payplans:'Kế hoạch thanh toán',payments:'Hồ sơ thanh toán',capitals:'Kế hoạch vốn',acceptances:'Nghiệm thu, bàn giao',settlements:'Quyết toán dự án',clearances:'Giải phóng mặt bằng',users:'Người dùng',groups:'Nhóm người dùng',catalogs:'Danh mục',logs:'Nhật ký hệ thống',attachments:'Tệp đính kèm'};
@@ -872,7 +885,7 @@ document.addEventListener('click', e=>{
    kèm bản sao trên máy để mở ứng dụng là áp dụng ngay, không bị nháy màu. */
 const UI_OPTS = {
   mode:   {label:'Chế độ hiển thị', def:'auto', list:[['auto','Tự động theo máy'],['light','Sáng'],['dark','Tối']]},
-  color:  {label:'Tông màu chủ đạo', def:'navy', list:[['navy','Xanh hành chính','#1f5fbf','#0d2a57'],['teal','Xanh ngọc','#0b7a72','#0a3431'],['indigo','Tím than','#4338ca','#1e1b4b'],['green','Xanh lá','#15803d','#0f2f1c'],['earth','Cam đất','#b4490c','#2e1608'],['slate','Than chì','#334155','#111827']]},
+  color:  {label:'Tông màu chủ đạo', def:'unit', list:[['unit','Theo đơn vị'],['navy','Xanh hành chính','#1f5fbf','#0d2a57'],['teal','Xanh ngọc','#0b7a72','#0a3431'],['indigo','Tím than','#4338ca','#1e1b4b'],['green','Xanh lá','#15803d','#0f2f1c'],['earth','Cam đất','#b4490c','#2e1608'],['slate','Than chì','#334155','#111827']]},
   side:   {label:'Thanh điều hướng', def:'dark', list:[['dark','Nền đậm theo tông màu'],['light','Nền sáng']]},
   size:   {label:'Cỡ chữ', def:'md', list:[['sm','Nhỏ'],['md','Vừa'],['lg','Lớn'],['xl','Rất lớn']]},
   density:{label:'Mật độ hiển thị', def:'comfy', list:[['comfy','Thoáng'],['compact','Gọn (nhiều dòng hơn)']]}
@@ -880,10 +893,12 @@ const UI_OPTS = {
 const THEMES=UI_OPTS.mode.list;
 const UI = {
   p:{}, _uid:null,
-  clean(o){ const r={}; for(const [k,d] of Object.entries(UI_OPTS)){ const v=o&&o[k]; r[k]=d.list.some(x=>x[0]===v)? v : d.def; } return r; },
+  /* Bản 1.8 trở về trước không có lựa chọn «Theo đơn vị»: màu mặc định cũ (navy) coi như chưa tự chọn */
+  clean(o){ const r={}; for(const [k,d] of Object.entries(UI_OPTS)){ const v=o&&o[k]; r[k]=d.list.some(x=>x[0]===v)? v : d.def; }
+    if(o && !o.v && r.color==='navy') r.color='unit'; r.v=2; return r; },
   apply(p){
     this.p=this.clean(p); const r=document.documentElement, dark=this.p.mode==='dark' || (this.p.mode==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-    r.dataset.mode=dark?'dark':'light'; r.dataset.color=this.p.color; r.dataset.side=this.p.side; r.dataset.size=this.p.size; r.dataset.density=this.p.density;
+    r.dataset.mode=dark?'dark':'light'; r.dataset.color=this.p.color==='unit'?(BR.color||'navy'):this.p.color; r.dataset.side=this.p.side; r.dataset.size=this.p.size; r.dataset.density=this.p.density;
     if(this.p.mode==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',this.p.mode);
     const mc=document.querySelector('meta[name=theme-color]'); if(mc) setTimeout(()=>{ mc.content=getComputedStyle(r).getPropertyValue('--brand').trim()||'#0d2a57'; },0);
   },
@@ -912,7 +927,8 @@ function themeBtn(){ const m=themeGet(), next=THEMES[(THEMES.findIndex(x=>x[0]==
 function appearanceHTML(){
   const p=UI.p;
   const seg=(k)=>`<fieldset class="ap-group"><legend>${esc(UI_OPTS[k].label)}</legend><div class="seg" role="radiogroup">${UI_OPTS[k].list.map(([v,l])=>`<label class="${p[k]===v?'on':''}"><input type="radio" name="ap_${k}" value="${v}" data-ap="${k}" ${p[k]===v?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div></fieldset>`;
-  const sw=`<fieldset class="ap-group"><legend>${esc(UI_OPTS.color.label)}</legend><div class="swatches" role="radiogroup">${UI_OPTS.color.list.map(([v,l,a,b])=>`<label class="sw ${p.color===v?'on':''}"><input type="radio" name="ap_color" value="${v}" data-ap="color" ${p.color===v?'checked':''}><span class="chip" style="--a:${a};--b:${b}" aria-hidden="true"><i></i></span><span>${esc(l)}</span></label>`).join('')}</div></fieldset>`;
+  const uc=UI_OPTS.color.list.find(x=>x[0]===BR.color)||UI_OPTS.color.list[1];
+  const sw=`<fieldset class="ap-group"><legend>${esc(UI_OPTS.color.label)}</legend><div class="swatches" role="radiogroup">${UI_OPTS.color.list.map(x=>x[0]==='unit'?['unit','Theo đơn vị ('+uc[1].toLowerCase()+')',uc[2],uc[3]]:x).map(([v,l,a,b])=>`<label class="sw ${p.color===v?'on':''}"><input type="radio" name="ap_color" value="${v}" data-ap="color" ${p.color===v?'checked':''}><span class="chip" style="--a:${a};--b:${b}" aria-hidden="true"><i></i></span><span>${esc(l)}</span></label>`).join('')}</div></fieldset>`;
   return `<div class="mform narrow ap" role="dialog" aria-modal="true" aria-labelledby="ap_t"><header><h3 id="ap_t">Giao diện</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header>
     <div class="ap-body">${seg('mode')}${sw}${seg('side')}${seg('size')}${seg('density')}
     <p class="small muted" style="margin:0">Chọn là áp dụng ngay. Tùy chọn được lưu theo tài khoản của bạn, đăng nhập trên máy khác vẫn giữ nguyên.</p></div>
@@ -1063,3 +1079,42 @@ function fitTables(root){
   });
 }
 addEventListener('resize', ()=>{ clearTimeout(fitTables._t); fitTables._t=setTimeout(()=>fitTables(), 150); });
+
+/* ===== Ô chọn nhiều mục (dự án, gói thầu, hợp đồng…): bấm vào mở danh sách kèm ô gõ tìm, gõ không dấu vẫn tìm được ===== */
+const SS_MIN = 10;
+let _ss = null;
+const ssOk = s => s && s.tagName === 'SELECT' && !s.multiple && !s.disabled && s.options.length >= SS_MIN;
+function ssClose(focus){ if(!_ss) return; const s=_ss.sel; _ss.box.remove(); _ss=null; if(focus) s.focus(); }
+function ssOpen(sel){
+  ssClose();
+  const box=document.createElement('div'); box.className='ss-pop'; box.setAttribute('role','dialog'); box.setAttribute('aria-label', sel.getAttribute('aria-label')||'Chọn');
+  box.innerHTML='<input type="search" placeholder="Gõ để tìm…" aria-label="Tìm trong danh sách" autocomplete="off"><ul role="listbox"></ul>';
+  document.body.appendChild(box);
+  /* Đặt hộp ngay dưới ô chọn (thiếu chỗ thì mở lên trên); trang cuộn thì hộp đi theo ô chọn */
+  const place=()=>{ const z=parseFloat(getComputedStyle(document.body).zoom)||1, r=sel.getBoundingClientRect();
+    const vw=innerWidth/z, vh=innerHeight/z, w=Math.min(Math.max(r.width/z, 300), vw-16), left=Math.max(8, Math.min(r.left/z, vw-w-8));
+    const below=vh-r.bottom/z-12, above=r.top/z-12, up=below<260 && above>below, h=Math.min(380, Math.max(160, up?above:below));
+    box.style.cssText=`left:${left}px;width:${w}px;max-height:${h}px;`+(up?`bottom:${vh-r.top/z+4}px`:`top:${r.bottom/z+4}px`); };
+  place();
+  const inp=box.querySelector('input'), ul=box.querySelector('ul');
+  const items=[...sel.options].map(o=>({v:o.value, t:o.text, n:norm(o.text), d:o.disabled}));
+  let list=items, act=Math.max(0, items.findIndex(x=>x.v===sel.value));
+  const draw=()=>{ const q=norm(inp.value.trim()); list=q? items.filter(x=>x.n.includes(q)) : items; act=Math.max(0, Math.min(act, list.length-1));
+    ul.innerHTML=list.length? list.map((x,k)=>`<li role="option" data-k="${k}" class="${k===act?'on':''}${x.v===sel.value?' cur':''}${x.d?' dis':''}" aria-selected="${x.v===sel.value}">${esc(x.t)}</li>`).join('') : '<li class="none">Không tìm thấy mục phù hợp</li>';
+    const a=ul.querySelector('.on'); if(a){ if(a.offsetTop<ul.scrollTop) ul.scrollTop=a.offsetTop; else if(a.offsetTop+a.offsetHeight>ul.scrollTop+ul.clientHeight) ul.scrollTop=a.offsetTop+a.offsetHeight-ul.clientHeight; } };
+  const pick=x=>{ if(!x||x.d) return; const ch=sel.value!==x.v; sel.value=x.v; ssClose(true); if(ch){ sel.dispatchEvent(new Event('input',{bubbles:true})); sel.dispatchEvent(new Event('change',{bubbles:true})); } };
+  inp.addEventListener('input', ()=>{ act=0; draw(); });
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){ e.preventDefault(); act=(act+(e.key==='ArrowDown'?1:-1)+list.length)%Math.max(1,list.length); draw(); }
+    else if(e.key==='Enter'){ e.preventDefault(); pick(list[act]); }
+    else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); ssClose(true); }
+    else if(e.key==='Tab'){ ssClose(); } });
+  ul.addEventListener('mousedown', e=>{ const li=e.target.closest('li[data-k]'); if(li){ e.preventDefault(); pick(list[+li.dataset.k]); } });
+  _ss={box, sel, place}; draw(); inp.focus({preventScroll:true});
+}
+document.addEventListener('mousedown', e=>{ if(_ss && !e.target.closest('.ss-pop')) ssClose(); const s=e.target.closest && e.target.closest('select'); if(e.button===0 && ssOk(s)){ e.preventDefault(); ssOpen(s); } }, true);
+document.addEventListener('touchend', e=>{ const s=e.target.closest && e.target.closest('select'); if(ssOk(s)){ e.preventDefault(); ssOpen(s); } }, {capture:true, passive:false});
+document.addEventListener('keydown', e=>{ const s=e.target; if(ssOk(s) && (e.key==='Enter'||e.key===' '||e.key==='F4'||(e.altKey&&e.key==='ArrowDown'))){ e.preventDefault(); ssOpen(s); } }, true);
+addEventListener('resize', ()=>ssClose());
+document.addEventListener('scroll', e=>{ if(!_ss || _ss.box.contains(e.target)) return;
+  const r=_ss.sel.getBoundingClientRect(); if(!_ss.sel.isConnected || r.bottom<0 || r.top>innerHeight) ssClose(); else _ss.place(); }, true);

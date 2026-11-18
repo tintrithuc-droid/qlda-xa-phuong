@@ -59,6 +59,7 @@ async function ann(p, a) {
   }, a);
 }
 async function shot(p, name, clip, a) {
+  await require('./hd-lib').repl(p);
   const vp = p.viewportSize(), tall = typeof clip === 'string' && clip.startsWith('#ov') && vp.width > 1000;
   if (tall) { await p.setViewportSize({ width: vp.width, height: 1900 }); await wait(300); }
   if (a) await ann(p, a);

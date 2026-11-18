@@ -212,7 +212,7 @@ function dkRecon(pid, cut){
     return {id:c.id, project:(projOf(contractPid(c))||{}).code||'', pkg:(pkgOf(c.packageId)||{}).code||'', number:c.number, contractor:c.contractor||'', value:v, acc, tu, th, tt, spent:tu+tt, advLeft:tu-th, left:v-tu-tt}; });
 }
 const DK_RC_HEAD=['Dự án','Gói thầu','Số hợp đồng','Nhà thầu','Giá trị HĐ gồm phụ lục (đ)','Giá trị KL nghiệm thu lũy kế (đ)','Đã tạm ứng (đ)','Đã thu hồi tạm ứng (đ)','Đã thanh toán KL (đ)','Lũy kế đã chi (đ)','Tạm ứng chưa thu hồi (đ)','Giá trị HĐ còn lại (đ)'];
-const DK_RC_SIGN=['CÁN BỘ KỸ THUẬT','KẾ TOÁN','LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN'];
+const DK_RC_SIGN=()=>[BR.signTech,BR.signAcc,BR.signApprove];
 function dkReconRows(pid, cut){ const l=dkRecon(pid, cut); const t=k=>sum(l,k);
   return [...l.map(r=>[r.project,r.pkg,r.number,r.contractor,r.value,r.acc,r.tu,r.th,r.tt,r.spent,r.advLeft,r.left]),
     ...(l.length>1?[['Tổng cộng','','','',t('value'),t('acc'),t('tu'),t('th'),t('tt'),t('spent'),t('advLeft'),t('left')]]:[])]; }
@@ -231,12 +231,11 @@ ACT['dk-recon-pdf']=()=>{ const pid=S.f.dkp||'', cut=S.f.dkc||dkCutoff(); const 
   td.r{text-align:right; white-space:nowrap} tr.t td{font-weight:bold} thead{display:table-header-group} tr{page-break-inside:avoid}
   .sign{display:grid; grid-template-columns:repeat(3,1fr); text-align:center; margin-top:16px; page-break-inside:avoid} .sign i{display:block} .sign .sp{height:70px}
   </style></head><body>
-  <div class="hd"><div>${esc((BR.orgName||'').toUpperCase())}<b>${esc((BR.unitName||BR.reportOrg||'').toUpperCase())}</b><span class="u"></span></div>
-    <div><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><b>Độc lập - Tự do - Hạnh phúc</b><span class="u"></span></div></div>
+  ${printHead()}
   <h1>BẢNG ĐỐI SOÁT SỐ LIỆU THEO HỢP ĐỒNG</h1><div class="sub">${esc(dkReconSub(pid,cut))}</div>
   <table><thead><tr><th>STT</th>${DK_RC_HEAD.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
   <tbody>${rows.map((r,k)=>`<tr class="${r[0]==='Tổng cộng'?'t':''}"><td class="r">${r[0]==='Tổng cộng'?'':k+1}</td>${r.map((v,i)=>`<td class="${i>3?'r':''}">${i>3?fmtVND(v):esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>
-  <div class="sign">${DK_RC_SIGN.map((s,i)=>`<div>${i===2?`<i>…, ngày ${d[2]} tháng ${d[1]} năm ${d[0]}</i>`:'<i>&nbsp;</i>'}<b>${s}</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div>`).join('')}</div>
+  <div class="sign">${DK_RC_SIGN().map((s,i)=>`<div>${i===2?`<i>${printDate()}</i>`:'<i>&nbsp;</i>'}<b>${esc(s)}</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div>`).join('')}</div>
   </body></html>`;
   const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.title='In bảng đối soát';
   document.body.appendChild(fr); const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();

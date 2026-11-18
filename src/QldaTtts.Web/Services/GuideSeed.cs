@@ -1,4 +1,4 @@
-﻿using QldaTtts.Web.Data;
+using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
 
@@ -31,6 +31,31 @@ public static class GuideSeed
     /// <summary>Đánh dấu đã thay tài liệu HDSD do hệ thống nạp sẵn bằng bản mới nhất trong gói cài (theo tên tệp).</summary>
     public const string RefreshFlag = "guides-refreshed:";
 
+    /// <summary>
+    /// Bộ vai trò riêng của một đơn vị: thư mục hdsd/&lt;mã xã&gt;/ có tệp vai-tro.json
+    /// [{"file":"Ban Giam doc","title":"…","groups":["g-lead"],"content":"…"}]; không có thì dùng bộ chuẩn của xã.
+    /// </summary>
+    static (string File, string Title, string[] Groups, string Content)[] RolesOf(string dir)
+    {
+        var f = Path.Combine(dir, "vai-tro.json");
+        if (!File.Exists(f)) return Roles;
+        try
+        {
+            var list = System.Text.Json.JsonSerializer.Deserialize<List<RoleDoc>>(File.ReadAllText(f), new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+            var r = list.Where(x => !string.IsNullOrWhiteSpace(x.File) && !string.IsNullOrWhiteSpace(x.Title)).Select(x => (x.File!, x.Title!, x.Groups ?? Array.Empty<string>(), x.Content ?? "")).ToArray();
+            return r.Length > 0 ? r : Roles;
+        }
+        catch { return Roles; }
+    }
+    sealed class RoleDoc { public string? File { get; set; } public string? Title { get; set; } public string[]? Groups { get; set; } public string? Content { get; set; } }
+
+    /// <summary>Thư mục HDSD dùng cho một xã thuê bao: hdsd/&lt;mã xã&gt; nếu có tệp PDF riêng, ngược lại hdsd chung.</summary>
+    public static string DirFor(string root, string code)
+    {
+        var d = Path.Combine(root, code);
+        return Directory.Exists(d) && Directory.GetFiles(d, "*.pdf").Length > 0 ? d : root;
+    }
+
     public static void Run(AppDbContext db, FileStore store, string dir)
     {
         if (db.Settings.Any(s => s.Key == Flag)) { Refresh(db, store, dir); return; }
@@ -38,7 +63,7 @@ public static class GuideSeed
         var pdfs = Directory.GetFiles(dir, "*.pdf");
         if (pdfs.Length == 0) return;
         var order = 1;
-        foreach (var (file, title, groups, content) in Roles)
+        foreach (var (file, title, groups, content) in RolesOf(dir))
         {
             var pdf = pdfs.FirstOrDefault(p => Path.GetFileName(p).Contains(" - " + file + " - ", StringComparison.OrdinalIgnoreCase));
             var g = new Guide { Id = "gd-" + Guid.NewGuid().ToString("N")[..12], Title = title, Category = "Tài liệu hướng dẫn sử dụng",
@@ -65,7 +90,7 @@ public static class GuideSeed
         if (pdfs.Length == 0) return;
         var key = RefreshFlag + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("|", pdfs.Select(Path.GetFileName)))))[..32];
         if (db.Settings.Any(s => s.Key == key)) return;
-        foreach (var (file, title, _, content) in Roles)
+        foreach (var (file, title, _, content) in RolesOf(dir))
         {
             var pdf = pdfs.FirstOrDefault(p => Path.GetFileName(p).Contains(" - " + file + " - ", StringComparison.OrdinalIgnoreCase));
             var g = db.Guides.FirstOrDefault(x => x.Title == title && x.UpdatedBy == "he-thong")

@@ -340,14 +340,13 @@ function reportPrintHTML(x){
   .sign{display:grid; grid-template-columns:1fr 1fr; text-align:center; margin-top:18px; page-break-inside:avoid} .sign i{display:block; margin-bottom:2px}
   .sign .sp{height:70px}
   </style></head><body>
-  <div class="hd"><div>${esc((BR.orgName||'').toUpperCase())}<b>${esc((BR.unitName||'').toUpperCase())}</b><span class="u"></span></div>
-    <div><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><b>Độc lập - Tự do - Hạnh phúc</b><span class="u"></span></div></div>
+  ${printHead()}
   <h1>${esc(x.title)}</h1><div class="sub">${esc(x.sub)}</div>
   <table><thead><tr><th>STT</th>${x.R.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
   <tbody>${x.rows.map((r,k)=>`<tr><td class="r">${k+1}</td>${r.map((v,i)=>`<td class="${isNum(v)?'r':''}">${fmt(v,i)}</td>`).join('')}</tr>`).join('')}</tbody>
   ${x.money.length?`<tfoot><tr><td></td>${x.tot.map((v,i)=>`<td class="${isNum(v)?'r':''}">${fmt(v,i)}</td>`).join('')}</tr></tfoot>`:''}</table>
   <div class="sign"><div><b>NGƯỜI LẬP</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(S.user&&S.user.name||'')}</div>
-    <div><i>…, ngày ${d[2]} tháng ${d[1]} năm ${d[0]}</i><b>THỦ TRƯỞNG ĐƠN VỊ</b><i>(Ký, ghi rõ họ tên, đóng dấu)</i><div class="sp"></div></div></div>
+    <div><i>${printDate()}</i><b>${esc(BR.signReport)}</b><i>(Ký, ghi rõ họ tên, đóng dấu)</i><div class="sp"></div></div></div>
   </body></html>`;
 }
 ACT['export-report-pdf']=()=>{
@@ -534,33 +533,61 @@ VIEWS['doi-chieu']=()=>{
 
 
 /* ===== THÔNG TIN ĐƠN VỊ, GIAO DIỆN (triển khai cho nhiều đơn vị) ===== */
-const BR_FIELDS=[['orgShort','Tên đơn vị rút gọn (thanh bên trái, phía trên tên phần mềm)'],['appName','Tên phần mềm (thanh bên trái, tiêu đề trình duyệt)'],
-  ['orgName','Tên cơ quan chủ quản (trang đăng nhập, dòng 1)'],['unitName','Tên đơn vị sử dụng (trang đăng nhập, dòng 2)'],
-  ['bannerTitle','Tiêu đề banner trang đăng nhập'],['bannerText','Mô tả dưới tiêu đề banner'],['address','Địa chỉ (cuối banner)'],
-  ['footer','Chân trang ({năm} tự thay bằng năm hiện tại)'],['reportOrg','Tên đơn vị trên báo cáo xuất Excel'],['ownerDefault','Chủ đầu tư / cơ quan ban hành mặc định khi nhập liệu'],
-  ['support','Thông tin hỗ trợ (cuối thanh bên trái)']];
+const BR_YN=[['1','Có'],['0','Không']];
+/* Các mục quản trị tự thiết lập, chia theo nơi hiển thị. Kiểu: không ghi là ô chữ, 'area' nhiều dòng, danh sách là ô chọn */
+const BR_SECS=[
+  ['Tên đơn vị và phần mềm', '', [['orgShort','Tên đơn vị rút gọn (thanh bên trái, phía trên tên phần mềm)'],['appName','Tên phần mềm (thanh bên trái, tiêu đề trình duyệt)'],
+    ['orgName','Tên cơ quan chủ quản (trang đăng nhập dòng 1, đầu mẫu in)'],['unitName','Tên đơn vị sử dụng (trang đăng nhập dòng 2, đầu mẫu in)'],
+    ['support','Thông tin hỗ trợ (cuối thanh bên trái)'],['footer','Chân trang ({năm} tự thay bằng năm hiện tại)','area']]],
+  ['Trang đăng nhập', 'Banner bên trái và khung đăng nhập bên phải.', [['bannerTitle','Tiêu đề banner'],['bannerText','Mô tả dưới tiêu đề banner','area'],['address','Địa chỉ (cuối banner)'],
+    ['bannerDeco','Họa tiết trống đồng và vạch màu đỏ, vàng trên banner',BR_YN],
+    ['loginTitle','Tiêu đề khung đăng nhập'],['loginHint','Dòng hướng dẫn dưới tiêu đề'],['forgotText','Dòng hướng dẫn khi quên mật khẩu','area']]],
+  ['Màu giao diện', 'Áp dụng cho mọi người dùng để tông màu «Theo đơn vị» trong hộp thoại Giao diện (mặc định). Người đã tự chọn màu khác vẫn giữ lựa chọn của mình.',
+    [['color','Tông màu chủ đạo của đơn vị',()=>UI_OPTS.color.list.filter(x=>x[0]!=='unit').map(x=>[x[0],x[1]])]]],
+  ['Báo cáo và mẫu in', 'Dùng cho báo cáo xuất Excel, in PDF, phiếu trình, bảng đối soát hợp đồng.', [['reportOrg','Tên đơn vị trên báo cáo xuất Excel'],['place','Địa danh ghi trước ngày tháng (ví dụ: Cần Thơ)'],
+    ['printNation','In quốc hiệu, tiêu ngữ ở đầu mẫu in',BR_YN],['signReport','Chức danh ký báo cáo'],['signApprove','Chức danh lãnh đạo ký phiếu trình, bảng đối soát'],
+    ['signTech','Chức danh ký bảng đối soát, cột thứ nhất'],['signAcc','Chức danh ký bảng đối soát, cột thứ hai']]],
+  ['Nhập liệu', '', [['ownerDefault','Chủ đầu tư / cơ quan ban hành mặc định khi nhập liệu']]]];
+const BR_FIELDS=BR_SECS.flatMap(x=>x[2]);
+function brField([k,l,t],ed){
+  const dis=ed?'':'disabled', id='br_'+k;
+  if(typeof t==='function'||Array.isArray(t)){ const list=typeof t==='function'?t():t;
+    return `<div class="fld"><label for="${id}">${esc(l)}</label><select id="${id}" ${dis}>${list.map(([v,n])=>`<option value="${esc(v)}" ${String(BR[k])===v?'selected':''}>${esc(n)}</option>`).join('')}</select></div>`; }
+  if(t==='area') return `<div class="fld full"><label for="${id}">${esc(l)}</label><textarea id="${id}" rows="2" ${dis}>${esc(BR[k])}</textarea></div>`;
+  return `<div class="fld"><label for="${id}">${esc(l)}</label><input id="${id}" value="${esc(BR[k])}" ${dis}></div>`;
+}
+function brImg(kind, ed){
+  const lg=kind==='logo', url=lg?BR.logo:BR.loginBg, act=lg?'brand-logo-del':'brand-bg-del';
+  return ed?`<div class="toolbar"><label class="btn ${url?'':'primary'}" style="cursor:pointer">${AICO.clip} ${url?'Thay ảnh khác':'Chọn ảnh'}<input type="file" id="br_${kind}" data-kind="${kind}" accept=".png,.jpg,.jpeg,.webp,.gif" hidden></label>${url?`<button class="btn ghost danger" data-act="${act}">Xóa ảnh</button>`:''}</div>`:'';
+}
 function brandView(){
   const ed=can('quan-tri','edit'); S.after.push(_brWire);
   return `<div class="grid g3"><div class="card span2"><div class="ch"><h2>Thông tin đơn vị và nhận diện giao diện</h2></div>
-    <p class="muted small" style="margin-top:0">Dùng khi triển khai phần mềm cho đơn vị khác: thay logo, tên phần mềm, banner trang đăng nhập, chân trang… Thay đổi áp dụng ngay cho mọi người dùng, không cần cài lại.</p>
-    <form id="brform" class="fgrid">${BR_FIELDS.map(([k,l])=>`<div class="fld ${/bannerText|footer/.test(k)?'full':''}"><label for="br_${k}">${esc(l)}</label>${k==='bannerText'?`<textarea id="br_${k}" rows="2" ${ed?'':'disabled'}>${esc(BR[k])}</textarea>`:`<input id="br_${k}" value="${esc(BR[k])}" ${ed?'':'disabled'}>`}</div>`).join('')}</form>
+    <p class="muted small" style="margin-top:0">Quản trị hệ thống tự thiết lập toàn bộ thông tin hiển thị của đơn vị: tên gọi, trang đăng nhập, màu giao diện, mẫu in. Bấm Lưu thông tin là áp dụng ngay cho mọi người dùng, không cần cài lại phần mềm.</p>
+    <form id="brform" class="fgrid">${BR_SECS.map(([h,n,f])=>`<h3 class="br-sec">${esc(h)}</h3>${n?`<p class="muted small br-note">${esc(n)}</p>`:''}${f.map(x=>brField(x,ed)).join('')}`).join('')}</form>
     ${ed?`<div class="toolbar" style="margin-top:12px"><button class="btn primary" data-act="brand-save">Lưu thông tin</button><button class="btn ghost" data-act="brand-reset">Khôi phục mặc định</button></div>`:''}</div>
     <div class="card"><h2>Logo đơn vị</h2><div class="brand-prev"><div class="side-prev"><div class="mark${BR.logo?' logo':''}">${brandMark()}</div><div><span>${esc(BR.orgShort)}</span><b>${esc(BR.appName)}</b></div></div></div>
-    <p class="muted small">Ảnh PNG, JPG hoặc WEBP, tối đa 2 MB, nên dùng ảnh vuông nền trong suốt. Chưa có logo thì phần mềm dùng biểu tượng mặt trống đồng.</p>
-    ${ed?`<div class="toolbar"><label class="btn primary" style="cursor:pointer">${AICO.clip} Chọn ảnh logo<input type="file" id="br_logo" accept=".png,.jpg,.jpeg,.webp,.gif" hidden></label>${BR.logo?`<button class="btn ghost danger" data-act="brand-logo-del">Xóa logo</button>`:''}</div>`:''}
-    <h3 style="margin-top:16px">Xem trước chân trang</h3><p class="small">${brandFoot()}</p></div></div>`;
+    <p class="muted small">Ảnh PNG, JPG hoặc WEBP, tối đa 2 MB, nên dùng ảnh vuông nền trong suốt. Logo hiện ở thanh bên, trang đăng nhập và làm biểu tượng trên thẻ trình duyệt. Chưa có logo thì phần mềm dùng biểu tượng mặt trống đồng.</p>
+    ${brImg('logo',ed)}
+    <h2 style="margin-top:20px">Ảnh nền trang đăng nhập</h2><div class="bg-prev${BR.loginBg?'':' none'}" ${BR.loginBg?`style="background-image:url('${esc(BR.loginBg)}')"`:''}><b>${esc(BR.bannerTitle)}</b></div>
+    <p class="muted small">Ảnh ngang (trụ sở, công trình tiêu biểu…), PNG, JPG hoặc WEBP, tối đa 5 MB, nên rộng từ 1600 điểm ảnh. Phần mềm phủ một lớp màu chủ đạo lên ảnh để chữ trên banner luôn đọc rõ. Chưa có ảnh thì banner dùng nền màu.</p>
+    ${brImg('loginbg',ed)}
+    <h3 style="margin-top:16px">Xem trước chân trang</h3><p class="small">${brandFoot()}</p>
+    <h3 style="margin-top:12px">Xem trước dòng ký trên báo cáo</h3><p class="small"><i>${printDate()}</i><br><b>${esc(BR.signReport)}</b></p></div></div>`;
 }
-const _brWire=()=>{ const f=$('#br_logo'); if(!f||f._w) return; f._w=1; f.onchange=async()=>{ const file=f.files[0]; if(!file) return;
-  if(file.size>2*1024*1024) return toast('Logo tối đa 2 MB','err');
+const _brWire=()=>{ $$('input[type=file][data-kind]').forEach(f=>{ if(f._w) return; f._w=1; f.onchange=async()=>{ const file=f.files[0]; if(!file) return;
+  const lg=f.dataset.kind==='logo', mb=lg?2:5;
+  if(file.size>mb*1024*1024) return toast((lg?'Logo':'Ảnh nền')+' tối đa '+mb+' MB','err');
   const fd=new FormData(); fd.append('file',file);
-  try{ const r=await fetch('/api/branding/logo',{method:'POST',headers:{'X-QLDA':'1'},body:fd}); const d=await r.json(); if(!r.ok) throw new Error(d.message||'Lỗi tải logo');
-    setBrand(d); toast('Đã cập nhật logo'); render(); }catch(ex){ toast(ex.message,'err'); } }; };
+  try{ setBrand(await api('POST','/api/branding/'+f.dataset.kind,fd)); toast(lg?'Đã cập nhật logo':'Đã cập nhật ảnh nền trang đăng nhập'); render(); }catch(ex){ toast(errText(ex),'err'); } }; }); };
 ACT['brand-save']=async()=>{ const b={}; BR_FIELDS.forEach(([k])=>b[k]=$('#br_'+k).value.trim());
   try{ setBrand(await api('PUT','/api/branding',b)); toast('Đã lưu thông tin đơn vị'); render(); }catch(ex){ toast(errText(ex),'err'); } };
-ACT['brand-reset']=async()=>{ if(!await confirmBox('Đưa toàn bộ thông tin đơn vị, tên phần mềm, banner, chân trang về mặc định? Logo giữ nguyên.','Khôi phục')) return;
+ACT['brand-reset']=async()=>{ if(!await confirmBox('Đưa toàn bộ thông tin đơn vị, trang đăng nhập, màu giao diện, mẫu in về mặc định? Logo và ảnh nền giữ nguyên.','Khôi phục')) return;
   try{ setBrand(await api('PUT','/api/branding',{})); toast('Đã khôi phục mặc định'); render(); }catch(ex){ toast(errText(ex),'err'); } };
 ACT['brand-logo-del']=async()=>{ if(!await confirmBox('Xóa logo đơn vị và dùng lại biểu tượng mặc định?')) return;
   try{ setBrand(await api('DELETE','/api/branding/logo')); toast('Đã xóa logo'); render(); }catch(ex){ toast(errText(ex),'err'); } };
+ACT['brand-bg-del']=async()=>{ if(!await confirmBox('Xóa ảnh nền trang đăng nhập và dùng lại nền màu?')) return;
+  try{ setBrand(await api('DELETE','/api/branding/loginbg')); toast('Đã xóa ảnh nền'); render(); }catch(ex){ toast(errText(ex),'err'); } };
 
 /* ===== HƯỚNG DẪN SỬ DỤNG: mỗi nhóm người dùng xem hướng dẫn của mình, quản trị cập nhật ===== */
 const isVideo=a=>/^video\//.test(a.contentType)||/\.(mp4|webm|mov|m4v)$/i.test(a.fileName);

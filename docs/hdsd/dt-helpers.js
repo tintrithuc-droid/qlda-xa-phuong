@@ -49,6 +49,7 @@ async function ann(p, a) {
 async function clearAnn(p) { await p.evaluate(() => document.querySelectorAll('.hd-ann').forEach(x => x.remove())); }
 // clip: undefined = khung nhìn; 'full' = cả trang; selector = vùng phần tử (+ lề 18px)
 async function shot(p, name, clip, a) {
+  await require('./hd-lib').repl(p);
   if (a) await ann(p, a);
   const file = path.join(OUT, name + '.png');
   if (clip === 'full') await p.screenshot({ path: file, fullPage: true });

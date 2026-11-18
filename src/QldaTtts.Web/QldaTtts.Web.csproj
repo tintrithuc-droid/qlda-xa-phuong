@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.8.0</Version>
+    <Version>1.8.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,7 +22,7 @@
 
   <!-- Tệp PDF HDSD theo vai trò: phần mềm tự tạo trang Hướng dẫn sử dụng từ thư mục này ở lần chạy đầu -->
   <ItemGroup>
-    <None Include="hdsd\*.pdf" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="hdsd\**\*.pdf;hdsd\**\vai-tro.json" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

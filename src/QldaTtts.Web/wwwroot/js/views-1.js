@@ -136,16 +136,18 @@ ACT.del=async(id,el)=>{
 
 /* ===== Thiết lập lần đầu & đăng nhập ===== */
 function authArt(){
-  return `<div class="art">${BR.logo?'':`<div class="drum-mark">${drumSVG()}</div>`}
+  const deco=BR.bannerDeco!=='0', bg=BR.loginBg?` has-bg" style="--art-bg:url('${esc(BR.loginBg)}')`:'';
+  return `<div class="art${bg}">${deco&&!BR.logo&&!BR.loginBg?`<div class="drum-mark">${drumSVG()}</div>`:''}
   <div class="art-head"><div class="seal${BR.logo?' logo':''}">${brandMark()}</div><div><div class="org1">${esc(BR.orgName)}</div><div class="org2">${esc(BR.unitName)}</div></div></div>
   <div class="art-title"><h1>${esc(BR.bannerTitle)}</h1><p>${esc(BR.bannerText)}</p></div>
   <div class="meta">${esc(BR.address)}</div></div>`;
 }
+const authCls = () => 'auth'+(BR.bannerDeco==='0'?' plain':'');
 function renderSetup(){
   // Mã khởi tạo: lấy từ đường dẫn được cấp (…/?ma=XXXX-XXXX-XXXX) rồi xóa khỏi thanh địa chỉ
   const qs=new URLSearchParams(location.search), ma=qs.get('ma')||'';
   if(ma){ qs.delete('ma'); history.replaceState(null,'',location.pathname+(qs.toString()?'?'+qs:'')+location.hash); }
-  $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box"><form id="setup" autocomplete="off">
+  $('#root').innerHTML=`<div class="${authCls()}">${authArt()}<div class="box"><form id="setup" autocomplete="off">
     <div class="form-head"><h2>Khởi tạo hệ thống</h2><p class="muted small">Tạo tài khoản quản trị đầu tiên. Hệ thống chưa có người dùng. Tài khoản này có toàn quyền và dùng để cấp tài khoản cho cán bộ khác.</p></div>
     ${Store.setupToken?`<div class="fld"><label for="su_token">Mã khởi tạo (do đơn vị cung cấp dịch vụ gửi)</label><input id="su_token" required value="${esc(ma)}" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" spellcheck="false"></div>`:''}
     <div class="fld"><label for="su_name">Họ và tên</label><input id="su_name" required value=""></div>
@@ -181,14 +183,14 @@ function renderSetup(){
   };
 }
 function renderLogin(){
-  $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box"><form id="login">
-    <div class="form-head"><h2>Đăng nhập hệ thống</h2><p class="muted small">Sử dụng tài khoản do quản trị hệ thống cấp.</p></div>
+  $('#root').innerHTML=`<div class="${authCls()}">${authArt()}<div class="box"><form id="login">
+    <div class="form-head"><h2>${esc(BR.loginTitle)}</h2><p class="muted small">${esc(BR.loginHint)}</p></div>
     <div class="fld"><label for="lg_user">Tên đăng nhập</label><input id="lg_user" autocomplete="username" required></div>
     <div class="fld"><label for="lg_pw">Mật khẩu</label><input id="lg_pw" type="password" autocomplete="current-password" required></div>
     <div class="fld" id="lg_cap" hidden><label for="lg_capv">Mã kiểm tra</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="lg_capimg" style="display:inline-flex;border-radius:6px;overflow:hidden"></span><button type="button" class="btn sm ghost" id="lg_capnew">Đổi mã khác</button></div><input id="lg_capv" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" placeholder="Nhập 5 ký tự trong hình" style="margin-top:6px;text-transform:uppercase"></div>
     <div class="err" id="lg_err"></div>
     <button class="btn primary" type="submit" style="justify-content:center;padding:10px">Đăng nhập</button>
-    <p class="small muted" style="margin:0">Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại. ${Store.sampleUsers?'Tài khoản mẫu: lanhdao, kythuat, ketoan, giamsat, ubnd (mật khẩu như tài khoản quản trị lúc khởi tạo).':''}</p>
+    <p class="small muted" style="margin:0">${esc(BR.forgotText)} ${Store.sampleUsers?'Tài khoản mẫu: lanhdao, kythuat, ketoan, giamsat, ubnd (mật khẩu như tài khoản quản trị lúc khởi tạo).':''}</p>
   </form><p class="auth-foot">${brandFoot()}</p></div></div>`;
   /* Sau vài lần nhập sai, máy chủ yêu cầu mã kiểm tra (tự sinh, không dùng dịch vụ ngoài) */
   let capId='';
@@ -233,7 +235,7 @@ function renderPwFirst(){
       S.user={...S.user, mustChangePassword:false}; await Store.load(); render(); toast('Đã đặt mật khẩu mới.'); }
     catch(ex){ err.textContent=errText(ex); btn.disabled=false; } };
 }
-function authBox(inner){ $('#root').innerHTML=`<div class="auth">${authArt()}<div class="box">${inner}<p class="auth-foot">${brandFoot()}</p></div></div>`; }
+function authBox(inner){ $('#root').innerHTML=`<div class="${authCls()}">${authArt()}<div class="box">${inner}<p class="auth-foot">${brandFoot()}</p></div></div>`; }
 const codeField=(label)=>`<div class="fld"><label for="mf_code">${label}</label><input id="mf_code" class="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required></div>`;
 function recoveryText(codes, user){ return `MÃ KHÔI PHỤC XÁC THỰC 2 LỚP – PHẦN MỀM QLDA TTTS\r\nTài khoản: ${user}\r\nTạo lúc: ${fmtDT(new Date().toISOString())}\r\n\r\nMỗi mã chỉ dùng được một lần, khi không có điện thoại để lấy mã 6 số.\r\nCất giữ nơi an toàn, không chia sẻ cho người khác.\r\n\r\n${codes.map((c,i)=>String(i+1).padStart(2,' ')+'. '+c).join('\r\n')}\r\n`; }
 function codesHtml(codes){ return `<ol class="rcodes">${codes.map(c=>`<li><code>${esc(c)}</code></li>`).join('')}</ol>`; }

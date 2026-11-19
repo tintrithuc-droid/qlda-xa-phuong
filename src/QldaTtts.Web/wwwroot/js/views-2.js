@@ -156,7 +156,9 @@ async function contractOrgSync(v, kid){
 /* Hợp đồng cũ chỉ có tên nhà thầu gõ tay: tìm đơn vị trong danh mục theo nhà thầu của gói thầu, rồi theo tên */
 function contractOrgValue(c){ const k=pkgOf(c.packageId)||{}; const ids=k.contractorIds||[];
   const byName=D('orgs').find(o=>o.kind==='nt' && (normKey(o.name)===normKey(c.contractor)||(o.shortName && normKey(o.shortName)===normKey(c.contractor))));
-  return {...c, _org: ids.find(id=>byName && id===byName.id) || ids[0] || (byName||{}).id || ''}; }
+  const id=ids.find(id=>byName && id===byName.id) || ids[0] || (byName||{}).id || '';
+  /* Chưa có trong danh mục: mở sẵn ô thêm mới với tên đang ghi, lưu hợp đồng thì đơn vị vào danh mục */
+  return {...c, _org: id || (String(c.contractor||'').trim()? {_new:{name:String(c.contractor).trim()}} : '')}; }
 /* Đơn vị chọn hoặc thêm mới ở ô kiểu 'org': trả về bản ghi danh mục (thêm mới thì lưu vào danh mục; trùng tên hoặc mã số thuế thì dùng đơn vị đã có) */
 async function orgResolve(val){ if(!val) return null; if(typeof val==='string') return orgOf(val);
   const n=val._new; const d=orgDupe({...n, id:''}); if(d) return d; return save('orgs',{...n, active:true}); }

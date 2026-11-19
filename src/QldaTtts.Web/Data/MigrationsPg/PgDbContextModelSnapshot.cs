@@ -1299,6 +1299,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<DateOnly?>("End")
                         .HasColumnType("date");
 
+                    b.Property<string>("Field")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Group")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");

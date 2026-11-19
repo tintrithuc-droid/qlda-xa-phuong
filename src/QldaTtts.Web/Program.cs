@@ -123,7 +123,7 @@ else using (var scope = app.Services.CreateScope())
             ("LegalDocuments", "ValidUntil", "TEXT NULL"), ("Contracts", "GuaranteeUntil", "TEXT NULL"), ("Contracts", "AdvanceGuaranteeUntil", "TEXT NULL"),
             ("Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0"),
             ("Packages", "ContractorIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "SupervisorIds", "TEXT NOT NULL DEFAULT '[]'"),
-            ("Projects", "ViewerIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "ContractorShares", "TEXT NOT NULL DEFAULT '{}'"), ("UserGroups", "AssignedOnly", "INTEGER NOT NULL DEFAULT 0") })
+            ("Projects", "ViewerIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "ContractorShares", "TEXT NOT NULL DEFAULT '{}'"), ("UserGroups", "AssignedOnly", "INTEGER NOT NULL DEFAULT 0"), ("Projects", "Field", "TEXT NULL") })
             if (!Cols(table).Contains(col)) db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {col} {type}");
         // Bản 1.8.3: đơn vị thành viên hệ sinh thái (bảng Organizations có từ bản 1.8; CSDL cũ hơn thì bảng được tạo đủ cột ở bước dưới)
         if (Cols("Organizations") is { Count: > 0 } oc && !oc.Contains("Member")) db.Database.ExecuteSqlRaw("ALTER TABLE Organizations ADD COLUMN Member INTEGER NOT NULL DEFAULT 0");

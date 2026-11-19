@@ -65,16 +65,16 @@ VIEWS['nghiem-thu']=()=>{
       {h:'Ngày · số biên bản',f:r=>`<div style="white-space:nowrap"><span class="num">${fmtDate(r.date)}</span><div class="small muted num">${esc(r.number||'—')}</div></div>`},{h:'Dự án · gói thầu',f:r=>`<div style="white-space:nowrap">${pshort(r.projectId)}<div>${pk(r.packageId)}</div></div>`},
       {h:'Loại, nội dung',f:r=>`<div style="min-width:240px"><b class="small">${esc(r.kind||'')}</b><div>${esc(r.content||'')}</div>${r.receiver?`<div class="small muted">Tiếp nhận: ${esc(r.receiver)}</div>`:''}</div>`},{h:'Kết quả',f:r=>`<div style="max-width:150px">${resPill(r.result).replace('<span class="pill','<span style="white-space:normal;line-height:1.3" class="pill')}</div>`},{h:'Trạng thái',f:r=>wfPill('acceptances',r)},{h:'Tệp',f:r=>attCell(atts('acceptances',r.id))}], rows,
       {actions:r=>wfBtns('acceptances',r)+wfEditBtns('acceptances',r), empty:'Chưa có biên bản nghiệm thu, bàn giao.'})}
-    <p class="small muted" style="margin:10px 0 0">Nghiệm thu theo giai đoạn thi công, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng theo Nghị định 207/2026/NĐ-CP; đính kèm biên bản, bản vẽ hoàn công.</p></div>`;
-  else body=`<div class="card"><h2>Theo dõi bảo hành công trình</h2>${table([
+    <p class="small muted" style="margin:10px 0 0">${XD('Nghiệm thu theo giai đoạn thi công, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng theo Nghị định 207/2026/NĐ-CP; đính kèm biên bản, bản vẽ hoàn công.','Nghiệm thu giai đoạn triển khai, vận hành thử, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng; đính kèm biên bản, báo cáo kết quả vận hành thử, tài liệu bàn giao.')}</p></div>`;
+  else body=`<div class="card"><h2>${XD('Theo dõi bảo hành công trình','Theo dõi bảo hành, bảo trì hệ thống')}</h2>${table([
       {h:'Dự án',f:r=>pshort(r.projectId)},{h:'Gói thầu',f:r=>pk(r.packageId)},{h:'Bàn giao / nghiệm thu',f:r=>`<span class="num">${fmtDate(r.date)}</span><div class="small muted">${esc(r.kind||'')}</div>`},
       {h:'Thời hạn bảo hành',f:r=>N(r.warrantyMonths)?esc(r.warrantyMonths)+' tháng':'—'},{h:'Hết bảo hành',f:r=>`<span class="num">${fmtDate(warrantyEnd(r))}</span>`},
       {h:'Bảo lãnh bảo hành đến',f:r=>`<span class="num">${fmtDate(r.warrantyGuaranteeUntil)}</span>`},{h:'Tình trạng',f:r=>{ const s=warrantyState(r); return pill(s.t,s.k); }}], wr,
-      {actions:r=>wfEditBtns('acceptances',r), empty:'Chưa có công trình nào nhập thời hạn bảo hành.'})}
+      {actions:r=>wfEditBtns('acceptances',r), empty:XD('Chưa có công trình nào nhập thời hạn bảo hành.','Chưa có hệ thống, sản phẩm nào nhập thời hạn bảo hành.')})}
     <p class="small muted" style="margin:10px 0 0">Phần mềm tự cảnh báo trước 30 ngày khi sắp hết thời hạn bảo hành hoặc bảo lãnh bảo hành, để Ban kiểm tra hiện trạng và yêu cầu nhà thầu sửa chữa trước khi hoàn trả bảo lãnh.</p></div>`;
-  return `<div class="head"><div class="grow"><h1>Nghiệm thu, bàn giao, bảo hành</h1><p>${all.length} biên bản, ${inW.length} công trình đang trong thời gian bảo hành</p></div></div>
-  <div class="grid g4">${kpiCard('Nghiệm thu giai đoạn', all.filter(a=>/giai đoạn/i.test(a.kind||'')).length, 'biên bản')}${kpiCard('Nghiệm thu hoàn thành', all.filter(a=>/hoàn thành/i.test(a.kind||'')).length, 'hạng mục, công trình')}
-    ${kpiCard('Đã bàn giao sử dụng', all.filter(a=>/bàn giao/i.test(a.kind||'')).length, 'công trình')}${kpiCard('Sắp hết bảo hành', soon.length, 'trong 30 ngày tới', soon.length?'warn':'')}</div>
+  return `<div class="head"><div class="grow"><h1>${modName('nghiem-thu')}</h1><p>${all.length} biên bản, ${inW.length} ${XD('công trình','hệ thống, sản phẩm')} đang trong thời gian bảo hành</p></div></div>
+  <div class="grid g4">${kpiCard(XD('Nghiệm thu giai đoạn','Nghiệm thu giai đoạn, vận hành thử'), all.filter(a=>/giai đoạn|vận hành thử/i.test(a.kind||'')).length, 'biên bản')}${kpiCard('Nghiệm thu hoàn thành', all.filter(a=>/hoàn thành/i.test(a.kind||'')).length, XD('hạng mục, công trình','giai đoạn, hệ thống'))}
+    ${kpiCard('Đã bàn giao sử dụng', all.filter(a=>/bàn giao/i.test(a.kind||'')).length, XD('công trình','hệ thống'))}${kpiCard('Sắp hết bảo hành', soon.length, 'trong 30 ngày tới', soon.length?'warn':'')}</div>
   ${tabsBar('nt', t, [['ds','Nghiệm thu, bàn giao'],['bh','Theo dõi bảo hành']])}${body}`;
 };
 const accFields=()=>[projSel(),{key:'packageId',label:'Gói thầu (để trống nếu toàn dự án)',type:'select',options:()=>pkgOpts(''),full:true},

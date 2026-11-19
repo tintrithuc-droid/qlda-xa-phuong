@@ -88,10 +88,31 @@ const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA 
   reportOrg:'Ban QLDA đầu tư xây dựng xã/phường …', ownerDefault:'UBND xã/phường …', support:'Hỗ trợ: quản trị hệ thống của đơn vị',
   loginTitle:'Đăng nhập hệ thống', loginHint:'Sử dụng tài khoản do quản trị hệ thống cấp.', forgotText:'Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại.', bannerDeco:'1',
   color:'navy', printNation:'1', place:'…', signReport:'THỦ TRƯỞNG ĐƠN VỊ', signApprove:'LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN', signTech:'CÁN BỘ KỸ THUẬT', signAcc:'KẾ TOÁN',
-  logo:null, loginBg:null};
+  logo:null, loginBg:null, field:'xd'};
 let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy'};
+/* Lĩnh vực dự án của đơn vị (Quản trị hệ thống → Thông tin đơn vị): 'xd' đầu tư xây dựng (mặc định, các xã/phường),
+   'cntt' dự án CNTT, chuyển đổi số, đổi mới sáng tạo: đổi tên chức năng, nhãn theo nghề và ẩn chức năng chỉ dùng cho xây dựng. Dữ liệu giữ nguyên. */
+const isIT=()=>BR.field==='cntt';
+const IT_HIDE=new Set(['gpmb','mo-hinh']);
+const IT_MOD={'nhat-ky':'Nhật ký triển khai','khoi-luong':'Hạng mục, khối lượng công việc','nghiem-thu':'Nghiệm thu, vận hành thử, bảo hành'};
+const XD=(xd,it)=>isIT()?it:xd;
+MODULES.forEach(m=>m.label0=m.label);
+function applyField(){ MODULES.forEach(m=>{ m.label=(isIT()&&IT_MOD[m.key])||m.label0; }); }
+const modName=k=>(MODULES.find(m=>m.key===k)||{}).label||k;
+/* Danh mục mặc định cho lĩnh vực CNTT: nạp khi quản trị chọn lĩnh vực CNTT (giá trị đang dùng trong dữ liệu được giữ lại) */
+const IT_CATS={
+  'Loại dự án':['Đầu tư ứng dụng CNTT','Thuê dịch vụ CNTT','Mua sắm thiết bị, phần mềm','Nhiệm vụ chuyển đổi số','Nhiệm vụ KH&CN, đổi mới sáng tạo','Nhiệm vụ khác'],
+  'Lĩnh vực':['Chuyển đổi số','Ứng dụng CNTT','Chính quyền số','Dữ liệu, CSDL','An toàn thông tin','Đổi mới sáng tạo','Khoa học và công nghệ'],
+  'Trạng thái dự án':['Chuẩn bị đầu tư','Đang lựa chọn nhà thầu','Đang triển khai','Đang thực hiện','Tạm dừng','Hoàn thành','Đã bàn giao đưa vào sử dụng','Đang quyết toán','Đã quyết toán'],
+  'Hồ sơ dự án':['Báo cáo nghiên cứu khả thi','Báo cáo kinh tế - kỹ thuật','Đề cương và dự toán chi tiết','Không yêu cầu (mua sắm, nhiệm vụ)'],
+  'Loại gói thầu':['Tư vấn','Phi tư vấn','Thuê dịch vụ CNTT','Mua sắm hàng hóa, thiết bị CNTT','Phần mềm','Hỗn hợp'],
+  'Loại nghiệm thu, bàn giao':['Nghiệm thu giai đoạn triển khai','Vận hành thử','Nghiệm thu hoàn thành','Bàn giao đưa vào sử dụng'],
+  'Đơn vị tính':['Gói','Bộ','Hệ thống','Bản quyền','Người dùng','Tháng','Năm','Ngày công','Trang','Hồ sơ','Cái']};
+/* Đổi tên giá trị danh mục loại hồ sơ pháp lý khi hiển thị (lĩnh vực CNTT) và các giá trị ẩn khỏi danh sách chọn */
+const IT_CAT_HIDE={'Loại hồ sơ pháp lý':['Giấy phép xây dựng','Phương án bồi thường, giải phóng mặt bằng']};
+const IT_CAT_REN={'Thiết kế, dự toán':'Thiết kế chi tiết, dự toán (hoặc đề cương, dự toán chi tiết)'};
 function setBrand(b){
-  BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; lsSet('qlda-brcolor', BR.color);
+  BR={...BR_DEF, ...(b||{})}; applyField(); document.title=BR.appName+' – '+BR.orgShort; lsSet('qlda-brcolor', BR.color);
   const fi=document.getElementById('favicon'); if(fi){ const h=BR.logo||'/icons/icon.svg'; if(fi.getAttribute('href')!==h){ fi.setAttribute('href',h); if(BR.logo) fi.removeAttribute('type'); else fi.type='image/svg+xml'; } }
   try{ if(UI.p && UI.p.color==='unit') UI.apply(UI.p); }catch{}
 }
@@ -213,6 +234,7 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
   mod=ROUTE_PERM[mod]||mod;
+  if(isIT() && IT_HIDE.has(mod)) return false;
   if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
@@ -357,6 +379,9 @@ function settleState(x){
 }
 function clearPct(c){ return N(c.area)? pct(N(c.handedArea),N(c.area)) : N(c.households)? pct(N(c.householdsPaid),N(c.households)) : 0; }
 function catalog(type){ return D('catalogs').filter(c=>c.type===type).sort(by('order')).map(c=>c.value); }
+/* Danh sách chọn theo lĩnh vực của đơn vị: bỏ giá trị chỉ dùng cho xây dựng, đổi tên hiển thị (giá trị lưu giữ nguyên) */
+const catSel=type=>{ const h=(isIT()&&IT_CAT_HIDE[type])||[]; return catalog(type).filter(x=>!h.includes(x)).map(x=>[x,catText(x)]); };
+const catText=v=>(isIT()&&IT_CAT_REN[v])||v;
 
 /* --- cảnh báo (UC19, UC37) --- */
 /* --- cảnh báo (UC19, UC37) ---
@@ -513,7 +538,10 @@ function fieldHTML(f, v, rec={}){
   switch(f.type){
     case 'textarea': input=`<textarea id="${id}" rows="${f.rows||3}" placeholder="${esc(f.ph||'')}">${esc(val)}</textarea>`; break;
     case 'works': input=worksHTML(id, val, f); break;
-    case 'select': { const list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
+    case 'select': { let list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options;
+      // giá trị đang lưu không còn trong danh mục (đã đổi, ẩn): vẫn giữ trong danh sách để lưu lại không bị đổi ngầm
+      if(!f.dep && val!=='' && val!=null && !(list||[]).some(o=>String(Array.isArray(o)?o[0]:o)===String(val))) list=[...(list||[]),[val,catText(String(val))]];
+      input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
     case 'money': input=`<input id="${id}" type="number" step="1" min="0" value="${esc(val)}" data-money><span class="hint" id="${id}_h">${val!==''?fmtVND(val)+' đồng':''}</span>`; break;
     case 'number': case 'percent': input=`<input id="${id}" type="number" step="any" ${f.type==='percent'?'min="0" max="100"':''} value="${esc(val)}">`; break;
     case 'date': input=`<input id="${id}" type="date" value="${esc(val)}">`; break;
@@ -886,7 +914,7 @@ new MutationObserver(()=>document.querySelectorAll('input[type=date]:not([data-d
  *  Vẫn lưu dạng văn bản "Nội dung | Khối lượng | Đơn vị" mỗi dòng như bản trước nên nhật ký cũ đọc được ngay. */
 function worksParse(t){ return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const [name,qty,unit]=l.split('|').map(x=>(x||'').trim()); return {name,qty,unit}; }); }
 function worksRow(r={}){ const q=r.qty==null?'':String(r.qty).replace(',','.');
-  return `<div class="wk-row"><input class="wk-n" placeholder="Công việc, vị trí thi công" value="${esc(r.name||'')}" aria-label="Công việc">
+  return `<div class="wk-row"><input class="wk-n" placeholder="${XD('Công việc, vị trí thi công','Công việc, nội dung triển khai')}" value="${esc(r.name||'')}" aria-label="Công việc">
     <input class="wk-q" inputmode="decimal" placeholder="Khối lượng" value="${esc(q)}" aria-label="Khối lượng"><input class="wk-u" placeholder="Đơn vị" value="${esc(r.unit||'')}" list="wk_units" aria-label="Đơn vị">
     <button type="button" class="btn sm ghost danger wk-del" title="Xóa dòng" aria-label="Xóa dòng">×</button></div>`; }
 function worksHTML(id, val, f){

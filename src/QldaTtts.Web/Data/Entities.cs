@@ -43,6 +43,8 @@ public class Project : EntityBase
     [MaxLength(200)] public string? MgmtForm { get; set; }
     /// <summary>Loại dự án: xây dựng mới, sửa chữa cải tạo, mua sắm, nhiệm vụ khác.</summary>
     [MaxLength(100)] public string? ProjectKind { get; set; }
+    /// <summary>Bản 1.8.5: lĩnh vực của dự án CNTT (chuyển đổi số, ứng dụng CNTT, đổi mới sáng tạo…), dùng khi đơn vị chọn lĩnh vực CNTT.</summary>
+    [MaxLength(100)] public string? Field { get; set; }
     /// <summary>Hồ sơ dự án: báo cáo nghiên cứu khả thi hoặc báo cáo kinh tế - kỹ thuật.</summary>
     [MaxLength(100)] public string? ReportType { get; set; }
 }

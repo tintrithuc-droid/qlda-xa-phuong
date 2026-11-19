@@ -457,11 +457,11 @@ ACT['reset-2fa']=async(id)=>{ const u=get('users',id);
   try{ const r=await api('POST','/api/users/'+encodeURIComponent(id)+'/reset-2fa'); Store.setLocal('users',r); toast('Đã đặt lại xác thực 2 lớp'); }catch(ex){ toast(errText(ex),'err'); } };
 ACT['lock-user']=async(id)=>{ const u=get('users',id); try{ const r=await api('POST','/api/users/'+encodeURIComponent(id)+'/active',{active:u.active===false}); Store.setLocal('users',r); toast(r.active?'Đã mở khóa tài khoản':'Đã khóa tài khoản'); }catch(ex){ toast(errText(ex),'err'); } };
 function groupForm(g){
-  const permHtml=`<table class="perm"><thead><tr><th>Phân hệ</th><th>Không truy cập</th><th>Chỉ xem</th><th>Xem và cập nhật</th><th>Duyệt hồ sơ</th><th>Kiểm tra hồ sơ</th></tr></thead><tbody>${MODULES.map(m=>{ const gp=(g&&g.perms)||{}, p=gp[m.key]||'none'; const wfm=Object.values(WF).some(w=>w.mod===m.key); return `<tr><td>${esc(m.label)}</td>${['none','view','edit'].map(l=>`<td><input type="radio" name="perm_${m.key}" value="${l}" ${p===l?'checked':''} aria-label="${esc(m.label)} ${l}"></td>`).join('')}<td>${wfm?`<input type="checkbox" name="duyet_${m.key}" ${gp[m.key+':duyet']==='1'?'checked':''} aria-label="${esc(m.label)} duyệt hồ sơ" title="Duyệt, trả lại, thu hồi hồ sơ trình duyệt của phân hệ">`:''}</td><td>${wfm?`<input type="checkbox" name="kiemtra_${m.key}" ${gp[m.key+':kiemtra']==='1'?'checked':''} aria-label="${esc(m.label)} kiểm tra hồ sơ" title="Kiểm tra, xác nhận hồ sơ trước khi trình lãnh đạo duyệt (ví dụ tư vấn giám sát xác nhận khối lượng nghiệm thu)">`:''}</td></tr>`; }).join('')}</tbody></table><p class="small muted" style="margin:6px 0 0">Duyệt hồ sơ: duyệt phụ lục hợp đồng (Gói thầu và hợp đồng), kế hoạch tiến độ, đợt nghiệm thu khối lượng, hồ sơ thanh toán, biên bản nghiệm thu. Kiểm tra hồ sơ: xác nhận ở bước kiểm tra (nếu loại hồ sơ đó có bước kiểm tra), ví dụ tư vấn giám sát xác nhận khối lượng nghiệm thu. Người duyệt, người kiểm tra cần thêm quyền xem phân hệ.</p>`;
+  const permHtml=`<table class="perm"><thead><tr><th>Phân hệ</th><th>Không truy cập</th><th>Chỉ xem</th><th>Xem và cập nhật</th><th>Duyệt hồ sơ</th><th>Kiểm tra hồ sơ</th></tr></thead><tbody>${MODULES.filter(m=>!(isIT()&&IT_HIDE.has(m.key))).map(m=>{ const gp=(g&&g.perms)||{}, p=gp[m.key]||'none'; const wfm=Object.values(WF).some(w=>w.mod===m.key); return `<tr><td>${esc(m.label)}</td>${['none','view','edit'].map(l=>`<td><input type="radio" name="perm_${m.key}" value="${l}" ${p===l?'checked':''} aria-label="${esc(m.label)} ${l}"></td>`).join('')}<td>${wfm?`<input type="checkbox" name="duyet_${m.key}" ${gp[m.key+':duyet']==='1'?'checked':''} aria-label="${esc(m.label)} duyệt hồ sơ" title="Duyệt, trả lại, thu hồi hồ sơ trình duyệt của phân hệ">`:''}</td><td>${wfm?`<input type="checkbox" name="kiemtra_${m.key}" ${gp[m.key+':kiemtra']==='1'?'checked':''} aria-label="${esc(m.label)} kiểm tra hồ sơ" title="Kiểm tra, xác nhận hồ sơ trước khi trình lãnh đạo duyệt (ví dụ tư vấn giám sát xác nhận khối lượng nghiệm thu)">`:''}</td></tr>`; }).join('')}</tbody></table><p class="small muted" style="margin:6px 0 0">Duyệt hồ sơ: duyệt phụ lục hợp đồng (Gói thầu và hợp đồng), kế hoạch tiến độ, đợt nghiệm thu khối lượng, hồ sơ thanh toán, biên bản nghiệm thu. Kiểm tra hồ sơ: xác nhận ở bước kiểm tra (nếu loại hồ sơ đó có bước kiểm tra), ví dụ tư vấn giám sát xác nhận khối lượng nghiệm thu. Người duyệt, người kiểm tra cần thêm quyền xem phân hệ.</p>`;
   openForm({title:g?'Phân quyền nhóm: '+g.name:'Thêm nhóm người dùng', value:{...(g||{}), assignedOnly:g&&g.assignedOnly?'1':''}, fields:[{key:'name',label:'Tên nhóm',req:true},{key:'desc',label:'Mô tả'},
     {key:'perm',label:'Phân quyền chức năng',type:'html',full:true,html:permHtml},{key:'assignedOnly',label:'Dự án được xem',type:'select',full:true,options:[['','Theo phạm vi dữ liệu bên dưới'],['1','Chỉ thấy dự án được gán cho tài khoản (khách hàng, chủ đầu tư)']],hint:'Chọn "Chỉ thấy dự án được gán" cho nhóm khách hàng: khi thêm hoặc sửa dự án, cán bộ đánh dấu tài khoản khách hàng được xem dự án đó. Tài khoản chưa được gán dự án nào thì không thấy dự án nào.'},
     {key:'scope',label:'Phạm vi dữ liệu: chỉ các dự án (để trống = tất cả dự án)',type:'checks',options:()=>D('projects').sort(by('code')).map(p=>[p.id,p.code])}],
-    onSave:v=>{ const perms={}; MODULES.forEach(m=>{ const r=document.querySelector(`input[name="perm_${m.key}"]:checked`); perms[m.key]=r?r.value:'none'; const d=document.querySelector(`input[name="duyet_${m.key}"]`); if(d&&d.checked) perms[m.key+':duyet']='1'; const k=document.querySelector(`input[name="kiemtra_${m.key}"]`); if(k&&k.checked) perms[m.key+':kiemtra']='1'; }); if(!perms['tong-quan']||perms['tong-quan']==='none') perms['tong-quan']='view'; return save('groups',{...v, perms, admin:!!(g&&g.admin), assignedOnly:v.assignedOnly==='1'}, v.name); }});
+    onSave:v=>{ const perms={}; MODULES.forEach(m=>{ const r=document.querySelector(`input[name="perm_${m.key}"]:checked`); perms[m.key]=r?r.value:((g&&g.perms||{})[m.key]||'none'); const d=document.querySelector(`input[name="duyet_${m.key}"]`); if(d&&d.checked) perms[m.key+':duyet']='1'; const k=document.querySelector(`input[name="kiemtra_${m.key}"]`); if(k&&k.checked) perms[m.key+':kiemtra']='1'; }); if(!perms['tong-quan']||perms['tong-quan']==='none') perms['tong-quan']='view'; return save('groups',{...v, perms, admin:!!(g&&g.admin), assignedOnly:v.assignedOnly==='1'}, v.name); }});
 }
 ACT['add-group']=()=>groupForm(null);
 ACT['edit-groups']=(id)=>groupForm(get('groups',id));
@@ -510,7 +510,7 @@ ACT.restore=()=>openForm({title:'Phục hồi dữ liệu từ tệp sao lưu', 
 /* ===== ỨNG DỤNG HIỆN TRƯỜNG TRÊN DI ĐỘNG (UC54–62) ===== */
 VIEWS['hien-truong']=()=>{
   const tiles=[
-    ['du-an','proj','Tra cứu dự án','Thông tin, hồ sơ, tình trạng'],['upd-quick','gantt','Cập nhật tiến độ','Nhập % hoàn thành hạng mục','tien-do'],['add-diary','book','Ghi nhật ký thi công','Kèm hình ảnh hiện trường','nhat-ky'],
+    ['du-an','proj','Tra cứu dự án','Thông tin, hồ sơ, tình trạng'],['upd-quick','gantt','Cập nhật tiến độ','Nhập % hoàn thành hạng mục','tien-do'],['add-diary','book',XD('Ghi nhật ký thi công','Ghi nhật ký triển khai'),'Kèm hình ảnh hiện trường','nhat-ky'],
     ['goi-thau','doc','Hợp đồng','Tra cứu hợp đồng, phụ lục'],['khoi-luong','ruler','Khối lượng','Thực hiện và nghiệm thu'],['thanh-toan','coin','Thanh toán','Giá trị đã thanh toán'],
     ['tong-quan','dash','Tổng quan','Bảng điều hành'],['bao-cao','chart','Báo cáo','Xem, xuất báo cáo'],['huong-dan','help','Hướng dẫn','Tài liệu, video hướng dẫn'],['chpw','key','Đổi mật khẩu','Bảo mật tài khoản'],['logout','out','Đăng xuất','Thoát khỏi hệ thống']];
   const my=D('diaries').filter(d=>inFilter(d.projectId)).sort(by('date',-1)).slice(0,3);
@@ -572,7 +572,10 @@ VIEWS['doi-chieu']=()=>{
 /* ===== THÔNG TIN ĐƠN VỊ, GIAO DIỆN (triển khai cho nhiều đơn vị) ===== */
 const BR_YN=[['1','Có'],['0','Không']];
 /* Các mục quản trị tự thiết lập, chia theo nơi hiển thị. Kiểu: không ghi là ô chữ, 'area' nhiều dòng, danh sách là ô chọn */
+const BR_FIELD_OPTS=[['xd','Đầu tư xây dựng (xã, phường)'],['cntt','CNTT, chuyển đổi số, đổi mới sáng tạo']];
 const BR_SECS=[
+  ['Lĩnh vực dự án', 'Chọn CNTT, chuyển đổi số: phần mềm đổi tên chức năng, nhãn theo dự án CNTT (Nhật ký triển khai; Hạng mục, khối lượng công việc; Nghiệm thu, vận hành thử, bảo hành…), ẩn Giải phóng mặt bằng, Mô hình hóa công trình, giấy phép xây dựng, thời tiết; nạp danh mục mặc định cho dự án CNTT. Dữ liệu đã nhập giữ nguyên.',
+    [['field','Lĩnh vực dự án của đơn vị',BR_FIELD_OPTS]]],
   ['Tên đơn vị và phần mềm', '', [['orgShort','Tên đơn vị rút gọn (thanh bên trái, phía trên tên phần mềm)'],['appName','Tên phần mềm (thanh bên trái, tiêu đề trình duyệt)'],
     ['orgName','Tên cơ quan chủ quản (trang đăng nhập dòng 1, đầu mẫu in)'],['unitName','Tên đơn vị sử dụng (trang đăng nhập dòng 2, đầu mẫu in)'],
     ['support','Thông tin hỗ trợ (cuối thanh bên trái)'],['footer','Chân trang ({năm} tự thay bằng năm hiện tại)','area']]],
@@ -617,10 +620,29 @@ const _brWire=()=>{ $$('input[type=file][data-kind]').forEach(f=>{ if(f._w) retu
   if(file.size>mb*1024*1024) return toast((lg?'Logo':'Ảnh nền')+' tối đa '+mb+' MB','err');
   const fd=new FormData(); fd.append('file',file);
   try{ setBrand(await api('POST','/api/branding/'+f.dataset.kind,fd)); toast(lg?'Đã cập nhật logo':'Đã cập nhật ảnh nền trang đăng nhập'); render(); }catch(ex){ toast(errText(ex),'err'); } }; }); };
-ACT['brand-save']=async()=>{ const b={}; BR_FIELDS.forEach(([k])=>b[k]=$('#br_'+k).value.trim());
-  try{ setBrand(await api('PUT','/api/branding',b)); toast('Đã lưu thông tin đơn vị'); render(); }catch(ex){ toast(errText(ex),'err'); } };
+ACT['brand-save']=async()=>{ const b={}; BR_FIELDS.forEach(([k])=>b[k]=$('#br_'+k).value.trim()); const was=BR.field;
+  try{ setBrand(await api('PUT','/api/branding',b));
+    let n=0; if(BR.field==='cntt' && was!=='cntt') n=await applyITCats();
+    toast(n?`Đã lưu thông tin đơn vị, cập nhật ${n} giá trị danh mục cho dự án CNTT`:'Đã lưu thông tin đơn vị'); render(); }catch(ex){ toast(errText(ex),'err'); } };
+/* Nạp danh mục mặc định cho lĩnh vực CNTT: thêm giá trị còn thiếu, xếp lại thứ tự, bỏ giá trị chỉ dùng cho xây dựng
+   nếu chưa bản ghi nào dùng (giá trị đang dùng trong dữ liệu được giữ lại, xếp cuối danh sách) */
+async function applyITCats(){
+  const used=new Set(); COLS.filter(c=>!['catalogs','logs','attachments','guides','approvals','users','groups'].includes(c))
+    .forEach(c=>D(c).forEach(r=>Object.values(r).forEach(v=>{ if(typeof v==='string' && v) used.add(v); })));
+  let n=0;
+  for(const [type,list] of Object.entries(IT_CATS)){
+    const rows=D('catalogs').filter(c=>c.type===type);
+    for(const r of rows) if(!list.includes(r.value) && !used.has(r.value)){ await Store.del('catalogs', r.id); n++; }
+    let i=0;
+    for(const v of list){ i++; const r=D('catalogs').find(c=>c.type===type && c.value===v);
+      if(!r){ await Store.put('catalogs',{type, value:v, order:i}); n++; } else if(N(r.order)!==i){ await Store.put('catalogs',{...r, order:i}); } }
+    for(const r of D('catalogs').filter(c=>c.type===type && !list.includes(c.value)).sort(by('order'))){ i++; if(N(r.order)!==i) await Store.put('catalogs',{...r, order:i}); }
+  }
+  if(n) log('Nạp danh mục mặc định dự án CNTT','catalogs',n+' giá trị');
+  return n;
+}
 ACT['brand-reset']=async()=>{ if(!await confirmBox('Đưa toàn bộ thông tin đơn vị, trang đăng nhập, màu giao diện, mẫu in về mặc định? Logo và ảnh nền giữ nguyên.','Khôi phục')) return;
-  try{ setBrand(await api('PUT','/api/branding',{})); toast('Đã khôi phục mặc định'); render(); }catch(ex){ toast(errText(ex),'err'); } };
+  try{ setBrand(await api('PUT','/api/branding',{field:BR.field})); toast('Đã khôi phục mặc định'); render(); }catch(ex){ toast(errText(ex),'err'); } };
 ACT['brand-logo-del']=async()=>{ if(!await confirmBox('Xóa logo đơn vị và dùng lại biểu tượng mặc định?')) return;
   try{ setBrand(await api('DELETE','/api/branding/logo')); toast('Đã xóa logo'); render(); }catch(ex){ toast(errText(ex),'err'); } };
 ACT['brand-bg-del']=async()=>{ if(!await confirmBox('Xóa ảnh nền trang đăng nhập và dùng lại nền màu?')) return;

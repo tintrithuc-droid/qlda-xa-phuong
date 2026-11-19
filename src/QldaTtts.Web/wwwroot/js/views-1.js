@@ -310,7 +310,7 @@ ACT.chpw=()=>{
 };
 
 /* ===== TỔNG QUAN (UC32–42) ===== */
-const STATUS_COL = {'Chuẩn bị đầu tư':'var(--c3)','Đang lựa chọn nhà thầu':'var(--c4)','Đang thi công':'var(--c1)','Đang thực hiện':'var(--c4)','Tạm dừng':'var(--red)','Hoàn thành':'var(--c2)','Đã quyết toán':'var(--c5)','Đã bàn giao đưa vào sử dụng':'var(--c2)','Đang quyết toán':'var(--c3)'};
+const STATUS_COL = {'Chuẩn bị đầu tư':'var(--c3)','Đang lựa chọn nhà thầu':'var(--c4)','Đang thi công':'var(--c1)','Đang triển khai':'var(--c1)','Đang thực hiện':'var(--c4)','Tạm dừng':'var(--red)','Hoàn thành':'var(--c2)','Đã quyết toán':'var(--c5)','Đã bàn giao đưa vào sử dụng':'var(--c2)','Đang quyết toán':'var(--c3)'};
 /* ===== Bản 1.8.3: Tổng quan hệ sinh thái đơn vị thành viên =====
    Bật khi danh mục nhà thầu có đơn vị đánh dấu "Thành viên hệ sinh thái"; chưa có thì giữ Tổng quan của Ban QLDA.
    Một quy tắc tính dùng chung cho mọi thẻ, biểu đồ, bảng và báo cáo xuất:
@@ -381,7 +381,7 @@ function tqBan(){
   const fmtAxis=vals=>{ const m=Math.max(0,...vals); return m>=5e9? v=>fmtN(v/1e9,0)+' tỷ' : m>=5e6? v=>fmtN(v/1e6,0)+' tr' : v=>fmtN(v); };
   return `<div class="head"><div class="grow"><h1>Tổng quan tình hình thực hiện</h1><p>Số liệu tính đến ngày ${fmtDate(TODAY)}${S.pid?', dự án '+esc(projOf(S.pid)?.code):', gồm các dự án bạn được giao theo dõi'}${eco?': '+esc(tqFilterText()):''}</p></div>${eco?`<div class="toolbar tq-f" style="margin:0">${tqFilterBar()}</div>`:''}</div>
   <div class="grid g5 kpis" style="grid-template-columns:repeat(5,minmax(0,1fr))">
-    <div class="card kpi"><div class="eyebrow">Dự án</div><div class="v">${ps.length}</div><div class="s">${ps.filter(p=>p.status==='Đang thi công'||p.status==='Đang thực hiện').length} đang thực hiện</div></div>
+    <div class="card kpi"><div class="eyebrow">Dự án</div><div class="v">${ps.length}</div><div class="s">${ps.filter(p=>['Đang thi công','Đang triển khai','Đang thực hiện'].includes(p.status)).length} đang thực hiện</div></div>
     <div class="card kpi"><div class="eyebrow">Tổng mức đầu tư</div><div class="v">${fmtTy(tm)}</div><div class="s">${D('packages').filter(k=>pids.includes(k.projectId)).length} gói thầu</div></div>
     <div class="card kpi"><div class="eyebrow">Giá trị hợp đồng</div><div class="v">${fmtTy(cv)}</div><div class="s">${cs.length} hợp đồng, thực hiện ${fmtP(pct(done,cv))}</div></div>
     ${py?`<div class="card kpi ${tgy-pct(dy,py)>10?'warn':''}"><div class="eyebrow">Giải ngân năm ${Y}</div><div class="v">${fmtP(pct(dy,py))}</div><div class="s">${fmtTy(dy)} / kế hoạch vốn ${fmtTy(py)}, kịch bản ${fmtP(tgy)}</div></div>`:`<div class="card kpi"><div class="eyebrow">Đã giải ngân</div><div class="v">${fmtTy(paid)}</div><div class="s">${fmtP(pct(paid,tm))} tổng mức đầu tư</div></div>`}
@@ -441,11 +441,12 @@ const projFields=()=>[
   {key:'group',label:'Nhóm dự án',type:'select',options:()=>catalog('Nhóm dự án')},{key:'phase',label:'Giai đoạn',type:'select',options:()=>catalog('Giai đoạn')},
   {key:'tmdt',label:'Tổng mức đầu tư (đồng)',type:'money',req:true},{key:'capital',label:'Nguồn vốn',type:'select',options:()=>catalog('Nguồn vốn')},
   {key:'start',label:'Thời gian bắt đầu',type:'date'},{key:'end',label:'Thời gian hoàn thành',type:'date'},
-  {key:'boardRole',label:'Vai trò của Ban',type:'select',options:()=>catalog('Vai trò của Ban'),def:'Chủ đầu tư'},{key:'decisionMaker',label:'Người quyết định đầu tư',def:'Chủ tịch '+BR.ownerDefault},
-  {key:'mgmtForm',label:'Hình thức quản lý dự án',type:'select',options:()=>catalog('Hình thức quản lý dự án'),def:'Ban QLDA đầu tư xây dựng'},{key:'projectKind',label:'Loại dự án',type:'select',options:()=>catalog('Loại dự án')},
+  {key:'boardRole',label:XD('Vai trò của Ban','Vai trò của đơn vị'),type:'select',options:()=>catalog('Vai trò của Ban'),def:XD('Chủ đầu tư','')},{key:'decisionMaker',label:'Người quyết định đầu tư',def:'Chủ tịch '+BR.ownerDefault},
+  {key:'mgmtForm',label:'Hình thức quản lý dự án',type:'select',options:()=>catalog('Hình thức quản lý dự án'),def:XD('Ban QLDA đầu tư xây dựng','')},{key:'projectKind',label:'Loại dự án',type:'select',options:()=>catalog('Loại dự án')},
+  ...(isIT()?[{key:'field',label:'Lĩnh vực',type:'select',options:()=>catalog('Lĩnh vực')}]:[]),
   {key:'reportType',label:'Hồ sơ dự án',type:'select',options:()=>catalog('Hồ sơ dự án')},
-  {key:'owner',label:'Chủ đầu tư / Đại diện',def:BR.ownerDefault},{key:'location',label:'Địa điểm xây dựng'},
-  {key:'desc',label:'Quy mô, mô tả',type:'textarea'},
+  {key:'owner',label:'Chủ đầu tư / Đại diện',def:BR.ownerDefault},{key:'location',label:XD('Địa điểm xây dựng','Địa điểm, phạm vi triển khai'),ph:XD('','Sở, ngành, xã/phường triển khai…')},
+  {key:'desc',label:'Quy mô, mô tả',type:'textarea',ph:XD('','Phần mềm, hạ tầng, số người dùng, số đơn vị triển khai…')},
   {key:'viewerIds',label:'Tài khoản khách hàng được xem dự án',type:'checks',options:()=>viewerUsers().map(u=>[u.id,u.name+' ('+u.username+')']),
     hint:viewerUsers().length?'Tài khoản khách hàng chỉ thấy các dự án được đánh dấu ở đây.':'Chưa có tài khoản khách hàng. Quản trị tạo tài khoản thuộc nhóm có thiết lập "Chỉ thấy dự án được gán cho tài khoản", sau đó gán tại đây.'}];
 /* Tài khoản thuộc nhóm "chỉ thấy dự án được gán" (khách hàng, chủ đầu tư) */
@@ -530,8 +531,8 @@ function projectDetail(p){
     body=`<div class="grid g2"><div class="card"><dl class="kv">
       <dt>Mã dự án</dt><dd class="num">${esc(p.code)}</dd><dt>Nhóm dự án</dt><dd>${esc(p.group||'—')}</dd><dt>Giai đoạn</dt><dd>${esc(p.phase||'—')}</dd><dt>Trạng thái</dt><dd>${statusPill(p.status)}</dd>
       <dt>Tổng mức đầu tư</dt><dd class="num">${fmtVND(p.tmdt)} đồng</dd><dt>Nguồn vốn</dt><dd>${esc(p.capital||'—')}</dd><dt>Chủ đầu tư</dt><dd>${esc(p.owner||'—')}</dd>${viewerGroups().length?`<dt>Khách hàng được xem</dt><dd>${esc(viewerNames(p).join(', ')||'Chưa gán tài khoản nào')}</dd>`:''}
-      <dt>Vai trò của Ban</dt><dd>${p.boardRole?pill(p.boardRole,'info'):'—'}</dd><dt>Người quyết định đầu tư</dt><dd>${esc(p.decisionMaker||'—')}</dd><dt>Hình thức quản lý</dt><dd>${esc(p.mgmtForm||'—')}</dd><dt>Loại dự án</dt><dd>${esc([p.projectKind,p.reportType].filter(Boolean).join(' · ')||'—')}</dd>
-      <dt>Địa điểm</dt><dd>${esc(p.location||'—')}</dd><dt>Thời gian</dt><dd class="num">${fmtDate(p.start)} – ${fmtDate(p.end)}</dd><dt>Quyết định phê duyệt</dt><dd>${(()=>{ const l=findLegal(p.id,'','Quyết định phê duyệt dự án'); return l? `<span class="num">${esc(l.number)}</span> ngày ${fmtDate(l.date)}${l.issuer?' · '+esc(l.issuer):''}<div style="margin-top:4px">${attLinks(atts('legal',l.id))}</div>` : esc(p.decision||'—'); })()}</dd><dt>Quy mô</dt><dd>${esc(p.desc||'—')}</dd></dl></div>
+      <dt>${XD('Vai trò của Ban','Vai trò của đơn vị')}</dt><dd>${p.boardRole?pill(p.boardRole,'info'):'—'}</dd><dt>Người quyết định đầu tư</dt><dd>${esc(p.decisionMaker||'—')}</dd><dt>Hình thức quản lý</dt><dd>${esc(p.mgmtForm||'—')}</dd><dt>Loại dự án</dt><dd>${esc([p.projectKind,p.reportType].filter(Boolean).join(' · ')||'—')}</dd>
+      ${isIT()?`<dt>Lĩnh vực</dt><dd>${esc(p.field||'—')}</dd>`:''}<dt>${XD('Địa điểm','Phạm vi triển khai')}</dt><dd>${esc(p.location||'—')}</dd><dt>Thời gian</dt><dd class="num">${fmtDate(p.start)} – ${fmtDate(p.end)}</dd><dt>Quyết định phê duyệt</dt><dd>${(()=>{ const l=findLegal(p.id,'','Quyết định phê duyệt dự án'); return l? `<span class="num">${esc(l.number)}</span> ngày ${fmtDate(l.date)}${l.issuer?' · '+esc(l.issuer):''}<div style="margin-top:4px">${attLinks(atts('legal',l.id))}</div>` : esc(p.decision||'—'); })()}</dd><dt>Quy mô</dt><dd>${esc(p.desc||'—')}</dd></dl></div>
       ${keyLegalCard(p)}
       <div class="card"><h2>Gói thầu thuộc dự án</h2>${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên gói thầu',k:'name'},{h:'Giá gói thầu',r:1,f:r=>fmtTy(r.estimate)},{h:'Trạng thái',f:r=>statusPill(r.status)}], D('packages').filter(k=>k.projectId===p.id).sort(by('code')), {rowAct:'open-pkg', empty:'Chưa có gói thầu.'})}</div></div>`;
   } else if(t==='tasks'){
@@ -565,9 +566,9 @@ ACT['task-done']=(id)=>{ const t=get('tasks',id); openForm({title:'Hoàn thành:
 /* Hồ sơ pháp lý dùng chung cho dự án (UC4) và gói thầu (UC11) */
 function legalCard(rows, pid, kid, mod, title){
   return `<div class="card"><div class="ch"><h2>${esc(title)}</h2>${can(mod,'edit')?`<button class="btn primary sm" data-act="add-legal" data-id="${pid}" data-k="${kid||''}" data-m="${mod}">+ Thêm hồ sơ</button>`:''}</div>
-  ${table([{h:'Loại hồ sơ',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Cơ quan ban hành',k:'issuer'},{h:'Trích yếu',k:'title'},{h:'Hiệu lực đến',f:r=>r.validUntil?`<span class="num" style="${r.validUntil<TODAY?'color:var(--red);font-weight:600':r.validUntil<=addDays(TODAY,30)?'color:var(--amber);font-weight:600':''}">${fmtDate(r.validUntil)}</span>`:'<span class="muted small">—</span>'},{h:'Tệp',f:r=>attCell(atts('legal',r.id))},...(wfOn('legal',S.pid||null)||rows.some(x=>x.status)?[{h:'Trình duyệt',f:r=>wfPill('legal',r)}]:[])], rows.sort(by('date')), {actions:r=>wfBtns('legal',r)+(wfEditable('legal',r)?editBtns(mod,'legal',r.id):''), empty:'Chưa có hồ sơ pháp lý.'})}</div>`;
+  ${table([{h:'Loại hồ sơ',f:r=>esc(catText(r.type||''))},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Cơ quan ban hành',k:'issuer'},{h:'Trích yếu',k:'title'},{h:'Hiệu lực đến',f:r=>r.validUntil?`<span class="num" style="${r.validUntil<TODAY?'color:var(--red);font-weight:600':r.validUntil<=addDays(TODAY,30)?'color:var(--amber);font-weight:600':''}">${fmtDate(r.validUntil)}</span>`:'<span class="muted small">—</span>'},{h:'Tệp',f:r=>attCell(atts('legal',r.id))},...(wfOn('legal',S.pid||null)||rows.some(x=>x.status)?[{h:'Trình duyệt',f:r=>wfPill('legal',r)}]:[])], rows.sort(by('date')), {actions:r=>wfBtns('legal',r)+(wfEditable('legal',r)?editBtns(mod,'legal',r.id):''), empty:'Chưa có hồ sơ pháp lý.'})}</div>`;
 }
-const legalFields=()=>[{key:'type',label:'Loại hồ sơ',type:'select',options:()=>catalog('Loại hồ sơ pháp lý'),req:true},{key:'number',label:'Số hiệu văn bản',req:true},{key:'date',label:'Ngày ban hành',type:'date',req:true},{key:'issuer',label:'Cơ quan ban hành'},{key:'title',label:'Trích yếu nội dung',full:true,req:true},
+const legalFields=()=>[{key:'type',label:'Loại hồ sơ',type:'select',options:()=>catSel('Loại hồ sơ pháp lý'),req:true},{key:'number',label:'Số hiệu văn bản',req:true},{key:'date',label:'Ngày ban hành',type:'date',req:true},{key:'issuer',label:'Cơ quan ban hành'},{key:'title',label:'Trích yếu nội dung',full:true,req:true},
   {key:'validUntil',label:'Hiệu lực đến (bảo lãnh, giấy phép… để cảnh báo trước 30 ngày)',type:'date'},{key:'att',label:'Tệp đính kèm (PDF, ảnh scan, Word, Excel…)',type:'attach',col:'legal'}];
 ACT['add-legal']=(pid,el)=>openForm({wf:'legal', title:'Thêm hồ sơ pháp lý', fields:legalFields(), value:{type:el.dataset.t||''}, onSave:v=>save('legal',{...v, projectId:pid, packageId:el.dataset.k||''})});
 ACT['edit-legal']=(id)=>openForm({wf:'legal', title:'Cập nhật hồ sơ pháp lý', fields:legalFields(), value:get('legal',id), onSave:v=>save('legal',v)});
@@ -577,5 +578,5 @@ function keyLegalCard(p){
   const rows=D('legal').filter(l=>l.projectId===p.id && !l.packageId && KEY_LEGAL.includes(l.type)).sort(by('date'));
   const ed=can('du-an','edit');
   return `<div class="card"><div class="ch"><h2>Văn bản pháp lý chính</h2>${ed?`<button class="btn sm" data-act="add-legal" data-id="${p.id}" data-k="" data-t="Quyết định chủ trương đầu tư">+ QĐ chủ trương</button><button class="btn sm" data-act="add-legal" data-id="${p.id}" data-k="" data-t="Quyết định điều chỉnh dự án">+ QĐ điều chỉnh</button>`:''}</div>
-  ${table([{h:'Loại',k:'type'},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Tệp',f:r=>attCell(atts('legal',r.id))}], rows, {actions:r=>wfBtns('legal',r)+wfEditBtns('legal',r), empty:'Chưa có quyết định chủ trương, phê duyệt hoặc điều chỉnh dự án.'})}</div>`;
+  ${table([{h:'Loại',f:r=>esc(catText(r.type||''))},{h:'Số hiệu',f:r=>`<span class="num">${esc(r.number)}</span>`},{h:'Ngày',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Tệp',f:r=>attCell(atts('legal',r.id))}], rows, {actions:r=>wfBtns('legal',r)+wfEditBtns('legal',r), empty:'Chưa có quyết định chủ trương, phê duyệt hoặc điều chỉnh dự án.'})}</div>`;
 }

@@ -486,20 +486,38 @@ ACT['add-project']=()=>projForm(null);
 ACT['edit-projects']=(id)=>projForm(get('projects',id));
 ACT['back-project']=()=>{ S.sel.project=null; render(); };
 /* Danh sách dự án đang lọc (dùng chung cho bảng và Xuất Excel) */
-function projListRows(){ const q=S.f.pq||'', st=S.f.pst||'';
-  return projects().filter(p=>(!S.pid||p.id===S.pid) && has(p,q) && (!st||p.status===st)).map(p=>({...p, prog:projProgress(p.id), exp:projExpected(p.id), nk:D('packages').filter(k=>k.projectId===p.id).length})); }
-ACT['export-projects']=()=>{ const rows=projListRows(), st=S.f.pst||'', q=S.f.pq||'';
+/* Lọc danh sách dự án theo Năm (mặc định năm nay) và Trạng thái (mặc định đang thực hiện), cùng cách hiểu với Tổng quan:
+   dự án đã hoàn thành (kể cả đang, đã quyết toán, đã bàn giao) hiện ở các năm từ khi bắt đầu đến khi kết thúc;
+   dự án chưa hoàn thành hiện từ năm bắt đầu trở đi; năm lấy theo ngày của dự án và các hợp đồng thuộc dự án */
+const PJ_DONE=['Hoàn thành','Đã bàn giao đưa vào sử dụng','Đang quyết toán','Đã quyết toán'];
+const pjDone=p=>PJ_DONE.includes(p.status);
+function pjYears(p){ const cs=D('contracts').filter(c=>contractPid(c)===p.id);
+  const ys=[p.start,p.end,...cs.flatMap(c=>[c.start,c.signDate,contractEnd(c)])].map(d=>String(d||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)).sort();
+  return ys.length? [ys[0], ys[ys.length-1]] : null; }
+function pjF(){ const f=S.f; return {y:f.pjy||TODAY.slice(0,4), s:f.pjs||'run'}; }
+function pjInYear(p,Y){ if(Y==='*') return true; const r=pjYears(p); if(!r) return true;
+  return pjDone(p)? r[0]<=Y && Y<=r[1] : r[0]<=Y; }
+function pjInStatus(p,s){ return s==='*' || (s==='run'? !pjDone(p) : s==='done'? pjDone(p) : p.status===s); }
+const pjYearList=()=>[...new Set([TODAY.slice(0,4), ...projects().flatMap(p=>pjYears(p)||[])])].sort().reverse();
+const pjFilterBar=()=>{ const F=pjF(), st=catalog('Trạng thái dự án'), extra=[...new Set(projects().map(p=>p.status))].filter(x=>x && !st.includes(x));
+  return `<select data-f="pjy" aria-label="Năm">${opts([...pjYearList().map(y=>[y,'Năm '+y]),['*','Tất cả các năm']],F.y)}</select>
+  <select data-f="pjs" aria-label="Trạng thái"><optgroup label="Nhóm trạng thái">${opts([['run','Đang thực hiện (chưa hoàn thành)'],['done','Đã hoàn thành'],['*','Tất cả trạng thái']],F.s)}</optgroup><optgroup label="Từng trạng thái">${opts([...st,...extra],F.s)}</optgroup></select>`; };
+const pjFilterText=()=>{ const F=pjF(); const sl={run:'đang thực hiện',done:'đã hoàn thành','*':'mọi trạng thái'}[F.s]||('trạng thái '+F.s);
+  return (F.y==='*'?'mọi năm':'năm '+F.y)+', '+sl; };
+function projListRows(){ const q=S.f.pq||'', F=pjF();
+  return projects().filter(p=>(!S.pid||p.id===S.pid) && has(p,q) && pjInStatus(p,F.s) && pjInYear(p,F.y)).map(p=>({...p, prog:projProgress(p.id), exp:projExpected(p.id), nk:D('packages').filter(k=>k.projectId===p.id).length})); }
+ACT['export-projects']=()=>{ const rows=projListRows(), q=S.f.pq||'';
   const head=['STT','Mã dự án','Tên dự án','Nhóm dự án','Giai đoạn','Trạng thái','Chủ đầu tư','Địa điểm','Nguồn vốn','Tổng mức đầu tư (đồng)','Số gói thầu','Ngày bắt đầu','Ngày kết thúc','Tiến độ thực tế (%)','Tiến độ kế hoạch (%)'];
-  exportXlsx(`DanhSachDuAn_${TODAY}.xlsx`, [{name:'Du an', title:'DANH SÁCH DỰ ÁN', money:[9], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(st?' · Trạng thái: '+st:'')+(q?' · Tìm: '+q:''), head,
+  exportXlsx(`DanhSachDuAn_${pjF().y==='*'?'TatCaNam':pjF().y}_${TODAY}.xlsx`, [{name:'Du an', title:'DANH SÁCH DỰ ÁN', money:[9], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+' · '+pjFilterText()+(q?' · Tìm: '+q:''), head,
     rows:rows.map((r,i)=>[i+1, r.code||'', r.name||'', r.group||'', r.phase||'', r.status||'', r.owner||'', r.location||'', r.capital||'', +r.tmdt||0, r.nk, fmtDate(r.start), fmtDate(r.end), Math.round(+r.prog||0), Math.round(+r.exp||0)])}]);
   log('Xuất danh sách','logs','Danh sách dự án'); };
 VIEWS['du-an']=()=>{
   const sel=S.sel.project && get('projects',S.sel.project);
   if(sel && pidOk(sel.id)) return projectDetail(sel);
-  const q=S.f.pq||'', st=S.f.pst||'';
-  const rows=projListRows();
-  return `<div class="head"><div class="grow"><h1>Danh sách dự án</h1><p>${rows.length} dự án, tổng mức đầu tư ${fmtTy(sum(rows,'tmdt'))}</p></div><button class="btn" data-act="export-projects">Xuất Excel</button>${can('du-an','edit')?`<button class="btn primary" data-act="add-project">+ Thêm dự án</button>`:''}</div>
-  <div class="toolbar"><input type="search" placeholder="Tìm theo mã, tên, địa điểm…" data-f="pq" value="${esc(q)}" aria-label="Tìm dự án"><select data-f="pst" aria-label="Trạng thái">${opts(catalog('Trạng thái dự án'),st,'Mọi trạng thái')}</select></div>
+  const q=S.f.pq||'';
+  const rows=projListRows(), all=projects().filter(p=>!S.pid||p.id===S.pid).length;
+  return `<div class="head"><div class="grow"><h1>Danh sách dự án</h1><p>${rows.length} dự án (${esc(pjFilterText())}${rows.length<all?`, trong tổng số ${all} dự án`:''}), tổng mức đầu tư ${fmtTy(sum(rows,'tmdt'))}</p></div><button class="btn" data-act="export-projects">Xuất Excel</button>${can('du-an','edit')?`<button class="btn primary" data-act="add-project">+ Thêm dự án</button>`:''}</div>
+  <div class="toolbar"><input type="search" placeholder="Tìm theo mã, tên, địa điểm…" data-f="pq" value="${esc(q)}" aria-label="Tìm dự án">${pjFilterBar()}</div>
   ${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên dự án',f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(r.group||'')} · ${esc(r.phase||'')}</div>`},{h:'Trạng thái',f:r=>statusPill(r.status)},
     {h:'Tổng mức đầu tư',r:1,f:r=>fmtTy(r.tmdt)},{h:'Gói thầu',r:1,f:r=>r.nk},{h:'Thời gian',f:r=>`<span class="num small">${fmtDate(r.start)} – ${fmtDate(r.end)}</span>`},
     {h:'Tiến độ',f:r=>`<div style="min-width:130px">${progBar(r.prog, r.exp-r.prog>10?'warn':'')}</div>`}], rows, {rowAct:'open-project', empty:'Không có dự án phù hợp.'})}`;

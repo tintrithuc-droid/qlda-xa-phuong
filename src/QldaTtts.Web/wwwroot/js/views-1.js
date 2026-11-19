@@ -396,7 +396,13 @@ const projFields=()=>[
   {key:'mgmtForm',label:'Hình thức quản lý dự án',type:'select',options:()=>catalog('Hình thức quản lý dự án'),def:'Ban QLDA đầu tư xây dựng'},{key:'projectKind',label:'Loại dự án',type:'select',options:()=>catalog('Loại dự án')},
   {key:'reportType',label:'Hồ sơ dự án',type:'select',options:()=>catalog('Hồ sơ dự án')},
   {key:'owner',label:'Chủ đầu tư / Đại diện',def:BR.ownerDefault},{key:'location',label:'Địa điểm xây dựng'},
-  {key:'desc',label:'Quy mô, mô tả',type:'textarea'}];
+  {key:'desc',label:'Quy mô, mô tả',type:'textarea'},
+  {key:'viewerIds',label:'Tài khoản khách hàng được xem dự án',type:'checks',options:()=>viewerUsers().map(u=>[u.id,u.name+' ('+u.username+')']),
+    hint:viewerUsers().length?'Tài khoản khách hàng chỉ thấy các dự án được đánh dấu ở đây.':'Chưa có tài khoản khách hàng. Quản trị tạo tài khoản thuộc nhóm có thiết lập "Chỉ thấy dự án được gán cho tài khoản", sau đó gán tại đây.'}];
+/* Tài khoản thuộc nhóm "chỉ thấy dự án được gán" (khách hàng, chủ đầu tư) */
+const viewerGroups=()=>D('groups').filter(g=>g.assignedOnly && !g.admin).map(g=>g.id);
+const viewerUsers=()=>{ const gs=viewerGroups(); return D('users').filter(u=>gs.includes(u.groupId) && u.active!==false).sort(by('name')); };
+const viewerNames=p=>{ const gs=viewerGroups(); return (p.viewerIds||[]).map(id=>get('users',id)).filter(u=>u && gs.includes(u.groupId)).map(u=>u.name); };
 /* Văn bản pháp lý chính nhập ngay trong biểu mẫu (lưu thành hồ sơ pháp lý kèm tệp) */
 function findLegal(pid, kid, type){ return D('legal').filter(l=>l.projectId===pid && (l.packageId||'')===(kid||'') && l.type===type).sort(by('date'))[0]; }
 function legalInline(prefix, label, ctx, cur, opt={}){
@@ -456,7 +462,7 @@ function projectDetail(p){
   if(t==='info'){
     body=`<div class="grid g2"><div class="card"><dl class="kv">
       <dt>Mã dự án</dt><dd class="num">${esc(p.code)}</dd><dt>Nhóm dự án</dt><dd>${esc(p.group||'—')}</dd><dt>Giai đoạn</dt><dd>${esc(p.phase||'—')}</dd><dt>Trạng thái</dt><dd>${statusPill(p.status)}</dd>
-      <dt>Tổng mức đầu tư</dt><dd class="num">${fmtVND(p.tmdt)} đồng</dd><dt>Nguồn vốn</dt><dd>${esc(p.capital||'—')}</dd><dt>Chủ đầu tư</dt><dd>${esc(p.owner||'—')}</dd>
+      <dt>Tổng mức đầu tư</dt><dd class="num">${fmtVND(p.tmdt)} đồng</dd><dt>Nguồn vốn</dt><dd>${esc(p.capital||'—')}</dd><dt>Chủ đầu tư</dt><dd>${esc(p.owner||'—')}</dd>${viewerGroups().length?`<dt>Khách hàng được xem</dt><dd>${esc(viewerNames(p).join(', ')||'Chưa gán tài khoản nào')}</dd>`:''}
       <dt>Vai trò của Ban</dt><dd>${p.boardRole?pill(p.boardRole,'info'):'—'}</dd><dt>Người quyết định đầu tư</dt><dd>${esc(p.decisionMaker||'—')}</dd><dt>Hình thức quản lý</dt><dd>${esc(p.mgmtForm||'—')}</dd><dt>Loại dự án</dt><dd>${esc([p.projectKind,p.reportType].filter(Boolean).join(' · ')||'—')}</dd>
       <dt>Địa điểm</dt><dd>${esc(p.location||'—')}</dd><dt>Thời gian</dt><dd class="num">${fmtDate(p.start)} – ${fmtDate(p.end)}</dd><dt>Quyết định phê duyệt</dt><dd>${(()=>{ const l=findLegal(p.id,'','Quyết định phê duyệt dự án'); return l? `<span class="num">${esc(l.number)}</span> ngày ${fmtDate(l.date)}${l.issuer?' · '+esc(l.issuer):''}<div style="margin-top:4px">${attLinks(atts('legal',l.id))}</div>` : esc(p.decision||'—'); })()}</dd><dt>Quy mô</dt><dd>${esc(p.desc||'—')}</dd></dl></div>
       ${keyLegalCard(p)}

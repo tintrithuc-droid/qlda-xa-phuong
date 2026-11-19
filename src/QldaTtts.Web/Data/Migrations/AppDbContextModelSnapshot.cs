@@ -1342,6 +1342,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("ViewerIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code");
@@ -1562,6 +1566,9 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasColumnType("nvarchar(64)");
 
                     b.Property<bool>("Admin")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AssignedOnly")
                         .HasColumnType("bit");
 
                     b.Property<string>("Desc")

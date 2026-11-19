@@ -122,7 +122,8 @@ else using (var scope = app.Services.CreateScope())
             ("Users", "TotpSecret", "TEXT NULL"), ("Users", "TotpLastStep", "INTEGER NOT NULL DEFAULT 0"), ("Users", "RecoveryCodes", "TEXT NULL"),
             ("LegalDocuments", "ValidUntil", "TEXT NULL"), ("Contracts", "GuaranteeUntil", "TEXT NULL"), ("Contracts", "AdvanceGuaranteeUntil", "TEXT NULL"),
             ("Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0"),
-            ("Packages", "ContractorIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "SupervisorIds", "TEXT NOT NULL DEFAULT '[]'") })
+            ("Packages", "ContractorIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "SupervisorIds", "TEXT NOT NULL DEFAULT '[]'"),
+            ("Projects", "ViewerIds", "TEXT NOT NULL DEFAULT '[]'"), ("UserGroups", "AssignedOnly", "INTEGER NOT NULL DEFAULT 0") })
             if (!Cols(table).Contains(col)) db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {col} {type}");
         if (Cols("Attachments").Count == 0)
         {

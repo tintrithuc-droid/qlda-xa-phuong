@@ -21,6 +21,8 @@ public interface IHasContract { string? ContractId { get; } }
 public class Project : EntityBase
 {
     [MaxLength(50)] public string Code { get; set; } = "";
+    /// <summary>Bản 1.8.2: tài khoản khách hàng (nhóm "chỉ thấy dự án được gán") được xem dự án này.</summary>
+    public List<string> ViewerIds { get; set; } = new();
     [MaxLength(500)] public string Name { get; set; } = "";
     [MaxLength(100)] public string? Group { get; set; }
     [Column(TypeName = "decimal(20,0)")] public decimal? Tmdt { get; set; }
@@ -427,6 +429,8 @@ public class UserGroup : EntityBase
     [MaxLength(200)] public string Name { get; set; } = "";
     public string? Desc { get; set; }
     public bool Admin { get; set; }
+    /// <summary>Bản 1.8.2: tài khoản của nhóm chỉ thấy các dự án đã gán cho chính tài khoản đó (khách hàng, chủ đầu tư); chưa gán dự án nào thì không thấy dự án nào.</summary>
+    public bool AssignedOnly { get; set; }
     public Dictionary<string, string> Perms { get; set; } = new();
     public List<string> Scope { get; set; } = new();
 }

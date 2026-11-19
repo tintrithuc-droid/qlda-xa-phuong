@@ -62,6 +62,7 @@ public class AppDbContext : DbContext
         JsonColumn<Diary, List<Photo>>(b, x => x.Photos);
         JsonColumn<UserGroup, Dictionary<string, string>>(b, x => x.Perms);
         JsonColumn<UserGroup, List<string>>(b, x => x.Scope);
+        JsonColumn<Project, List<string>>(b, x => x.ViewerIds);
         JsonColumn<Guide, List<string>>(b, x => x.Groups);
         JsonColumn<Package, List<string>>(b, x => x.ContractorIds);
         JsonColumn<Package, List<string>>(b, x => x.SupervisorIds);

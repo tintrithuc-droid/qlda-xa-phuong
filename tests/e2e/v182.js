@@ -59,6 +59,34 @@ function totp(secret) {
   check(!(await p2.$('a[href="#doi-chieu"]')), 'Người dùng thường không thấy trang Danh mục chức năng');
   check(!!(await p.$('a[href="#doi-chieu"]')), 'Quản trị vẫn có trang Danh mục chức năng');
 
+  // 1b. Khách hàng chỉ thấy dự án được gán (nhóm "Chỉ thấy dự án được gán cho tài khoản")
+  const J = (m, u, body) => p.evaluate(async ([m, u, body]) => { const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: body ? JSON.stringify(body) : undefined }); return { s: r.status, j: await r.json().catch(() => null) }; }, [m, u, body]);
+  const gu = await p.evaluate(() => Store.data.groups.find(x => x.id === 'g-ubnd'));
+  check((await J('PUT', '/api/data/groups/g-ubnd', { ...gu, assignedOnly: true })).s === 200, 'Đặt nhóm khách hàng: chỉ thấy dự án được gán');
+  const K1 = 'kh1' + Date.now().toString(36).slice(-4), K2 = 'kh2' + Date.now().toString(36).slice(-4);
+  const k1 = (await J('POST', '/api/users', { username: K1, name: 'Khách hàng A', groupId: 'g-ubnd', password: 'Tam2026abc' })).j;
+  await J('POST', '/api/users', { username: K2, name: 'Khách hàng B', groupId: 'g-ubnd', password: 'Tam2026abc' });
+  await p.evaluate(() => Store.load());
+  // Gán ngay trong biểu mẫu dự án
+  const pr = await p.evaluate(() => Store.data.projects.slice().sort((a, b) => a.code.localeCompare(b.code))[0]);
+  await p.evaluate(id => { location.hash = 'du-an'; ACT['edit-projects'](id); }, pr.id); await p.waitForSelector('#mform');
+  const boxLabel = await p.evaluate(() => [...document.querySelectorAll('#mform label')].some(l => /Tài khoản khách hàng được xem dự án/.test(l.textContent)));
+  check(boxLabel, 'Biểu mẫu dự án có ô chọn tài khoản khách hàng được xem');
+  const ticked = await p.evaluate(id => { const i = [...document.querySelectorAll('#mform input[type=checkbox]')].find(x => x.value === id); if (i) i.checked = true; return !!i; }, k1.id);
+  check(ticked, 'Danh sách có tài khoản khách hàng vừa tạo');
+  await p.click('#mform button[type=submit]:not([data-send])'); await p.waitForTimeout(800);
+  const saved = await p.evaluate(id => (Store.data.projects.find(x => x.id === id) || {}).viewerIds || [], pr.id);
+  check(saved.includes(k1.id), 'Lưu dự án ghi nhận tài khoản khách hàng được xem');
+  const asCust = async (u) => { const c = await b.newContext(); await c.request.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Tam2026abc' } });
+    await c.request.post(BASE + '/api/auth/change-password', { ...H, data: { old: 'Tam2026abc', password: 'Moi2026abc' } });
+    await c.request.post(BASE + '/api/auth/login', { ...H, data: { username: u, password: 'Moi2026abc' } });
+    const d = await (await c.request.get(BASE + '/api/data', H)).json(); await c.close(); return d; };
+  const dA = await asCust(K1), dB = await asCust(K2);
+  check(dA.projects.length === 1 && dA.projects[0].id === pr.id && dA.contracts.every(c => c.projectId === pr.id || !c.projectId), 'Khách hàng A chỉ thấy đúng dự án được gán');
+  check(dB.projects.length === 0 && dB.contracts.length === 0, 'Khách hàng B chưa được gán thì không thấy dự án nào');
+  await J('PUT', '/api/data/groups/g-ubnd', { ...gu, assignedOnly: false });
+  await p.evaluate(() => Store.load()); 
+
   // 2. Tổng quan với nhiều gói thầu: tối đa 15 cột mỗi biểu đồ, không có cột âm
   await p.evaluate(() => { const base = Store.data.packages[0], sch = Store.data.schedule.find(s => s.packageId === base.id);
     for (let i = 0; i < 60; i++) { Store.data.packages.push({ ...base, id: 'qa-k' + i, code: base.code }); if (sch) Store.data.schedule.push({ ...sch, id: 'qa-s' + i, packageId: 'qa-k' + i, progress: i }); } });

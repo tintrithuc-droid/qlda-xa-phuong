@@ -169,6 +169,8 @@ async function login(p, u, pw = PW) {
   await openP('p1'); await p.click('[data-act=edit-projects]'); await p.waitForTimeout(200);
   if (!(await p.inputValue('#f_decNo')).includes('215/QĐ')) errs.push('A1: không nạp số QĐ phê duyệt hiện có');
   await p.fill('#f_decDate_t', '20/01/2025'); await putFiles('decAtt', [pdf]); await submit();
+  // tệp tải lên sau khi biểu mẫu đóng, máy CI chậm cần chờ đến khi gắn xong (tối đa 10 giây)
+  await p.waitForFunction(() => Store.data.attachments.some(a => a.collection === 'legal' && a.recordId === 'l2') && document.querySelector('#content').textContent.includes('QD-phe-duyet.pdf'), null, { timeout: 10000 }).catch(() => {});
   if (await attOf('legal', 'l2') !== 1) errs.push('A1: tệp QĐ phê duyệt chưa gắn vào hồ sơ pháp lý l2');
   if (!(await p.textContent('#content')).includes('QD-phe-duyet.pdf')) errs.push('A1: Thông tin chung chưa hiện tệp QĐ');
   await p.screenshot({ path: `${SHOTS}/dot1-du-an-thong-tin.png`, fullPage: true });

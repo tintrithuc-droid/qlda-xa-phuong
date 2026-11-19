@@ -251,23 +251,43 @@ const REPORTS = [
   ['tonghop','Báo cáo tổng hợp tình hình thực hiện dự án'],['tiendo','Báo cáo tiến độ thực hiện dự án và các gói thầu'],['hopdong','Báo cáo tình hình thực hiện hợp đồng'],
   ['khoiluong','Báo cáo khối lượng thực hiện, nghiệm thu và thanh toán'],['thoigian','Báo cáo tổng hợp theo dự án, gói thầu và thời gian'],
   ['giaingan','Báo cáo tình hình giải ngân kế hoạch vốn đầu tư công'],['quyettoan','Báo cáo tình hình quyết toán dự án hoàn thành']];
-/* Có đơn vị đánh dấu thành viên hệ sinh thái thì thêm thống kê theo đơn vị thực hiện */
-const RPT_UNIT=[['donvi','Thống kê theo đơn vị thực hiện'],['donvi-hd','Chi tiết hợp đồng theo đơn vị thực hiện']];
-const rptList=()=>memberOrgs().length? [...REPORTS, ...RPT_UNIT] : REPORTS;
-/* Hợp đồng chia theo đơn vị: làm riêng tính cả hợp đồng cho đơn vị; liên danh chia theo tỷ lệ liên danh, phần còn lại vào nhóm Liên danh.
-   Cộng các đơn vị luôn bằng tổng giá trị hợp đồng (không đếm hai lần) */
-function rptUnits(cs){ const ids=new Set(cs.map(c=>c.id)); const rs=tqRows({noUnit:true, noStage:true}).filter(c=>ids.has(c.id));
-  const bks=[...memberOrgs().map(o=>({id:o.id,l:unitLabel(o)})),{id:'jv',l:'Liên danh (phần còn lại)'},{id:'khac',l:'Đơn vị khác'}];
-  return bks.map(b=>({...b, parts:rs.flatMap(c=>ctAlloc(c).filter(x=>x.b===b.id).map(x=>({c, f:x.f})))})).filter(b=>b.parts.length); }
+/* Thống kê theo từng nhà thầu, đơn vị thực hiện (mọi nhà thầu của dự án: tư vấn, thi công, cung cấp…) */
+const RPT_UNIT=[['tk-duan','Thống kê tổng hợp theo dự án'],['donvi','Thống kê theo nhà thầu, đơn vị thực hiện'],['tk-duan-nt','Thống kê theo dự án và nhà thầu'],['donvi-hd','Chi tiết hợp đồng theo nhà thầu, đơn vị thực hiện']];
+/* Các thống kê này dùng bộ lọc Năm, Trạng thái (như Tổng quan) */
+const rptIsU=t=>RPT_UNIT.some(r=>r[0]===t);
+const rptList=()=>[...REPORTS, ...RPT_UNIT];
+/* Chia một hợp đồng cho các nhà thầu: nhà thầu của gói thầu theo danh mục; làm riêng tính trọn; liên danh chia theo tỷ lệ liên danh,
+   phần chưa có tỷ lệ ghi riêng một dòng theo tên liên danh; nhà thầu chưa vào danh mục thì theo tên ghi trên hợp đồng.
+   Cộng các phần của một hợp đồng luôn bằng 1, nên cộng các nhà thầu bằng tổng giá trị hợp đồng (không đếm hai lần) */
+function ctAllAlloc(c){ const k=pkgOf(c.packageId)||{}; const orgs=D('orgs'); let ids=(k.contractorIds||[]).filter(id=>orgs.some(o=>o.id===id));
+  if(!ids.length){ const t=normKey(c.contractor); const o=t && orgs.find(o=>o.kind!=='gs' && (normKey(o.name)===t || (o.shortName && normKey(o.shortName)===t))); if(o) ids=[o.id]; }
+  if(!ids.length) return [{b:'n:'+(String(c.contractor||'').trim()||'Chưa ghi nhà thầu'), f:1}];
+  if(ids.length===1) return [{b:ids[0], f:1}];
+  const sh=k.contractorShares||{}; const ps=ids.map(id=>({b:id, f:sh[id]==null||sh[id]===''? 0 : N(sh[id])/100})).filter(x=>x.f>0); const rest=1-sum(ps,'f');
+  return rest>1e-6? [...ps,{b:'n:'+(String(c.contractor||k.jointVenture||'Liên danh').trim())+' (liên danh chưa có tỷ lệ)', f:rest}] : ps; }
+function rptUnits(cs){ const ids=new Set(cs.map(c=>c.id)); const rs=tqRows({noUnit:true, noStage:true}).filter(c=>ids.has(c.id)); const m=new Map();
+  rs.forEach(c=>ctAllAlloc(c).forEach(x=>{ if(!m.has(x.b)) m.set(x.b,[]); m.get(x.b).push({c, f:x.f}); }));
+  return [...m.entries()].map(([b,parts])=>{ const o=b.startsWith('n:')? null : orgOf(b); return {id:b, o, l:o? (o.shortName||o.name) : b.slice(2), mem:!!(o&&o.member), parts, v:sum(parts,x=>contractValue(x.c)*x.f)}; })
+    .sort((a,b)=>(b.mem-a.mem) || (a.mem? a.l.localeCompare(b.l,'vi') : b.v-a.v)); }
 function buildReport(type, f){
   const ps=projects().filter(p=>inFilter(p.id) && (!f.pid||p.id===f.pid));
   const pids=ps.map(p=>p.id);
   const ks=D('packages').filter(k=>pids.includes(k.projectId) && (!f.kid||k.id===f.kid));
   const cs=D('contracts').filter(c=>ks.some(k=>k.id===c.packageId));
   const upto=f.to||null;
-  if(type==='donvi') return {head:['Đơn vị thực hiện','Số hợp đồng','Đang thực hiện','Đã hoàn thành','Giá trị hợp đồng (phần của đơn vị)','Đã thanh toán','Còn lại','Đã thanh toán (%)'], money:[4,5,6],
-    rows:rptUnits(cs).map(b=>{ const v=sum(b.parts,x=>contractValue(x.c)*x.f), pd=sum(b.parts,x=>ctPaidCap(x.c)*x.f); return [b.l, b.parts.length, b.parts.filter(x=>!ctDone(x.c)).length, b.parts.filter(x=>ctDone(x.c)).length, v, pd, v-pd, +pct(pd,v).toFixed(2)]; })};
-  if(type==='donvi-hd') return {head:['Đơn vị thực hiện','Dự án','Gói thầu','Số hợp đồng','Năm hiệu lực','Trạng thái','Tỷ lệ của đơn vị (%)','Giá trị hợp đồng','Giá trị phần của đơn vị','Đã thanh toán','Còn lại'], money:[7,8,9,10], total:[8,9,10],
+  if(type==='tk-duan'){ const ids=new Set(cs.map(c=>c.id)); const rs=tqRows({noUnit:true, noStage:true}).filter(c=>ids.has(c.id));
+    return {head:['Mã dự án','Tên dự án','Trạng thái dự án','Số gói thầu','Số hợp đồng','Đang thực hiện','Đã hoàn thành','Số nhà thầu','Giá trị hợp đồng','Đã thanh toán','Còn lại','Đã thanh toán (%)'], money:[8,9,10],
+      rows:ps.map(p=>{ const c=rs.filter(x=>contractPid(x)===p.id); if(!c.length) return null; const v=sum(c,contractValue), pd=sum(c,ctPaidCap);
+        return [p.code, p.name, p.status||'', new Set(c.map(x=>x.packageId)).size, c.length, c.filter(x=>!ctDone(x)).length, c.filter(ctDone).length, new Set(c.flatMap(x=>ctAllAlloc(x).map(a=>a.b))).size, v, pd, v-pd, +pct(pd,v).toFixed(2)]; }).filter(Boolean)}; }
+  if(type==='tk-duan-nt'){ const pc=c=>(projOf(contractPid(c))||{}).code||'';
+    return {head:['Mã dự án','Tên dự án','Nhà thầu, đơn vị thực hiện','Thành viên hệ sinh thái','Số hợp đồng','Đang thực hiện','Đã hoàn thành','Giá trị hợp đồng (phần của nhà thầu)','Đã thanh toán','Còn lại'], money:[7,8,9],
+      rows:rptUnits(cs).flatMap(b=>{ const m=new Map(); b.parts.forEach(x=>{ const k=contractPid(x.c); if(!m.has(k)) m.set(k,[]); m.get(k).push(x); });
+        return [...m.entries()].map(([pid,xs])=>{ const p=projOf(pid)||{}; const v=sum(xs,x=>contractValue(x.c)*x.f), pd=sum(xs,x=>ctPaidCap(x.c)*x.f);
+          return [p.code||'', p.name||'', b.l, b.mem?'Có':'', xs.length, xs.filter(x=>!ctDone(x.c)).length, xs.filter(x=>ctDone(x.c)).length, v, pd, v-pd]; }); })
+        .sort((a,b)=>String(a[0]).localeCompare(String(b[0])) || (b[3]>a[3]?1:b[3]<a[3]?-1:0) || b[7]-a[7])}; }
+  if(type==='donvi') return {head:['Nhà thầu, đơn vị thực hiện','Thành viên hệ sinh thái','Số hợp đồng','Đang thực hiện','Đã hoàn thành','Giá trị hợp đồng (phần của nhà thầu)','Đã thanh toán','Còn lại','Đã thanh toán (%)'], money:[5,6,7],
+    rows:rptUnits(cs).map(b=>{ const v=b.v, pd=sum(b.parts,x=>ctPaidCap(x.c)*x.f); return [b.l, b.mem?'Có':'', b.parts.length, b.parts.filter(x=>!ctDone(x.c)).length, b.parts.filter(x=>ctDone(x.c)).length, v, pd, v-pd, +pct(pd,v).toFixed(2)]; })};
+  if(type==='donvi-hd') return {head:['Nhà thầu, đơn vị thực hiện','Dự án','Gói thầu','Số hợp đồng','Năm hiệu lực','Trạng thái','Tỷ lệ của nhà thầu (%)','Giá trị hợp đồng','Giá trị phần của nhà thầu','Đã thanh toán','Còn lại'], money:[7,8,9,10], total:[8,9,10],
     rows:rptUnits(cs).flatMap(b=>b.parts.sort((x,y)=>String((projOf(contractPid(x.c))||{}).code).localeCompare(String((projOf(contractPid(y.c))||{}).code))).map(x=>{ const c=x.c, v=contractValue(c)*x.f, pd=ctPaidCap(c)*x.f;
       return [b.l, (projOf(contractPid(c))||{}).code||'', (pkgOf(c.packageId)||{}).code||'', c.number||'', ctYear(c)||'', ctDone(c)?'Đã hoàn thành':tqLate(c)?'Đang thực hiện, quá hạn':'Đang thực hiện', +(x.f*100).toFixed(2), contractValue(c), v, pd, v-pd]; }))};
   if(type==='tonghop') return {head:['Mã dự án','Tên dự án','Trạng thái','Tổng mức đầu tư','Số gói thầu','Giá trị hợp đồng','Giá trị thực hiện','Giá trị nghiệm thu','Đã thanh toán','Giải ngân/TMĐT (%)','Tiến độ thực tế (%)','Tiến độ kế hoạch (%)'], money:[3,5,6,7,8],
@@ -305,12 +325,12 @@ VIEWS['bao-cao']=()=>{
   const R=buildReport(type,f); const q=S.f.bcq||''; const rows=R.rows.filter(r=>!q||norm(r.join(' ')).includes(norm(q)));
   const money=R.money||[]; const isNum=(v)=>typeof v==='number';
   const tc=rptTotalCols(R); const totals=R.head.map((h,i)=> i===0?'Tổng cộng': tc.includes(i)? fmtVND(sum(rows,r=>r[i])) : '');
-  const title=(rptList().find(r=>r[0]===type)||REPORTS[0])[1]; const isU=type.startsWith('donvi');
+  const title=(rptList().find(r=>r[0]===type)||REPORTS[0])[1]; const isU=rptIsU(type);
   return `<div class="head"><div class="grow"><h1>Báo cáo, thống kê</h1><p>Chọn loại báo cáo, lọc theo dự án, gói thầu, thời gian rồi in hoặc xuất ra Excel, PDF, CSV</p></div><div class="toolbar" style="margin:0"><button class="btn" data-act="export-report-pdf" title="Mở hộp thoại in; chọn máy in hoặc Lưu thành PDF">In / Xuất PDF</button><button class="btn" data-act="export-report-csv">Xuất CSV</button><button class="btn" data-act="export-report-json" title="Tệp dữ liệu JSON để chia sẻ, liên thông với phần mềm khác">Xuất JSON</button><button class="btn primary" data-act="export-report">Xuất Excel</button></div></div>
   <div class="card"><div class="toolbar filters"><select data-f="bct" aria-label="Loại báo cáo" style="flex:1 1 320px;max-width:520px">${opts(rptList(),type)}</select>${isU?tqFilterBar():''}
     ${!S.pid?`<select data-f="bcp" aria-label="Dự án">${opts(projOpts(),f.pid,'Tất cả dự án')}</select>`:''}<select data-f="bck" aria-label="Gói thầu">${opts(pkgOpts(f.pid),f.kid,'Tất cả gói thầu')}</select>
     ${isU?"":`<label class="small muted">Từ <input type="date" data-f="bcf" value="${esc(f.from)}"></label><label class="small muted">Đến <input type="date" data-f="bctt" value="${esc(f.to)}"></label>`}<input type="search" data-f="bcq" value="${esc(q)}" placeholder="Tra cứu trong báo cáo…" aria-label="Tra cứu"></div></div>
-  <div class="card"><div class="ch"><h2>${esc(title)}</h2><span class="small muted">${rows.length} dòng, lập ngày ${fmtDate(TODAY)}${f.from||f.to?', kỳ báo cáo '+fmtDate(f.from)+' – '+fmtDate(f.to):''}${isU?', '+esc(tqFilterText()):''}</span></div>${isU?'<p class="small muted" style="margin:0 0 8px">Hợp đồng làm riêng tính trọn cho đơn vị thực hiện; hợp đồng liên danh chia theo tỷ lệ liên danh của gói thầu, phần của đơn vị ngoài hệ sinh thái hoặc chưa có tỷ lệ nằm ở dòng Liên danh. Cộng các dòng bằng tổng giá trị hợp đồng.</p>':''}
+  <div class="card"><div class="ch"><h2>${esc(title)}</h2><span class="small muted">${rows.length} dòng, lập ngày ${fmtDate(TODAY)}${f.from||f.to?', kỳ báo cáo '+fmtDate(f.from)+' – '+fmtDate(f.to):''}${isU?', '+esc(tqFilterText()):''}</span></div>${isU?'<p class="small muted" style="margin:0 0 8px">Gồm mọi nhà thầu của dự án (tư vấn, thi công, cung cấp…), thành viên hệ sinh thái xếp trước. Hợp đồng làm riêng tính trọn cho nhà thầu; hợp đồng liên danh chia cho từng thành viên theo tỷ lệ liên danh của gói thầu, phần chưa có tỷ lệ ghi riêng theo tên liên danh. Cộng các dòng bằng tổng giá trị hợp đồng.</p>':''}
   ${rows.length?`<div class="tw"><table><thead><tr>${R.head.map((h,i)=>`<th class="${isNum(R.rows[0]&&R.rows[0][i])?'r':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((v,i)=>`<td class="${isNum(v)?'r':''}">${isNum(v)?(money.includes(i)?fmtVND(v):fmtN(v,2)):esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>${money.length?`<tfoot><tr>${totals.map((t,i)=>`<td class="${money.includes(i)?'r':''}">${t}</td>`).join('')}</tr></tfoot>`:''}</table></div>`:emptyBox('Không có số liệu phù hợp bộ lọc.')}</div>`;
 };
 /** Số liệu báo cáo đang xem (cùng bộ lọc, tra cứu trên màn hình) để xuất Excel, PDF, CSV. */
@@ -318,22 +338,25 @@ function reportNow(){
   const type=S.f.bct||'tonghop'; const f=rptFilter();
   const R=buildReport(type,f); const q=S.f.bcq||''; const rows=R.rows.filter(r=>!q||norm(r.join(' ')).includes(norm(q)));
   const name=(rptList().find(r=>r[0]===type)||REPORTS[0])[1];
-  const sub=BR.reportOrg+(type.startsWith('donvi')?' · '+tqFilterText():'')+' · Lập ngày '+fmtDate(TODAY)+(f.pid?' · '+(projOf(f.pid)||{}).code:'')+(f.from||f.to?' · Kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):'');
+  const sub=BR.reportOrg+(rptIsU(type)?' · '+tqFilterText():'')+' · Lập ngày '+fmtDate(TODAY)+(f.pid?' · '+(projOf(f.pid)||{}).code:'')+(f.from||f.to?' · Kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):'');
   const money=R.money||[]; const tc=rptTotalCols(R); const tot=R.head.map((h,i)=>i===0?'Tổng cộng':tc.includes(i)?sum(rows,r=>r[i]):'');
   return {type, f, R, rows, name, title:name.toUpperCase(), sub, money, tot};
 }
+/* Tên tệp xuất: tên báo cáo không dấu, kèm năm, trạng thái với các thống kê có bộ lọc đó */
+function rptFile(x,ext){ const slug=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').replace(/[^A-Za-z0-9]+/g,' ').trim().split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join('');
+  const F=tqF(); return 'BaoCao_'+slug(x.name)+(rptIsU(x.type)? '_'+(F.y==='*'?'MoiNam':F.y)+'_'+slug(((TQ_ST.find(r=>r[0]===F.s)||[])[1]||'')) : '')+'_'+TODAY+'.'+ext; }
 ACT['export-report']=()=>{
   const x=reportNow();
-  exportXlsx(`BaoCao_${x.type}_${TODAY}.xlsx`, [{name:'Bao cao', title:x.title, sub:x.sub, head:x.R.head, money:x.money, total:!!x.money.length, rows:[...x.rows, ...(x.money.length?[x.tot]:[])]}]);
+  exportXlsx(rptFile(x,'xlsx'), [{name:'Bao cao', title:x.title, sub:x.sub, head:x.R.head, money:x.money, total:!!x.money.length, rows:[...x.rows, ...(x.money.length?[x.tot]:[])]}]);
   log('Xuất báo cáo','logs',x.name);
 };
-ACT['export-report-json']=()=>{ const x=reportNow(); exportJson(`BaoCao_${x.type}_${TODAY}.json`, {title:x.name, sub:x.sub, head:x.R.head, rows:x.rows}); log('Xuất báo cáo JSON','logs',x.name); };
+ACT['export-report-json']=()=>{ const x=reportNow(); exportJson(rptFile(x,'json'), {title:x.name, sub:x.sub, head:x.R.head, rows:x.rows}); log('Xuất báo cáo JSON','logs',x.name); };
 /** CSV (UTF-8 có BOM để Excel mở đúng tiếng Việt, phân cách dấu phẩy, số không định dạng). */
 ACT['export-report-csv']=()=>{
   const x=reportNow(); const cell=v=>{ const t=v==null?'':String(v); return /[",\n;]/.test(t)? '"'+t.replace(/"/g,'""')+'"' : t; };
   const lines=[x.R.head, ...x.rows, ...(x.money.length?[x.tot]:[])].map(r=>r.map(cell).join(','));
   const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=`BaoCao_${x.type}_${TODAY}.csv`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  a.href=URL.createObjectURL(blob); a.download=rptFile(x,'csv'); document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
   log('Xuất báo cáo CSV','logs',x.name);
 };
 /** In / lưu PDF: trang A4 (tự xoay ngang khi bảng nhiều cột) có tên cơ quan, quốc hiệu, tiêu đề, bảng số liệu, dòng tổng, khung ký;

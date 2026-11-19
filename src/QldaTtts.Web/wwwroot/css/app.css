@@ -619,3 +619,24 @@ tbody tr.grp td{background:var(--panel2); font-weight:700; color:var(--ink); bor
 .ss-pop li.on{background:var(--accent); color:var(--accent-ink)}
 .ss-pop li.dis{opacity:.5; cursor:default}
 .ss-pop li.none{color:var(--muted); cursor:default}
+
+/* Bản 1.8.3: Tổng quan hệ sinh thái */
+.tq-f{margin:-4px 0 14px}
+.tq-f select{min-width:170px}
+.tq-k{grid-template-columns:repeat(6,minmax(0,1fr))}
+.kpi.acc{border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); background:color-mix(in srgb, var(--accent-soft) 60%, var(--panel))}
+.tq-stages{display:flex; gap:8px; flex-wrap:wrap}
+.tq-stage{flex:1 1 150px; display:flex; align-items:baseline; gap:8px; text-align:left; border:1px solid var(--line); border-left:4px solid var(--sc); background:var(--panel); color:var(--ink); border-radius:8px; padding:10px 12px; cursor:pointer; font:inherit}
+.tq-stage b{font-size:1.35rem; font-weight:700}
+.tq-stage span{font-size:13px; color:var(--muted)}
+.tq-stage:hover{border-color:var(--sc)}
+.tq-stage.on{background:color-mix(in srgb, var(--sc) 14%, var(--panel)); border-color:var(--sc)}
+.tq-stage.on span{color:var(--ink)}
+@media (max-width:1100px){ .tq-k{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:820px){ .tq-k{grid-template-columns:repeat(2,minmax(0,1fr))} .tq-f select{flex:1 1 100%} }
+.orgpick-row{display:flex; gap:8px; align-items:center}
+.orgpick-row select{flex:1 1 auto; min-width:0}
+.orgnew{display:grid; gap:8px; padding:10px 12px; border:1px dashed var(--accent); border-radius:8px; background:color-mix(in srgb, var(--accent-soft) 40%, var(--panel))}
+.orgnew-2{display:grid; grid-template-columns:2fr 1fr; gap:8px}
+.orgnew .btn{justify-self:start}
+@media (max-width:820px){ .orgpick-row{flex-wrap:wrap} .orgpick-row .btn{flex:1 1 100%} .orgnew-2{grid-template-columns:1fr} }

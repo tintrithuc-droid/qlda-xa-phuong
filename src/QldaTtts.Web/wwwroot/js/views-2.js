@@ -124,11 +124,27 @@ function pkgDetail(k){
   ${legalCard(D('legal').filter(l=>l.packageId===k.id), k.projectId, k.id, 'goi-thau', 'Hồ sơ pháp lý gói thầu')}`;
 }
 const CONTRACT_DOCS=[['Hợp đồng đã ký','Bản hợp đồng đã ký'],['Bảo lãnh thực hiện hợp đồng','Bảo lãnh thực hiện HĐ'],['Bảo lãnh tạm ứng','Bảo lãnh tạm ứng']];
-const contractFields=()=>[{key:'number',label:'Số hợp đồng',req:true},{key:'signDate',label:'Ngày ký',type:'date',req:true},{key:'contractor',label:'Nhà thầu / Liên danh',req:true,full:true},{key:'ctype',label:'Loại hợp đồng',type:'select',options:()=>catalog('Loại hợp đồng')},
+const contractFields=()=>[{key:'number',label:'Số hợp đồng',req:true},{key:'signDate',label:'Ngày ký',type:'date',req:true},{key:'_org',label:'Nhà thầu / Liên danh',type:'org',kind:'nt',req:true,full:true,hint:'Nhà thầu của hợp đồng phải trùng nhà thầu đã chọn ở gói thầu. Gói thầu chưa chọn nhà thầu thì được chọn theo hợp đồng này.'},{key:'ctype',label:'Loại hợp đồng',type:'select',options:()=>catalog('Loại hợp đồng')},
   {key:'value',label:'Giá trị hợp đồng (đồng)',type:'money',req:true},{key:'start',label:'Ngày bắt đầu',type:'date',req:true},{key:'end',label:'Ngày kết thúc',type:'date',req:true},{key:'guarantee',label:'Bảo lãnh thực hiện HĐ (số, ngân hàng phát hành)'},{key:'guaranteeUntil',label:'Bảo lãnh thực hiện HĐ hiệu lực đến',type:'date'},{key:'advanceRate',label:'Tỷ lệ tạm ứng (%)',type:'percent'},{key:'advanceGuaranteeUntil',label:'Bảo lãnh tạm ứng hiệu lực đến',type:'date'},{key:'note',label:'Ghi chú',type:'textarea'},
   ...CONTRACT_DOCS.map(([kind,l],i)=>({key:'att'+i,label:l,type:'attach',col:'contracts',kind}))];
-ACT['add-contract']=(kid)=>openForm({wf:'contracts', title:'Nhập thông tin hợp đồng', fields:contractFields(), value:{contractor:pkgContractorName(pkgOf(kid))}, onSave:v=>{ if(v.end<v.start){ $('#mform_err').textContent='Ngày kết thúc phải sau ngày bắt đầu.'; return false; } return save('contracts',{...v, packageId:kid, projectId:pkgOf(kid).projectId}); }});
-ACT['edit-contracts']=(id)=>openForm({wf:'contracts', title:'Cập nhật hợp đồng', fields:contractFields(), value:get('contracts',id), onSave:v=>save('contracts',v)});
+ACT['add-contract']=(kid)=>openForm({wf:'contracts', title:'Nhập thông tin hợp đồng', fields:contractFields(), value:{_org:((pkgOf(kid)||{}).contractorIds||[])[0]||''}, onSave:async v=>{ if(v.end<v.start){ $('#mform_err').textContent='Ngày kết thúc phải sau ngày bắt đầu.'; return false; } if(!await contractOrgSync(v, kid)) return false; return save('contracts',{...v, packageId:kid, projectId:pkgOf(kid).projectId}); }});
+ACT['edit-contracts']=(id)=>openForm({wf:'contracts', title:'Cập nhật hợp đồng', fields:contractFields(), value:contractOrgValue(get('contracts',id)), onSave:async v=>{ if(!await contractOrgSync(v, get('contracts',id).packageId)) return false; return save('contracts',v); }});
+/* Bản 1.8.3: nhà thầu của hợp đồng lấy theo danh mục nhà thầu và phải khớp nhà thầu đã chọn ở gói thầu.
+   Gói thầu chưa chọn nhà thầu thì chọn luôn đơn vị này; tên chưa có trong danh mục thì thêm vào danh mục. */
+async function contractOrgSync(v, kid){
+  const k=pkgOf(kid); const o=await orgResolve(v._org); v._org=undefined; if(!o){ $('#mform_err').textContent='Vui lòng chọn nhà thầu.'; return false; }
+  const ids=(k&&k.contractorIds)||[];
+  if(ids.length && !ids.includes(o.id)){ $('#mform_err').textContent=`Gói thầu ${k.code} đã chọn nhà thầu "${pkgContractorName(k)}". Nhà thầu của hợp đồng phải trùng nhà thầu của gói thầu; cần đổi thì sửa nhà thầu ở gói thầu trước.`; return false; }
+  v.contractor= ids.length>1 && k.jointVenture? k.jointVenture : o.name;
+  if(k && !ids.length) await save('packages',{...k, contractorIds:[o.id]});
+  return true; }
+/* Hợp đồng cũ chỉ có tên nhà thầu gõ tay: tìm đơn vị trong danh mục theo nhà thầu của gói thầu, rồi theo tên */
+function contractOrgValue(c){ const k=pkgOf(c.packageId)||{}; const ids=k.contractorIds||[];
+  const byName=D('orgs').find(o=>o.kind==='nt' && (normKey(o.name)===normKey(c.contractor)||(o.shortName && normKey(o.shortName)===normKey(c.contractor))));
+  return {...c, _org: ids.find(id=>byName && id===byName.id) || ids[0] || (byName||{}).id || ''}; }
+/* Đơn vị chọn hoặc thêm mới ở ô kiểu 'org': trả về bản ghi danh mục (thêm mới thì lưu vào danh mục; trùng tên hoặc mã số thuế thì dùng đơn vị đã có) */
+async function orgResolve(val){ if(!val) return null; if(typeof val==='string') return orgOf(val);
+  const n=val._new; const d=orgDupe({...n, id:''}); if(d) return d; return save('orgs',{...n, active:true}); }
 const addFields=()=>[{key:'number',label:'Số phụ lục',req:true},{key:'date',label:'Ngày ký',type:'date',req:true},{key:'content',label:'Nội dung điều chỉnh',type:'textarea',req:true},{key:'valueChange',label:'Giá trị điều chỉnh (+ tăng / − giảm, đồng)',type:'number',def:0},{key:'daysChange',label:'Gia hạn thời gian (ngày)',type:'number',def:0},{key:'wfnote',type:'html',label:'',full:true,html:'<p class="small muted" style="margin:0">Lưu nháp để soạn tiếp, hoặc Lưu và chuyển duyệt để chuyển hồ sơ theo quy trình duyệt. Chỉ phụ lục đã duyệt mới cộng vào giá trị và thời hạn hợp đồng.</p>'},{key:'att',label:'Phụ lục đã ký, văn bản đề nghị điều chỉnh',type:'attach',col:'addenda'}];
 ACT['add-addendum']=(cid)=>openForm({wf:'addenda', title:'Thêm phụ lục hợp đồng', fields:addFields(), onSave:v=>save('addenda',{...v, contractId:cid},'Phụ lục '+v.number)});
 ACT['edit-addenda']=(id)=>openForm({wf:'addenda', title:'Cập nhật phụ lục', fields:addFields(), value:get('addenda',id), onSave:v=>save('addenda',v,'Phụ lục '+v.number)});
@@ -157,7 +173,7 @@ function orgView(kind){
   return `<div class="head"><div class="grow"><h1>${title}</h1><p>${all.length} ${kind==='gs'?'đơn vị giám sát độc lập':'nhà thầu (thi công, tư vấn, cung cấp)'}; chọn ở biểu mẫu gói thầu khi hình thành gói thầu</p></div>${ed?`<button class="btn primary" data-act="add-org" data-id="${kind}">+ Thêm ${ORG_KIND[kind]}</button>`:''}</div>
   ${orgTabs(kind)}
   <div class="toolbar"><input type="search" data-f="oq" value="${esc(q)}" placeholder="Tìm tên, mã số thuế, người đại diện, địa chỉ…" aria-label="Tìm đơn vị"><select data-f="ost" aria-label="Trạng thái">${opts([['on','Đang hoạt động'],['off','Ngừng hoạt động']],st,'Mọi trạng thái')}</select></div>
-  ${table([{h:kind==='gs'?'Tên đơn vị giám sát':'Tên nhà thầu',f:r=>`<b style="font-weight:600">${esc(r.name)}</b>${r.shortName?`<div class="small muted">${esc(r.shortName)}</div>`:''}${r.address?`<div class="small muted">${esc(r.address)}</div>`:''}`},
+  ${table([{h:kind==='gs'?'Tên đơn vị giám sát':'Tên nhà thầu',f:r=>`<b style="font-weight:600">${esc(r.name)}</b>${r.member?' '+pill('Thành viên','acc'):''}${r.shortName?`<div class="small muted">${esc(r.shortName)}</div>`:''}${r.address?`<div class="small muted">${esc(r.address)}</div>`:''}`},
     {h:'Mã số thuế',f:r=>`<span class="num">${esc(r.taxCode||'—')}</span>`},
     {h:'Người đại diện',f:r=>`${esc(r.representative||'—')}<div class="small muted">${esc(r.repTitle||'')}</div>`},
     {h:'Liên hệ',f:r=>`${esc(r.phone||'')}${r.email?`<div class="small">${esc(r.email)}</div>`:''}${r.contactName?`<div class="small muted">${esc(r.contactName)} ${esc(r.contactPhone||'')}</div>`:''}`},
@@ -177,9 +193,10 @@ const orgFields=(kind)=>[
   {key:'field',label:'Lĩnh vực hoạt động',full:true,ph:kind==='gs'?'Ví dụ: giám sát thi công xây dựng công trình giao thông, hạ tầng kỹ thuật':'Ví dụ: thi công công trình giao thông, hạ tầng kỹ thuật'},
   {key:'contactName',label:'Người liên hệ'},{key:'contactPhone',label:'Điện thoại người liên hệ'},
   {key:'status',label:'Trạng thái',type:'select',options:[['on','Đang hoạt động'],['off','Ngừng hoạt động']],req:true,def:'on'},
+  ...(kind==='gs'?[]:[{key:'_mem',label:'Thành viên hệ sinh thái',type:'select',options:[['0','Không'],['1','Có: đơn vị thành viên']],req:true,def:'0',hint:'Đơn vị thành viên có bộ lọc và báo cáo riêng ở trang Tổng quan. Nên ghi Tên viết tắt (ví dụ Tri Thức) để hiển thị gọn.'}]),
   {key:'note',label:'Ghi chú',type:'textarea'},{key:'att',label:'Giấy chứng nhận đăng ký doanh nghiệp, chứng chỉ năng lực, hồ sơ năng lực',type:'attach',col:'orgs'}];
-const orgIn=o=>({...o, status:o.active===false?'off':'on'});
-function orgOut(v){ const o={...v, active:v.status!=='off'}; delete o.status; return o; }
+const orgIn=o=>({...o, status:o.active===false?'off':'on', _mem:o.member?'1':'0'});
+function orgOut(v){ const o={...v, active:v.status!=='off', member:v.kind!=='gs' && v._mem==='1'}; delete o.status; delete o._mem; return o; }
 function orgDupe(v){ const n=normKey(v.name), t=String(v.taxCode||'').replace(/\s/g,''); return D('orgs').find(o=>o.id!==v.id && o.kind===v.kind && (normKey(o.name)===n || (t && String(o.taxCode||'').replace(/\s/g,'')===t))); }
 async function orgSave(v){ const d=orgDupe(v); if(d){ $('#mform_err').textContent=`Đã có trong danh mục ${ORG_KIND[v.kind]} (trùng tên hoặc mã số thuế): ${d.name}`; return false; } return save('orgs', orgOut(v)); }
 ACT['add-org']=(kind)=>openForm({title:'Thêm '+ORG_KIND[kind], wide:true, fields:orgFields(kind), value:{kind, status:'on'}, onSave:orgSave});
@@ -188,7 +205,7 @@ ACT['open-org']=(id,el,e)=>{ if(e && e.target.closest('button')) return; const o
   const ks=orgPkgs(id), us=orgUsers(id), row=(l,v)=>v?`<dt>${l}</dt><dd>${v}</dd>`:'';
   const role=k=>{ if(o.kind==='gs') return 'Giám sát'+((k.supervisorIds||[]).length>1?' (cùng '+((k.supervisorIds||[]).length-1)+' đơn vị khác)':''); const ids=k.contractorIds||[]; return ids.length>1?(ids[0]===id?'Đứng đầu liên danh':'Thành viên liên danh'):'Nhà thầu'; };
   openModal(`<div class="mform wide"><header><h3>${esc(o.name)}</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;overflow:auto"><dl class="kv">
-    ${row('Danh mục',o.kind==='gs'?'Đơn vị giám sát độc lập':'Nhà thầu')}${row('Tên viết tắt',esc(o.shortName||''))}${row('Mã số thuế',esc(o.taxCode||''))}${row('Địa chỉ',esc(o.address||''))}
+    ${row('Danh mục',o.kind==='gs'?'Đơn vị giám sát độc lập':'Nhà thầu'+(o.member?', thành viên hệ sinh thái':''))}${row('Tên viết tắt',esc(o.shortName||''))}${row('Mã số thuế',esc(o.taxCode||''))}${row('Địa chỉ',esc(o.address||''))}
     ${row('Điện thoại',esc(o.phone||''))}${row('Thư điện tử',esc(o.email||''))}${row('Người đại diện',esc([o.representative,o.repTitle].filter(Boolean).join(' – ')))}
     ${row('Tài khoản ngân hàng',esc([o.bankAccount,o.bankName].filter(Boolean).join(' tại ')))}${row('Chứng chỉ năng lực',esc([o.certNo,o.certGrade?'hạng '+o.certGrade:'',o.certDate?'cấp ngày '+fmtDate(o.certDate):''].filter(Boolean).join(' · ')))}
     ${row('Lĩnh vực',esc(o.field||''))}${row('Người liên hệ',esc([o.contactName,o.contactPhone].filter(Boolean).join(' – ')))}${row('Trạng thái',o.active===false?'Ngừng hoạt động':'Đang hoạt động')}${row('Ghi chú',esc(o.note||''))}
@@ -199,17 +216,17 @@ ACT['open-org']=(id,el,e)=>{ if(e && e.target.closest('button')) return; const o
 /* Biểu mẫu gói thầu: nhà thầu gõ tên hoặc chọn từ danh mục nhà thầu; đơn vị giám sát chọn một hoặc nhiều từ danh mục đơn vị giám sát.
    Tên chưa có được thêm vào đúng danh mục. */
 function pkgOrgFields(){ return [
-  {key:'_ct',label:'Nhà thầu trúng thầu (đứng đầu liên danh nếu là liên danh)',full:true,suggest:()=>orgList('nt').filter(o=>o.active!==false).map(o=>o.name),ph:'Gõ tên hoặc chọn từ danh mục nhà thầu; tên mới sẽ được thêm vào danh mục nhà thầu'},
+  {key:'_ct',label:'Nhà thầu trúng thầu (liên danh: chọn liên danh hoặc thành viên đứng đầu)',type:'org',kind:'nt',full:true},
   {key:'_jv',label:'Thành viên liên danh khác (nếu có)',type:'checks',options:()=>orgList('nt').filter(o=>o.active!==false).map(o=>[o.id,o.name])},
   {key:'jointVenture',label:'Tên liên danh (nếu có)',full:true},
   {key:'_sv',label:'Đơn vị giám sát độc lập (chọn một hoặc nhiều)',type:'checks',options:()=>orgList('gs').filter(o=>o.active!==false).map(o=>[o.id,o.name])},
   {key:'_svNew',label:'Đơn vị giám sát chưa có trong danh mục (gõ tên để thêm; nhiều đơn vị cách nhau dấu ;)',full:true}]; }
-const pkgOrgValue=k=>({_ct:(orgOf((k.contractorIds||[])[0])||{}).name||'', _jv:(k.contractorIds||[]).slice(1), _sv:(k.supervisorIds||[]).slice(), _svNew:''});
+const pkgOrgValue=k=>({_ct:(k.contractorIds||[])[0]||'', _jv:(k.contractorIds||[]).slice(1), _sv:(k.supervisorIds||[]).slice(), _svNew:''});
 async function orgByName(name, kind){ name=String(name||'').replace(/\s+/g,' ').trim(); if(!name) return null;
   const o=D('orgs').find(x=>x.kind===kind && (normKey(x.name)===normKey(name)||normKey(x.shortName)===normKey(name)));
   return o || save('orgs',{name, kind, active:true}); }
 async function pkgOrgApply(v){
-  const lead=await orgByName(v._ct,'nt');
+  const lead=await orgResolve(v._ct);
   v.contractorIds=lead? [lead.id, ...(v._jv||[]).filter(id=>id!==lead.id)] : [];
   const sv=[...(v._sv||[])]; for(const n of String(v._svNew||'').split(';')){ const o=await orgByName(n,'gs'); if(o && !sv.includes(o.id)) sv.push(o.id); }
   v.supervisorIds=sv; if(v.contractorIds.length<2) v.jointVenture='';

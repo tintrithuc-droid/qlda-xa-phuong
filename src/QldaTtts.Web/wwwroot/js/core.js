@@ -522,6 +522,13 @@ function fieldHTML(f, v, rec={}){
     case 'files': input=`<input id="${id}" type="file" ${f.multiple?'multiple':''} accept="${esc(f.accept||'')}">${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break;
     case 'attach': input=attachHTML(f, rec); break;
     case 'html': input=f.html; break;
+    /* Bản 1.8.3: chọn đơn vị từ danh mục (nhà thầu, đơn vị giám sát); chưa có thì bấm "+ Thêm" nhập ngay tại chỗ, lưu vào danh mục */
+    case 'org': { const list=D('orgs').filter(o=>o.kind===(f.kind||'nt') && (o.active!==false || o.id===val)).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
+      const what=f.kind==='gs'?'đơn vị giám sát':'nhà thầu';
+      input=`<div class="orgpick" id="${id}"><div class="orgpick-row"><select id="${id}_s" aria-label="${esc(f.label)}">${opts(list.map(o=>[o.id,o.name+(o.shortName?' ('+o.shortName+')':'')]),val,'— Chọn từ danh mục '+what+' —')}</select><button type="button" class="btn sm" data-orgnew>+ Thêm ${what}</button></div>
+        <div class="orgnew" hidden><div class="small muted">${esc(what.charAt(0).toUpperCase()+what.slice(1))} mới, được lưu vào danh mục ${what}:</div>
+        <input id="${id}_n" type="text" placeholder="Tên đầy đủ theo giấy chứng nhận đăng ký doanh nghiệp, hoặc tên liên danh"><div class="orgnew-2"><input id="${id}_sn" type="text" placeholder="Tên viết tắt"><input id="${id}_mst" type="text" placeholder="Mã số thuế"></div>
+        ${f.kind==='gs'?'':`<label class="small"><input type="checkbox" id="${id}_m"> Thành viên hệ sinh thái</label>`}<button type="button" class="btn sm ghost" data-orgback>← Chọn từ danh mục</button></div></div>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
     default: { const sg=fieldSuggest(f);
       input=`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(f.ph||'')}"${sg.length?` list="${id}_dl" autocomplete="off"`:''}>${sg.length?`<datalist id="${id}_dl">${sg.map(o=>`<option value="${esc(o)}"></option>`).join('')}</datalist><div class="chips" data-chips-for="${id}">${sg.slice(0,12).map(o=>`<button type="button" class="chip${o===val?' on':''}" data-chip="${esc(o)}" title="Chọn nhanh">${esc(o)}</button>`).join('')}</div>`:''}${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; }
   }
@@ -542,6 +549,9 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
   fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
+  fields.filter(f=>f.type==='org').forEach(f=>{ const box=$('#f_'+f.key); if(!box) return; const nb=$('.orgnew',box), row=$('.orgpick-row',box);
+    const mode=on=>{ nb.hidden=!on; row.hidden=on; if(on) setTimeout(()=>$('#f_'+f.key+'_n').focus(),20); };
+    box.addEventListener('click',e=>{ if(e.target.closest('[data-orgnew]')){ e.preventDefault(); mode(true); } else if(e.target.closest('[data-orgback]')){ e.preventDefault(); mode(false); } }); });
   ov.querySelectorAll('[data-chips-for]').forEach(box=>{ const inp=$('#'+box.dataset.chipsFor); const mark=()=>box.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', normKey(c.dataset.chip)===normKey(inp.value)));
     box.addEventListener('click',e=>{ const c=e.target.closest('[data-chip]'); if(!c) return; e.preventDefault(); inp.value=c.dataset.chip; inp.dispatchEvent(new Event('input',{bubbles:true})); mark(); }); inp.addEventListener('input',mark); });
   /* Ô chọn phụ thuộc ô khác (dep): đổi ô gốc thì nạp lại danh sách */
@@ -555,6 +565,11 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
       if(f.type==='html') continue;
       const el=$('#f_'+f.key);
       if(f.type==='attach'){ const n=el._keep()+el._files.length; if(f.req && !n){ err.textContent='Vui lòng đính kèm "'+f.label+'".'; return; } continue; }
+      if(f.type==='org'){ const nb=$('.orgnew',el);
+        if(!nb.hidden){ const nm=$('#f_'+f.key+'_n').value.replace(/\s+/g,' ').trim(); if(!nm){ err.textContent='Vui lòng nhập tên '+(f.kind==='gs'?'đơn vị giám sát':'nhà thầu')+' mới.'; $('#f_'+f.key+'_n').focus(); return; }
+          v[f.key]={_new:{name:nm, shortName:$('#f_'+f.key+'_sn').value.trim(), taxCode:$('#f_'+f.key+'_mst').value.trim(), member:!!($('#f_'+f.key+'_m')||{}).checked, kind:f.kind||'nt'}}; }
+        else v[f.key]=$('#f_'+f.key+'_s').value;
+        if(f.req && !v[f.key]){ err.textContent='Vui lòng chọn "'+f.label+'".'; return; } continue; }
       if(f.type==='checks') v[f.key]=$$('input:checked',el).map(i=>i.value);
       else if(f.type==='files') v[f.key]=[...el.files];
       else if(f.type==='password') v[f.key]=el.value;

@@ -1044,6 +1044,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
+                    b.Property<bool>("Member")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(300)

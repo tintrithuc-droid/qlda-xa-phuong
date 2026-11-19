@@ -156,6 +156,8 @@ public class Organization : EntityBase
     [MaxLength(200)] public string? ContactName { get; set; }
     [MaxLength(50)] public string? ContactPhone { get; set; }
     public bool Active { get; set; } = true;
+    /// <summary>Bản 1.8.3: đơn vị thành viên của hệ sinh thái (Tổng quan lọc, báo cáo riêng theo đơn vị thành viên).</summary>
+    public bool Member { get; set; }
     public string? Note { get; set; }
 }
 

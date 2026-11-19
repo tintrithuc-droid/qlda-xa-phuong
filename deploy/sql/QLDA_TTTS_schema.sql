@@ -1026,3 +1026,334 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261105035359_DuyetTienDo'
+)
+BEGIN
+    ALTER TABLE [ScheduleItems] ADD [Status] nvarchar(50) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261105035359_DuyetTienDo'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261105035359_DuyetTienDo', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261106082748_DotNghiemThu'
+)
+BEGIN
+    ALTER TABLE [VolumeEntries] ADD [BatchId] nvarchar(64) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261106082748_DotNghiemThu'
+)
+BEGIN
+    CREATE TABLE [VolumeBatches] (
+        [Id] nvarchar(64) NOT NULL,
+        [ContractId] nvarchar(64) NULL,
+        [Name] nvarchar(100) NOT NULL,
+        [Number] nvarchar(200) NULL,
+        [Date] date NULL,
+        [Note] nvarchar(max) NULL,
+        [Status] nvarchar(50) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_VolumeBatches] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261106082748_DotNghiemThu'
+)
+BEGIN
+    CREATE INDEX [IX_VolumeEntries_BatchId] ON [VolumeEntries] ([BatchId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261106082748_DotNghiemThu'
+)
+BEGIN
+    CREATE INDEX [IX_VolumeBatches_ContractId] ON [VolumeBatches] ([ContractId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261106082748_DotNghiemThu'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261106082748_DotNghiemThu', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [MustChangePassword] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [OrgId] nvarchar(64) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [PaymentPlans] ADD [Status] nvarchar(50) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [Packages] ADD [ContractorIds] nvarchar(max) NOT NULL DEFAULT N'[]';
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [Packages] ADD [JointVenture] nvarchar(300) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [Packages] ADD [Phase] nvarchar(10) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [Packages] ADD [SupervisorIds] nvarchar(max) NOT NULL DEFAULT N'[]';
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [LegalDocuments] ADD [Status] nvarchar(50) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [Contracts] ADD [Status] nvarchar(50) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [BoqItems] ADD [Section] nvarchar(300) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [ApprovalLogs] ADD [Assignee] nvarchar(64) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [ApprovalLogs] ADD [AssigneeName] nvarchar(200) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [ApprovalLogs] ADD [Due] date NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [ApprovalLogs] ADD [Route] nvarchar(max) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    ALTER TABLE [ApprovalLogs] ADD [Step] nvarchar(20) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    CREATE TABLE [Organizations] (
+        [Id] nvarchar(64) NOT NULL,
+        [Kind] nvarchar(10) NOT NULL,
+        [Name] nvarchar(300) NOT NULL,
+        [ShortName] nvarchar(100) NULL,
+        [TaxCode] nvarchar(20) NULL,
+        [Address] nvarchar(500) NULL,
+        [Phone] nvarchar(50) NULL,
+        [Email] nvarchar(200) NULL,
+        [Representative] nvarchar(200) NULL,
+        [RepTitle] nvarchar(100) NULL,
+        [BankAccount] nvarchar(50) NULL,
+        [BankName] nvarchar(200) NULL,
+        [CertNo] nvarchar(100) NULL,
+        [CertGrade] nvarchar(50) NULL,
+        [CertDate] date NULL,
+        [Field] nvarchar(300) NULL,
+        [ContactName] nvarchar(200) NULL,
+        [ContactPhone] nvarchar(50) NULL,
+        [Active] bit NOT NULL,
+        [Note] nvarchar(max) NULL,
+        [UpdatedAt] datetime2 NULL,
+        [UpdatedBy] nvarchar(64) NULL,
+        CONSTRAINT [PK_Organizations] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261117120154_NangCapTheoTTTS'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261117120154_NangCapTheoTTTS', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261119022241_KhachHangDuocXem'
+)
+BEGIN
+    ALTER TABLE [UserGroups] ADD [AssignedOnly] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261119022241_KhachHangDuocXem'
+)
+BEGIN
+    ALTER TABLE [Projects] ADD [ViewerIds] nvarchar(max) NOT NULL DEFAULT N'[]';
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261119022241_KhachHangDuocXem'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261119022241_KhachHangDuocXem', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261119141726_DonViThanhVien'
+)
+BEGIN
+    ALTER TABLE [Organizations] ADD [Member] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261119141726_DonViThanhVien'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261119141726_DonViThanhVien', N'8.0.11');
+END;
+GO
+
+COMMIT;
+GO
+

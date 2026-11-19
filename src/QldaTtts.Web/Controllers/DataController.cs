@@ -17,6 +17,12 @@ public class DataController : ApiControllerBase
     private static bool Scoped(EntityBase e) => ProjectScope.Scoped(e);
     private Task<string?> PackageOf(EntityBase e) => ProjectScope.PackageOf(Db, e);
 
+    /// <summary>Tập dữ liệu chỉ gửi cho nhóm được xem phân hệ tương ứng.</summary>
+    private static readonly Dictionary<string, string> Private = new()
+    {
+        ["capitals"] = "von", ["settlements"] = "quyet-toan", ["clearances"] = "gpmb", ["diaries"] = "nhat-ky", ["payplans"] = "thanh-toan",
+    };
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -36,17 +42,21 @@ public class DataController : ApiControllerBase
             IHasContract hc => Uc.InScope(hc.ContractId != null && contractProject.TryGetValue(hc.ContractId, out var pid) ? pid : null) && InPkg(e),
             _ => true
         };
+        // Phân hệ nhóm không được xem (vốn, quyết toán, giải phóng mặt bằng, nhật ký, kế hoạch thanh toán) thì máy chủ không gửi dữ liệu,
+        // để tài khoản người ngoài (nhà thầu, khách hàng) không đọc được qua trình duyệt. Các tập dữ liệu dùng chung để tính tiến độ vẫn gửi.
+        bool Hidden(string col) => Private.TryGetValue(col, out var mod) && !Uc.Can(mod);
         var result = new Dictionary<string, object>();
         foreach (var def in Collections.All)
         {
+            if (Hidden(def.Name)) { result[def.Name] = new List<object>(); continue; }
             // Sắp theo mã để thứ tự ổn định trên mọi CSDL (PostgreSQL không giữ thứ tự dòng sau khi cập nhật)
             var list = await def.Query(Db).AsNoTracking().OrderBy(e => e.Id).ToListAsync();
-            result[def.Name] = list.Where(Visible).Where(e => e is not Guide g || Uc.SeesGuide(g)).Cast<object>().ToList();
+            result[def.Name] = list.Where(Visible).Where(e => e is not Guide g || Uc.SeesGuide(g)).Where(e => e is not ApprovalLog a || !Hidden(a.Collection)).Cast<object>().ToList();
         }
         var hiddenGuides = (await Db.Guides.AsNoTracking().ToListAsync()).Where(g => !Uc.SeesGuide(g)).Select(g => g.Id).ToHashSet();
         // Tệp đính kèm (không gồm thùng rác) trong phạm vi dự án được giao
         result["attachments"] = (await Db.Attachments.AsNoTracking().Where(a => a.DeletedAt == null).OrderBy(a => a.UploadedAt).ToListAsync())
-            .Where(a => a.Collection == "guides" ? !hiddenGuides.Contains(a.RecordId) : Uc.InScope(a.ProjectId)).Cast<object>().ToList();
+            .Where(a => a.Collection == "guides" ? !hiddenGuides.Contains(a.RecordId) : Uc.InScope(a.ProjectId) && !Hidden(a.Collection)).Cast<object>().ToList();
         if (Uc.Can("quan-tri"))
         {
             result["users"] = await Db.Users.AsNoTracking().OrderBy(u => u.Username).Cast<object>().ToListAsync();

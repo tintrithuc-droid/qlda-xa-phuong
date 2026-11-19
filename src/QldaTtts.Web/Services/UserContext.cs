@@ -43,8 +43,17 @@ public class UserContext
             Packages = mine.Select(k => k.Id).ToHashSet();
             _orgProjects = mine.Where(k => k.ProjectId is not null).Select(k => k.ProjectId!).ToHashSet();
         }
+        // Bản 1.8.2: nhóm "chỉ thấy dự án được gán" (khách hàng): chỉ các dự án có tài khoản này trong danh sách người được xem
+        if (User is not null && Group is { Admin: false, AssignedOnly: true })
+        {
+            var uid = User.Id;
+            _assigned = (await _db.Projects.AsNoTracking().Select(p => new { p.Id, p.ViewerIds }).ToListAsync())
+                .Where(p => p.ViewerIds.Contains(uid)).Select(p => p.Id).ToHashSet();
+        }
         return this;
     }
+
+    private HashSet<string>? _assigned;
 
     public bool IsAdmin => Group?.Admin == true;
 
@@ -63,7 +72,14 @@ public class UserContext
     public bool InPackage(string? packageId) => Packages is null || string.IsNullOrEmpty(packageId) || Packages.Contains(packageId);
 
     /// <summary>null = được khai thác tất cả dự án.</summary>
-    public HashSet<string>? Scope => _orgProjects ?? (Group is null || Group.Admin || Group.Scope.Count == 0 ? null : Group.Scope.ToHashSet());
+    public HashSet<string>? Scope { get { if (!_scopeDone) { _scope = BuildScope(); _scopeDone = true; } return _scope; } }
+    private bool _scopeDone; private HashSet<string>? _scope;
+    private HashSet<string>? BuildScope()
+    {
+        var s = _orgProjects ?? (Group is null || Group.Admin || Group.Scope.Count == 0 ? null : Group.Scope.ToHashSet());
+        if (_assigned is null) return s;
+        return s is null ? _assigned : s.Where(_assigned.Contains).ToHashSet();
+    }
 
     public bool InScope(string? projectId) => Scope is null || (projectId is not null && Scope.Contains(projectId));
 

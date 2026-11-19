@@ -61,7 +61,7 @@ function renderNav(){
     if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`;
       html+=`<a href="#canh-bao" title="Trung tâm cảnh báo" class="${S.route==='canh-bao'?'on':''}">${ic('bell')}<span>Trung tâm cảnh báo</span>${al.length?`<span class="cnt">${al.length}</span>`:''}</a>`; }
   });
-  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#" data-act="appearance">${ic('palette')}<span>Giao diện, màu sắc</span></a><a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Danh mục chức năng</span></a>`;
+  html+=`<div class="grp">Tiện ích</div><a href="#hien-truong" class="${S.route==='hien-truong'?'on':''}">${ic('phone')}<span>Hiện trường (di động)</span></a><a href="#huong-dan" class="${S.route==='huong-dan'?'on':''}">${ic('help')}<span>Hướng dẫn sử dụng</span></a><a href="#" data-act="appearance">${ic('palette')}<span>Giao diện, màu sắc</span></a>${can('quan-tri')?`<a href="#doi-chieu" class="${S.route==='doi-chieu'?'on':''}">${ic('check')}<span>Danh mục chức năng</span></a>`:''}`;
   $('#nav').innerHTML=html;
   $('#sidefoot').innerHTML=`Phiên bản ${APP_VERSION} · ${esc(BR.support)}`;
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
@@ -237,7 +237,7 @@ function renderPwFirst(){
 }
 function authBox(inner){ $('#root').innerHTML=`<div class="${authCls()}">${authArt()}<div class="box">${inner}<p class="auth-foot">${brandFoot()}</p></div></div>`; }
 const codeField=(label)=>`<div class="fld"><label for="mf_code">${label}</label><input id="mf_code" class="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required></div>`;
-function recoveryText(codes, user){ return `MÃ KHÔI PHỤC XÁC THỰC 2 LỚP – PHẦN MỀM QLDA TTTS\r\nTài khoản: ${user}\r\nTạo lúc: ${fmtDT(new Date().toISOString())}\r\n\r\nMỗi mã chỉ dùng được một lần, khi không có điện thoại để lấy mã 6 số.\r\nCất giữ nơi an toàn, không chia sẻ cho người khác.\r\n\r\n${codes.map((c,i)=>String(i+1).padStart(2,' ')+'. '+c).join('\r\n')}\r\n`; }
+function recoveryText(codes, user){ return `MÃ KHÔI PHỤC XÁC THỰC 2 LỚP – ${String(BR.appName||"PHẦN MỀM QUẢN LÝ DỰ ÁN").toUpperCase()}\r\nTài khoản: ${user}\r\nTạo lúc: ${fmtDT(new Date().toISOString())}\r\n\r\nMỗi mã chỉ dùng được một lần, khi không có điện thoại để lấy mã 6 số.\r\nCất giữ nơi an toàn, không chia sẻ cho người khác.\r\n\r\n${codes.map((c,i)=>String(i+1).padStart(2,' ')+'. '+c).join('\r\n')}\r\n`; }
 function codesHtml(codes){ return `<ol class="rcodes">${codes.map(c=>`<li><code>${esc(c)}</code></li>`).join('')}</ol>`; }
 function printCodes(codes, user){ const w=window.open('','_blank'); if(!w) return toast('Trình duyệt chặn cửa sổ in. Hãy dùng nút Tải tệp.','err'); w.document.write(`<title>Ma khoi phuc</title><pre style="font:15px/1.7 monospace;padding:24px">${esc(recoveryText(codes,user))}</pre>`); w.document.close(); w.focus(); w.print(); }
 function renderMfa(){
@@ -314,7 +314,7 @@ const STATUS_COL = {'Chuẩn bị đầu tư':'var(--c3)','Đang lựa chọn nh
 VIEWS['tong-quan']=()=>{
   const ps=projects().filter(p=>!S.pid||p.id===S.pid); const pids=ps.map(p=>p.id);
   const cs=D('contracts').filter(c=>pids.includes(contractPid(c)));
-  const tm=sum(ps,'tmdt'), cv=sum(cs,contractValue), done=sum(cs,c=>contractDone(c.id)), acc=sum(cs,c=>contractAcc(c.id)), paid=sum(cs,c=>contractPaid(c.id));
+  const tm=sum(ps,'tmdt'), cv=sum(cs,contractValue), done=sum(cs,contractDoneEst), acc=sum(cs,c=>contractAcc(c.id)), paid=sum(cs,c=>contractPaid(c.id));
   const al=alerts(); const nb=al.filter(a=>a.lvl==='bad').length;
   const Y=TODAY.slice(0,4), py=sum(ps,p=>capPlan(p.id,Y)), dy=sum(ps,p=>disbursed(p.id,Y)), tgy=py? sum(ps,p=>capPlan(p.id,Y)*capTargetAt(p.id,Y))/py : 0;
   const stats=catalog('Trạng thái dự án'); const extra=[...new Set(ps.map(p=>p.status))].filter(s=>!stats.includes(s));
@@ -322,7 +322,14 @@ VIEWS['tong-quan']=()=>{
   const pk=D('packages').filter(k=>pids.includes(k.projectId) && SCHED().some(s=>s.packageId===k.id)).sort(by('code'));
   const sc=sCurve(SCHED().filter(s=>pids.includes(s.projectId)));
   const tasks=D('tasks').filter(t=>pids.includes(t.projectId) && t.status!=='Hoàn thành').sort(by('due')).slice(0,6);
-  const pjRows=ps.map(p=>{ const c=D('contracts').filter(c=>contractPid(c)===p.id); return {...p, cv:sum(c,contractValue), paid:sum(c,x=>contractPaid(x.id)), prog:projProgress(p.id), exp:projExpected(p.id)}; });
+  const pjRows=ps.map(p=>{ const c=D('contracts').filter(c=>contractPid(c)===p.id); return {...p, cv:sum(c,contractValue), paid:sum(c,x=>contractPaid(x.id)), done:sum(c,contractDoneEst), acc:sum(c,x=>contractAcc(x.id)), prog:projProgress(p.id), exp:projExpected(p.id)}; });
+  // Đơn vị có nhiều dự án, gói thầu: biểu đồ cột chỉ vẽ tối đa 15 mục đáng chú ý nhất để đọc được
+  const TOP=15, multi=new Set(pk.map(k=>k.code)).size<pk.length;
+  const pkLabel=k=>multi||!S.pid&&pids.length>1? `${(projOf(k.projectId)||{}).code||''} ${k.code}`.trim() : k.code;
+  const pkTop=pk.length<=TOP? pk : pk.map(k=>({k, gap:pkgExpected(k.id)-pkgProgress(k.id)})).sort((a,b)=>b.gap-a.gap).slice(0,TOP).map(x=>x.k).sort(by('code'));
+  const csTop=cs.length<=TOP? cs : [...cs].sort((a,b)=>contractValue(b)-contractValue(a)).slice(0,TOP);
+  const pjTop=pjRows.length<=TOP? pjRows : [...pjRows].sort((a,b)=>b.cv-a.cv).slice(0,TOP);
+  const fmtAxis=vals=>{ const m=Math.max(0,...vals); return m>=5e9? v=>fmtN(v/1e9,0)+' tỷ' : m>=5e6? v=>fmtN(v/1e6,0)+' tr' : v=>fmtN(v); };
   return `<div class="head"><div class="grow"><h1>Tổng quan tình hình thực hiện</h1><p>Số liệu tính đến ngày ${fmtDate(TODAY)}${S.pid?', dự án '+esc(projOf(S.pid)?.code):', gồm các dự án bạn được giao theo dõi'}</p></div></div>
   <div class="grid g5 kpis" style="grid-template-columns:repeat(5,minmax(0,1fr))">
     <div class="card kpi"><div class="eyebrow">Dự án</div><div class="v">${ps.length}</div><div class="s">${ps.filter(p=>p.status==='Đang thi công'||p.status==='Đang thực hiện').length} đang thực hiện</div></div>
@@ -333,11 +340,11 @@ VIEWS['tong-quan']=()=>{
   </div>
   <div class="grid g3">
     <div class="card"><h2>Dự án theo trạng thái</h2>${donutItems.length?donut(donutItems, ps.length):emptyBox('Chưa có dự án.')}</div>
-    <div class="card span2"><h2>Tiến độ gói thầu: kế hoạch và thực tế</h2>${pk.length?barChart({labels:pk.map(k=>k.code), series:[{name:'Kế hoạch đến nay',color:'var(--c5)',values:pk.map(k=>pkgExpected(k.id))},{name:'Thực tế',color:'var(--c1)',values:pk.map(k=>pkgProgress(k.id))}], max:100, fmt:v=>Math.round(v)+'%'}):emptyBox('Chưa có kế hoạch tiến độ.')}</div>
+    <div class="card span2"><h2>Tiến độ gói thầu: kế hoạch và thực tế${pk.length>pkTop.length?`<span class="small muted" style="font-weight:400"> (${pkTop.length} gói chậm nhất trong ${pk.length} gói)</span>`:''}</h2>${pk.length?barChart({labels:pkTop.map(pkLabel), series:[{name:'Kế hoạch đến nay',color:'var(--c5)',values:pkTop.map(k=>pkgExpected(k.id))},{name:'Thực tế',color:'var(--c1)',values:pkTop.map(k=>pkgProgress(k.id))}], max:100, fmt:v=>Math.round(v)+'%'}):emptyBox('Chưa có kế hoạch tiến độ.')}</div>
   </div>
   <div class="grid g2">
-    <div class="card"><h2>Giá trị hợp đồng và thực hiện hợp đồng</h2>${cs.length?barChart({labels:cs.map(c=>(pkgOf(c.packageId)||{}).code||c.number), series:[{name:'Giá trị HĐ',color:'var(--c5)',values:cs.map(contractValue)},{name:'Thực hiện',color:'var(--c1)',values:cs.map(c=>contractDone(c.id))},{name:'Đã thanh toán',color:'var(--c2)',values:cs.map(c=>contractPaid(c.id))}], fmt:v=>fmtN(v/1e9,0)+' tỷ'}):emptyBox('Chưa có hợp đồng.')}</div>
-    <div class="card"><h2>Khối lượng thực hiện, nghiệm thu và thanh toán</h2>${ps.length?barChart({labels:ps.map(p=>p.code), series:[{name:'Thực hiện',color:'var(--c1)',values:ps.map(p=>sum(D('contracts').filter(c=>contractPid(c)===p.id),c=>contractDone(c.id)))},{name:'Nghiệm thu',color:'var(--c3)',values:ps.map(p=>sum(D('contracts').filter(c=>contractPid(c)===p.id),c=>contractAcc(c.id)))},{name:'Thanh toán',color:'var(--c2)',values:ps.map(p=>sum(D('contracts').filter(c=>contractPid(c)===p.id),c=>contractPaid(c.id)))}], fmt:v=>fmtN(v/1e9,0)+' tỷ'}):''}</div>
+    <div class="card"><h2>Giá trị hợp đồng và thực hiện hợp đồng${cs.length>csTop.length?`<span class="small muted" style="font-weight:400"> (${csTop.length} hợp đồng lớn nhất)</span>`:''}</h2>${cs.length?barChart({labels:csTop.map(c=>{ const k=pkgOf(c.packageId); return k?pkLabel(k):c.number; }), series:[{name:'Giá trị HĐ',color:'var(--c5)',values:csTop.map(contractValue)},{name:'Thực hiện',color:'var(--c1)',values:csTop.map(contractDoneEst)},{name:'Đã thanh toán',color:'var(--c2)',values:csTop.map(c=>contractPaid(c.id))}], fmt:fmtAxis(csTop.map(contractValue))}):emptyBox('Chưa có hợp đồng.')}</div>
+    <div class="card"><h2>Khối lượng thực hiện, nghiệm thu và thanh toán${pjRows.length>pjTop.length?`<span class="small muted" style="font-weight:400"> (${pjTop.length} dự án có giá trị hợp đồng lớn nhất)</span>`:''}</h2>${ps.length?barChart({labels:pjTop.map(p=>p.code), series:[{name:'Thực hiện',color:'var(--c1)',values:pjTop.map(p=>p.done)},{name:'Nghiệm thu',color:'var(--c3)',values:pjTop.map(p=>p.acc)},{name:'Thanh toán',color:'var(--c2)',values:pjTop.map(p=>p.paid)}], fmt:fmtAxis(pjTop.map(p=>Math.max(p.done,p.acc,p.paid)))}):''}</div>
   </div>
   <div class="grid g2">
     <div class="card"><h2>So sánh kế hoạch và thực tế (đường cong S)</h2>${sc?lineChart({labels:sc.labels, series:[{name:'Kế hoạch lũy kế',color:'var(--c5)',values:sc.plan,dash:true},{name:'Thực tế lũy kế',color:'var(--c1)',values:sc.act,area:true}]}):emptyBox('Chưa có kế hoạch tiến độ.')}</div>
@@ -389,7 +396,13 @@ const projFields=()=>[
   {key:'mgmtForm',label:'Hình thức quản lý dự án',type:'select',options:()=>catalog('Hình thức quản lý dự án'),def:'Ban QLDA đầu tư xây dựng'},{key:'projectKind',label:'Loại dự án',type:'select',options:()=>catalog('Loại dự án')},
   {key:'reportType',label:'Hồ sơ dự án',type:'select',options:()=>catalog('Hồ sơ dự án')},
   {key:'owner',label:'Chủ đầu tư / Đại diện',def:BR.ownerDefault},{key:'location',label:'Địa điểm xây dựng'},
-  {key:'desc',label:'Quy mô, mô tả',type:'textarea'}];
+  {key:'desc',label:'Quy mô, mô tả',type:'textarea'},
+  {key:'viewerIds',label:'Tài khoản khách hàng được xem dự án',type:'checks',options:()=>viewerUsers().map(u=>[u.id,u.name+' ('+u.username+')']),
+    hint:viewerUsers().length?'Tài khoản khách hàng chỉ thấy các dự án được đánh dấu ở đây.':'Chưa có tài khoản khách hàng. Quản trị tạo tài khoản thuộc nhóm có thiết lập "Chỉ thấy dự án được gán cho tài khoản", sau đó gán tại đây.'}];
+/* Tài khoản thuộc nhóm "chỉ thấy dự án được gán" (khách hàng, chủ đầu tư) */
+const viewerGroups=()=>D('groups').filter(g=>g.assignedOnly && !g.admin).map(g=>g.id);
+const viewerUsers=()=>{ const gs=viewerGroups(); return D('users').filter(u=>gs.includes(u.groupId) && u.active!==false).sort(by('name')); };
+const viewerNames=p=>{ const gs=viewerGroups(); return (p.viewerIds||[]).map(id=>get('users',id)).filter(u=>u && gs.includes(u.groupId)).map(u=>u.name); };
 /* Văn bản pháp lý chính nhập ngay trong biểu mẫu (lưu thành hồ sơ pháp lý kèm tệp) */
 function findLegal(pid, kid, type){ return D('legal').filter(l=>l.projectId===pid && (l.packageId||'')===(kid||'') && l.type===type).sort(by('date'))[0]; }
 function legalInline(prefix, label, ctx, cur, opt={}){
@@ -449,7 +462,7 @@ function projectDetail(p){
   if(t==='info'){
     body=`<div class="grid g2"><div class="card"><dl class="kv">
       <dt>Mã dự án</dt><dd class="num">${esc(p.code)}</dd><dt>Nhóm dự án</dt><dd>${esc(p.group||'—')}</dd><dt>Giai đoạn</dt><dd>${esc(p.phase||'—')}</dd><dt>Trạng thái</dt><dd>${statusPill(p.status)}</dd>
-      <dt>Tổng mức đầu tư</dt><dd class="num">${fmtVND(p.tmdt)} đồng</dd><dt>Nguồn vốn</dt><dd>${esc(p.capital||'—')}</dd><dt>Chủ đầu tư</dt><dd>${esc(p.owner||'—')}</dd>
+      <dt>Tổng mức đầu tư</dt><dd class="num">${fmtVND(p.tmdt)} đồng</dd><dt>Nguồn vốn</dt><dd>${esc(p.capital||'—')}</dd><dt>Chủ đầu tư</dt><dd>${esc(p.owner||'—')}</dd>${viewerGroups().length?`<dt>Khách hàng được xem</dt><dd>${esc(viewerNames(p).join(', ')||'Chưa gán tài khoản nào')}</dd>`:''}
       <dt>Vai trò của Ban</dt><dd>${p.boardRole?pill(p.boardRole,'info'):'—'}</dd><dt>Người quyết định đầu tư</dt><dd>${esc(p.decisionMaker||'—')}</dd><dt>Hình thức quản lý</dt><dd>${esc(p.mgmtForm||'—')}</dd><dt>Loại dự án</dt><dd>${esc([p.projectKind,p.reportType].filter(Boolean).join(' · ')||'—')}</dd>
       <dt>Địa điểm</dt><dd>${esc(p.location||'—')}</dd><dt>Thời gian</dt><dd class="num">${fmtDate(p.start)} – ${fmtDate(p.end)}</dd><dt>Quyết định phê duyệt</dt><dd>${(()=>{ const l=findLegal(p.id,'','Quyết định phê duyệt dự án'); return l? `<span class="num">${esc(l.number)}</span> ngày ${fmtDate(l.date)}${l.issuer?' · '+esc(l.issuer):''}<div style="margin-top:4px">${attLinks(atts('legal',l.id))}</div>` : esc(p.decision||'—'); })()}</dd><dt>Quy mô</dt><dd>${esc(p.desc||'—')}</dd></dl></div>
       ${keyLegalCard(p)}

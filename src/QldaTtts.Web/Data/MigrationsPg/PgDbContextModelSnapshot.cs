@@ -1342,6 +1342,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("ViewerIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code");
@@ -1562,6 +1566,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasColumnType("character varying(64)");
 
                     b.Property<bool>("Admin")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AssignedOnly")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Desc")

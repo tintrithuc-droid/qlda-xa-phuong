@@ -251,12 +251,25 @@ const REPORTS = [
   ['tonghop','Báo cáo tổng hợp tình hình thực hiện dự án'],['tiendo','Báo cáo tiến độ thực hiện dự án và các gói thầu'],['hopdong','Báo cáo tình hình thực hiện hợp đồng'],
   ['khoiluong','Báo cáo khối lượng thực hiện, nghiệm thu và thanh toán'],['thoigian','Báo cáo tổng hợp theo dự án, gói thầu và thời gian'],
   ['giaingan','Báo cáo tình hình giải ngân kế hoạch vốn đầu tư công'],['quyettoan','Báo cáo tình hình quyết toán dự án hoàn thành']];
+/* Có đơn vị đánh dấu thành viên hệ sinh thái thì thêm thống kê theo đơn vị thực hiện */
+const RPT_UNIT=[['donvi','Thống kê theo đơn vị thực hiện'],['donvi-hd','Chi tiết hợp đồng theo đơn vị thực hiện']];
+const rptList=()=>memberOrgs().length? [...REPORTS, ...RPT_UNIT] : REPORTS;
+/* Hợp đồng chia theo đơn vị: làm riêng tính cả hợp đồng cho đơn vị; liên danh chia theo tỷ lệ liên danh, phần còn lại vào nhóm Liên danh.
+   Cộng các đơn vị luôn bằng tổng giá trị hợp đồng (không đếm hai lần) */
+function rptUnits(cs){ const ids=new Set(cs.map(c=>c.id)); const rs=tqRows({noUnit:true, noStage:true}).filter(c=>ids.has(c.id));
+  const bks=[...memberOrgs().map(o=>({id:o.id,l:unitLabel(o)})),{id:'jv',l:'Liên danh (phần còn lại)'},{id:'khac',l:'Đơn vị khác'}];
+  return bks.map(b=>({...b, parts:rs.flatMap(c=>ctAlloc(c).filter(x=>x.b===b.id).map(x=>({c, f:x.f})))})).filter(b=>b.parts.length); }
 function buildReport(type, f){
   const ps=projects().filter(p=>inFilter(p.id) && (!f.pid||p.id===f.pid));
   const pids=ps.map(p=>p.id);
   const ks=D('packages').filter(k=>pids.includes(k.projectId) && (!f.kid||k.id===f.kid));
   const cs=D('contracts').filter(c=>ks.some(k=>k.id===c.packageId));
   const upto=f.to||null;
+  if(type==='donvi') return {head:['Đơn vị thực hiện','Số hợp đồng','Đang thực hiện','Đã hoàn thành','Giá trị hợp đồng (phần của đơn vị)','Đã thanh toán','Còn lại','Đã thanh toán (%)'], money:[4,5,6],
+    rows:rptUnits(cs).map(b=>{ const v=sum(b.parts,x=>contractValue(x.c)*x.f), pd=sum(b.parts,x=>ctPaidCap(x.c)*x.f); return [b.l, b.parts.length, b.parts.filter(x=>!ctDone(x.c)).length, b.parts.filter(x=>ctDone(x.c)).length, v, pd, v-pd, +pct(pd,v).toFixed(2)]; })};
+  if(type==='donvi-hd') return {head:['Đơn vị thực hiện','Dự án','Gói thầu','Số hợp đồng','Năm hiệu lực','Trạng thái','Tỷ lệ của đơn vị (%)','Giá trị hợp đồng','Giá trị phần của đơn vị','Đã thanh toán','Còn lại'], money:[7,8,9,10], total:[8,9,10],
+    rows:rptUnits(cs).flatMap(b=>b.parts.sort((x,y)=>String((projOf(contractPid(x.c))||{}).code).localeCompare(String((projOf(contractPid(y.c))||{}).code))).map(x=>{ const c=x.c, v=contractValue(c)*x.f, pd=ctPaidCap(c)*x.f;
+      return [b.l, (projOf(contractPid(c))||{}).code||'', (pkgOf(c.packageId)||{}).code||'', c.number||'', ctYear(c)||'', ctDone(c)?'Đã hoàn thành':tqLate(c)?'Đang thực hiện, quá hạn':'Đang thực hiện', +(x.f*100).toFixed(2), contractValue(c), v, pd, v-pd]; }))};
   if(type==='tonghop') return {head:['Mã dự án','Tên dự án','Trạng thái','Tổng mức đầu tư','Số gói thầu','Giá trị hợp đồng','Giá trị thực hiện','Giá trị nghiệm thu','Đã thanh toán','Giải ngân/TMĐT (%)','Tiến độ thực tế (%)','Tiến độ kế hoạch (%)'], money:[3,5,6,7,8],
     rows:ps.map(p=>{ const c=cs.filter(x=>contractPid(x)===p.id); return [p.code,p.name,p.status,N(p.tmdt),ks.filter(k=>k.projectId===p.id).length,sum(c,contractValue),sum(c,x=>contractDone(x.id,upto)),sum(c,x=>contractAcc(x.id,upto)),sum(c,x=>contractPaid(x.id,upto)),+pct(sum(c,x=>contractPaid(x.id,upto)),p.tmdt).toFixed(2),+projProgress(p.id).toFixed(1),+projExpected(p.id).toFixed(1)]; })};
   if(type==='tiendo'){ const ss=SCHED().filter(s=>ks.some(k=>k.id===s.packageId)).sort((a,b)=>((pkgOf(a.packageId)||{}).code+a.planStart).localeCompare((pkgOf(b.packageId)||{}).code+b.planStart));
@@ -292,20 +305,20 @@ VIEWS['bao-cao']=()=>{
   const R=buildReport(type,f); const q=S.f.bcq||''; const rows=R.rows.filter(r=>!q||norm(r.join(' ')).includes(norm(q)));
   const money=R.money||[]; const isNum=(v)=>typeof v==='number';
   const tc=rptTotalCols(R); const totals=R.head.map((h,i)=> i===0?'Tổng cộng': tc.includes(i)? fmtVND(sum(rows,r=>r[i])) : '');
-  const title=REPORTS.find(r=>r[0]===type)[1];
+  const title=(rptList().find(r=>r[0]===type)||REPORTS[0])[1]; const isU=type.startsWith('donvi');
   return `<div class="head"><div class="grow"><h1>Báo cáo, thống kê</h1><p>Chọn loại báo cáo, lọc theo dự án, gói thầu, thời gian rồi in hoặc xuất ra Excel, PDF, CSV</p></div><div class="toolbar" style="margin:0"><button class="btn" data-act="export-report-pdf" title="Mở hộp thoại in; chọn máy in hoặc Lưu thành PDF">In / Xuất PDF</button><button class="btn" data-act="export-report-csv">Xuất CSV</button><button class="btn" data-act="export-report-json" title="Tệp dữ liệu JSON để chia sẻ, liên thông với phần mềm khác">Xuất JSON</button><button class="btn primary" data-act="export-report">Xuất Excel</button></div></div>
-  <div class="card"><div class="toolbar filters"><select data-f="bct" aria-label="Loại báo cáo" style="flex:1 1 320px;max-width:520px">${opts(REPORTS,type)}</select>
+  <div class="card"><div class="toolbar filters"><select data-f="bct" aria-label="Loại báo cáo" style="flex:1 1 320px;max-width:520px">${opts(rptList(),type)}</select>${isU?tqFilterBar():''}
     ${!S.pid?`<select data-f="bcp" aria-label="Dự án">${opts(projOpts(),f.pid,'Tất cả dự án')}</select>`:''}<select data-f="bck" aria-label="Gói thầu">${opts(pkgOpts(f.pid),f.kid,'Tất cả gói thầu')}</select>
-    <label class="small muted">Từ <input type="date" data-f="bcf" value="${esc(f.from)}"></label><label class="small muted">Đến <input type="date" data-f="bctt" value="${esc(f.to)}"></label><input type="search" data-f="bcq" value="${esc(q)}" placeholder="Tra cứu trong báo cáo…" aria-label="Tra cứu"></div></div>
-  <div class="card"><div class="ch"><h2>${esc(title)}</h2><span class="small muted">${rows.length} dòng, lập ngày ${fmtDate(TODAY)}${f.from||f.to?', kỳ báo cáo '+fmtDate(f.from)+' – '+fmtDate(f.to):''}</span></div>
+    ${isU?"":`<label class="small muted">Từ <input type="date" data-f="bcf" value="${esc(f.from)}"></label><label class="small muted">Đến <input type="date" data-f="bctt" value="${esc(f.to)}"></label>`}<input type="search" data-f="bcq" value="${esc(q)}" placeholder="Tra cứu trong báo cáo…" aria-label="Tra cứu"></div></div>
+  <div class="card"><div class="ch"><h2>${esc(title)}</h2><span class="small muted">${rows.length} dòng, lập ngày ${fmtDate(TODAY)}${f.from||f.to?', kỳ báo cáo '+fmtDate(f.from)+' – '+fmtDate(f.to):''}${isU?', '+esc(tqFilterText()):''}</span></div>${isU?'<p class="small muted" style="margin:0 0 8px">Hợp đồng làm riêng tính trọn cho đơn vị thực hiện; hợp đồng liên danh chia theo tỷ lệ liên danh của gói thầu, phần của đơn vị ngoài hệ sinh thái hoặc chưa có tỷ lệ nằm ở dòng Liên danh. Cộng các dòng bằng tổng giá trị hợp đồng.</p>':''}
   ${rows.length?`<div class="tw"><table><thead><tr>${R.head.map((h,i)=>`<th class="${isNum(R.rows[0]&&R.rows[0][i])?'r':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((v,i)=>`<td class="${isNum(v)?'r':''}">${isNum(v)?(money.includes(i)?fmtVND(v):fmtN(v,2)):esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>${money.length?`<tfoot><tr>${totals.map((t,i)=>`<td class="${money.includes(i)?'r':''}">${t}</td>`).join('')}</tr></tfoot>`:''}</table></div>`:emptyBox('Không có số liệu phù hợp bộ lọc.')}</div>`;
 };
 /** Số liệu báo cáo đang xem (cùng bộ lọc, tra cứu trên màn hình) để xuất Excel, PDF, CSV. */
 function reportNow(){
   const type=S.f.bct||'tonghop'; const f=rptFilter();
   const R=buildReport(type,f); const q=S.f.bcq||''; const rows=R.rows.filter(r=>!q||norm(r.join(' ')).includes(norm(q)));
-  const name=REPORTS.find(r=>r[0]===type)[1];
-  const sub=BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(f.pid?' · '+(projOf(f.pid)||{}).code:'')+(f.from||f.to?' · Kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):'');
+  const name=(rptList().find(r=>r[0]===type)||REPORTS[0])[1];
+  const sub=BR.reportOrg+(type.startsWith('donvi')?' · '+tqFilterText():'')+' · Lập ngày '+fmtDate(TODAY)+(f.pid?' · '+(projOf(f.pid)||{}).code:'')+(f.from||f.to?' · Kỳ '+fmtDate(f.from)+' – '+fmtDate(f.to):'');
   const money=R.money||[]; const tc=rptTotalCols(R); const tot=R.head.map((h,i)=>i===0?'Tổng cộng':tc.includes(i)?sum(rows,r=>r[i]):'');
   return {type, f, R, rows, name, title:name.toUpperCase(), sub, money, tot};
 }

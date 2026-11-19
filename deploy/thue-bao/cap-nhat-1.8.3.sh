@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Cập nhật máy chủ thuê bao (.22) lên bản 1.8.3 (Tổng quan hệ sinh thái, nhà thầu theo danh mục, tỷ lệ liên danh). Chạy bằng root:
 # Có tệp gan_nha_thau.sql cạnh tệp này thì sau khi lên bản mới sẽ nạp danh mục nhà thầu cho xã trithuc (chạy lại không tạo trùng).
-#   bash cap-nhat-1.8.3.sh qlda-src-a3471e8.tar.gz   (tệp nén tạo bằng: git archive --format=tar.gz -o qlda-src-a3471e8.tar.gz a3471e8)
+#   bash cap-nhat-1.8.3.sh qlda-src-<mã>.tar.gz <mã>   (bản vá 1.8.3 sau này: cùng lệnh, đổi mã commit)   (tệp nén tạo bằng: git archive --format=tar.gz -o qlda-src-a3471e8.tar.gz a3471e8)
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-TGZ=${1:-qlda-src-a3471e8.tar.gz}; TAG=a3471e8; DIR=/opt/qlda-thue-bao; SRC=/opt/qlda-src-$TAG; APP=qlda-thue-bao-app-1
+TGZ=${1:-qlda-src-a3471e8.tar.gz}; TAG=${2:-a3471e8}; DIR=/opt/qlda-thue-bao; SRC=/opt/qlda-src-$TAG; APP=qlda-thue-bao-app-1
 [[ -f "$TGZ" ]] || { echo "Không thấy $TGZ"; exit 1; }
 echo "== 1. Giải nén mã nguồn vào $SRC"; mkdir -p "$SRC"; tar xzf "$TGZ" -C "$SRC"
 echo "== 2. Giữ bộ HDSD đang chạy (PDF không có trong mã nguồn)"
 rm -rf "$SRC/src/QldaTtts.Web/hdsd"; docker cp "$APP:/app/hdsd" "$SRC/src/QldaTtts.Web/hdsd" && ls "$SRC/src/QldaTtts.Web/hdsd" | head
 echo "== 3. Dựng ảnh qlda-xa-phuong:$TAG (vài phút)"; docker build -q -t "qlda-xa-phuong:$TAG" "$SRC"
 echo "== 4. Giữ bản đang chạy để quay về: qlda-xa-phuong:truoc-cap-nhat-183"
-docker commit "$APP" qlda-xa-phuong:truoc-cap-nhat-183 >/dev/null
+docker image inspect qlda-xa-phuong:truoc-cap-nhat-183 >/dev/null 2>&1 && echo "(Đã có ảnh trước cập nhật 1.8.3, giữ nguyên để quay về bản 1.8.2)" || docker commit "$APP" qlda-xa-phuong:truoc-cap-nhat-183 >/dev/null
 echo "== 5. Sao lưu dữ liệu"; bash "$DIR/sao-luu.sh" </dev/null || echo "(Sao lưu báo lỗi, xem lại trước khi tiếp tục)"
 echo "== 6. Chạy bản mới"
 cd "$DIR"; cp .env ".env.bak-183"

@@ -11,3 +11,4 @@ dist/
 src/QldaTtts.Web/hdsd/
 .pub/
 .pubwin/
+out/

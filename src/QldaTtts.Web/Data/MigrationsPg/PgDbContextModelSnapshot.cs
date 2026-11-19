@@ -1102,6 +1102,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ContractorShares")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Duration")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");

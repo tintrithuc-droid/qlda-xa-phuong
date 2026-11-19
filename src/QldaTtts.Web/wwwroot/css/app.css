@@ -640,3 +640,6 @@ tbody tr.grp td{background:var(--panel2); font-weight:700; color:var(--ink); bor
 .orgnew-2{display:grid; grid-template-columns:2fr 1fr; gap:8px}
 .orgnew .btn{justify-self:start}
 @media (max-width:820px){ .orgpick-row{flex-wrap:wrap} .orgpick-row .btn{flex:1 1 100%} .orgnew-2{grid-template-columns:1fr} }
+.shbox{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center}
+.shrow{display:flex; align-items:center; gap:8px; font-size:13px}
+.shrow input{width:90px}

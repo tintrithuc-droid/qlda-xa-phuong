@@ -68,7 +68,22 @@ function pkgForm(k){
     ctx.kh=await legalInlineSave('kh', v, kh, {...base, type:'Kế hoạch lựa chọn nhà thầu', title:(kh&&kh.title)||'Phê duyệt KHLCNT gói '+r.code, ...(kh?{issuer:kh.issuer}:{})});
     ctx.kq=await legalInlineSave('kq', v, kq, {...base, type:'Kết quả lựa chọn nhà thầu', title:(kq&&kq.title)||'Phê duyệt kết quả LCNT gói '+r.code, ...(kq?{issuer:kq.issuer}:{})});
     return r; }});
+  pkgShareWire(k||{});
 }
+/* Ô tỷ lệ liên danh: hiện một ô cho mỗi thành viên đang chọn (đứng đầu + thành viên khác), cập nhật khi đổi lựa chọn */
+function pkgShareWire(k){ const box=$('#f__shbox'); if(!box) return; const cur={...(k.contractorShares||{})};
+  const read=()=>{ $$('input[data-org]',box).forEach(i=>{ const id=i.dataset.org==='_lead'?'_lead':i.dataset.org; cur[id]=i.value; }); };
+  const draw=()=>{ read(); const sel=$('#f__ct_s'), nb=$('#f__ct .orgnew'); const leadNew=nb && !nb.hidden; const lead=leadNew?'_lead':(sel&&sel.value)||'';
+    const ids=[lead, ...$$('#f__jv input:checked').map(i=>i.value).filter(id=>id!==lead)].filter(Boolean);
+    if(ids.length<2){ box.innerHTML='<span class="small muted">Gói liên danh (đứng đầu và thành viên khác): nhập tỷ lệ liên danh của từng thành viên ở đây, cộng lại đúng 100%.</span>'; return; }
+    box.innerHTML=ids.map(id=>{ const o=id==='_lead'? {name:($('#f__ct_n')||{}).value||'Nhà thầu mới'} : orgOf(id)||{}; const v=cur[id]??'';
+      return `<label class="shrow"><span>${esc(o.shortName||o.name||'')}</span><input type="number" step="0.01" min="0" max="100" data-org="${esc(id)}" value="${esc(v)}" placeholder="%"></label>`; }).join('')
+      + `<span class="small muted" id="f__shsum"></span>`; sum_(); };
+  const sum_=()=>{ const t=$$('input[data-org]',box).reduce((a,i)=>a+(Number(String(i.value).replace(',','.'))||0),0); const s=$('#f__shsum'); if(s) s.textContent='Cộng: '+fmtP(t)+(Math.abs(t-100)>0.01?' (phải đúng 100%)':''); };
+  const form=$('#mform'); form.addEventListener('change',e=>{ if(e.target.closest('#f__jv')||e.target.id==='f__ct_s') draw(); });
+  form.addEventListener('input',e=>{ if(e.target.dataset && e.target.dataset.org) sum_(); });
+  form.addEventListener('click',e=>{ if(e.target.closest('#f__ct [data-orgnew],#f__ct [data-orgback]')) setTimeout(draw,0); });
+  draw(); }
 ACT['add-pkg']=()=>pkgForm(null);
 ACT['edit-packages']=(id)=>pkgForm(get('packages',id));
 ACT['open-pkg']=(id,el,e)=>{ if(e && e.target.closest && e.target.closest('button')) return; goPkg(id); };
@@ -161,6 +176,9 @@ const ORG_KIND={nt:'nhà thầu', gs:'đơn vị giám sát'};
 const orgList=kind=>D('orgs').filter(o=>!kind||o.kind===kind).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
 /* Tên nhà thầu của gói thầu: tên liên danh, hoặc tên các đơn vị nối nhau */
 function pkgContractorName(k){ if(!k) return ''; const ids=k.contractorIds||[]; if(!ids.length) return ''; if(k.jointVenture) return k.jointVenture; return ids.map(id=>(orgOf(id)||{}).name||'').filter(Boolean).join(' – '); }
+/* Thành viên liên danh kèm tỷ lệ: "ITECH 41,8%, Tri Thức 58,2%" */
+function jvMembersText(k){ if(!k) return ''; const ids=k.contractorIds||[]; if(ids.length<2) return ''; const sh=k.contractorShares||{};
+  return ids.map(id=>{ const o=orgOf(id); const s=sh[id]; return o? (o.shortName||o.name)+(s!=null&&s!==''?' '+fmtP(N(s)):'') : ''; }).filter(Boolean).join(', '); }
 const pkgSupervisorNames=k=>(k&&k.supervisorIds||[]).map(orgName).filter(Boolean).join(', ');
 const orgPkgs=id=>{ const o=orgOf(id); return D('packages').filter(k=>o&&o.kind==='gs'?(k.supervisorIds||[]).includes(id):(k.contractorIds||[]).includes(id)); };
 const orgUsers=id=>D('users').filter(u=>u.orgId===id);
@@ -219,6 +237,7 @@ function pkgOrgFields(){ return [
   {key:'_ct',label:'Nhà thầu trúng thầu (liên danh: chọn liên danh hoặc thành viên đứng đầu)',type:'org',kind:'nt',full:true},
   {key:'_jv',label:'Thành viên liên danh khác (nếu có)',type:'checks',options:()=>orgList('nt').filter(o=>o.active!==false).map(o=>[o.id,o.name])},
   {key:'jointVenture',label:'Tên liên danh (nếu có)',full:true},
+  {key:'_sh',type:'html',full:true,label:'Tỷ lệ tham gia liên danh (%)',html:'<div id="f__shbox" class="shbox"></div>'},
   {key:'_sv',label:'Đơn vị giám sát độc lập (chọn một hoặc nhiều)',type:'checks',options:()=>orgList('gs').filter(o=>o.active!==false).map(o=>[o.id,o.name])},
   {key:'_svNew',label:'Đơn vị giám sát chưa có trong danh mục (gõ tên để thêm; nhiều đơn vị cách nhau dấu ;)',full:true}]; }
 const pkgOrgValue=k=>({_ct:(k.contractorIds||[])[0]||'', _jv:(k.contractorIds||[]).slice(1), _sv:(k.supervisorIds||[]).slice(), _svNew:''});
@@ -230,6 +249,12 @@ async function pkgOrgApply(v){
   v.contractorIds=lead? [lead.id, ...(v._jv||[]).filter(id=>id!==lead.id)] : [];
   const sv=[...(v._sv||[])]; for(const n of String(v._svNew||'').split(';')){ const o=await orgByName(n,'gs'); if(o && !sv.includes(o.id)) sv.push(o.id); }
   v.supervisorIds=sv; if(v.contractorIds.length<2) v.jointVenture='';
+  /* Tỷ lệ liên danh: ô của nhà thầu đứng đầu mới nhập (chưa có mã) gắn với mã vừa tạo */
+  const sh={}; $$('#f__shbox input[data-org]').forEach(i=>{ const t=i.value.trim().replace(',','.'); if(t==='') return; const id=i.dataset.org==='_lead'? (lead&&lead.id) : i.dataset.org; if(id) sh[id]=Number(t); });
+  v.contractorShares= v.contractorIds.length>1? Object.fromEntries(Object.entries(sh).filter(([id])=>v.contractorIds.includes(id))) : {};
+  const bad=Object.values(v.contractorShares).some(x=>!isFinite(x)||x<0||x>100), tot=Object.values(v.contractorShares).reduce((a,b)=>a+b,0);
+  if(v.contractorIds.length>1 && (bad || v.contractorIds.some(id=>v.contractorShares[id]==null) || Math.abs(tot-100)>0.01))
+    throw new Error('Gói liên danh phải nhập tỷ lệ liên danh cho từng thành viên, mỗi tỷ lệ từ 0 đến 100%, cộng lại đúng 100% (đang là '+fmtP(tot)+').');
   delete v._ct; delete v._jv; delete v._sv; delete v._svNew; return v; }
 /* Thẻ "Nhà thầu và đơn vị giám sát" ở trang chi tiết gói thầu */
 function pkgOrgCard(k){

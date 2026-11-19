@@ -65,6 +65,7 @@ public class AppDbContext : DbContext
         JsonColumn<Project, List<string>>(b, x => x.ViewerIds);
         JsonColumn<Guide, List<string>>(b, x => x.Groups);
         JsonColumn<Package, List<string>>(b, x => x.ContractorIds);
+        JsonColumn<Package, Dictionary<string, decimal>>(b, x => x.ContractorShares);
         JsonColumn<Package, List<string>>(b, x => x.SupervisorIds);
 
         b.Entity<AppUser>().HasIndex(x => x.Username).IsUnique();

@@ -12,7 +12,7 @@ using QldaTtts.Web.Data;
 namespace QldaTtts.Web.Data.MigrationsPg
 {
     [DbContext(typeof(PgDbContext))]
-    [Migration("20261119141737_DonViThanhVien")]
+    [Migration("20261119143359_DonViThanhVien")]
     partial class DonViThanhVien
     {
         /// <inheritdoc />
@@ -1102,6 +1102,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("ContractorIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContractorShares")
                         .IsRequired()
                         .HasColumnType("text");
 

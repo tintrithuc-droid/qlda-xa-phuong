@@ -145,6 +145,13 @@ public class DataController : ApiControllerBase
             var ids = pk.ContractorIds.Concat(pk.SupervisorIds).Distinct().ToList();
             if (await Db.Organizations.CountAsync(o => ids.Contains(o.Id)) != ids.Count) return Error(400, "Nhà thầu hoặc đơn vị giám sát được chọn không có trong danh mục.");
         }
+        // Bản 1.8.3: tỷ lệ liên danh chỉ cho thành viên của gói, mỗi tỷ lệ 0–100%, cộng không quá 100%
+        if (obj is Package ps && ps.ContractorShares.Count > 0)
+        {
+            if (ps.ContractorShares.Keys.Any(k => !ps.ContractorIds.Contains(k))) return Error(400, "Tỷ lệ liên danh có đơn vị không phải thành viên của gói thầu.");
+            if (ps.ContractorShares.Values.Any(v => v < 0 || v > 100) || Math.Abs(ps.ContractorShares.Values.Sum() - 100m) > 0.01m || ps.ContractorIds.Any(k => !ps.ContractorShares.ContainsKey(k)))
+                return Error(400, "Tỷ lệ liên danh phải có cho từng thành viên, mỗi tỷ lệ từ 0 đến 100%, cộng lại đúng 100%.");
+        }
         // Dòng khối lượng thuộc đợt nghiệm thu (bản 1.7): đợt đang chờ hoặc đã duyệt thì khóa với người không có quyền duyệt
         if (obj is VolumeEntry ve && await VolumeLock(ve, existing as VolumeEntry) is { } vmsg) return Denied(vmsg);
         // Hợp đồng tư vấn giai đoạn chuẩn bị đầu tư nghiệm thu theo giá trị sản phẩm: lũy kế nghiệm thu không vượt giá trị sản phẩm

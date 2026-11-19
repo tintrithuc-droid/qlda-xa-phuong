@@ -1337,7 +1337,16 @@ GO
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20261119141726_DonViThanhVien'
+    WHERE [MigrationId] = N'20261119143349_DonViThanhVien'
+)
+BEGIN
+    ALTER TABLE [Packages] ADD [ContractorShares] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261119143349_DonViThanhVien'
 )
 BEGIN
     ALTER TABLE [Organizations] ADD [Member] bit NOT NULL DEFAULT CAST(0 AS bit);
@@ -1346,11 +1355,11 @@ GO
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20261119141726_DonViThanhVien'
+    WHERE [MigrationId] = N'20261119143349_DonViThanhVien'
 )
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20261119141726_DonViThanhVien', N'8.0.11');
+    VALUES (N'20261119143349_DonViThanhVien', N'8.0.11');
 END;
 GO
 

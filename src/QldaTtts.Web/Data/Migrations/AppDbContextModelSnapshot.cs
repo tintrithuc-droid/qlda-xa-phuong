@@ -1102,6 +1102,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ContractorShares")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Duration")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");

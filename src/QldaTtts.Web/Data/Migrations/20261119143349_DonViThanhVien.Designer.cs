@@ -12,7 +12,7 @@ using QldaTtts.Web.Data;
 namespace QldaTtts.Web.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261119141726_DonViThanhVien")]
+    [Migration("20261119143349_DonViThanhVien")]
     partial class DonViThanhVien
     {
         /// <inheritdoc />
@@ -1102,6 +1102,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ContractorIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContractorShares")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

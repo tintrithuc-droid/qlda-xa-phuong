@@ -125,6 +125,8 @@ public class Package : EntityBase, IHasProject
     public List<string> ContractorIds { get; set; } = new();
     /// <summary>Tên liên danh (để trống khi chỉ một nhà thầu).</summary>
     [MaxLength(300)] public string? JointVenture { get; set; }
+    /// <summary>Bản 1.8.3: tỷ lệ tham gia liên danh (%) theo mã đơn vị; trống khi chưa có thông tin.</summary>
+    public Dictionary<string, decimal> ContractorShares { get; set; } = new();
     /// <summary>Các đơn vị tư vấn giám sát của gói thầu (chọn từ danh mục đơn vị giám sát).</summary>
     public List<string> SupervisorIds { get; set; } = new();
     /// <summary>Giai đoạn: "cb" chuẩn bị đầu tư, "dt" thực hiện đầu tư. Trống thì suy theo loại gói thầu.</summary>

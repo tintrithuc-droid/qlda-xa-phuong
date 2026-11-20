@@ -241,6 +241,7 @@ function can(mod, lvl='view'){
   if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
+  if(mod==='quan-tri') return false; // Quản trị hệ thống: chỉ nhóm toàn quyền
   if(lvl==='approve') return (g.perms||{})[mod+':duyet']==='1';
   if(lvl==='check') return (g.perms||{})[mod+':kiemtra']==='1';
   const p=(g.perms||{})[mod]||'none';

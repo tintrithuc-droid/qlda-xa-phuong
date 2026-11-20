@@ -265,7 +265,7 @@ function defaultCatalogs(){
 }
 function defaultGroups(){
   const ALL = MODULES.map(m=>m.key);
-  const P = (edit, view)=>Object.fromEntries(ALL.map(k=>[k, edit.includes(k)?'edit':(view==='*'||view.includes(k))?'view':'none']));
+  const P = (edit, view)=>Object.fromEntries(ALL.map(k=>[k, edit.includes(k)?'edit':((view==='*'&&k!=='quan-tri')||view.includes(k))?'view':'none']));
   return [
     {id:'g-admin', name:'Quản trị hệ thống', admin:true, perms:P(ALL,'*'), scope:[], desc:'Toàn quyền, quản lý người dùng và cấu hình.'},
     {id:'g-lead', name:'Lãnh đạo Ban', admin:false, perms:{...P(['du-an'],'*'), 'goi-thau:duyet':'1', 'thanh-toan:duyet':'1', 'nghiem-thu:duyet':'1', 'tien-do:duyet':'1', 'khoi-luong:duyet':'1'}, scope:[], desc:'Xem toàn bộ, chỉ đạo, cập nhật thông tin dự án; duyệt phụ lục hợp đồng, kế hoạch tiến độ, đợt nghiệm thu khối lượng, hồ sơ thanh toán, nghiệm thu.'},

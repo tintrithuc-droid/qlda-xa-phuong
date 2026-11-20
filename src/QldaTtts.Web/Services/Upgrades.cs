@@ -55,7 +55,24 @@ public static class Upgrades
 
         // 8) Phiên bản 1.8: đơn vị tính xây dựng cho bảng giá Mẫu số 11B, bảng dự toán
         V18(db);
+
+        // 9) Bản 1.8.10: Quản trị hệ thống chỉ dành cho nhóm toàn quyền
+        V1810(db);
         Owner.Ensure(db);
+    }
+
+    /// <summary>Bản 1.8.10: bỏ quyền "Quản trị hệ thống" của các nhóm không phải quản trị (bộ nhóm mẫu cũ cấp "Chỉ xem" cho Lãnh đạo Ban, Cán bộ kỹ thuật).</summary>
+    private static void V1810(AppDbContext db)
+    {
+        const string key = "upgrade:1.8.10-quan-tri-chi-admin";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        foreach (var g in db.Groups.ToList().Where(g => !g.Admin && g.Perms.TryGetValue("quan-tri", out var v) && v != "none"))
+        {
+            var p = new Dictionary<string, string>(g.Perms) { ["quan-tri"] = "none" };
+            g.Perms = p; g.UpdatedAt = DateTime.UtcNow; g.UpdatedBy = "he-thong";
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
     }
 
     /// <summary>Đơn vị tính theo định mức, đơn giá xây dựng (bảng khối lượng hợp đồng nhập từ Excel).</summary>

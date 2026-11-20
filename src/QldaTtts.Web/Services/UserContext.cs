@@ -61,6 +61,7 @@ public class UserContext
     {
         if (User is null || Group is null) return false;
         if (Group.Admin) return true;
+        if (module == "quan-tri") return false;   // Quản trị hệ thống: chỉ nhóm toàn quyền
         var p = Group.Perms.TryGetValue(module, out var v) ? v : "none";
         return edit ? p == "edit" : p != "none";
     }

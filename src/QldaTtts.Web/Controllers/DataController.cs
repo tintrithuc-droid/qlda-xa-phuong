@@ -126,6 +126,7 @@ public class DataController : ApiControllerBase
             if (!Uc.IsAdmin) g.Admin = old?.Admin ?? false;
             if (id == "g-admin") g.Admin = true;
             if (old?.Admin == true && !Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được sửa nhóm có toàn quyền.");
+            if (!g.Admin) g.Perms = new Dictionary<string, string>(g.Perms ?? new()) { ["quan-tri"] = "none" };
         }
 
         var wf = Workflow.Find(collection);

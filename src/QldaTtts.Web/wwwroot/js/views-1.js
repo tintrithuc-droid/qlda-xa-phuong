@@ -49,7 +49,11 @@ const alertRoute = a => a.kid ? phRoute(a.mod, pkgPhase(pkgOf(a.kid))) : a.mod;
 function goRoute(r){ if(location.hash==='#'+r) render(); else location.hash=r; }
 /* Mở gói thầu, thanh toán của hợp đồng đúng mục menu theo giai đoạn */
 function goPkg(kid){ S.sel.pkg=kid; goRoute(phRoute('goi-thau', pkgPhase(pkgOf(kid)))); }
-function goPay(cid, tab){ const ph=cidPhase(cid); if(ph==='cb'){ S.f.ttcb=cid; if(tab) S.tab.ttcb=tab; } else { S.f.ttc=cid; if(tab) S.tab.tt=tab; } goRoute(phRoute('thanh-toan', ph)); }
+/* Hợp đồng nghiệm thu theo sản phẩm mở mục Nghiệm thu, thanh toán (tư vấn) của giai đoạn; hợp đồng khác mở Quản lý thanh toán */
+function goPay(cid, tab){ const ph=cidPhase(cid);
+  if(ph==='cb'){ S.f.ttcb=cid; if(tab) S.tab.ttcb=tab; return goRoute('cb-thanh-toan'); }
+  if(cidProd(cid)){ S.f.tttv=cid; if(tab) S.tab.tttv=tab; return goRoute('tv-thanh-toan'); }
+  S.f.ttc=cid; if(tab&&tab!=='nt') S.tab.tt=tab; goRoute('thanh-toan'); }
 function renderNav(){
   const al=alerts(); const cnt={}; al.forEach(a=>{ const r=alertRoute(a); cnt[r]=(cnt[r]||0)+1; });
   let html='', grp='';
@@ -58,6 +62,7 @@ function renderNav(){
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;
       if(grp==='Nghiệp vụ'){ const cb=NAV_CB.filter(([r])=>can(r)); if(cb.length) html+=`<div class="sub">${esc(PHASES.cb)}</div>`+cb.map(([r,l,i])=>link(r,l,i,PHASES.cb+': '+l)).join('')+`<div class="sub">${esc(PHASES.dt)}</div>`; } }
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
+    if(m.key==='goi-thau' && can(NAV_TV[0])) html+=link(NAV_TV[0],NAV_TV[1],NAV_TV[2],PHASES.dt+': '+NAV_TV[1]);
     if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`;
       html+=`<a href="#canh-bao" title="Trung tâm cảnh báo" class="${S.route==='canh-bao'?'on':''}">${ic('bell')}<span>Trung tâm cảnh báo</span>${al.length?`<span class="cnt">${al.length}</span>`:''}</a>`; }
   });
@@ -67,7 +72,7 @@ function renderNav(){
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : m?m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
+  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>

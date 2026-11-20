@@ -71,12 +71,14 @@ const MODULES = [
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
-const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao','cb-goi-thau','cb-thanh-toan'];
+const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao','cb-goi-thau','cb-thanh-toan','tv-thanh-toan'];
 /* Menu Nghiệp vụ chia theo giai đoạn. Quyền vẫn theo phân hệ (MODULES); hai mục của giai đoạn chuẩn bị đầu tư dùng chung quyền
    với phân hệ tương ứng (ROUTE_PERM). Gói thầu thuộc một giai đoạn; hợp đồng và hồ sơ của hợp đồng theo giai đoạn của gói thầu. */
 const PHASES = {cb:'Chuẩn bị đầu tư', dt:'Thực hiện đầu tư'};
 const NAV_CB = [['cb-goi-thau','Gói thầu và hợp đồng','doc'],['cb-thanh-toan','Nghiệm thu, thanh toán','coin']];
-const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan'};
+const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan', 'tv-thanh-toan':'thanh-toan'};
+/* Bản 1.8.7: hợp đồng tư vấn giai đoạn thực hiện đầu tư (quản lý dự án, lập và thẩm định HSMT, giám sát, kiểm thử…) nghiệm thu theo sản phẩm như ở chuẩn bị đầu tư */
+const NAV_TV = ['tv-thanh-toan','Nghiệm thu, thanh toán tư vấn','coin'];
 const PH_ROUTE = {cb:{'goi-thau':'cb-goi-thau', 'thanh-toan':'cb-thanh-toan', 'khoi-luong':'cb-thanh-toan'}, dt:{}};
 const phRoute = (mod, ph) => (PH_ROUTE[ph]||{})[mod] || mod;
 const routePh = r => String(r||S.route).startsWith('cb-') ? 'cb' : 'dt';
@@ -494,7 +496,13 @@ const pkgPhase = k => !k ? 'dt' : (k.phase==='cb'||k.phase==='dt') ? k.phase : p
 const contractPhase = c => pkgPhase(c && pkgOf(c.packageId));
 const cidPhase = cid => contractPhase(get('contracts',cid));
 const phaseOpts = () => Object.entries(PHASES);
-const contractOpts = (pid, ph) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid) && (!ph||contractPhase(c)===ph)).sort(by('number')).map(c=>[c.id, c.number+' – '+((pkgOf(c.packageId)||{}).code||'')]);
+/* Gói tư vấn (không gồm phi tư vấn). Hợp đồng nghiệm thu theo sản phẩm: mọi hợp đồng chuẩn bị đầu tư và hợp đồng tư vấn thực hiện đầu tư */
+const isTVPkg = k => !!k && /tư vấn/i.test(k.type||'') && !/phi tư vấn/i.test(k.type||'');
+const contractProd = c => !!c && (contractPhase(c)==='cb' || isTVPkg(pkgOf(c.packageId)));
+const cidProd = cid => contractProd(get('contracts',cid));
+/* Nhóm hợp đồng: 'cb' chuẩn bị đầu tư, 'dt' mọi hợp đồng thực hiện đầu tư, 'tv' hợp đồng tư vấn thực hiện đầu tư, 'kl' hợp đồng thực hiện đầu tư quản lý theo khối lượng */
+const phMatch = (c, ph) => !ph || (ph==='tv'? contractPhase(c)==='dt' && contractProd(c) : ph==='kl'? contractPhase(c)==='dt' && !contractProd(c) : contractPhase(c)===ph);
+const contractOpts = (pid, ph) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid) && phMatch(c,ph)).sort(by('number')).map(c=>[c.id, c.number+' – '+((pkgOf(c.packageId)||{}).code||'')]);
 function emptyBox(text, btn){ return `<div class="empty">${text}${btn?`<div style="margin-top:10px">${btn}</div>`:''}</div>`; }
 
 /* Bảng dữ liệu chung */
@@ -1035,7 +1043,7 @@ const wfLogs = (col, id) => D('approvals').filter(a=>a.collection===col && a.rec
 const wfAmount = (col, r) => WF[col].amt ? Math.abs(N(r[WF[col].amt])) : 0;
 const wfRouteFor = (fc, amt, col, r) => (fc.steps||[]).filter(s=>(s.minAmount==null || amt>=s.minAmount) && (s.maxAmount==null || amt<s.maxAmount))
   /* Đợt nghiệm thu sản phẩm tư vấn giai đoạn chuẩn bị đầu tư không qua bước tư vấn giám sát xác nhận */
-  .filter(s=>!(col==='vbatches' && s.key==='check' && r && cidPhase(r.contractId)==='cb'));
+  .filter(s=>!(col==='vbatches' && s.key==='check' && r && cidProd(r.contractId)));
 /** Tình trạng xử lý: các bước, bước đang chờ, lần chuyển duyệt, thao tác gần nhất, người được chuyển đích danh, hạn xử lý. */
 function wfState(col, r){
   const logs=wfLogs(col,r.id), last=logs[0]||null, sub=logs.find(a=>a.route)||null; let route=null;

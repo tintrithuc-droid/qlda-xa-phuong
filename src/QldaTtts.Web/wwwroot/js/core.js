@@ -477,6 +477,10 @@ function alerts(o={}){
   out.sort((a,b)=>(a.lvl==='bad'?0:1)-(b.lvl==='bad'?0:1) || String(a.due||'9').localeCompare(String(b.due||'9')));
   /* Hồ sơ chờ người dùng duyệt: luôn đứng đầu */
   if(typeof WF!=='undefined'){ const mine=wfMine().filter(x=>ok(WF[x.col].pid(x.r))); if(mine.length) out.unshift({lvl:'warn', mod:'trinh-duyet', kind:'Trình duyệt', go:'mod|trinh-duyet', pcode:'', kcode:'', who:'', text:`Có <b>${mine.length} hồ sơ chờ bạn duyệt</b>: ${esc([...new Set(mine.map(x=>WF[x.col].name.toLowerCase()))].join(', '))}.`}); }
+  /* Bản 1.8.9: hồ sơ trình duyệt trễ hạn xử lý (tính theo ngày làm việc); nhiều hồ sơ thì gom một dòng */
+  if(typeof wfLateDays==='function'){ const lateWf=Object.keys(WF).filter(col=>can(WF[col].mod)).flatMap(col=>D(col).filter(r=>wfWaiting(col,r) && ok(WF[col].pid(r))).map(r=>({col,r,st:wfState(col,r)}))).map(x=>({...x, lt:wfLateDays(x.col,x.r,x.st)})).filter(x=>x.lt>0).sort((a,b)=>b.lt-a.lt);
+    if(lateWf.length>3 && !o.all) add({mod:'trinh-duyet', kind:'Trình duyệt', go:'wf|vt', who:'Người đang giữ hồ sơ', lvl:'bad', text:`<b>${lateWf.length} hồ sơ trình duyệt trễ hạn xử lý</b>, lâu nhất ${lateWf[0].lt} ngày làm việc (${esc(WF[lateWf[0].col].label(lateWf[0].r))}).`});
+    else lateWf.forEach(x=>add({mod:'trinh-duyet', kind:'Trình duyệt', pid:WF[x.col].pid(x.r), go:'wf|vt', who:wfHolder(x.col,x.st), lvl:'bad', due:x.st.due, text:`<b>${esc(WF[x.col].label(x.r))}</b> ${tag(WF[x.col].pid(x.r))} trễ hạn ${x.lt} ngày ở bước ${esc(x.st.step.label)}.`})); }
   return out;
 }
 /* Một dòng cảnh báo có nút "Xem" mở đúng đối tượng */
@@ -648,7 +652,10 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
   /* Bản 1.8: biểu mẫu hồ sơ có quy trình duyệt: Lưu nháp / Lưu và chuyển duyệt */
   const wfSend = wf && WF[wf] && wfOn(wf, value.id? WF[wf].pid(value) : S.pid||null) && (!value.id || wfStatus(wf,value)===WF[wf].draft) && (can(WF[wf].mod,'edit')||can(WF[wf].mod,'approve'));
   if(wfSend && submit==='Lưu') submit='Lưu nháp';
-  const ov=openModal(`<form class="mform ${narrow?'narrow':''} ${wide?'wide':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key], value)).join('')}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn ${wfSend?'':'primary'}" type="submit">${esc(submit)}</button>${wfSend?'<button class="btn primary" type="submit" data-send="1">Lưu và chuyển duyệt</button>':''}</footer></form>`);
+  /* Bản 1.8.9: hồ sơ đã có thì kèm mục Lịch sử thay đổi (ai, lúc nào, sửa gì) */
+  const hcol = value.id && typeof recHistBox==='function' ? COLS.find(c=>!['logs','approvals','attachments','guides'].includes(c) && get(c, value.id)) : null;
+  const ov=openModal(`<form class="mform ${narrow?'narrow':''} ${wide?'wide':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key], value)).join('')}${hcol?`<div class="fld full">${recHistBox(hcol, value.id)}</div>`:''}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn ${wfSend?'':'primary'}" type="submit">${esc(submit)}</button>${wfSend?'<button class="btn primary" type="submit" data-send="1">Lưu và chuyển duyệt</button>':''}</footer></form>`);
+  if(hcol) recHistWire(ov);
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
   fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
@@ -1142,6 +1149,23 @@ function wfDisp(col, s, r){ if(r && wfPendingS(col,s)){ const st=wfState(col,r);
   return s===WF_CHECK ? 'Chờ kiểm tra' : (WF[col].disp&&WF[col].disp[s]) || s; }
 /** Hồ sơ quá hạn xử lý bước đang chờ. */
 const wfOverdue = (col, r, st=wfState(col,r)) => !!(st.due && st.due < TODAY);
+/* Bản 1.8.9: ngày làm việc (bỏ thứ Bảy, Chủ nhật và ngày nghỉ quản trị khai báo), sắp đến hạn, trễ hạn báo lên */
+const wfHol = () => new Set(wfCfg().holidays||[]);
+/** Số ngày làm việc từ ngày a (không tính) đến ngày b (có tính); b trước a thì số âm. */
+function wdBetween(a, b, hol=wfHol()){ if(!a||!b) return 0; let d=new Date(String(a).slice(0,10)+'T00:00:00'), e=new Date(String(b).slice(0,10)+'T00:00:00'), sg=1, n=0;
+  if(e<d){ [d,e]=[e,d]; sg=-1; }
+  for(let i=0; d<e && i<4000; i++){ d.setDate(d.getDate()+1); const w=d.getDay(); if(w!==0 && w!==6 && !hol.has(isoLocal(d))) n++; }
+  return n*sg; }
+/** Số ngày làm việc trễ so với hạn tính đến ngày end (mặc định hôm nay); quá hạn vào ngày nghỉ vẫn tính 1 ngày. */
+const wdLate = (due, end=TODAY) => due && String(end).slice(0,10) > String(due).slice(0,10) ? Math.max(1, wdBetween(due, end)) : 0;
+/** Ngày giờ máy chủ (giờ UTC) đổi ra ngày theo giờ Việt Nam. */
+const tsDay = s => s ? isoLocal(parseTs(s)) : '';
+const wfLateDays = (col, r, st=wfState(col,r)) => st.step ? wdLate(st.due) : 0;
+/** Sắp đến hạn: còn trong số ngày nhắc trước của bước (mặc định 1 ngày làm việc). */
+function wfSoon(col, r, st=wfState(col,r)){ if(!st.step || !st.due || st.due < TODAY) return false; return wdBetween(TODAY, st.due) <= Math.max(1, N(st.step.remindDays)); }
+/** Trễ đủ số ngày phải báo cấp trên. */
+const wfEscalated = (col, r, st=wfState(col,r)) => !!(st.step && N(st.step.escalateDays)>0 && wfLateDays(col,r,st) >= N(st.step.escalateDays));
+const wfEscTarget = (step, u=S.user) => !!(u && step && ((step.escalateUsers||[]).includes(u.id) || (step.escalateGroups||[]).includes(u.groupId)));
 /** Người dùng sửa được hồ sơ không (người duyệt luôn sửa được; người khác chỉ sửa khi đang soạn thảo). Loại hồ sơ tắt quy trình thì không khóa. */
 const wfEditable = (col, r) => !wfOn(col, WF[col].pid(r)) || can(WF[col].mod,'approve') || (can(WF[col].mod,'edit') && !wfLocked(col,r) && !wfWaiting(col,r));
 /** Hồ sơ bị trả lại và chưa chuyển lại (lần thao tác gần nhất là Trả lại): trả về dòng lịch sử đó. */

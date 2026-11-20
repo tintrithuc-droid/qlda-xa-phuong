@@ -482,6 +482,9 @@ public class AuditLog : EntityBase
     [MaxLength(100)] public string? Module { get; set; }
     [MaxLength(500)] public string? Target { get; set; }
     [MaxLength(64)] public string? Ip { get; set; }
+    /// <summary>Bản 1.8.9: loại dữ liệu và mã hồ sơ của thao tác, để xem lịch sử thay đổi trên từng hồ sơ.</summary>
+    [MaxLength(50)] public string? Collection { get; set; }
+    [MaxLength(64)] public string? RecordId { get; set; }
 }
 
 /// <summary>Lịch sử trình duyệt hồ sơ (phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu): ai trình, ai duyệt, trả lại, ý kiến.</summary>

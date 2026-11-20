@@ -164,13 +164,13 @@ public class ApprovalsController : ApiControllerBase
             Id = "apv-" + Guid.NewGuid().ToString("N")[..20], Collection = w.Collection, RecordId = rec.Id, ProjectId = pid, Target = target,
             Action = label, FromStatus = from, ToStatus = to, Note = note == "" ? null : note, By = Uc.User.Username, ByName = Uc.User.Name, At = DateTime.UtcNow,
             Step = stepCfg?.Key, Assignee = stepCfg is null ? null : assignee?.Id, AssigneeName = stepCfg is null ? null : assignee?.Name,
-            Due = stepCfg is { DueDays: > 0 } ? Workflow.AddWorkdays(DateOnly.FromDateTime(DateTime.Now), stepCfg.DueDays) : null,
+            Due = stepCfg is { DueDays: > 0 } ? Workflow.AddWorkdays(DateOnly.FromDateTime(DateTime.Now), stepCfg.DueDays, cfg.Holidays) : null,
             // Các bước của lần chuyển duyệt được ghi lại để quy trình đổi sau này không ảnh hưởng hồ sơ đang xử lý
             Route = r.Action == "submit" && route is not null ? Workflow.SerializeRoute(route) : null,
             UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
         };
         Db.ApprovalLogs.Add(log);
-        Uc.Log(label, def.Label, target + (note == "" ? "" : " – " + note));
+        Uc.Log(label, def.Label, target + (note == "" ? "" : " – " + note), w.Collection, rec.Id);
         await Db.SaveChangesAsync();
         return Ok(new { record = (object)rec, log });
     }

@@ -453,6 +453,7 @@ ACT['alert-go']=(id)=>{ const i=String(id).indexOf('|'), t=id.slice(0,i), x=id.s
   else if(t==='td'){ S.f.tdk=x; S.tab.td='goi-thau'; go('tien-do'); }
   else if(t==='tt'){ goPay(x); }
   else if(t==='cbk'){ S.f.cbk=x; go('canh-bao'); }
+  else if(t==='wf'){ S.tab.td2= x==='vt' && !wfCanRole()? 'dang' : x||'dang'; go('trinh-duyet'); }
   else if(t==='mod'){ go(x); }
   else { S.sel.project=x; S.tab.proj=t==='task'?'tasks':t==='legal'?'legal':'status'; go('du-an'); } };
 ACT['open-project']=(id)=>{ S.sel.project=id; S.tab.proj='info'; if(location.hash==='#du-an') render(); else location.hash='du-an'; };
@@ -559,8 +560,11 @@ function projectDetail(p){
       ${keyLegalCard(p)}
       <div class="card"><h2>Gói thầu thuộc dự án</h2>${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên gói thầu',k:'name'},{h:'Giá gói thầu',r:1,f:r=>fmtTy(r.estimate)},{h:'Trạng thái',f:r=>statusPill(r.status)}], D('packages').filter(k=>k.projectId===p.id).sort(by('code')), {rowAct:'open-pkg', empty:'Chưa có gói thầu.'})}</div></div>`;
   } else if(t==='tasks'){
-    const rows=D('tasks').filter(x=>x.projectId===p.id).sort(by('due'));
-    body=`<div class="card"><div class="ch"><h2>Công việc thuộc dự án</h2>${can('du-an','edit')?`<button class="btn primary sm" data-act="add-task" data-id="${p.id}">+ Thêm công việc</button>`:''}</div>
+    const rows=D('tasks').filter(x=>x.projectId===p.id).sort(by('due')), tv=S.f.tview||'list';
+    /* Bản 1.8.9: xem theo người thực hiện */
+    const seg=`<span class="seg" role="group" aria-label="Cách xem" style="display:inline-flex;gap:4px"><button class="btn sm ${tv==='list'?'primary':'ghost'}" data-act="tview" data-id="list">Danh sách</button><button class="btn sm ${tv==='person'?'primary':'ghost'}" data-act="tview" data-id="person">Theo người thực hiện</button></span>`;
+    if(tv==='person') body=`<div class="toolbar" style="margin-bottom:8px">${seg}</div>`+taskByPerson(rows, false);
+    else body=`<div class="card"><div class="ch"><h2>Công việc thuộc dự án</h2><span style="display:flex;gap:6px;flex-wrap:wrap">${seg}${can('du-an','edit')?`<button class="btn primary sm" data-act="add-task" data-id="${p.id}">+ Thêm công việc</button>`:''}</span></div>
     ${table([{h:'Công việc',k:'name'},{h:'Phụ trách',k:'assignee'},{h:'Ưu tiên',f:r=>pill(r.priority||'—', r.priority==='Cao'?'warn':'')},{h:'Hạn',f:r=>`<span class="num" style="${r.due<TODAY&&r.status!=='Hoàn thành'?'color:var(--red);font-weight:600':''}">${fmtDate(r.due)}</span>`},{h:'Trạng thái',f:r=>statusPill(r.status)},{h:'Tệp',f:r=>attCell(atts('tasks',r.id))}], rows, {actions:r=>editBtns('du-an','tasks',r.id, r.status!=='Hoàn thành'&&can('du-an','edit')?`<button class="btn sm ghost" data-act="task-done" data-id="${r.id}">Hoàn thành</button>`:''), empty:'Chưa có công việc.'})}</div>`;
   } else if(t==='legal'){
     body=legalCard(D('legal').filter(l=>l.projectId===p.id && !l.packageId), p.id, null, 'du-an', 'Hồ sơ pháp lý dự án');
@@ -580,6 +584,7 @@ function projectDetail(p){
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="proj" data-id="${k}">${l}</button>`).join('')}</div>${body}`;
 }
 const taskFields=()=>[{key:'name',label:'Tên công việc',req:true,full:true},{key:'assignee',label:'Đơn vị / người phụ trách'},{key:'due',label:'Hạn hoàn thành',type:'date',req:true},{key:'priority',label:'Mức ưu tiên',type:'select',options:['Cao','Trung bình','Thấp'],def:'Trung bình'},{key:'status',label:'Trạng thái',type:'select',options:['Chưa bắt đầu','Đang thực hiện','Hoàn thành','Tạm dừng'],def:'Chưa bắt đầu',req:true},{key:'note',label:'Ghi chú',type:'textarea'},{key:'att',label:'Văn bản giao việc, tài liệu liên quan',type:'attach',col:'tasks',kind:'Văn bản giao việc'}];
+ACT.tview=k=>{ S.f.tview=k; S.pg={}; render(); };
 ACT['add-task']=(pid)=>openForm({title:'Thêm công việc', fields:taskFields(), onSave:v=>save('tasks',{...v, projectId:pid})});
 ACT['edit-tasks']=(id)=>openForm({title:'Cập nhật công việc', fields:taskFields(), value:get('tasks',id), onSave:v=>save('tasks',v)});
 ACT['task-done']=(id)=>{ const t=get('tasks',id); openForm({title:'Hoàn thành: '+t.name, narrow:true, submit:'Xác nhận hoàn thành', value:{...t, doneDate:TODAY},

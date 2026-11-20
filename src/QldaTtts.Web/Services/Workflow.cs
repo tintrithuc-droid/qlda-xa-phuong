@@ -39,11 +39,19 @@ public class StepConfig
     public decimal? MinAmount { get; set; }
     public decimal? MaxAmount { get; set; }
     public bool NoteRequired { get; set; }
+    /// <summary>Bản 1.8.9: nhắc người xử lý trước hạn bao nhiêu ngày làm việc (0 = không nhắc trước).</summary>
+    public int RemindDays { get; set; }
+    /// <summary>Bản 1.8.9: trễ hạn bao nhiêu ngày làm việc thì báo lên cấp trên (0 = không báo).</summary>
+    public int EscalateDays { get; set; }
+    /// <summary>Nhóm, người nhận báo cáo trễ hạn.</summary>
+    public List<string> EscalateGroups { get; set; } = new();
+    public List<string> EscalateUsers { get; set; } = new();
 
     public StepConfig Copy() => new()
     {
         Key = Key, Label = Label, Verb = Verb, Groups = Groups.ToList(), Users = Users.ToList(), ReturnTo = ReturnTo, DueDays = DueDays,
-        MinAmount = MinAmount, MaxAmount = MaxAmount, NoteRequired = NoteRequired
+        MinAmount = MinAmount, MaxAmount = MaxAmount, NoteRequired = NoteRequired, RemindDays = RemindDays, EscalateDays = EscalateDays,
+        EscalateGroups = EscalateGroups.ToList(), EscalateUsers = EscalateUsers.ToList()
     };
 }
 
@@ -63,6 +71,8 @@ public class WfConfig
     public bool AssignedOnly { get; set; } = true;
     /// <summary>Người đã chuyển hồ sơ đi duyệt không tự xử lý các bước sau của chính hồ sơ đó.</summary>
     public bool NoSelfReview { get; set; } = true;
+    /// <summary>Bản 1.8.9: ngày nghỉ lễ (yyyy-MM-dd), không tính vào hạn xử lý.</summary>
+    public List<string> Holidays { get; set; } = new();
 }
 
 /// <summary>Tình trạng xử lý hiện tại của một hồ sơ: các bước, bước đang chờ, lần trình gần nhất, thao tác gần nhất.</summary>
@@ -168,12 +178,16 @@ public static class Workflow
                     Groups = (s.Groups ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList(),
                     Users = (s.Users ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList(),
                     ReturnTo = s.ReturnTo == "prev" ? "prev" : "author", DueDays = Math.Clamp(s.DueDays, 0, 365),
-                    MinAmount = s.MinAmount is > 0 ? s.MinAmount : null, MaxAmount = s.MaxAmount is > 0 ? s.MaxAmount : null, NoteRequired = s.NoteRequired
+                    MinAmount = s.MinAmount is > 0 ? s.MinAmount : null, MaxAmount = s.MaxAmount is > 0 ? s.MaxAmount : null, NoteRequired = s.NoteRequired,
+                    RemindDays = Math.Clamp(s.RemindDays, 0, 30), EscalateDays = Math.Clamp(s.EscalateDays, 0, 60),
+                    EscalateGroups = (s.EscalateGroups ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList(),
+                    EscalateUsers = (s.EscalateUsers ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList()
                 });
             }
             return new FlowConfig { Enabled = c.Enabled && steps.Count > 0, Steps = steps };
         }
-        var o = new WfConfig { AssignedOnly = cfg.AssignedOnly, NoSelfReview = cfg.NoSelfReview };
+        var o = new WfConfig { AssignedOnly = cfg.AssignedOnly, NoSelfReview = cfg.NoSelfReview,
+            Holidays = (cfg.Holidays ?? new()).Where(h => DateOnly.TryParseExact(h, "yyyy-MM-dd", out _)).Distinct().OrderBy(h => h).Take(400).ToList() };
         foreach (var w in All)
         {
             var c = cfg.Flows?.GetValueOrDefault(w.Collection);
@@ -249,10 +263,11 @@ public static class Workflow
         return false;
     }
 
-    /// <summary>Cộng số ngày làm việc (bỏ thứ Bảy, Chủ nhật).</summary>
-    public static DateOnly AddWorkdays(DateOnly d, int n)
+    /// <summary>Cộng số ngày làm việc (bỏ thứ Bảy, Chủ nhật và ngày nghỉ lễ quản trị khai báo).</summary>
+    public static DateOnly AddWorkdays(DateOnly d, int n, IEnumerable<string>? holidays = null)
     {
-        while (n > 0) { d = d.AddDays(1); if (d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday)) n--; }
+        var off = (holidays ?? Enumerable.Empty<string>()).ToHashSet();
+        while (n > 0) { d = d.AddDays(1); if (d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday) && !off.Contains(d.ToString("yyyy-MM-dd"))) n--; }
         return d;
     }
 

@@ -55,6 +55,7 @@ jobs:
           node tests/e2e/v186.js http://127.0.0.1:5080
           node tests/e2e/v187.js http://127.0.0.1:5080
           node tests/e2e/v188.js http://127.0.0.1:5080
+          node tests/e2e/v189.js http://127.0.0.1:5080
       - if: failure()
         run: cat server.log
       - if: always()

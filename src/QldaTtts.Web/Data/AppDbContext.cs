@@ -84,6 +84,7 @@ public class AppDbContext : DbContext
         b.Entity<Settlement>().HasIndex(x => x.ProjectId);
         b.Entity<Clearance>().HasIndex(x => x.ProjectId);
         b.Entity<AuditLog>().HasIndex(x => x.Ts);
+        b.Entity<AuditLog>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Catalog>().HasIndex(x => x.Type);
         b.Entity<Attachment>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Attachment>().HasIndex(x => x.FileId);

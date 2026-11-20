@@ -138,6 +138,14 @@ function totp(secret) {
   await p.click('[data-act="tview"][data-id="list"]'); await p.waitForTimeout(300);
   check(await p.evaluate(() => /Công việc thuộc dự án/.test(document.body.innerText)), 'Chuyển lại xem danh sách công việc');
 
+  // Rà soát 20/11: hợp đồng hiện "Bản hợp đồng đã ký" và "Hồ sơ khác kèm hợp đồng" (tệp chuyển từ e-work)
+  const hd = await p.evaluate(() => { const c = D('contracts')[0]; const k = get('packages', c.packageId); const id0 = Store.data.attachments.length;
+    Store.data.attachments.push({ id: 'att-t1', collection: 'contracts', recordId: c.id, projectId: k.projectId, kind: 'Hợp đồng đã ký', ref: 'Văn bản hợp đồng', fileId: 'x1', fileName: 'HD-thu.pdf', contentType: 'application/pdf', size: 10, uploadedAt: '2026-11-20T00:00:00' },
+      { id: 'att-t2', collection: 'contracts', recordId: c.id, projectId: k.projectId, kind: 'Hồ sơ gói thầu, hợp đồng', fileId: 'x2', fileName: 'QD-chi-dinh.pdf', contentType: 'application/pdf', size: 10, uploadedAt: '2026-11-20T00:00:00' });
+    const h = pkgDetail(k); Store.data.attachments.splice(id0); return { a: h.includes('HD-thu.pdf'), b: /Hồ sơ khác kèm hợp đồng/.test(h) && /2 tệp|1 tệp/.test(h) }; });
+  check(hd.a, 'Gói thầu: tệp loại "Hợp đồng đã ký" hiện ở Bản hợp đồng đã ký');
+  check(hd.b, 'Gói thầu: tệp khác gắn ở hợp đồng hiện ở mục Hồ sơ khác kèm hợp đồng');
+
   // Điện thoại: không tràn ngang ở Theo vai trò
   await p.setViewportSize({ width: 390, height: 844 }); await p.evaluate(() => { S.tab.td2 = 'vt'; S.f.vtg = ''; }); await go('tong-quan'); await go('trinh-duyet');
   check(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Điện thoại: thẻ Theo vai trò không tràn ngang');

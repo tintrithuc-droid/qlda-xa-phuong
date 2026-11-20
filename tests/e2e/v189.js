@@ -108,6 +108,11 @@ function totp(secret) {
     const a = alerts({ all: true }).some(x => x.kind === 'Trình duyệt' && /trễ hạn/.test(x.text)); l.due = o; return a; });
   check(al === true || al === 'skip', 'Trung tâm cảnh báo có hồ sơ trình duyệt trễ hạn');
 
+  // Trung tâm cảnh báo: bỏ các cột mã Nhóm, Dự án, Gói thầu, Hợp đồng trên màn hình
+  await go('canh-bao');
+  const th = await p.evaluate(() => [...document.querySelectorAll('#content thead th')].map(x => x.textContent.trim()));
+  check(th.includes('Nội dung') && !th.some(x => ['Nhóm', 'Dự án', 'Gói thầu', 'Hợp đồng'].includes(x)), 'Trung tâm cảnh báo không hiện cột Nhóm, Dự án, Gói thầu, Hợp đồng');
+
   // E. Công việc theo người thực hiện trong dự án
   const pid = await p.evaluate(() => (D('tasks')[0] || {}).projectId);
   await p.evaluate(id => { S.sel.project = id; S.tab.proj = 'tasks'; S.f.tview = 'person'; }, pid); await go('tong-quan'); await go('du-an');

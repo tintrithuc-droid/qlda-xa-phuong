@@ -434,8 +434,9 @@ ACT['alerts-proj']=(id)=>{ S.f.cbp=id; location.hash='canh-bao'; };
 function alertCenterRows(){ const lv=S.f.cbl||'', pid=S.pid||S.f.cbp||'', kd=S.f.cbk||'', q=S.f.cbq||'';
   return alerts({all:true}).filter(a=>(!lv||a.lvl===lv) && (!pid||a.pid===pid) && (!kd||a.kind===kd) && (!q||norm(cellText(a.text)+' '+(a.who||'')).includes(norm(q)))); }
 const AL_LV={bad:'Đỏ', warn:'Vàng'};
-const AL_COLS=[{h:'Mức độ',f:a=>pill(AL_LV[a.lvl]||a.lvl, a.lvl),x:a=>AL_LV[a.lvl]||a.lvl},{h:'Nhóm',f:a=>esc(a.kind||''),x:a=>a.kind||''},
-  {h:'Dự án',f:a=>`<span class="num">${esc(a.pcode||'')}</span>`,x:a=>a.pcode||''},{h:'Gói thầu',f:a=>`<span class="num">${esc(a.kcode||'')}</span>`,x:a=>a.kcode||''},{h:'Hợp đồng',f:a=>`<span class="num small">${esc((get('contracts',a.cid)||{}).number||'')}</span>`,x:a=>(get('contracts',a.cid)||{}).number||''},
+/* Bản 1.8.9: bảng trên màn hình bỏ các cột mã Nhóm, Dự án, Gói thầu, Hợp đồng (Nội dung đã ghi đủ); tệp Excel vẫn giữ để lọc, sắp xếp */
+const AL_COLS=[{h:'Mức độ',f:a=>pill(AL_LV[a.lvl]||a.lvl, a.lvl),x:a=>AL_LV[a.lvl]||a.lvl},{xo:1,h:'Nhóm',f:a=>esc(a.kind||''),x:a=>a.kind||''},
+  {xo:1,h:'Dự án',f:a=>`<span class="num">${esc(a.pcode||'')}</span>`,x:a=>a.pcode||''},{xo:1,h:'Gói thầu',f:a=>`<span class="num">${esc(a.kcode||'')}</span>`,x:a=>a.kcode||''},{xo:1,h:'Hợp đồng',f:a=>`<span class="num small">${esc((get('contracts',a.cid)||{}).number||'')}</span>`,x:a=>(get('contracts',a.cid)||{}).number||''},
   {h:'Nội dung',f:a=>a.text,x:a=>cellText(a.text)},{h:'Đơn vị thực hiện',f:a=>esc(a.who||''),x:a=>a.who||''},{h:'Thời hạn',f:a=>`<span class="num">${a.due?fmtDate(a.due):''}</span>`,x:a=>a.due?fmtDate(a.due):''}];
 VIEWS['canh-bao']=()=>{ const all=alerts({all:true}); const rows=alertCenterRows(); const pid=S.pid||S.f.cbp||'';
   const nb=rows.filter(a=>a.lvl==='bad').length;
@@ -443,7 +444,7 @@ VIEWS['canh-bao']=()=>{ const all=alerts({all:true}); const rows=alertCenterRows
   <div class="toolbar"><select data-f="cbl" aria-label="Mức độ">${opts([['bad','Đỏ: quá hạn, nghiêm trọng'],['warn','Vàng: sắp đến hạn, cần theo dõi']],S.f.cbl||'','Mọi mức độ')}</select>
     ${!S.pid?`<select data-f="cbp" aria-label="Dự án" style="max-width:340px">${opts(projOpts(),pid,'Tất cả dự án')}</select>`:''}<select data-f="cbk" aria-label="Nhóm cảnh báo">${opts(ALERT_KINDS,S.f.cbk||'','Mọi nhóm')}</select>
     <input type="search" data-f="cbq" value="${esc(S.f.cbq||'')}" placeholder="Tìm nội dung, đơn vị…" aria-label="Tìm cảnh báo"></div>
-  <div class="card">${table(AL_COLS, rows.map((a,i)=>({...a,id:'al'+i})), {nopage:true, empty:'Không có cảnh báo phù hợp bộ lọc.', actions:a=>a.go?`<button class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''})}</div>`;
+  <div class="card">${table(AL_COLS.filter(c=>!c.xo), rows.map((a,i)=>({...a,id:'al'+i})), {nopage:true, empty:'Không có cảnh báo phù hợp bộ lọc.', actions:a=>a.go?`<button class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''})}</div>`;
 };
 ACT['export-alerts']=()=>{ const rows=alertCenterRows(); const pid=S.pid||S.f.cbp||'';
   exportXlsx(`CanhBao_${TODAY}.xlsx`, [{name:'Canh bao', title:'DANH SÁCH CẢNH BÁO, VIỆC CẦN XỬ LÝ', money:[], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(pid?' · Dự án '+((projOf(pid)||{}).code||''):''), head:AL_COLS.map(c=>c.h), rows:rows.map(a=>AL_COLS.map(c=>c.x(a)))}]);

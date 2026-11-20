@@ -7,7 +7,7 @@ namespace QldaTtts.Web.Services;
 public static class Payments
 {
     /// <summary>Hồ sơ thanh toán khối lượng hoàn thành (không gồm tạm ứng, thu hồi tạm ứng).</summary>
-    public static bool IsVolumeKind(string? kind) => kind is not null && kind.Contains("khối lượng", StringComparison.OrdinalIgnoreCase) && !kind.Contains("tạm ứng", StringComparison.OrdinalIgnoreCase);
+    public static bool IsVolumeKind(string? kind) => kind is not null && (kind.Contains("khối lượng", StringComparison.OrdinalIgnoreCase) || kind.Contains("theo sản phẩm", StringComparison.OrdinalIgnoreCase)) && !kind.Contains("tạm ứng", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Hồ sơ thu hồi tạm ứng: khoản khấu trừ vào giá trị thanh toán.</summary>
     public static bool IsRecovery(string? kind) => string.Equals(kind?.Trim(), "Thu hồi tạm ứng", StringComparison.OrdinalIgnoreCase);

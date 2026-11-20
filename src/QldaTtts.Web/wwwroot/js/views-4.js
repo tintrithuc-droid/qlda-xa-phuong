@@ -77,7 +77,7 @@ VIEWS['nghiem-thu']=()=>{
     ${kpiCard('Đã bàn giao sử dụng', all.filter(a=>/bàn giao/i.test(a.kind||'')).length, XD('công trình','hệ thống'))}${kpiCard('Sắp hết bảo hành', soon.length, 'trong 30 ngày tới', soon.length?'warn':'')}</div>
   ${tabsBar('nt', t, [['ds','Nghiệm thu, bàn giao'],['bh','Theo dõi bảo hành']])}${body}`;
 };
-const accFields=()=>[projSel(),{key:'packageId',label:'Gói thầu (để trống nếu toàn dự án)',type:'select',options:()=>pkgOpts(''),full:true},
+const accFields=()=>[projSel(),{key:'packageId',label:'Gói thầu (để trống nếu toàn dự án)',type:'select',dep:'projectId',options:(pid)=>pkgOpts(pid||''),full:true,hint:'Danh sách gói thầu theo dự án đã chọn ở trên.'},
   {key:'kind',label:'Loại',type:'select',options:()=>catalog('Loại nghiệm thu, bàn giao'),req:true},{key:'date',label:'Ngày',type:'date',req:true,def:TODAY},
   {key:'number',label:'Số biên bản / văn bản'},{key:'result',label:'Kết quả',type:'select',options:()=>catalog('Kết quả nghiệm thu'),def:'Đạt'},
   {key:'content',label:'Nội dung nghiệm thu, bàn giao',full:true},{key:'receiver',label:'Đơn vị tiếp nhận, quản lý sử dụng',full:true},

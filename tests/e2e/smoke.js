@@ -132,7 +132,10 @@ async function login(p, u, pw = PW) {
     await p.fill('#f_householdsPaid', '2'); await submit();
     await go(p, 'nghiem-thu');
     await p.evaluate(() => ACT['add-acceptances']()); await p.waitForTimeout(200);
-    await p.selectOption('#f_projectId', 'p2'); await p.selectOption('#f_packageId', 'k1'); await p.selectOption('#f_kind', 'Nghiệm thu giai đoạn thi công');
+    await p.selectOption('#f_projectId', 'p2');
+    /* 1.8.8: danh sách gói thầu lọc theo dự án đã chọn; vẫn kiểm tra chặn khi gói khác dự án lọt vào (gửi thẳng giá trị) */
+    if (await p.evaluate(() => [...document.querySelectorAll('#f_packageId option')].some(o => o.value === 'k1'))) errs.push('C4: danh sách gói thầu chưa lọc theo dự án');
+    await p.evaluate(() => { const s = document.querySelector('#f_packageId'); s.add(new Option('k1', 'k1')); s.value = 'k1'; }); await p.selectOption('#f_kind', 'Nghiệm thu giai đoạn thi công');
     await p.click('#mform [type=submit]'); await p.waitForTimeout(300);
     if (!(await p.textContent('#mform_err')).includes('không thuộc')) errs.push('C4: không chặn gói thầu khác dự án');
     await p.selectOption('#f_packageId', 'k4'); await p.fill('#f_warrantyMonths', '12'); await submit();

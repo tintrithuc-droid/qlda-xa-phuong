@@ -71,12 +71,13 @@ const MODULES = [
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
-const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao','cb-goi-thau','cb-thanh-toan','tv-thanh-toan'];
+const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao','cb-goi-thau','cb-thanh-toan','tv-thanh-toan','danh-muc-don-vi'];
 /* Menu Nghiệp vụ chia theo giai đoạn. Quyền vẫn theo phân hệ (MODULES); hai mục của giai đoạn chuẩn bị đầu tư dùng chung quyền
    với phân hệ tương ứng (ROUTE_PERM). Gói thầu thuộc một giai đoạn; hợp đồng và hồ sơ của hợp đồng theo giai đoạn của gói thầu. */
 const PHASES = {cb:'Chuẩn bị đầu tư', dt:'Thực hiện đầu tư'};
 const NAV_CB = [['cb-goi-thau','Gói thầu và hợp đồng','doc'],['cb-thanh-toan','Nghiệm thu, thanh toán','coin']];
-const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan', 'tv-thanh-toan':'thanh-toan'};
+const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan', 'tv-thanh-toan':'thanh-toan', 'danh-muc-don-vi':'goi-thau'};
+const NAV_DM = ['danh-muc-don-vi','Danh mục nhà thầu, đơn vị giám sát','user'];
 /* Bản 1.8.7: hợp đồng tư vấn giai đoạn thực hiện đầu tư (quản lý dự án, lập và thẩm định HSMT, giám sát, kiểm thử…) nghiệm thu theo sản phẩm như ở chuẩn bị đầu tư */
 const NAV_TV = ['tv-thanh-toan','Nghiệm thu, thanh toán tư vấn','coin'];
 const PH_ROUTE = {cb:{'goi-thau':'cb-goi-thau', 'thanh-toan':'cb-thanh-toan', 'khoi-luong':'cb-thanh-toan'}, dt:{}};
@@ -416,16 +417,21 @@ function alerts(o={}){
   D('contracts').filter(c=>ok(contractPid(c))).forEach(c=>{
     const e=contractEnd(c); const k=pkgOf(c.packageId); const pid=contractPid(c); const base={mod:'goi-thau', kind:'Hợp đồng', pid, kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:c.contractor||''};
     /* Ký hợp đồng vượt giá gói thầu được duyệt */
-    if(k && N(k.estimate)>0 && contractValue(c)>N(k.estimate)+1) add({...base, lvl:'bad', kind:'Vốn đầu tư', text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} có giá trị ${fmtVND(contractValue(c))} đ vượt giá gói thầu được duyệt ${fmtVND(k.estimate)} đ (vượt ${fmtVND(contractValue(c)-N(k.estimate))} đ).`});
+    if(k && N(k.estimate)>0 && contractValue(c)>N(k.estimate)+1) add({...base, lvl:'bad', kind:'Vốn đầu tư', text:`Hợp đồng <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)} có giá trị ${fmtVND(contractValue(c))} đ vượt giá gói thầu được duyệt ${fmtVND(k.estimate)} đ (vượt ${fmtVND(contractValue(c)-N(k.estimate))} đ).`});
     if(!e) return;
     if(k && /thanh lý|nghiệm thu/i.test(k.status||'')) return;
     /* HĐ không lập bảng khối lượng chi tiết (tư vấn, mua sắm, dịch vụ): đo mức hoàn thành theo giá trị đã thanh toán */
     const boq=contractHasBoq(c.id); const done=boq? pct(contractDone(c.id),contractValue(c)) : pct(contractPaid(c.id),contractValue(c));
     const what=boq? 'khối lượng thực hiện' : 'giá trị đã thanh toán';
     const left=days(TODAY,e);
-    if(left<0 && done<100) add({...base, lvl:'bad', due:e, text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} đã hết hạn ${-left} ngày, ${what} ${fmtP(done)}.`});
-    else if(left>=0 && left<=60 && done<90) add({...base, lvl:'warn', due:e, text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} còn ${left} ngày đến hạn (${fmtDate(e)}), ${what} ${fmtP(done)}.`});
+    if(left<0 && done<100) add({...base, lvl:'bad', due:e, text:`Hợp đồng <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)} đã hết hạn ${-left} ngày, ${what} ${fmtP(done)}.`});
+    else if(left>=0 && left<=60 && done<90) add({...base, lvl:'warn', due:e, text:`Hợp đồng <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)} còn ${left} ngày đến hạn (${fmtDate(e)}), ${what} ${fmtP(done)}.`});
   });
+  /* Bản 1.8.8: hợp đồng chưa có số hoặc ngày ký (dữ liệu đầu kỳ thiếu): nhắc bổ sung; nhiều hợp đồng thì Tổng quan gom một dòng */
+  const nonum=D('contracts').filter(c=>ok(contractPid(c)) && (!String(c.number||'').trim() || !c.signDate)).sort((a,b)=>codeCmp(pc(contractPid(a)),pc(contractPid(b)))||codeCmp((pkgOf(a.packageId)||{}).code,(pkgOf(b.packageId)||{}).code));
+  const nnMiss=c=>[!String(c.number||'').trim()?'số hợp đồng':'', !c.signDate?'ngày ký':''].filter(Boolean).join(', ');
+  if(nonum.length>3 && !o.all) add({mod:'goi-thau', kind:'Hợp đồng', go:'cbk|Hợp đồng', who:'Cán bộ quản lý hợp đồng', lvl:'warn', text:`<b>${nonum.length} hợp đồng chưa có số hoặc ngày ký</b> (dữ liệu nhập đầu kỳ còn thiếu), cần bổ sung theo hợp đồng đã ký.`});
+  else nonum.forEach(c=>{ const k=pkgOf(c.packageId); add({mod:'goi-thau', kind:'Hợp đồng', pid:contractPid(c), kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:'Cán bộ quản lý hợp đồng', lvl:'warn', text:`Hợp đồng gói <b>${esc(k?k.name:'')}</b> ${tag(contractPid(c),k)}${c.contractor?', '+esc(ctShort(c)):''} chưa có ${nnMiss(c)}, cần bổ sung.`}); });
   /* Tổng giá trị hợp đồng của dự án vượt tổng mức đầu tư */
   projects().filter(p=>ok(p.id) && N(p.tmdt)>0).forEach(p=>{ const cv=sum(D('contracts').filter(c=>contractPid(c)===p.id),contractValue);
     if(cv>N(p.tmdt)+1) add({mod:'du-an', kind:'Vốn đầu tư', lvl:'bad', pid:p.id, go:'proj|'+p.id, who:'', text:`Dự án <b>${esc(p.code)}</b>: tổng giá trị hợp đồng ${fmtVND(cv)} đ vượt tổng mức đầu tư ${fmtVND(p.tmdt)} đ (vượt ${fmtVND(cv-N(p.tmdt))} đ).`}); });
@@ -437,9 +443,9 @@ function alerts(o={}){
   D('contracts').filter(c=>ok(contractPid(c))).forEach(c=>{ const k=pkgOf(c.packageId); if(k && /thanh lý/i.test(k.status||'')) return;
     const pid=contractPid(c); const base={mod:'goi-thau', kind:'Bảo lãnh', pid, kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:c.contractor||''};
     /* Bảo lãnh thực hiện HĐ: hết nghĩa vụ khi HĐ đã thanh toán đủ */
-    if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${esc(c.number)}</b> ${tag(pid,k)}`, base);
+    if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)}`, base);
     /* Bảo lãnh tạm ứng: chỉ nhắc khi còn dư nợ tạm ứng chưa thu hồi */
-    const adv=advanceLeft(c.id); if(adv>1) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${esc(c.number)}</b> ${tag(pid,k)}, dư nợ tạm ứng ${fmtVND(adv)} đ`, base); });
+    const adv=advanceLeft(c.id); if(adv>1) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)}, dư nợ tạm ứng ${fmtVND(adv)} đ`, base); });
   D('legal').filter(l=>l.validUntil && ok(l.projectId)).forEach(l=>{ const p=projOf(l.projectId); if(p && /hoàn thành|quyết toán|bàn giao/i.test(p.status||'')) return;
     const k=l.packageId&&pkgOf(l.packageId); expiry(l.validUntil, `${esc(l.type)} <b>${esc(l.number)}</b> ${tag(l.projectId,k)}`, {mod:k?'goi-thau':'du-an', kind:'Pháp lý', pid:l.projectId, kid:k?k.id:'', go:k?'pkg|'+k.id:'legal|'+l.projectId, who:l.issuer||''}); });
   /* Đợt thanh toán quá hạn: nhắc cho đến khi đợt được thực hiện; nhiều đợt thì gom một dòng ở Tổng quan, Trung tâm cảnh báo liệt kê đủ */
@@ -486,9 +492,68 @@ function statusPill(s){
   return pill(s||'—',k);
 }
 function progBar(v, k){ const w=Math.max(0,Math.min(100,N(v))); return `<div class="barl"><div class="bar ${k||''}"><i style="width:${w}%"></i></div><span>${Math.round(N(v))}%</span></div>`; }
-function opts(list, cur, empty){ return (empty!=null?`<option value="">${esc(empty)}</option>`:'') + list.map(o=>{ const [v,l]=Array.isArray(o)?o:[o,o]; return `<option value="${esc(v)}" ${String(v)===String(cur??'')?'selected':''}>${esc(l)}</option>`; }).join(''); }
+/* Mục chọn: [giá trị, nhãn, nhóm, chữ tìm thêm]. Có nhóm thì gom vào <optgroup> (gói thầu, hợp đồng nhóm theo dự án) */
+function opts(list, cur, empty){ let g=null, h=(empty!=null?`<option value="">${esc(empty)}</option>`:'');
+  list.forEach(o=>{ const [v,l,gr,sx]=Array.isArray(o)?o:[o,o];
+    if((gr||null)!==g){ if(g) h+='</optgroup>'; g=gr||null; if(g) h+=`<optgroup label="${esc(g)}">`; }
+    h+=`<option value="${esc(v)}" ${String(v)===String(cur??'')?'selected':''}${sx?` data-s="${esc(sx)}"`:''}>${esc(l)}</option>`; });
+  return h+(g?'</optgroup>':''); }
+/* Ô chọn dài (trên 12 mục) có ô gõ để tìm: gõ tên gói, tên dự án, số hợp đồng, nhà thầu, không cần dấu.
+   Ô chọn gốc vẫn giữ (ẩn) để biểu mẫu, bộ lọc đọc giá trị như cũ. */
+const fold = x => String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'d').toLowerCase();
+let _combo=null;
+addEventListener('scroll',e=>{ if(_combo && !_combo.lst.hidden && !_combo.lst.contains(e.target)) _combo.place(); },true);
+addEventListener('resize',()=>{ if(_combo && !_combo.lst.hidden) _combo.place(); });
+function comboWire(root){ document.querySelectorAll('body > .combo-list').forEach(l=>{ if(!document.body.contains(l._inp)) l.remove(); });
+  (root||document).querySelectorAll('select').forEach(sel=>{ if(sel._cb || sel.classList.contains('pg-size') || sel.hasAttribute('data-nocombo') || sel.options.length<=12) return; comboMake(sel); }); }
+function comboMake(sel){
+  sel._cb=1; const box=document.createElement('span'); box.className='combo'; if(sel.style.maxWidth) box.style.maxWidth=sel.style.maxWidth;
+  sel.parentNode.insertBefore(box, sel); box.appendChild(sel); sel.classList.add('combo-src'); sel.tabIndex=-1;
+  const inp=document.createElement('input'); inp.type='text'; inp.className='combo-in'; inp.autocomplete='off'; inp.spellcheck=false;
+  inp.setAttribute('role','combobox'); inp.setAttribute('aria-expanded','false'); inp.setAttribute('aria-label',(sel.getAttribute('aria-label')||'')+' (gõ để tìm)');
+  inp.placeholder='Gõ để tìm…'; box.insertBefore(inp, sel);
+  const lst=document.createElement('div'); lst.className='combo-list'; lst.hidden=true; lst.setAttribute('role','listbox'); lst._inp=inp; document.body.appendChild(lst);
+  const gcode=o=>{ const g=o.parentElement && o.parentElement.tagName==='OPTGROUP' ? o.parentElement.label : ''; return g? g.split(' – ')[0] : ''; };
+  const label=()=>{ const o=sel.options[sel.selectedIndex]; if(!o) return ''; const g=gcode(o); return (g&&o.value? g+' · ' : '')+o.text; };
+  const sync=()=>{ inp.value=label(); inp.title=(()=>{ const o=sel.options[sel.selectedIndex]; return o&&o.parentElement.tagName==='OPTGROUP'? o.parentElement.label : ''; })(); };
+  let items=[], on=-1;
+  const draw=q=>{ const ws=fold(q).split(/\s+/).filter(Boolean); let h='', gPrev=null, n=0; items=[];
+    [...sel.options].forEach(o=>{ const gl=o.parentElement.tagName==='OPTGROUP'? o.parentElement.label : '';
+      if(ws.length){ const t=fold(o.text+' '+gl+' '+(o.dataset.s||'')); if(!ws.every(w=>t.includes(w))) return; }
+      if(n>=300) return; n++;
+      if(gl!==gPrev){ gPrev=gl; if(gl) h+=`<div class="combo-g">${esc(gl)}</div>`; }
+      h+=`<div class="combo-o${o.value===sel.value?' cur':''}" role="option" data-i="${items.length}">${esc(o.text)}</div>`; items.push(o); });
+    lst.innerHTML=h||'<div class="combo-none">Không tìm thấy. Thử gõ tên gói, tên dự án, số hợp đồng hoặc tên nhà thầu.</div>'; on=-1; };
+  const place=()=>{ const r=inp.getBoundingClientRect(); const below=innerHeight-r.bottom; lst.style.left=Math.max(8,Math.min(r.left, innerWidth-Math.max(r.width,320)-8))+'px'; lst.style.minWidth=Math.min(innerWidth-16,Math.max(r.width,320))+'px';
+    if(below<240 && r.top>below){ lst.style.top=''; lst.style.bottom=(innerHeight-r.top+2)+'px'; lst.style.maxHeight=Math.min(360,r.top-12)+'px'; } else { lst.style.bottom=''; lst.style.top=(r.bottom+2)+'px'; lst.style.maxHeight=Math.min(360,below-12)+'px'; } };
+  const open=q=>{ if(_combo && _combo.lst!==lst) _combo.lst.hidden=true; _combo={lst,place}; draw(q); place(); lst.hidden=false; inp.setAttribute('aria-expanded','true'); };
+  const close=()=>{ lst.hidden=true; inp.setAttribute('aria-expanded','false'); };
+  const pick=o=>{ close(); if(o && sel.value!==o.value){ sel.value=o.value; sync(); sel.dispatchEvent(new Event('change',{bubbles:true})); } else sync(); };
+  const mark=i=>{ const els=lst.querySelectorAll('.combo-o'); if(!els.length) return; on=(i+els.length)%els.length; els.forEach((e,j)=>e.classList.toggle('on',j===on)); els[on].scrollIntoView({block:'nearest'}); };
+  inp.addEventListener('focus',()=>inp.select());
+  inp.addEventListener('click',()=>{ if(lst.hidden) open(''); });
+  inp.addEventListener('input',()=>open(inp.value));
+  inp.addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement!==inp){ close(); sync(); } },120));
+  inp.addEventListener('keydown',e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); if(lst.hidden) open(''); mark(on+1); } else if(e.key==='ArrowUp'){ e.preventDefault(); mark(on-1); }
+    else if(e.key==='Enter'){ if(!lst.hidden){ e.preventDefault(); pick(items[on>=0?on:0]); } } else if(e.key==='Escape'){ if(!lst.hidden){ e.stopPropagation(); e.preventDefault(); close(); sync(); } } });
+  lst.addEventListener('mousedown',e=>{ e.preventDefault(); const d=e.target.closest('.combo-o'); if(d) pick(items[+d.dataset.i]); });
+  sel.addEventListener('change',sync); sel.addEventListener('focus',()=>inp.focus()); sel._cbSync=sync;
+  sync(); }
 const projOpts = () => projects().map(p=>[p.id, p.code+' – '+p.name]);
-const pkgOpts = (pid) => D('packages').filter(k=>pidOk(k.projectId) && (!pid||k.projectId===pid)).sort(by('code')).map(k=>[k.id, k.code+' – '+k.name]);
+/* Bản 1.8.8: gói thầu, hợp đồng nhóm theo dự án, ghi tên gói trước, ký hiệu sau; tìm được theo số hợp đồng, nhà thầu */
+const pjGroup = pid => { const p=projOf(pid)||{}; return (p.code||'')+' – '+(p.name||''); };
+const codeCmp = (a,b) => String(a||'').localeCompare(String(b||''),'vi',{numeric:true});
+const pkgSort = (a,b) => codeCmp((projOf(a.projectId)||{}).code, (projOf(b.projectId)||{}).code) || codeCmp(a.code,b.code);
+const pkgOpts = (pid) => D('packages').filter(k=>pidOk(k.projectId) && (!pid||k.projectId===pid)).sort(pkgSort).map(k=>{ const c=contractOfPkg(k.id);
+  return [k.id, k.name+' ('+k.code+')', pjGroup(k.projectId), [k.code, c&&c.number, c&&c.contractor, typeof pkgContractorName==='function'?pkgContractorName(k):''].filter(Boolean).join(' ')]; });
+/* Số hợp đồng: hợp đồng chưa có số (dữ liệu đầu kỳ thiếu số) ghi rõ "Chưa có số hợp đồng" */
+const NO_CNUM='Chưa có số hợp đồng';
+const cNum = c => (c && String(c.number||'').trim()) || NO_CNUM;
+const cNumH = c => (c && String(c.number||'').trim()) ? esc(c.number) : `<span class="no-num">${NO_CNUM}</span>`;
+/* Tên ngắn của nhà thầu (tên viết tắt trong danh mục nếu có) */
+const ctShort = c => { if(!c) return ''; const n=normKey(c.contractor); const o=n && D('orgs').find(x=>normKey(x.name)===n); return (o&&o.shortName)||c.contractor||''; };
+/* Mô tả hợp đồng một dòng: DA050 · TV07 Tư vấn quản lý dự án */
+const cDesc = c => { const k=c&&pkgOf(c.packageId); const p=projOf(contractPid(c)); return [(p||{}).code, k? k.code+' '+k.name : ''].filter(Boolean).join(' · '); };
 /* Giai đoạn của gói thầu: chọn ở biểu mẫu gói thầu; chưa chọn thì gói tư vấn (trừ tư vấn giám sát) thuộc chuẩn bị đầu tư */
 const isSupPkg = k => (/GS/i.test(k.code||'') && /tư vấn/i.test(k.type||'')) || /giám sát/i.test((k.name||'')+' '+(k.type||''));
 const pkgPhaseDef = k => /tư vấn/i.test(k.type||'') && !/phi tư vấn/i.test(k.type||'') && !isSupPkg(k) ? 'cb' : 'dt';
@@ -502,7 +567,8 @@ const contractProd = c => !!c && (contractPhase(c)==='cb' || isTVPkg(pkgOf(c.pac
 const cidProd = cid => contractProd(get('contracts',cid));
 /* Nhóm hợp đồng: 'cb' chuẩn bị đầu tư, 'dt' mọi hợp đồng thực hiện đầu tư, 'tv' hợp đồng tư vấn thực hiện đầu tư, 'kl' hợp đồng thực hiện đầu tư quản lý theo khối lượng */
 const phMatch = (c, ph) => !ph || (ph==='tv'? contractPhase(c)==='dt' && contractProd(c) : ph==='kl'? contractPhase(c)==='dt' && !contractProd(c) : contractPhase(c)===ph);
-const contractOpts = (pid, ph) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid) && phMatch(c,ph)).sort(by('number')).map(c=>[c.id, c.number+' – '+((pkgOf(c.packageId)||{}).code||'')]);
+const contractOpts = (pid, ph) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid) && phMatch(c,ph)).map(c=>({c, k:pkgOf(c.packageId)||{}})).sort((a,b)=>codeCmp((projOf(contractPid(a.c))||{}).code,(projOf(contractPid(b.c))||{}).code)||codeCmp(a.k.code,b.k.code))
+  .map(({c,k})=>[c.id, [(k.name||'')+(k.code?' ('+k.code+')':''), ctShort(c), cNum(c)].filter(Boolean).join(' · '), pjGroup(contractPid(c)), [c.number, c.contractor, k.code].filter(Boolean).join(' ')]);
 function emptyBox(text, btn){ return `<div class="empty">${text}${btn?`<div style="margin-top:10px">${btn}</div>`:''}</div>`; }
 
 /* Bảng dữ liệu chung */
@@ -573,7 +639,7 @@ function fieldHTML(f, v, rec={}){
 }
 function openModal(html, narrow){
   const ov=$('#ov'); ov.innerHTML=html; ov.hidden=false;
-  fitTables(ov);
+  fitTables(ov); comboWire(ov);
   const first=ov.querySelector('input:not([type=checkbox]):not([type=file]),select,textarea'); if(first) setTimeout(()=>first.focus(),30);
   return ov;
 }
@@ -593,7 +659,7 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
     box.addEventListener('click',e=>{ const c=e.target.closest('[data-chip]'); if(!c) return; e.preventDefault(); inp.value=c.dataset.chip; inp.dispatchEvent(new Event('input',{bubbles:true})); mark(); }); inp.addEventListener('input',mark); });
   /* Ô chọn phụ thuộc ô khác (dep): đổi ô gốc thì nạp lại danh sách */
   fields.filter(f=>f.dep && f.type==='select').forEach(f=>{ const src=$('#f_'+f.dep), el=$('#f_'+f.key); if(!src||!el) return;
-    const fill=()=>{ const cur=el.value; el.innerHTML=opts(f.options(src.value), cur, f.req?null:'— Chọn —'); };
+    const fill=()=>{ const cur=el.value; el.innerHTML=opts(f.options(src.value), cur, f.req?null:'— Chọn —'); if(el._cbSync) el._cbSync(); else comboWire(el.parentNode); };
     fill(); src.addEventListener('change', fill); });
   form.onsubmit=async e=>{
     e.preventDefault(); const send=!!(e.submitter && e.submitter.dataset.send);
@@ -1084,7 +1150,7 @@ function wfReturned(col, r){ if(!WF[col] || wfStatus(col,r)!==WF[col].draft) ret
 /** Hồ sơ thanh toán đang đề nghị (mới lập, đang duyệt, đang trình Kho bạc); hồ sơ bị trả lại không tính. */
 function payInProc(p){ return ['Đề nghị',WF_CHECK,'Chờ duyệt','Đang trình KBNN'].includes(p.status) && !wfReturned('payments',p); }
 /** Thanh toán khối lượng hoàn thành (không gồm tạm ứng, thu hồi tạm ứng). */
-const payIsVol = p => /khối lượng/i.test(p.kind||'') && !/tạm ứng/i.test(p.kind||'');
+const payIsVol = p => /khối lượng|theo sản phẩm/i.test(p.kind||'') && !/tạm ứng/i.test(p.kind||'');
 function wfPill(col, r){ const w=WF[col], s=wfStatus(col,r), rt=wfReturned(col,r);
   if(rt) return `<span class="pill bad" title="${esc('Trả lại: '+(rt.note||''))}">Bị trả lại</span>${rt.note?`<div class="small muted">${esc(rt.note)}</div>`:''}`;
   if(wfPendingS(col,s)){ const st=wfState(col,r), od=wfOverdue(col,r,st);

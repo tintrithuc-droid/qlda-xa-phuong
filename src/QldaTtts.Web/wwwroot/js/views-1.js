@@ -36,8 +36,24 @@ function render(){
   S.after.forEach(f=>{ try{ f(); }catch(e){ console.error(e); } });
   if(prevF){ const el=c.querySelector(`[data-f="${prevF}"]`); if(el && el.tagName==='INPUT'){ el.focus(); try{ el.setSelectionRange(caret,caret); }catch{} } }
   renderTabbar();
-  fitTables(c);
+  introAdd(c, r);
+  fitTables(c); comboWire(c); comboWire($('#top'));
 }
+/* Bản 1.8.8: mỗi màn hình nghiệp vụ có một dòng giới thiệu: dùng để làm gì, việc liên quan làm ở đâu */
+const lnk=(r,l)=>`<a href="#${r}">${l}</a>`;
+const INTRO={
+  'cb-goi-thau':()=>`Gói thầu giai đoạn chuẩn bị đầu tư (${XD('khảo sát, lập báo cáo kinh tế - kỹ thuật, thiết kế, dự toán…','lập, thẩm tra báo cáo kinh tế - kỹ thuật, thẩm định giá…')}). Bấm vào một gói để nhập hợp đồng; nghiệm thu sản phẩm và thanh toán tại ${lnk('cb-thanh-toan','Chuẩn bị đầu tư › Nghiệm thu, thanh toán')}.`,
+  'goi-thau':()=>`Gói thầu giai đoạn thực hiện đầu tư. Gói tư vấn nghiệm thu, thanh toán theo sản phẩm tại ${lnk('tv-thanh-toan','Nghiệm thu, thanh toán tư vấn')}; gói ${XD('thi công','triển khai')}, mua sắm theo dõi khối lượng, tiến độ và thanh toán tại ${lnk('thanh-toan','Quản lý thanh toán')}.`,
+  'cb-thanh-toan':()=>`Hợp đồng tư vấn chuẩn bị đầu tư: khai báo sản phẩm của hợp đồng, nghiệm thu từng sản phẩm, rồi lập hồ sơ thanh toán theo giá trị đã nghiệm thu.`,
+  'tv-thanh-toan':()=>`Hợp đồng tư vấn giai đoạn thực hiện đầu tư (quản lý dự án, lập và đánh giá hồ sơ mời thầu, giám sát, kiểm thử…): khai báo sản phẩm, nghiệm thu sản phẩm, thanh toán theo sản phẩm. Hợp đồng ${XD('thi công','triển khai')}, mua sắm ở ${lnk('thanh-toan','Quản lý thanh toán')}.`,
+  'thanh-toan':()=>`Hợp đồng ${XD('thi công','triển khai')}, mua sắm, phi tư vấn: kế hoạch thanh toán và hồ sơ thanh toán theo khối lượng đã nghiệm thu. Hợp đồng tư vấn ở ${lnk('tv-thanh-toan','Nghiệm thu, thanh toán tư vấn')}.`,
+  'khoi-luong':()=>`Bảng khối lượng và các đợt nghiệm thu khối lượng của hợp đồng ${XD('thi công','triển khai')}, mua sắm. Hợp đồng tư vấn nghiệm thu theo sản phẩm ở mục Nghiệm thu, thanh toán của giai đoạn.`,
+  'nghiem-thu':()=>`Biên bản nghiệm thu hoàn thành hạng mục, ${XD('công trình','hệ thống')}, vận hành thử, bàn giao và theo dõi bảo hành. Nghiệm thu từng sản phẩm của hợp đồng tư vấn làm ở mục Nghiệm thu, thanh toán của giai đoạn.`,
+  'tien-do':()=>`Kế hoạch tiến độ các hạng mục, công việc của từng gói thầu và cập nhật phần trăm thực hiện. Chọn gói thầu ở ô bên dưới (gõ tên gói hoặc tên dự án để tìm).`,
+  'nhat-ky':()=>XD('Nhật ký thi công hằng ngày của gói thi công, mua sắm lắp đặt.','Nhật ký triển khai: công việc đã làm, người tham gia, vướng mắc, ảnh hiện trường của từng gói thầu.'),
+  'danh-muc-don-vi':()=>`Danh mục dùng chung cho mọi dự án. Gói thầu chọn nhà thầu, đơn vị giám sát từ danh mục này; trong từng giai đoạn, thẻ "Nhà thầu của giai đoạn" chỉ liệt kê đơn vị có gói ở giai đoạn đó.`};
+function introAdd(c, r){ const f=INTRO[r]; const h=c.querySelector(':scope > .head'); if(!f || !h || c.querySelector('.steps') || (/goi-thau$/.test(r) && S.tab.gt==='nt')) return;
+  h.insertAdjacentHTML('afterend', `<p class="intro">${f()}</p>`); }
 function buildShell(){
   $('#root').innerHTML=`<div class="app" id="app">
     <aside class="side" id="side"><div class="brand"><div class="mark${BR.logo?' logo':''}" id="brandmark">${brandMark()}</div><div><span id="brand_org">${esc(BR.orgShort)}</span><b id="brand_app">${esc(BR.appName)}</b></div></div><nav class="nav" id="nav"></nav><div class="foot" id="sidefoot"></div></aside>
@@ -62,6 +78,7 @@ function renderNav(){
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;
       if(grp==='Nghiệp vụ'){ const cb=NAV_CB.filter(([r])=>can(r)); if(cb.length) html+=`<div class="sub">${esc(PHASES.cb)}</div>`+cb.map(([r,l,i])=>link(r,l,i,PHASES.cb+': '+l)).join('')+`<div class="sub">${esc(PHASES.dt)}</div>`; } }
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
+    if(m.key==='du-an' && can(NAV_DM[0])) html+=link(NAV_DM[0],NAV_DM[1],NAV_DM[2]);
     if(m.key==='goi-thau' && can(NAV_TV[0])) html+=link(NAV_TV[0],NAV_TV[1],NAV_TV[2],PHASES.dt+': '+NAV_TV[1]);
     if(m.key==='tong-quan'){ const n=wfMine().length; html+=`<a href="#trinh-duyet" class="${S.route==='trinh-duyet'?'on':''}">${ic('stamp')}<span>Trình duyệt hồ sơ</span>${n?`<span class="cnt">${n}</span>`:''}</a>`;
       html+=`<a href="#canh-bao" title="Trung tâm cảnh báo" class="${S.route==='canh-bao'?'on':''}">${ic('bell')}<span>Trung tâm cảnh báo</span>${al.length?`<span class="cnt">${al.length}</span>`:''}</a>`; }
@@ -72,7 +89,7 @@ function renderNav(){
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
+  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
@@ -435,6 +452,7 @@ ACT['alert-go']=(id)=>{ const i=String(id).indexOf('|'), t=id.slice(0,i), x=id.s
   if(t==='pkg'){ goPkg(x); }
   else if(t==='td'){ S.f.tdk=x; S.tab.td='goi-thau'; go('tien-do'); }
   else if(t==='tt'){ goPay(x); }
+  else if(t==='cbk'){ S.f.cbk=x; go('canh-bao'); }
   else if(t==='mod'){ go(x); }
   else { S.sel.project=x; S.tab.proj=t==='task'?'tasks':t==='legal'?'legal':'status'; go('du-an'); } };
 ACT['open-project']=(id)=>{ S.sel.project=id; S.tab.proj='info'; if(location.hash==='#du-an') render(); else location.hash='du-an'; };

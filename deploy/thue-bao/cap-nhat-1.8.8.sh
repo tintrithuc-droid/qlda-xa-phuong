@@ -3,7 +3,7 @@
 #   bash cap-nhat-1.8.8.sh qlda-src-<mã>.tar.gz <mã> [tệp-sql-dữ-liệu-trithuc]   (tệp nén tạo bằng: git archive --format=tar.gz -o qlda-src-<mã>.tar.gz <mã>).
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-TGZ=${1:-qlda-src-CHUA_CO_MA.tar.gz}; TAG=${2:-CHUA_CO_MA}; DIR=/opt/qlda-thue-bao; SRC=/opt/qlda-src-$TAG; APP=qlda-thue-bao-app-1
+TGZ=${1:-qlda-src-CHUA_CO_MA.tar.gz}; SQL=${3:+$(realpath "$3")}; TAG=${2:-CHUA_CO_MA}; DIR=/opt/qlda-thue-bao; SRC=/opt/qlda-src-$TAG; APP=qlda-thue-bao-app-1
 [[ -f "$TGZ" ]] || { echo "Không thấy $TGZ"; exit 1; }
 echo "== 1. Giải nén mã nguồn vào $SRC"; mkdir -p "$SRC"; tar xzf "$TGZ" -C "$SRC"
 echo "== 2. Giữ bộ HDSD đang chạy (PDF không có trong mã nguồn)"
@@ -18,6 +18,6 @@ if grep -q '^QLDA_IMAGE=' .env; then sed -i "s#^QLDA_IMAGE=.*#QLDA_IMAGE=qlda-xa
 docker compose --project-directory "$DIR" -p qlda-thue-bao up -d app </dev/null
 for i in $(seq 1 60); do v=$(curl -sk --resolve trithuc.qlda.trithucsoft.vn:443:127.0.0.1 https://trithuc.qlda.trithucsoft.vn/api/health || true); [[ "$v" == *1.8.8* ]] && { echo "Đã chạy: $v"; OK=1; break; }; sleep 2; done
 [[ "${OK:-}" == 1 ]] || { echo "Chưa thấy bản 1.8.8 chạy. Quay về: sed -i 's#^QLDA_IMAGE=.*#QLDA_IMAGE=qlda-xa-phuong:truoc-cap-nhat-188#' $DIR/.env && docker compose --project-directory $DIR -p qlda-thue-bao up -d app"; exit 1; }
-if [[ -n "${3:-}" ]]; then echo "== 7. Cập nhật dữ liệu trithuc: $3 (đã sao lưu ở bước 5)"
-  docker compose --project-directory "$DIR" -p qlda-thue-bao exec -T db psql -v ON_ERROR_STOP=1 -U qlda_quantri -d qlda_x_trithuc < "$3"; fi
+if [[ -n "$SQL" ]]; then echo "== 7. Cập nhật dữ liệu trithuc: $SQL (đã sao lưu ở bước 5)"
+  docker compose --project-directory "$DIR" -p qlda-thue-bao exec -T db psql -v ON_ERROR_STOP=1 -U qlda_quantri -d qlda_x_trithuc < "$SQL"; fi
 echo "Xong."

@@ -49,7 +49,7 @@ function totp(secret) {
   await p.click('.combo:has(#t_sel) .combo-in'); await p.keyboard.type('tham dinh gia'); await p.waitForTimeout(150);
   const vis = await p.evaluate(() => [...document.querySelectorAll('.combo-list:not([hidden]) .combo-o')].map(x => x.textContent));
   check(vis.length === 1 && vis[0].includes('Thẩm định giá'), 'Gõ không dấu tìm đúng tên gói');
-  await p.fill('.combo:has(#t_sel) .combo-in', '99/HĐ'); await p.waitForTimeout(150); await p.keyboard.press('Enter');
+  await p.fill('.combo-list:not([hidden]) .combo-q', '99/HĐ'); await p.waitForTimeout(150); await p.keyboard.press('Enter');
   check(await p.evaluate(() => document.querySelector('#t_sel').value === 'v15'), 'Tìm theo số hợp đồng, Enter chọn đúng');
   await p.evaluate(() => document.querySelector('#t_sel').closest('div').remove());
 

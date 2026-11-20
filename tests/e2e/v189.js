@@ -121,6 +121,16 @@ function totp(secret) {
   await p.evaluate(() => { closeModal(); Store.data.projects = D('projects').filter(x => !String(x.id).startsWith('tmp')); });
   check(await p.evaluate(() => { const h = alertList(Array.from({ length: 7 }, (_, i) => ({ lvl: i ? 'warn' : 'bad', text: 'Cảnh báo ' + i, go: 'mod|tong-quan' }))); return /Nghiêm trọng/.test(h) && /Xem thêm 2 cảnh báo/.test(h); }), 'Cảnh báo ghi mức độ bằng chữ, quá 5 dòng thì thu gọn');
 
+  // Ô chọn dự án trên thanh trên cùng: bấm vào có ô tìm (kính lúp), gõ là lọc
+  await go('tong-quan');
+  check(await p.evaluate(() => !!document.querySelector('#top .combo .combo-in')), 'Ô chọn dự án trên thanh trên cùng có ô tìm (từ 6 dự án)');
+  await p.click('#top .combo-in'); await p.waitForTimeout(200);
+  check(await p.evaluate(() => document.activeElement && document.activeElement.classList.contains('combo-q')), 'Bấm ô chọn dự án: con trỏ nằm sẵn ở ô tìm');
+  const code = await p.evaluate(() => D('projects')[0].code);
+  await p.keyboard.type(code); await p.waitForTimeout(200);
+  check(await p.evaluate(c => { const o = [...document.querySelectorAll('.combo-list:not([hidden]) .combo-o')]; return o.length >= 1 && o.every(x => x.textContent.includes(c)); }, code), 'Gõ mã dự án lọc đúng danh sách');
+  await p.keyboard.press('Escape');
+
   // E. Công việc theo người thực hiện trong dự án
   const pid = await p.evaluate(() => (D('tasks')[0] || {}).projectId);
   await p.evaluate(id => { S.sel.project = id; S.tab.proj = 'tasks'; S.f.tview = 'person'; }, pid); await go('tong-quan'); await go('du-an');

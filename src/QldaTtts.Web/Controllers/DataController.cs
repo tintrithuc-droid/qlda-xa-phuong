@@ -126,6 +126,7 @@ public class DataController : ApiControllerBase
             if (!Uc.IsAdmin) g.Admin = old?.Admin ?? false;
             if (id == "g-admin") g.Admin = true;
             if (old?.Admin == true && !Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được sửa nhóm có toàn quyền.");
+            if (!g.Admin) g.Perms = new Dictionary<string, string>(g.Perms ?? new()) { ["quan-tri"] = "none" };
         }
 
         var wf = Workflow.Find(collection);
@@ -145,14 +146,22 @@ public class DataController : ApiControllerBase
             var ids = pk.ContractorIds.Concat(pk.SupervisorIds).Distinct().ToList();
             if (await Db.Organizations.CountAsync(o => ids.Contains(o.Id)) != ids.Count) return Error(400, "Nhà thầu hoặc đơn vị giám sát được chọn không có trong danh mục.");
         }
+        // Bản 1.8.3: tỷ lệ liên danh chỉ cho thành viên của gói, mỗi tỷ lệ 0–100%, cộng không quá 100%
+        if (obj is Package ps && ps.ContractorShares.Count > 0)
+        {
+            if (ps.ContractorShares.Keys.Any(k => !ps.ContractorIds.Contains(k))) return Error(400, "Tỷ lệ liên danh có đơn vị không phải thành viên của gói thầu.");
+            if (ps.ContractorShares.Values.Any(v => v < 0 || v > 100) || Math.Abs(ps.ContractorShares.Values.Sum() - 100m) > 0.01m || ps.ContractorIds.Any(k => !ps.ContractorShares.ContainsKey(k)))
+                return Error(400, "Tỷ lệ liên danh phải có cho từng thành viên, mỗi tỷ lệ từ 0 đến 100%, cộng lại đúng 100%.");
+        }
         // Dòng khối lượng thuộc đợt nghiệm thu (bản 1.7): đợt đang chờ hoặc đã duyệt thì khóa với người không có quyền duyệt
         if (obj is VolumeEntry ve && await VolumeLock(ve, existing as VolumeEntry) is { } vmsg) return Denied(vmsg);
         // Hợp đồng tư vấn giai đoạn chuẩn bị đầu tư nghiệm thu theo giá trị sản phẩm: lũy kế nghiệm thu không vượt giá trị sản phẩm
         if (obj is VolumeEntry pv && await PrepOver(pv) is { } pmsg) return Error(409, pmsg);
 
         obj.UpdatedAt = DateTime.UtcNow; obj.UpdatedBy = Uc.User.Username;
+        var what = existing is null ? "" : Fields.Describe(Workflow.Changed(existing, obj));
         if (existing is null) Db.Add(obj); else Db.Entry(existing).CurrentValues.SetValues(obj);
-        Uc.Log(existing is null ? "Thêm mới" : "Cập nhật", def.Label, Collections.LabelOf(obj));
+        Uc.Log(existing is null ? "Thêm mới" : "Cập nhật", def.Label, Collections.LabelOf(obj) + (what == "" ? "" : " (" + what + ")"), collection, id);
         await Db.SaveChangesAsync();
         return Ok(obj);
     }
@@ -190,7 +199,7 @@ public class DataController : ApiControllerBase
         // Tệp đính kèm của bản ghi chuyển vào thùng rác (quản trị khôi phục/xóa hẳn trong 30 ngày)
         foreach (var a in await Db.Attachments.Where(a => a.Collection == collection && a.RecordId == id && a.DeletedAt == null).ToListAsync())
         { a.DeletedAt = DateTime.UtcNow; a.DeletedBy = Uc.User.Name + " (xóa bản ghi)"; }
-        Uc.Log("Xóa", def.Label, Collections.LabelOf(existing));
+        Uc.Log("Xóa", def.Label, Collections.LabelOf(existing), collection, id);
         await Db.SaveChangesAsync();
         return Ok(new { deleted = true });
     }
@@ -222,6 +231,22 @@ public class DataController : ApiControllerBase
         }
         if (old is not null && string.IsNullOrEmpty(old.BatchId)) return null; // dữ liệu trước bản 1.7
         return null;
+    }
+
+    /// <summary>Bản 1.8.9: lịch sử thay đổi của một hồ sơ (ai tạo, ai sửa, đính kèm, trình duyệt), cho người được xem hồ sơ đó.</summary>
+    [HttpGet("history/{collection}/{id}")]
+    public async Task<IActionResult> History(string collection, string id)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var def = Collections.Find(collection);
+        if (def is null || !ValidId(id)) return Error(400, "Dữ liệu không hợp lệ.");
+        if (!Uc.Can(def.Module) || (Private.TryGetValue(collection, out var mod) && !Uc.Can(mod))) return Denied();
+        var rec = (EntityBase?)await Db.FindAsync(def.Type, id);
+        if (rec is not null && Scoped(rec) && !Uc.InScope(await ProjectOf(rec))) return Denied("Dự án này nằm ngoài phạm vi dữ liệu được giao.");
+        if (rec is not null && Uc.Packages is not null && !Uc.InPackage(await PackageOf(rec))) return Denied("Gói thầu này không thuộc đơn vị của bạn.");
+        var logs = await Db.Logs.AsNoTracking().Where(l => l.Collection == collection && l.RecordId == id).OrderByDescending(l => l.Ts).Take(300)
+            .Select(l => new { l.Ts, l.Username, l.Fullname, l.Action, l.Target }).ToListAsync();
+        return Ok(logs);
     }
 
     public record LogRequest(string Action, string? Module, string? Target);

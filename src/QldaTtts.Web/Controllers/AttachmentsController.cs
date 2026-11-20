@@ -47,7 +47,7 @@ public class AttachmentsController : ApiControllerBase
             Size = sf.Size, UploadedBy = Uc.User.Name, UploadedAt = DateTime.UtcNow
         };
         Db.Attachments.Add(a);
-        Uc.Log("Đính kèm tệp", Collections.Find(collection!)!.Label, $"{sf.FileName} ({a.Kind ?? "tệp"})");
+        Uc.Log("Đính kèm tệp", Collections.Find(collection!)!.Label, $"{sf.FileName} ({a.Kind ?? "tệp"})", a.Collection, a.RecordId);
         await Db.SaveChangesAsync();
         return Ok(a);
     }
@@ -62,7 +62,7 @@ public class AttachmentsController : ApiControllerBase
         if (!CanAttach(a.Collection)) return Denied();
         if (!Uc.InScope(a.ProjectId)) return Denied("Dự án này nằm ngoài phạm vi dữ liệu được giao.");
         a.DeletedAt = DateTime.UtcNow; a.DeletedBy = Uc.User.Name;
-        Uc.Log("Gỡ tệp đính kèm (vào thùng rác)", Collections.Find(a.Collection)?.Label ?? a.Collection, a.FileName);
+        Uc.Log("Gỡ tệp đính kèm (vào thùng rác)", Collections.Find(a.Collection)?.Label ?? a.Collection, a.FileName, a.Collection, a.RecordId);
         await Db.SaveChangesAsync();
         return Ok(new { deleted = true });
     }
@@ -99,7 +99,7 @@ public class AttachmentsController : ApiControllerBase
         var def = Collections.Find(a.Collection);
         if (def is null || await Db.FindAsync(def.Type, a.RecordId) is null) return Error(409, "Bản ghi gốc của tệp đã bị xóa nên không khôi phục được. Hãy tải tệp về và đính kèm lại vào bản ghi khác.");
         a.DeletedAt = null; a.DeletedBy = null;
-        Uc.Log("Khôi phục tệp đính kèm", def.Label, a.FileName);
+        Uc.Log("Khôi phục tệp đính kèm", def.Label, a.FileName, a.Collection, a.RecordId);
         await Db.SaveChangesAsync();
         return Ok(a);
     }

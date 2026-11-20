@@ -61,6 +61,7 @@ public class UserContext
     {
         if (User is null || Group is null) return false;
         if (Group.Admin) return true;
+        if (module == "quan-tri") return false;   // Quản trị hệ thống: chỉ nhóm toàn quyền
         var p = Group.Perms.TryGetValue(module, out var v) ? v : "none";
         return edit ? p == "edit" : p != "none";
     }
@@ -88,12 +89,14 @@ public class UserContext
 
     public string Ip => _http.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "";
 
-    public void Log(string action, string module, string target)
+    /// <param name="collection">Bản 1.8.9: loại dữ liệu, mã hồ sơ của thao tác (để xem lịch sử thay đổi trên từng hồ sơ).</param>
+    public void Log(string action, string module, string target, string? collection = null, string? recordId = null)
     {
         _db.Logs.Add(new AuditLog
         {
             Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, UserId = User?.Id, Username = User?.Username,
-            Fullname = User?.Name, Action = action, Module = module, Target = target.Length > 500 ? target[..500] : target, Ip = Ip
+            Fullname = User?.Name, Action = action, Module = module, Target = target.Length > 500 ? target[..500] : target, Ip = Ip,
+            Collection = collection, RecordId = recordId
         });
     }
 }

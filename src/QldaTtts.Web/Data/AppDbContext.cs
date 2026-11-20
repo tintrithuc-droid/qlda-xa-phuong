@@ -65,6 +65,7 @@ public class AppDbContext : DbContext
         JsonColumn<Project, List<string>>(b, x => x.ViewerIds);
         JsonColumn<Guide, List<string>>(b, x => x.Groups);
         JsonColumn<Package, List<string>>(b, x => x.ContractorIds);
+        JsonColumn<Package, Dictionary<string, decimal>>(b, x => x.ContractorShares);
         JsonColumn<Package, List<string>>(b, x => x.SupervisorIds);
 
         b.Entity<AppUser>().HasIndex(x => x.Username).IsUnique();
@@ -83,6 +84,7 @@ public class AppDbContext : DbContext
         b.Entity<Settlement>().HasIndex(x => x.ProjectId);
         b.Entity<Clearance>().HasIndex(x => x.ProjectId);
         b.Entity<AuditLog>().HasIndex(x => x.Ts);
+        b.Entity<AuditLog>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Catalog>().HasIndex(x => x.Type);
         b.Entity<Attachment>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Attachment>().HasIndex(x => x.FileId);

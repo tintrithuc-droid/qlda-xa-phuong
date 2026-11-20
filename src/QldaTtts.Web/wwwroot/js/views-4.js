@@ -65,19 +65,19 @@ VIEWS['nghiem-thu']=()=>{
       {h:'Ngày · số biên bản',f:r=>`<div style="white-space:nowrap"><span class="num">${fmtDate(r.date)}</span><div class="small muted num">${esc(r.number||'—')}</div></div>`},{h:'Dự án · gói thầu',f:r=>`<div style="white-space:nowrap">${pshort(r.projectId)}<div>${pk(r.packageId)}</div></div>`},
       {h:'Loại, nội dung',f:r=>`<div style="min-width:240px"><b class="small">${esc(r.kind||'')}</b><div>${esc(r.content||'')}</div>${r.receiver?`<div class="small muted">Tiếp nhận: ${esc(r.receiver)}</div>`:''}</div>`},{h:'Kết quả',f:r=>`<div style="max-width:150px">${resPill(r.result).replace('<span class="pill','<span style="white-space:normal;line-height:1.3" class="pill')}</div>`},{h:'Trạng thái',f:r=>wfPill('acceptances',r)},{h:'Tệp',f:r=>attCell(atts('acceptances',r.id))}], rows,
       {actions:r=>wfBtns('acceptances',r)+wfEditBtns('acceptances',r), empty:'Chưa có biên bản nghiệm thu, bàn giao.'})}
-    <p class="small muted" style="margin:10px 0 0">Nghiệm thu theo giai đoạn thi công, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng theo Nghị định 207/2026/NĐ-CP; đính kèm biên bản, bản vẽ hoàn công.</p></div>`;
-  else body=`<div class="card"><h2>Theo dõi bảo hành công trình</h2>${table([
+    <p class="small muted" style="margin:10px 0 0">${XD('Nghiệm thu theo giai đoạn thi công, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng theo Nghị định 207/2026/NĐ-CP; đính kèm biên bản, bản vẽ hoàn công.','Nghiệm thu giai đoạn triển khai, vận hành thử, nghiệm thu hoàn thành và bàn giao đưa vào sử dụng; đính kèm biên bản, báo cáo kết quả vận hành thử, tài liệu bàn giao.')}</p></div>`;
+  else body=`<div class="card"><h2>${XD('Theo dõi bảo hành công trình','Theo dõi bảo hành, bảo trì hệ thống')}</h2>${table([
       {h:'Dự án',f:r=>pshort(r.projectId)},{h:'Gói thầu',f:r=>pk(r.packageId)},{h:'Bàn giao / nghiệm thu',f:r=>`<span class="num">${fmtDate(r.date)}</span><div class="small muted">${esc(r.kind||'')}</div>`},
       {h:'Thời hạn bảo hành',f:r=>N(r.warrantyMonths)?esc(r.warrantyMonths)+' tháng':'—'},{h:'Hết bảo hành',f:r=>`<span class="num">${fmtDate(warrantyEnd(r))}</span>`},
       {h:'Bảo lãnh bảo hành đến',f:r=>`<span class="num">${fmtDate(r.warrantyGuaranteeUntil)}</span>`},{h:'Tình trạng',f:r=>{ const s=warrantyState(r); return pill(s.t,s.k); }}], wr,
-      {actions:r=>wfEditBtns('acceptances',r), empty:'Chưa có công trình nào nhập thời hạn bảo hành.'})}
+      {actions:r=>wfEditBtns('acceptances',r), empty:XD('Chưa có công trình nào nhập thời hạn bảo hành.','Chưa có hệ thống, sản phẩm nào nhập thời hạn bảo hành.')})}
     <p class="small muted" style="margin:10px 0 0">Phần mềm tự cảnh báo trước 30 ngày khi sắp hết thời hạn bảo hành hoặc bảo lãnh bảo hành, để Ban kiểm tra hiện trạng và yêu cầu nhà thầu sửa chữa trước khi hoàn trả bảo lãnh.</p></div>`;
-  return `<div class="head"><div class="grow"><h1>Nghiệm thu, bàn giao, bảo hành</h1><p>${all.length} biên bản, ${inW.length} công trình đang trong thời gian bảo hành</p></div></div>
-  <div class="grid g4">${kpiCard('Nghiệm thu giai đoạn', all.filter(a=>/giai đoạn/i.test(a.kind||'')).length, 'biên bản')}${kpiCard('Nghiệm thu hoàn thành', all.filter(a=>/hoàn thành/i.test(a.kind||'')).length, 'hạng mục, công trình')}
-    ${kpiCard('Đã bàn giao sử dụng', all.filter(a=>/bàn giao/i.test(a.kind||'')).length, 'công trình')}${kpiCard('Sắp hết bảo hành', soon.length, 'trong 30 ngày tới', soon.length?'warn':'')}</div>
+  return `<div class="head"><div class="grow"><h1>${modName('nghiem-thu')}</h1><p>${all.length} biên bản, ${inW.length} ${XD('công trình','hệ thống, sản phẩm')} đang trong thời gian bảo hành</p></div></div>
+  <div class="grid g4">${kpiCard(XD('Nghiệm thu giai đoạn','Nghiệm thu giai đoạn, vận hành thử'), all.filter(a=>/giai đoạn|vận hành thử/i.test(a.kind||'')).length, 'biên bản')}${kpiCard('Nghiệm thu hoàn thành', all.filter(a=>/hoàn thành/i.test(a.kind||'')).length, XD('hạng mục, công trình','giai đoạn, hệ thống'))}
+    ${kpiCard('Đã bàn giao sử dụng', all.filter(a=>/bàn giao/i.test(a.kind||'')).length, XD('công trình','hệ thống'))}${kpiCard('Sắp hết bảo hành', soon.length, 'trong 30 ngày tới', soon.length?'warn':'')}</div>
   ${tabsBar('nt', t, [['ds','Nghiệm thu, bàn giao'],['bh','Theo dõi bảo hành']])}${body}`;
 };
-const accFields=()=>[projSel(),{key:'packageId',label:'Gói thầu (để trống nếu toàn dự án)',type:'select',options:()=>pkgOpts(''),full:true},
+const accFields=()=>[projSel(),{key:'packageId',label:'Gói thầu (để trống nếu toàn dự án)',type:'select',dep:'projectId',options:(pid)=>pkgOpts(pid||''),full:true,hint:'Danh sách gói thầu theo dự án đã chọn ở trên.'},
   {key:'kind',label:'Loại',type:'select',options:()=>catalog('Loại nghiệm thu, bàn giao'),req:true},{key:'date',label:'Ngày',type:'date',req:true,def:TODAY},
   {key:'number',label:'Số biên bản / văn bản'},{key:'result',label:'Kết quả',type:'select',options:()=>catalog('Kết quả nghiệm thu'),def:'Đạt'},
   {key:'content',label:'Nội dung nghiệm thu, bàn giao',full:true},{key:'receiver',label:'Đơn vị tiếp nhận, quản lý sử dụng',full:true},
@@ -172,11 +172,50 @@ ACT.wf=(key)=>{
 };
 const wfActPill = x => pill(x.action, x.toStatus===(WF[x.collection]||{}).ok||x.action==='Duyệt'?'ok':x.action==='Từ chối'?'bad':x.action==='Trả lại'||x.action==='Thu hồi'||x.action==='Rút lại'?'warn':'info');
 function wfStepOf(x){ if(!x.step) return ''; const r=get(x.collection,x.recordId); const st=r? wfState(x.collection,r) : null; const s=st && st.route.find(k=>k.key===x.step); return s? s.label : x.step; }
-function wfHistory(col, r){
-  const hs=wfLogs(col,r.id);
-  openModal(`<div class="mform wide"><header><h3>Lịch sử trình duyệt: ${esc(WF[col].label(r))}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:14px 16px">
-    ${table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Thao tác',f:wfActPill},{h:'Chuyển tới',f:x=>x.step?`<span class="small">${esc(wfStepOf(x))}${x.assigneeName?' · '+esc(x.assigneeName):''}${x.due?' · hạn '+fmtDate(x.due):''}</span>`:`<span class="small"><b>${esc(x.toStatus||'')}</b></span>`},{h:'Ý kiến',f:x=>esc(x.note||'')}], hs, {nopage:true, empty:'Chưa có lịch sử.'})}</div></div>`);
-}
+/* Bản 1.8.9: dòng thời gian xử lý hồ sơ: ai lập, từng bước ai xử lý, nhận lúc nào, xong lúc nào, giữ bao nhiêu ngày làm việc, đúng hạn hay trễ */
+function wfSegments(col, r, st=wfState(col,r)){
+  const c=st.sub? st.logs.slice(0, st.logs.indexOf(st.sub)+1).reverse() : [], hol=wfHol(), out=[];
+  c.forEach((l,k)=>{ if(!l.step) return; const nx=c[k+1]||null, s=st.route.find(x=>x.key===l.step)||{label:l.step};
+    const end=nx? tsDay(nx.at) : TODAY, held=wdBetween(tsDay(l.at), end, hol), late=wdLate(l.due, end);
+    out.push({step:s, from:l.at, to:nx?nx.at:null, due:l.due, held, late, open:!nx,
+      by:nx?nx.by:'', who:nx? (nx.byName||nx.by||'') : (l.assigneeName || wfHolder(col, st)), action:nx?nx.action:'', note:nx?nx.note:'', to2:l.assigneeName||''}); });
+  return out; }
+const wdText = n => n>0? n+' ngày làm việc' : 'trong ngày';
+function wfTimeline(col, r){ const st=wfState(col,r), segs=wfSegments(col,r,st), sub=st.sub, w=WF[col];
+  const lastEnd=segs.length? (segs[segs.length-1].to? tsDay(segs[segs.length-1].to) : TODAY) : TODAY;
+  const total=sub? wdBetween(tsDay(sub.at), lastEnd) : 0, lateAny=segs.some(x=>x.late>0), fin=wfLocked(col,r) && segs.length && !segs[segs.length-1].open;
+  const chip=(t,k='')=>`<span class="pill ${k}" style="margin:0 6px 4px 0">${t}</span>`;
+  const dot=k=>`<span class="tl-dot ${k}"></span>`;
+  const row=(k, title, meta, body='')=>`<li class="tl-i">${dot(k)}<div><div class="tl-h">${title}</div><div class="small muted">${meta}</div>${body}</div></li>`;
+  const it=[];
+  if(sub) it.push(row('ok', `Lập và chuyển duyệt <span class="muted" style="font-weight:400">· ${esc(sub.byName||sub.by||'')}</span>`, fmtDT(sub.at), sub.note?`<div class="small">${esc(sub.note)}</div>`:''));
+  segs.forEach(x=>{ const k=x.open? (x.late?'bad':'warn') : (x.late?'bad':'ok');
+    const due=x.due? ` · hạn ${fmtDate(x.due)}` : '';
+    const res=x.open? (x.late? `<b style="color:var(--red)">Đang giữ, trễ ${x.late} ngày</b>` : `<b style="color:var(--amber)">Đang xử lý</b>`)
+      : (x.late? `<b style="color:var(--red)">Trễ ${x.late} ngày</b>` : x.due? '<b style="color:var(--green)">Đúng hạn</b>' : '');
+    it.push(row(k, `${esc(x.step.label)} <span class="muted" style="font-weight:400">· ${esc(x.who)}</span>`,
+      `Nhận ${fmtDT(x.from)}${x.to?' · xong '+fmtDT(x.to):''} · giữ ${wdText(x.held)}${due}${res?' · '+res:''}`,
+      (x.action? `<div class="small">${wfActPill({action:x.action, toStatus:'', collection:col})}${x.note?' '+esc(x.note):''}</div>` : '')));
+  });
+  if(st.step) st.route.slice(st.idx+1).forEach(s=>it.push(row('', `<span class="muted">${esc(s.label)}</span>`, 'Chưa đến'+(s.dueDays?` · hạn ${s.dueDays} ngày làm việc`:''))));
+  if(fin){ const l=st.last; it.push(row(l.toStatus===w.no?'bad':'ok', `<b>${esc(wfDisp(col,wfStatus(col,r)))}</b>`, fmtDT(l.at))); }
+  const head=sub? chip('Người chuyển: '+esc(sub.byName||sub.by||''))+chip((fin?'Tổng thời gian: ':'Đã qua: ')+wdText(total))+(lateAny?chip('Có bước trễ hạn','bad'):segs.length?chip('Các bước đúng hạn','ok'):'')
+    +(st.step?chip('Đang ở: '+esc(st.step.label)+' · '+esc(wfHolder(col,st)), wfOverdue(col,r,st)?'bad':'warn'):'') : '';
+  const hs=st.logs;
+  return `<div class="mform wide"><header><h3>Tiến trình xử lý: ${esc(w.label(r))}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:14px 16px;max-height:72vh;overflow:auto">
+    <p class="small muted" style="margin:0 0 8px">${esc(w.info(r))}</p><div>${head}</div>
+    ${sub? `<ol class="tl">${it.join('')}</ol>` : emptyBox('Hồ sơ chưa chuyển duyệt.')}
+    <p class="small muted" style="margin:4px 0 10px">Thời gian giữ và trễ hạn tính theo ngày làm việc, không tính thứ Bảy, Chủ nhật và ngày nghỉ đã khai báo.</p>
+    ${hs.length? `<details><summary class="small">Toàn bộ thao tác trình duyệt (${hs.length})</summary>${table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Thao tác',f:wfActPill},{h:'Chuyển tới',f:x=>x.step?`<span class="small">${esc(wfStepOf(x))}${x.assigneeName?' · '+esc(x.assigneeName):''}${x.due?' · hạn '+fmtDate(x.due):''}</span>`:`<span class="small"><b>${esc(x.toStatus||'')}</b></span>`},{h:'Ý kiến',f:x=>esc(x.note||'')}], hs, {nopage:true})}</details>` : ''}
+    ${recHistBox(col, r.id)}</div></div>`; }
+function wfHistory(col, r){ const ov=openModal(wfTimeline(col, r)); recHistWire(ov); }
+/* Bản 1.8.9: lịch sử thay đổi của một hồ sơ (ai, lúc nào, sửa gì), đọc từ nhật ký hệ thống */
+const recHistBox = (col, id) => id? `<details class="rhist" data-col="${esc(col)}" data-rid="${esc(id)}"><summary class="small">Lịch sử thay đổi</summary><div class="rh-b small muted">Đang tải…</div></details>` : '';
+function recHistWire(root){ (root||document).querySelectorAll('details.rhist').forEach(d=>d.addEventListener('toggle', async()=>{ if(!d.open || d._ld) return; d._ld=1; const b=d.querySelector('.rh-b');
+  try{ const xs=await api('GET', `/api/data/history/${encodeURIComponent(d.dataset.col)}/${encodeURIComponent(d.dataset.rid)}`);
+    b.className='rh-b'; b.innerHTML= xs.length? table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.ts)}</span>`},{h:'Người thực hiện',f:x=>esc(x.fullname||x.username||'')},{h:'Thao tác',f:x=>esc(x.action||'')},{h:'Nội dung',f:x=>`<span class="small">${esc(x.target||'')}</span>`}], xs, {nopage:true})
+      : '<p class="small muted" style="margin:6px 0">Chưa có thay đổi nào được ghi nhận riêng cho hồ sơ này. Các thao tác trước đó xem ở Nhật ký hệ thống.</p>'; }
+  catch(ex){ d._ld=0; b.textContent=errText(ex); } })); }
 /* Phiếu trình: thông tin hồ sơ, các bước của quy trình, ý kiến từng bước, ô ký */
 function wfPrint(col, r){
   const w=WF[col], st=wfState(col,r), pj=projOf(w.pid(r))||{}, hs=wfLogs(col,r.id).reverse(), d=TODAY.split('-');
@@ -201,7 +240,13 @@ function wfPrint(col, r){
 }
 /* Thông báo: hồ sơ chờ mình xử lý, hồ sơ bị trả lại, hồ sơ mình chuyển đã được duyệt (7 ngày gần nhất) */
 function wfNotices(){ if(!S.user) return []; const me=S.user.username, out=[], since=new Date(Date.now()-7*864e5).toISOString();
-  wfMine().forEach(x=>{ const st=wfState(x.col,x.r); out.push({col:x.col, r:x.r, act:true, kind:wfOverdue(x.col,x.r,st)?'bad':'warn', text:`Chờ bạn ${lcFirst(st.step.verb||'xử lý')}: ${WF[x.col].label(x.r)}`, at:st.since||x.r.updatedAt, sub:(st.last?'Chuyển bởi '+(st.last.byName||st.last.by):'')+(st.due?' · hạn '+fmtDate(st.due)+(wfOverdue(x.col,x.r,st)?' (quá hạn)':''):'')}); });
+  const mineIds=new Set();
+  wfMine().forEach(x=>{ const st=wfState(x.col,x.r), lt=wfLateDays(x.col,x.r,st), soon=!lt && wfSoon(x.col,x.r,st); mineIds.add(x.col+'|'+x.r.id);
+    out.push({col:x.col, r:x.r, act:true, kind:lt?'bad':'warn', text:`${lt?'Trễ hạn '+lt+' ngày, ':soon?'Sắp đến hạn, ':''}chờ bạn ${lcFirst(st.step.verb||'xử lý')}: ${WF[x.col].label(x.r)}`, at:st.since||x.r.updatedAt, sub:(st.last?'Chuyển bởi '+(st.last.byName||st.last.by):'')+(st.due?' · hạn '+fmtDate(st.due)+(lt?' (quá hạn)':''):'')}); });
+  /* Bản 1.8.9: hồ sơ trễ đủ số ngày quy định thì báo cho nhóm, người được chọn ở bước đó (cấp trên) */
+  Object.keys(WF).filter(col=>can(WF[col].mod)).forEach(col=>D(col).forEach(r=>{ if(!wfWaiting(col,r) || !pidOk(WF[col].pid(r)) || mineIds.has(col+'|'+r.id)) return;
+    const st=wfState(col,r); if(!wfEscalated(col,r,st) || !wfEscTarget(st.step)) return;
+    out.push({col, r, act:true, esc:true, kind:'bad', text:`Trễ hạn ${wfLateDays(col,r,st)} ngày: ${WF[col].label(r)}`, at:st.since||r.updatedAt, sub:`Đang ở bước ${st.step.label} · ${wfHolder(col,st)} · hạn ${fmtDate(st.due)}`}); }));
   Object.keys(WF).filter(col=>can(WF[col].mod)).forEach(col=>D(col).forEach(r=>{ const ls=wfLogs(col,r.id); if(!ls.length) return; const l=ls[0], sub=ls.find(a=>a.route);
     const mineSub=(sub&&sub.by===me) || r.updatedBy===me;
     if(l.action==='Trả lại' && mineSub) out.push({col, r, act:true, kind:'bad', text:`Bị trả lại: ${WF[col].label(r)}`, at:l.at, sub:`${l.byName||l.by}: ${l.note||''}`});
@@ -212,10 +257,65 @@ function wfBell(){ if(!S.user) return ''; const n=wfNotices().filter(x=>x.act).l
   return `<button class="btn ghost sm bell" data-act="wf-bell" title="Thông báo trình duyệt" aria-label="Thông báo trình duyệt${n?': '+n+' việc cần xử lý':''}">${ic('bell').replace('<svg','<svg width="18" height="18"')}${n?`<span class="bcnt num">${n>99?'99+':n}</span>`:''}</button>`; }
 ACT['wf-bell']=()=>{ const ns=wfNotices();
   openModal(`<div class="mform"><header><h3>Thông báo trình duyệt</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:8px 16px 16px">
-    ${ns.length? `<div class="list">${ns.slice(0,40).map(x=>`<button class="btn ghost" style="justify-content:flex-start;text-align:left;white-space:normal;display:block;width:100%" data-act="wf-go" data-id="${esc(x.col+'|'+(x.act?(x.kind==='bad'&&!wfWaiting(x.col,x.r)?'soan':'cho'):'xong'))}">${pill(x.kind==='ok'?'Đã duyệt':x.act&&wfWaiting(x.col,x.r)?'Cần xử lý':x.kind==='bad'?'Trả lại, từ chối':'Thông báo', x.kind)} <b style="font-weight:600">${esc(x.text)}</b><div class="small muted">${fmtDT(x.at)}${x.sub?' · '+esc(x.sub):''}</div></button>`).join('')}</div>`
+    ${ns.length? `<div class="list">${ns.slice(0,40).map(x=>`<button class="btn ghost" style="justify-content:flex-start;text-align:left;white-space:normal;display:block;width:100%" data-act="wf-go" data-id="${esc(x.col+'|'+(x.esc?'vt':x.act?(x.kind==='bad'&&!wfWaiting(x.col,x.r)?'soan':'cho'):'xong'))}">${pill(x.kind==='ok'?'Đã duyệt':x.esc?'Báo trễ hạn':x.act&&wfWaiting(x.col,x.r)?'Cần xử lý':x.kind==='bad'?'Trả lại, từ chối':'Thông báo', x.kind)} <b style="font-weight:600">${esc(x.text)}</b><div class="small muted">${fmtDT(x.at)}${x.sub?' · '+esc(x.sub):''}</div></button>`).join('')}</div>`
       : emptyBox('Không có thông báo mới.')}
     <div class="toolbar" style="margin-top:10px"><button class="btn sm" data-act="wf-go" data-id="|cho">Mở Trình duyệt hồ sơ</button></div></div></div>`); };
 ACT['wf-go']=(k)=>{ const t=k.split('|')[1]||'cho'; closeModal(); S.tab.td2=t; if(location.hash==='#trinh-duyet') render(); else location.hash='trinh-duyet'; };
+
+/* Bản 1.8.9: theo vai trò: mỗi nhóm đang giữ bao nhiêu hồ sơ, trễ bao nhiêu, sắp đến hạn, thời gian xử lý bình quân 30 ngày */
+const wfCanRole = () => !!(myGroup()||{}).admin || Object.keys(WF).some(c=>can(WF[c].mod,'approve')) || Object.keys(WF).some(c=>(wfFlow(c).steps||[]).some(s=>wfEscTarget(s)));
+function wfRoleOf(col, st){ if(!st.step) return '';
+  if(st.assignee){ const u=get('users',st.assignee); const g=u&&get('groups',u.groupId); if(g) return g.name; }
+  const gs=(st.step.groups||[]).map(id=>(get('groups',id)||{}).name).filter(Boolean); if(gs.length) return gs.join(', ');
+  const us=(st.step.users||[]).map(id=>get('users',id)).filter(Boolean).map(u=>(get('groups',u.groupId)||{}).name).filter(Boolean); if(us.length) return [...new Set(us)].join(', ');
+  return st.isLast? 'Người có quyền duyệt' : 'Người có quyền kiểm tra'; }
+function wfRoleData(all){ const hol=wfHol(), since=isoLocal(new Date(Date.now()-30*864e5)), byU={}; D('users').forEach(u=>byU[u.username]=u);
+  const hold=all.filter(x=>wfWaiting(x.col,x.r) && x.st.step).map(x=>{ const sg=wfSegments(x.col,x.r,x.st), cur=sg[sg.length-1];
+    return {...x, role:wfRoleOf(x.col,x.st), holder:wfHolder(x.col,x.st), held:cur&&cur.open? cur.held : wdBetween(tsDay(x.st.since), TODAY, hol), late:wfLateDays(x.col,x.r,x.st), soon:wfSoon(x.col,x.r,x.st)}; });
+  const roles={}; const R=k=>roles[k]=roles[k]||{role:k, hold:0, late:0, soon:0, n30:0, d30:0};
+  hold.forEach(x=>{ const o=R(x.role); o.hold++; if(x.late) o.late++; else if(x.soon) o.soon++; });
+  all.forEach(x=>wfSegments(x.col,x.r,x.st).forEach(g=>{ if(g.open || !g.to || tsDay(g.to)<since) return; const u=byU[g.by], gr=u&&get('groups',u.groupId); if(!gr) return; const o=R(gr.name); o.n30++; o.d30+=g.held; }));
+  return {hold, roles:Object.values(roles).sort((a,b)=>b.late-a.late || b.hold-a.hold || a.role.localeCompare(b.role,'vi'))}; }
+function wfTaskSum(){ const ts=D('tasks').filter(t=>pidOk(t.projectId) && (!S.pid||t.projectId===S.pid)); const open=ts.filter(t=>t.status!=='Hoàn thành');
+  return {ts, open:open.length, late:open.filter(t=>t.due && t.due<TODAY).length}; }
+function wfRoleView(all){ const {hold, roles}=wfRoleData(all), f=S.f.vtg||'', tk=wfTaskSum();
+  const card=o=>`<button type="button" class="${f===o.role?'on':''} ${o.late?'bad':''}" data-act="vt-f" data-id="${esc(o.role)}"><b style="font-weight:600">${esc(o.role)}</b>
+    <div class="n small"><span><b class="num">${o.hold}</b>đang giữ</span><span style="color:var(--red)"><b class="num">${o.late}</b>trễ hạn</span><span style="color:var(--amber)"><b class="num">${o.soon}</b>sắp đến hạn</span></div>
+    <div class="small muted" style="margin-top:4px">${o.n30?`30 ngày qua: ${o.n30} lượt, bình quân ${o.d30/o.n30<0.05?'xử lý trong ngày':fmtN(o.d30/o.n30,1)+' ngày/lượt'}`:'30 ngày qua chưa xử lý lượt nào'}</div></button>`;
+  const tcard=`<button type="button" class="${f==='__tasks'?'on':''} ${tk.late?'bad':''}" data-act="vt-f" data-id="__tasks"><b style="font-weight:600">Công việc dự án</b>
+    <div class="n small"><span><b class="num">${tk.open}</b>đang làm</span><span style="color:var(--red)"><b class="num">${tk.late}</b>quá hạn</span></div><div class="small muted" style="margin-top:4px">Theo người thực hiện</div></button>`;
+  let body;
+  if(f==='__tasks') body=taskByPerson(tk.ts, true);
+  else { const rows=hold.filter(x=>!f||x.role===f).sort((a,b)=>b.late-a.late || b.held-a.held);
+    body=`<div class="card"><div class="ch"><h2>${f?esc(f)+': hồ sơ đang giữ':'Hồ sơ đang xử lý, trễ hạn lên đầu'}</h2><span style="display:flex;gap:6px">${f?'<button class="btn sm ghost" data-act="vt-f" data-id="">Bỏ lọc</button>':''}<button class="btn sm" data-act="vt-xlsx">Xuất Excel</button></span></div>
+      ${table([{h:'Hồ sơ',f:x=>`<span class="small muted">${esc(WF[x.col].name)}</span><div><b style="font-weight:600">${esc(WF[x.col].label(x.r))}</b></div>`},{h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},
+        {h:'Đang ở bước',f:x=>`${esc(x.st.step.label)}<div class="small muted">${esc(x.holder)}</div>`},{h:'Giữ',f:x=>`<span class="num">${x.held}</span> <span class="small muted">ngày</span>`},
+        {h:'Hạn',f:x=>`<span class="num">${x.st.due?fmtDate(x.st.due):'—'}</span>`},{h:'Tình trạng',f:x=>x.late?pill('Trễ '+x.late+' ngày','bad'):x.soon?pill('Sắp đến hạn','warn'):pill('Trong hạn','ok')}], rows,
+        {actions:x=>`<button class="btn sm ghost" data-act="wf" data-id="${esc(x.col+'|'+x.r.id+'|history')}">Tiến trình</button>`, empty:'Không có hồ sơ đang xử lý.'})}</div>`; }
+  return `<p class="small muted" style="margin:0 0 8px">Chọn một thẻ để xem hồ sơ nhóm đó đang giữ. Thời gian tính theo ngày làm việc.</p><div class="vtc">${roles.map(card).join('')}${tcard}</div>${body}`; }
+ACT['vt-f']=k=>{ S.f.vtg= S.f.vtg===k? '' : k; S.pg={}; render(); };
+ACT['vt-xlsx']=()=>{ const vis=Object.keys(WF).filter(col=>can(WF[col].mod));
+  const all=vis.flatMap(col=>D(col).filter(r=>pidOk(WF[col].pid(r)) && (!S.pid||WF[col].pid(r)===S.pid)).map(r=>({col,r,st:wfState(col,r)})));
+  const {hold}=wfRoleData(all), f=S.f.vtg||''; const rows=hold.filter(x=>!f||x.role===f).sort((a,b)=>b.late-a.late || b.held-a.held);
+  exportXlsx(`HoSoDangXuLy_${TODAY}.xlsx`, [{name:'Theo vai tro', title:'HỒ SƠ ĐANG XỬ LÝ THEO VAI TRÒ', money:[], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(f?' · '+f:''),
+    head:['STT','Loại hồ sơ','Hồ sơ','Dự án','Bước đang chờ','Vai trò','Người giữ','Ngày nhận','Giữ (ngày làm việc)','Hạn','Trễ (ngày)','Tình trạng'],
+    rows:rows.map((x,i)=>[i+1, WF[x.col].name, WF[x.col].label(x.r), (projOf(WF[x.col].pid(x.r))||{}).code||'', x.st.step.label, x.role, x.holder, fmtDT(x.st.since), x.held, x.st.due?fmtDate(x.st.due):'', x.late||'', x.late?'Trễ hạn':x.soon?'Sắp đến hạn':'Trong hạn'])}]); };
+/* Bản 1.8.9 (E): công việc theo người thực hiện: đang làm, quá hạn, xong đúng hạn, việc trễ lâu nhất */
+function taskByPerson(ts, withProj){ const m={};
+  ts.forEach(t=>{ const k=(t.assignee||'').trim()||'(Chưa giao)'; const o=m[k]=m[k]||{who:k, open:0, late:0, done:0, ontime:0, worst:null, wd:0};
+    if(t.status==='Hoàn thành'){ o.done++; if(!t.due || !t.doneDate || t.doneDate<=t.due) o.ontime++; }
+    else { o.open++; if(t.due && t.due<TODAY){ o.late++; const d=Math.round((Date.parse(TODAY)-Date.parse(t.due))/864e5); if(d>o.wd){ o.wd=d; o.worst=t; } } } });
+  const rows=Object.values(m).sort((a,b)=>b.late-a.late || b.open-a.open || a.who.localeCompare(b.who,'vi'));
+  return `<div class="card"><div class="ch"><h2>Công việc theo người thực hiện</h2><button class="btn sm" data-act="task-xlsx" data-id="${withProj?'':esc(S.sel.project||'')}">Xuất Excel</button></div>${table([{h:'Người thực hiện',f:o=>`<b style="font-weight:600">${esc(o.who)}</b>`},
+    {h:'Đang làm',f:o=>`<span class="num">${o.open}</span>`},{h:'Quá hạn',f:o=>o.late?`<span class="num" style="color:var(--red);font-weight:600">${o.late}</span>`:'<span class="num muted">0</span>'},
+    {h:'Đã xong (đúng hạn)',f:o=>`<span class="num">${o.done}</span>${o.done?` <span class="small muted">(${o.ontime} đúng hạn, ${Math.round(o.ontime*100/o.done)}%)</span>`:''}`},
+    {h:'Việc trễ lâu nhất',f:o=>o.worst?`<span class="small">${esc(o.worst.name)}${withProj?' · '+esc((projOf(o.worst.projectId)||{}).code||''):''}</span><div class="small" style="color:var(--red)">hạn ${fmtDate(o.worst.due)}, trễ ${o.wd} ngày</div>`:'<span class="small muted">—</span>'}], rows, {empty:'Chưa có công việc.'})}</div>`; }
+ACT['task-xlsx']=pid=>{ const ts=D('tasks').filter(t=>pid? t.projectId===pid : pidOk(t.projectId) && (!S.pid||t.projectId===S.pid));
+  const rows=ts.slice().sort((a,b)=>String(a.assignee||'').localeCompare(String(b.assignee||''),'vi') || String(a.due||'').localeCompare(String(b.due||'')));
+  exportXlsx(`CongViecTheoNguoi_${TODAY}.xlsx`, [{name:'Cong viec', title:'CÔNG VIỆC THEO NGƯỜI THỰC HIỆN', money:[], sub:BR.reportOrg+' · Lập ngày '+fmtDate(TODAY)+(pid?' · Dự án '+((projOf(pid)||{}).code||''):''),
+    head:['STT','Người thực hiện','Dự án','Công việc','Hạn','Trạng thái','Ngày hoàn thành','Tình trạng'],
+    rows:rows.map((t,i)=>[i+1, t.assignee||'', (projOf(t.projectId)||{}).code||'', t.name||'', fmtDate(t.due), t.status||'', t.doneDate?fmtDate(t.doneDate):'',
+      t.status==='Hoàn thành'? (t.due&&t.doneDate&&t.doneDate>t.due?'Xong trễ hạn':'Xong đúng hạn') : (t.due&&t.due<TODAY?'Quá hạn':'Đang làm')])}]); };
 
 VIEWS['trinh-duyet']=()=>{
   const t=S.tab.td2||'cho', me=S.user.username;
@@ -234,10 +334,10 @@ VIEWS['trinh-duyet']=()=>{
     {h:'Dự án',f:x=>`<span style="white-space:nowrap">${esc((projOf(WF[x.col].pid(x.r))||{}).code||'')}</span>`},{h:'Đang ở bước',f:x=>wfPill(x.col,x.r)},
     {h:'Cập nhật',f:x=>{ const l=x.st.last; return l? `<span class="num small">${fmtDT(l.at)}</span><div class="small muted">${esc(l.action)} · ${esc(l.byName||l.by||'')}</div>` : `<span class="num small">${fmtDT(x.r.updatedAt)}</span><div class="small muted">${esc(x.r.updatedBy||'')}</div>`; }}];
   const lists={cho:mine, soan:drafts, chuyen:sent, xong:done, dang:waiting};
-  const tabs=[['cho','Chờ tôi xử lý',mine.length],['soan','Tôi đang soạn',drafts.length],['chuyen','Tôi đã chuyển',sent.length],['xong','Đã hoàn thành',done.length],['dang','Tất cả đang xử lý',waiting.length],['ls','Lịch sử duyệt',0],...(myGroup()?.admin?[['qt','Thiết lập quy trình',0]]:[])];
+  const tabs=[['cho','Chờ tôi xử lý',mine.length],['soan','Tôi đang soạn',drafts.length],['chuyen','Tôi đã chuyển',sent.length],['xong','Đã hoàn thành',done.length],['dang','Tất cả đang xử lý',waiting.length],...(wfCanRole()?[['vt','Theo vai trò',0]]:[]),['ls','Lịch sử duyệt',0],...(myGroup()?.admin?[['qt','Thiết lập quy trình',0]]:[])];
   const empty={cho:Object.keys(WF).some(c=>can(WF[c].mod,'approve')||can(WF[c].mod,'check'))||D('approvals').length?'Không có hồ sơ nào chờ bạn xử lý.':'Tài khoản của bạn chưa được phân công bước duyệt nào. Hồ sơ bạn chuyển sẽ hiện ở thẻ Tôi đã chuyển.',
     soan:'Không có hồ sơ nháp hoặc bị trả lại của bạn.', chuyen:'Không có hồ sơ bạn đã chuyển đang chờ xử lý.', xong:'Chưa có hồ sơ đã hoàn thành mà bạn tham gia.', dang:'Không có hồ sơ đang xử lý.'};
-  const body=t==='qt'? wfConfigView() : t==='ls'
+  const body=t==='qt'? wfConfigView() : t==='vt'? wfRoleView(all) : t==='ls'
     ? `<div class="card">${table([{h:'Thời gian',f:x=>`<span class="num small">${fmtDT(x.at)}</span>`},{h:'Hồ sơ',f:x=>`<span class="small muted">${esc((WF[x.collection]||{}).name||'')}</span><div>${esc(x.target||'')}</div>`},{h:'Thao tác',f:wfActPill},{h:'Chuyển tới',f:x=>x.step?`<span class="small">${esc(wfStepOf(x))}${x.assigneeName?' · '+esc(x.assigneeName):''}</span>`:`<span class="small">${esc(x.toStatus||'')}</span>`},{h:'Người thực hiện',f:x=>esc(x.byName||x.by||'')},{h:'Ý kiến',f:x=>esc(x.note||'')}], hist, {empty:'Chưa có lịch sử trình duyệt.'})}</div>`
     : `<div class="card">${table(cols, lists[t]||[], {actions:x=>wfBtns(x.col,x.r), empty:empty[t]})}</div>`;
   return `<div class="head"><div class="grow"><h1>Trình duyệt hồ sơ</h1><p>Hồ sơ do cán bộ lập rồi chuyển duyệt; mỗi bước do người được phân công xử lý: chuyển tiếp, trả lại hoặc từ chối. Người vừa chuyển được rút lại khi bước sau chưa xử lý. Chỉ hồ sơ đã duyệt mới được tính vào số liệu.${od?` <b style="color:var(--red)">${od} hồ sơ quá hạn xử lý.</b>`:''}</p></div></div>
@@ -246,10 +346,11 @@ VIEWS['trinh-duyet']=()=>{
 
 /* ----- Thiết lập quy trình duyệt (quản trị) ----- */
 const wfClone = o => JSON.parse(JSON.stringify(o));
+const wfEscNames = s => [...(s.escalateGroups||[]).map(id=>(get('groups',id)||{}).name), ...(s.escalateUsers||[]).map(id=>(get('users',id)||{}).name)].filter(Boolean).join(', ');
 function wfSteps(fc){ return (fc.steps||[]).map((s,i)=>{ const gs=(s.groups||[]).map(id=>(get('groups',id)||{}).name).filter(Boolean), us=(s.users||[]).map(id=>(get('users',id)||{}).name).filter(Boolean);
   const who=[...gs,...us].join(', ')||(i===fc.steps.length-1?'theo quyền Duyệt':'theo quyền Kiểm tra hồ sơ');
   const amt=s.minAmount||s.maxAmount? ` · giá trị ${s.minAmount?'từ '+fmtTy(s.minAmount):''}${s.maxAmount?' dưới '+fmtTy(s.maxAmount):''}` : '';
-  return `<div class="small"><b>${i+1}. ${esc(s.label)}</b> <span class="muted">(${esc(s.verb)}; ${esc(who)}${s.dueDays?'; hạn '+s.dueDays+' ngày':''}${s.returnTo==='prev'?'; trả về bước trước':''}${amt})</span></div>`; }).join(''); }
+  return `<div class="small"><b>${i+1}. ${esc(s.label)}</b> <span class="muted">(${esc(s.verb)}; ${esc(who)}${s.dueDays?'; hạn '+s.dueDays+' ngày làm việc':''}${s.remindDays?'; nhắc trước '+s.remindDays+' ngày':''}${s.escalateDays?'; trễ '+s.escalateDays+' ngày báo '+esc(wfEscNames(s)||'(chưa chọn người nhận)'):''}${s.returnTo==='prev'?'; trả về bước trước':''}${amt})</span></div>`; }).join(''); }
 function wfConfigView(){ const c=wfCfg(), pid=S.f.wfp||'', pj=projOf(pid);
   const rows=Object.keys(WF).map(col=>{ const own=pid && c.projects && c.projects[pid] && c.projects[pid][col]; const fc=own || c.flows[col] || {enabled:false,steps:[]};
     return {id:col, col, fc, own:!!own}; });
@@ -262,7 +363,14 @@ function wfConfigView(){ const c=wfCfg(), pid=S.f.wfp||'', pj=projOf(pid);
   <div class="card"><h2>Nguyên tắc xử lý</h2><div class="list">
     <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-act="wf-opt" data-id="assignedOnly" ${c.assignedOnly!==false?'checked':''}> Hồ sơ chuyển đích danh thì chỉ người được chọn (hoặc quản trị) xử lý</label>
     <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-act="wf-opt" data-id="noSelfReview" ${c.noSelfReview!==false?'checked':''}> Người chuyển duyệt hồ sơ không tự xử lý các bước sau của chính hồ sơ đó</label></div>
-    <p class="small muted" style="margin:8px 0 0">Bước không chọn nhóm, người xử lý thì theo quyền "Kiểm tra hồ sơ" (bước giữa) hoặc "Duyệt" (bước cuối) của nhóm người dùng ở Quản trị hệ thống.</p></div>`; }
+    <p class="small muted" style="margin:8px 0 0">Bước không chọn nhóm, người xử lý thì theo quyền "Kiểm tra hồ sơ" (bước giữa) hoặc "Duyệt" (bước cuối) của nhóm người dùng ở Quản trị hệ thống.</p></div>
+  <div class="card"><h2>Ngày nghỉ lễ, tết</h2><p class="small muted" style="margin-top:0">Hạn xử lý, thời gian giữ hồ sơ và số ngày trễ tính theo ngày làm việc: không tính thứ Bảy, Chủ nhật và các ngày nghỉ dưới đây.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${(c.holidays||[]).map(d=>`<span class="pill" style="display:inline-flex;gap:6px;align-items:center">${fmtDate(d)} <button type="button" class="icon-btn" style="width:18px;height:18px;font-size:13px" data-act="wf-hol-rm" data-id="${d}" aria-label="Bỏ ngày ${fmtDate(d)}">×</button></span>`).join('') || '<span class="small muted">Chưa khai báo ngày nghỉ nào.</span>'}</div>
+    <div class="toolbar"><input type="date" id="wfh_d" aria-label="Ngày nghỉ" style="max-width:180px"><input type="number" id="wfh_n" min="1" max="15" value="1" aria-label="Số ngày nghỉ liên tiếp" title="Số ngày nghỉ liên tiếp" style="max-width:80px"><button class="btn sm" data-act="wf-hol-add">Thêm ngày nghỉ</button></div></div>`; }
+ACT['wf-hol-add']=()=>{ const d=($('#wfh_d')||{}).value, n=Math.min(15,Math.max(1,parseInt(($('#wfh_n')||{}).value)||1)); if(!d){ toast('Chọn ngày nghỉ','err'); return; }
+  const c=wfClone(wfCfg()), hs=new Set(c.holidays||[]), x=new Date(d+'T00:00:00'); for(let i=0;i<n;i++){ hs.add(isoLocal(x)); x.setDate(x.getDate()+1); }
+  c.holidays=[...hs].sort(); wfSaveCfg(c).catch(ex=>toast(errText(ex),'err')); };
+ACT['wf-hol-rm']=(d)=>{ const c=wfClone(wfCfg()); c.holidays=(c.holidays||[]).filter(x=>x!==d); wfSaveCfg(c).catch(ex=>toast(errText(ex),'err')); };
 async function wfSaveCfg(c){ const r=await api('PUT','/api/workflow',c); Store.meta.wf=r; Store.meta.wfCheck=Object.keys(r.flows).filter(k=>(r.flows[k].steps||[]).length>1); toast('Đã lưu quy trình duyệt'); render(); return r; }
 function wfTarget(c, col, pid, make){ if(!pid) return c.flows[col]; c.projects=c.projects||{}; const m=c.projects[pid]=c.projects[pid]||{}; if(!m[col] && make) m[col]=wfClone(c.flows[col]); return m[col]; }
 ACT['wf-on']=(col,el)=>{ const c=wfClone(wfCfg()), t=wfTarget(c,col,S.f.wfp||'',true); t.enabled=el.checked; wfSaveCfg(c).catch(ex=>{ el.checked=!el.checked; toast(errText(ex),'err'); }); };
@@ -277,9 +385,11 @@ function wfEdRead(){ const ov=$('#ov'); if(!WFED||!ov) return; WFED.fc.enabled=!
     s.label=v('label').trim(); s.verb=v('verb').trim(); s.returnTo=v('returnTo')||'author'; s.dueDays=Math.max(0,parseInt(v('dueDays'))||0);
     s.minAmount=v('minAmount')===''?null:Number(v('minAmount')); s.maxAmount=v('maxAmount')===''?null:Number(v('maxAmount'));
     s.noteRequired=!!(ov.querySelector(`[data-wfe="${i}|noteRequired"]`)||{}).checked;
-    s.groups=[...ov.querySelectorAll(`[data-wfg="${i}"]:checked`)].map(x=>x.value); s.users=[...ov.querySelectorAll(`[data-wfu="${i}"]:checked`)].map(x=>x.value); }); }
+    s.groups=[...ov.querySelectorAll(`[data-wfg="${i}"]:checked`)].map(x=>x.value); s.users=[...ov.querySelectorAll(`[data-wfu="${i}"]:checked`)].map(x=>x.value);
+    s.remindDays=Math.min(30,Math.max(0,parseInt(v('remindDays'))||0)); s.escalateDays=Math.min(60,Math.max(0,parseInt(v('escalateDays'))||0));
+    s.escalateGroups=[...ov.querySelectorAll(`[data-wfeg="${i}"]:checked`)].map(x=>x.value); s.escalateUsers=[...ov.querySelectorAll(`[data-wfeu="${i}"]:checked`)].map(x=>x.value); }); }
 function wfEdRender(){ const e=WFED, w=WF[e.col], n=e.fc.steps.length, pj=projOf(e.pid);
-  const gs=D('groups').filter(g=>!g.admin).sort(by('name')), us=D('users').filter(u=>u.active!==false).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
+  const gs=D('groups').filter(g=>!g.admin).sort(by('name')), ga=D('groups').slice().sort(by('name')), us=D('users').filter(u=>u.active!==false).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
   const step=(s,i)=>`<div class="card" style="margin:0 0 10px;padding:12px"><div class="ch" style="margin-bottom:6px"><h3 style="margin:0">Bước ${i+1}${i===n-1?' (bước cuối)':''}</h3><span style="display:flex;gap:4px">
       <button type="button" class="btn sm ghost" data-act="wfe-mv" data-id="${i}|-1" ${i===0?'disabled':''} title="Đưa lên">↑</button><button type="button" class="btn sm ghost" data-act="wfe-mv" data-id="${i}|1" ${i===n-1?'disabled':''} title="Đưa xuống">↓</button><button type="button" class="btn sm ghost danger" data-act="wfe-rm" data-id="${i}" ${n===1?'disabled':''}>Xóa bước</button></span></div>
     <div class="fgrid" style="padding:0">
@@ -287,10 +397,15 @@ function wfEdRender(){ const e=WFED, w=WF[e.col], n=e.fc.steps.length, pj=projOf
       <div class="fld"><label>Chữ trên nút xử lý</label><input data-wfe="${i}|verb" value="${esc(s.verb||'')}" placeholder="Kiểm tra đạt, Xác nhận, Duyệt…"></div>
       <div class="fld"><label>Khi trả lại</label><select data-wfe="${i}|returnTo">${opts([['author','Trả về người lập'],['prev','Trả về bước trước']], s.returnTo||'author')}</select></div>
       <div class="fld"><label>Hạn xử lý (ngày làm việc, 0 = không đặt)</label><input type="number" min="0" data-wfe="${i}|dueDays" value="${N(s.dueDays)}"></div>
+      <div class="fld"><label>Nhắc trước hạn (ngày làm việc)</label><input type="number" min="0" max="30" data-wfe="${i}|remindDays" value="${N(s.remindDays)}" title="0: nhắc khi còn 1 ngày làm việc"></div>
+      <div class="fld"><label>Trễ bao nhiêu ngày thì báo lên (0 = không báo)</label><input type="number" min="0" max="60" data-wfe="${i}|escalateDays" value="${N(s.escalateDays)}"></div>
       <div class="fld"><label>Chỉ áp dụng khi giá trị hồ sơ từ (đồng)</label><input type="number" min="0" data-wfe="${i}|minAmount" value="${s.minAmount??''}" ${w.amt?'':'disabled'}></div>
       <div class="fld"><label>đến dưới (đồng)</label><input type="number" min="0" data-wfe="${i}|maxAmount" value="${s.maxAmount??''}" ${w.amt?'':'disabled'}></div>
       <div class="fld full"><label>Nhóm người dùng xử lý</label><div style="display:flex;flex-wrap:wrap;gap:4px 14px">${gs.map(g=>`<label class="small" style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-wfg="${i}" value="${g.id}" ${(s.groups||[]).includes(g.id)?'checked':''}> ${esc(g.name)}</label>`).join('')}</div></div>
       <div class="fld full"><details${(s.users||[]).length?' open':''}><summary class="small">Người cụ thể xử lý (${(s.users||[]).length})</summary><div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px">${us.map(u=>`<label class="small" style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-wfu="${i}" value="${u.id}" ${(s.users||[]).includes(u.id)?'checked':''}> ${esc(u.name)} <span class="muted">${esc((get('groups',u.groupId)||{}).name||'')}</span></label>`).join('')}</div></details></div>
+      <div class="fld full"><details${(s.escalateGroups||[]).length||(s.escalateUsers||[]).length?' open':''}><summary class="small">Trễ hạn thì báo cho (${(s.escalateGroups||[]).length+(s.escalateUsers||[]).length})</summary>
+        <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px">${ga.map(g=>`<label class="small" style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-wfeg="${i}" value="${g.id}" ${(s.escalateGroups||[]).includes(g.id)?'checked':''}> Nhóm ${esc(g.name)}</label>`).join('')}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px">${us.map(u=>`<label class="small" style="display:flex;gap:4px;align-items:center"><input type="checkbox" data-wfeu="${i}" value="${u.id}" ${(s.escalateUsers||[]).includes(u.id)?'checked':''}> ${esc(u.name)}</label>`).join('')}</div></details></div>
       <div class="fld full"><label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-wfe="${i}|noteRequired" ${s.noteRequired?'checked':''}> Bắt buộc ghi ý kiến khi xử lý bước này</label></div></div></div>`;
   openModal(`<div class="mform wide"><header><h3>Quy trình duyệt: ${esc(w.name)}${e.pid?' · dự án '+esc(pj?pj.code:''):''}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header>
     <div style="padding:14px 16px;max-height:70vh;overflow:auto"><label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="wfe_on" ${e.fc.enabled?'checked':''}> Áp dụng quy trình duyệt cho loại hồ sơ này</label>

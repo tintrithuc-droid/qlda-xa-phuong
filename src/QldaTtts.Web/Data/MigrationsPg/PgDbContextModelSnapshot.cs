@@ -400,6 +400,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Collection")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("Fullname")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -411,6 +415,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<string>("Module")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RecordId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Target")
                         .HasMaxLength(500)
@@ -437,6 +445,8 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.HasKey("Id");
 
                     b.HasIndex("Ts");
+
+                    b.HasIndex("Collection", "RecordId");
 
                     b.ToTable("AuditLogs");
                 });
@@ -1044,6 +1054,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
+                    b.Property<bool>("Member")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -1096,6 +1109,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("ContractorIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContractorShares")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -1291,6 +1308,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
 
                     b.Property<DateOnly?>("End")
                         .HasColumnType("date");
+
+                    b.Property<string>("Field")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Group")
                         .HasMaxLength(100)

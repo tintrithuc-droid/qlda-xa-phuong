@@ -400,6 +400,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("Collection")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("Fullname")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -411,6 +415,10 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<string>("Module")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RecordId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("Target")
                         .HasMaxLength(500)
@@ -437,6 +445,8 @@ namespace QldaTtts.Web.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Ts");
+
+                    b.HasIndex("Collection", "RecordId");
 
                     b.ToTable("AuditLogs");
                 });
@@ -1044,6 +1054,9 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<bool>("Member")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -1096,6 +1109,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ContractorIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContractorShares")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -1291,6 +1308,10 @@ namespace QldaTtts.Web.Data.Migrations
 
                     b.Property<DateOnly?>("End")
                         .HasColumnType("date");
+
+                    b.Property<string>("Field")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Group")
                         .HasMaxLength(100)

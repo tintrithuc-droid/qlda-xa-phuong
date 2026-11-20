@@ -52,7 +52,7 @@ ACT['model-hist']=(id)=>{ const m=get('models',id); const vs=D('models').filter(
 
 /* ===== GÓI THẦU VÀ HỢP ĐỒNG (UC10–14) ===== */
 const pkgFields=()=>[{key:'projectId',label:'Thuộc dự án',type:'select',options:projOpts,req:true,full:true,def:S.pid},{key:'code',label:'Ký hiệu gói thầu',req:true},{key:'type',label:'Loại gói thầu',type:'select',options:()=>catalog('Loại gói thầu'),req:true},
-  {key:'phase',label:'Giai đoạn',type:'select',options:phaseOpts,req:true,def:routePh(),hint:'Gói tư vấn khảo sát, lập báo cáo kinh tế - kỹ thuật, thiết kế, dự toán… thuộc chuẩn bị đầu tư; gói thi công, mua sắm, tư vấn giám sát… thuộc thực hiện đầu tư.'},
+  {key:'phase',label:'Giai đoạn',type:'select',options:phaseOpts,req:true,def:routePh(),hint:XD('Gói tư vấn khảo sát, lập báo cáo kinh tế - kỹ thuật, thiết kế, dự toán… thuộc chuẩn bị đầu tư; gói thi công, mua sắm, tư vấn giám sát… thuộc thực hiện đầu tư.','Gói lập, thẩm tra báo cáo kinh tế - kỹ thuật, thẩm định giá… thuộc chuẩn bị đầu tư; gói lập và thẩm định HSMT, quản lý dự án, giám sát, kiểm thử, triển khai, mua sắm… thuộc thực hiện đầu tư. Gói tư vấn ở cả hai giai đoạn nghiệm thu, thanh toán theo sản phẩm.')},
   {key:'name',label:'Tên gói thầu',req:true,full:true},{key:'method',label:'Hình thức lựa chọn nhà thầu',type:'select',options:()=>catalog('Hình thức lựa chọn nhà thầu')},{key:'estimate',label:'Giá gói thầu (đồng)',type:'money',req:true},
   {key:'status',label:'Trạng thái',type:'select',options:()=>catalog('Trạng thái gói thầu'),req:true},{key:'duration',label:'Thời gian thực hiện gói thầu'}];
 /* Gói thầu: nhập kèm QĐ phê duyệt KHLCNT và QĐ phê duyệt kết quả LCNT (lưu thành hồ sơ pháp lý gói thầu kèm tệp) */
@@ -68,7 +68,22 @@ function pkgForm(k){
     ctx.kh=await legalInlineSave('kh', v, kh, {...base, type:'Kế hoạch lựa chọn nhà thầu', title:(kh&&kh.title)||'Phê duyệt KHLCNT gói '+r.code, ...(kh?{issuer:kh.issuer}:{})});
     ctx.kq=await legalInlineSave('kq', v, kq, {...base, type:'Kết quả lựa chọn nhà thầu', title:(kq&&kq.title)||'Phê duyệt kết quả LCNT gói '+r.code, ...(kq?{issuer:kq.issuer}:{})});
     return r; }});
+  pkgShareWire(k||{});
 }
+/* Ô tỷ lệ liên danh: hiện một ô cho mỗi thành viên đang chọn (đứng đầu + thành viên khác), cập nhật khi đổi lựa chọn */
+function pkgShareWire(k){ const box=$('#f__shbox'); if(!box) return; const cur={...(k.contractorShares||{})};
+  const read=()=>{ $$('input[data-org]',box).forEach(i=>{ const id=i.dataset.org==='_lead'?'_lead':i.dataset.org; cur[id]=i.value; }); };
+  const draw=()=>{ read(); const sel=$('#f__ct_s'), nb=$('#f__ct .orgnew'); const leadNew=nb && !nb.hidden; const lead=leadNew?'_lead':(sel&&sel.value)||'';
+    const ids=[lead, ...$$('#f__jv input:checked').map(i=>i.value).filter(id=>id!==lead)].filter(Boolean);
+    if(ids.length<2){ box.innerHTML='<span class="small muted">Gói liên danh (đứng đầu và thành viên khác): nhập tỷ lệ liên danh của từng thành viên ở đây, cộng lại đúng 100%.</span>'; return; }
+    box.innerHTML=ids.map(id=>{ const o=id==='_lead'? {name:($('#f__ct_n')||{}).value||'Nhà thầu mới'} : orgOf(id)||{}; const v=cur[id]??'';
+      return `<label class="shrow"><span>${esc(o.shortName||o.name||'')}</span><input type="number" step="0.01" min="0" max="100" data-org="${esc(id)}" value="${esc(v)}" placeholder="%"></label>`; }).join('')
+      + `<span class="small muted" id="f__shsum"></span>`; sum_(); };
+  const sum_=()=>{ const t=$$('input[data-org]',box).reduce((a,i)=>a+(Number(String(i.value).replace(',','.'))||0),0); const s=$('#f__shsum'); if(s) s.textContent='Cộng: '+fmtP(t)+(Math.abs(t-100)>0.01?' (phải đúng 100%)':''); };
+  const form=$('#mform'); form.addEventListener('change',e=>{ if(e.target.closest('#f__jv')||e.target.id==='f__ct_s') draw(); });
+  form.addEventListener('input',e=>{ if(e.target.dataset && e.target.dataset.org) sum_(); });
+  form.addEventListener('click',e=>{ if(e.target.closest('#f__ct [data-orgnew],#f__ct [data-orgback]')) setTimeout(draw,0); });
+  draw(); }
 ACT['add-pkg']=()=>pkgForm(null);
 ACT['edit-packages']=(id)=>pkgForm(get('packages',id));
 ACT['open-pkg']=(id,el,e)=>{ if(e && e.target.closest && e.target.closest('button')) return; goPkg(id); };
@@ -77,18 +92,35 @@ ACT['back-pkg']=()=>{ S.sel.pkg=null; render(); };
 VIEWS['goi-thau']=()=>pkgList('dt');
 VIEWS['cb-goi-thau']=()=>pkgList('cb');
 function pkgList(ph){
-  const gt=S.tab.gt||'pkg'; if(gt!=='pkg') return orgView(gt);
+  const gt=S.tab.gt||'pkg'; if(gt!=='pkg') return orgPhaseView(ph);
   const k=S.sel.pkg&&get('packages',S.sel.pkg); if(k && pidOk(k.projectId) && pkgPhase(k)===ph) return pkgDetail(k);
   const q=S.f.kq||'', st=S.f.kst||'', ty=S.f.kty||'';
   const other=D('packages').filter(k=>inFilter(k.projectId) && pkgPhase(k)!==ph).length, oph=ph==='cb'?'dt':'cb';
-  const rows=D('packages').filter(k=>inFilter(k.projectId) && pkgPhase(k)===ph && has(k,q) && (!st||k.status===st) && (!ty||k.type===ty)).sort((a,b)=>(a.projectId+a.code).localeCompare(b.projectId+b.code)).map(k=>{ const c=contractOfPkg(k.id); return {...k, c, cv:c?contractValue(c):0, done:c?pct(contractDone(c.id),contractValue(c)):0}; });
+  /* Bản 1.8.8: tìm theo tên gói, ký hiệu, dự án, số hợp đồng, nhà thầu; danh sách nhóm theo dự án */
+  const rows=D('packages').filter(k=>inFilter(k.projectId) && pkgPhase(k)===ph && (!st||k.status===st) && (!ty||k.type===ty)).map(k=>{ const c=contractOfPkg(k.id); return {...k, c, cv:c?contractValue(c):0, done:c?pct(contractDone(c.id),contractValue(c)):0}; })
+    .filter(r=>!q || has({code:r.code, name:r.name, pj:pjGroup(r.projectId), cn:r.c&&r.c.number, ct:r.c&&r.c.contractor, nt:pkgContractorName(r), gs:pkgSupervisorNames(r)},q)).sort(pkgSort);
+  const gsum={}; rows.forEach(r=>{ const g=gsum[r.projectId]=gsum[r.projectId]||{n:0,v:0}; g.n++; g.v+=r.cv; });
   return `<div class="head"><div class="grow"><h1>Gói thầu và hợp đồng <span class="pill ${ph==='cb'?'info':'acc'}" style="vertical-align:middle;font-size:.8rem">${esc(PHASES[ph])}</span></h1><p>${rows.length} gói thầu, tổng giá gói thầu ${fmtTy(sum(rows,'estimate'))}; đã ký hợp đồng ${fmtTy(sum(rows,'cv'))}</p></div>${can('goi-thau','edit')&&!Store.meta.orgId?`<button class="btn primary" data-act="add-pkg">+ Thêm gói thầu</button>`:''}</div>
   ${orgTabs('pkg')}
   ${!rows.length&&!q&&!st&&!ty&&other?`<div class="alert info">Giai đoạn ${esc(PHASES[ph].toLowerCase())} chưa có gói thầu. ${other} gói thầu khác thuộc giai đoạn ${esc(PHASES[oph].toLowerCase())}, xem tại mục <a href="#${phRoute('goi-thau',oph)}">${esc(PHASES[oph])} › Gói thầu và hợp đồng</a>.</div>`:''}
   ${(()=>{ const al=alerts().filter(a=>a.mod==='goi-thau' && alertRoute(a)===S.route && (!a.pid||inFilter(a.pid))); return al.length?`<div class="card"><div class="ch"><h2>Cảnh báo gói thầu, hợp đồng (${al.length})</h2><a href="#canh-bao" class="small">Xem tất cả cảnh báo →</a></div>${alertList(al.slice(0,6))}</div>`:''; })()}
-  <div class="toolbar"><input type="search" data-f="kq" value="${esc(q)}" placeholder="Tìm ký hiệu, tên gói thầu…" aria-label="Tìm gói thầu"><select data-f="kty" aria-label="Loại">${opts(catalog('Loại gói thầu'),ty,'Mọi loại gói thầu')}</select><select data-f="kst" aria-label="Trạng thái">${opts(catalog('Trạng thái gói thầu'),st,'Mọi trạng thái')}</select></div>
-  ${table([{h:'Ký hiệu',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên gói thầu',f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc((projOf(r.projectId)||{}).code||'')} · ${esc(r.type)} · ${esc(r.method||'')}</div>${pkgContractorName(r)||pkgSupervisorNames(r)?`<div class="small">${[pkgContractorName(r)?'Nhà thầu: '+esc(pkgContractorName(r)):'', pkgSupervisorNames(r)?'Giám sát: '+esc(pkgSupervisorNames(r)):''].filter(Boolean).join(' · ')}</div>`:''}`},{h:'Giá gói thầu',r:1,f:r=>fmtTy(r.estimate)},
-    {h:'Hợp đồng',f:r=>r.c?`<span class="num small">${esc(r.c.number)}</span><div class="small muted">${esc(r.c.contractor)}</div>`:'<span class="muted small">Chưa ký</span>'},{h:'Giá trị HĐ',r:1,f:r=>r.c?fmtTy(r.cv):'—'},{h:'Thực hiện HĐ',f:r=>r.c?`<div style="min-width:110px">${progBar(r.done)}</div>`:''},{h:'Trạng thái',f:r=>statusPill(r.status)}], rows, {rowAct:'open-pkg', empty:'Không có gói thầu phù hợp.'})}`;
+  <div class="toolbar"><input type="search" data-f="kq" value="${esc(q)}" placeholder="Tìm tên gói, dự án, số hợp đồng, nhà thầu…" aria-label="Tìm gói thầu"><select data-f="kty" aria-label="Loại">${opts(catalog('Loại gói thầu'),ty,'Mọi loại gói thầu')}</select><select data-f="kst" aria-label="Trạng thái">${opts(catalog('Trạng thái gói thầu'),st,'Mọi trạng thái')}</select></div>
+  ${table([{h:'Gói thầu',f:r=>`<b style="font-weight:600">${esc(r.name)}</b> <span class="num small muted" style="white-space:nowrap">${esc(r.code)}</span><div class="small muted">${esc(r.type)}${r.method?' · '+esc(r.method):''}</div>${pkgContractorName(r)||pkgSupervisorNames(r)?`<div class="small">${[pkgContractorName(r)?'Nhà thầu: '+esc(pkgContractorName(r)):'', pkgSupervisorNames(r)?'Giám sát: '+esc(pkgSupervisorNames(r)):''].filter(Boolean).join(' · ')}</div>`:''}`},{h:'Giá gói thầu',r:1,f:r=>fmtTy(r.estimate)},
+    {h:'Hợp đồng',f:r=>r.c?`<span class="num small">${cNumH(r.c)}</span><div class="small muted">${esc(ctShort(r.c))}</div>`:'<span class="muted small">Chưa ký</span>'},{h:'Giá trị HĐ',r:1,f:r=>r.c?fmtTy(r.cv):'—'},{h:'Thực hiện HĐ',f:r=>r.c?`<div style="min-width:110px">${progBar(pkgTrack(r).v)}</div>`:''},{h:'Trạng thái',f:r=>statusPill(r.status)}], rows, {rowAct:'open-pkg', pk:'pkg-'+ph, group:r=>{ const g=gsum[r.projectId]||{}; return `${esc(pjGroup(r.projectId))} <span class="small muted" style="font-weight:400">· ${g.n} gói${g.v?' · hợp đồng '+fmtTy(g.v):''}</span>`; }, empty:'Không có gói thầu phù hợp.'})}`;
+}
+/* Bản 1.8.8: dải "Các bước" của gói thầu: gói thầu → hợp đồng → sản phẩm (khối lượng) → nghiệm thu → thanh toán; bước còn thiếu có nút làm ngay */
+function pkgSteps(k, c){
+  const ed=can('goi-thau','edit'), edt=can('thanh-toan','edit'), prod=c? contractProd(c) : isTVPkg(k)||pkgPhase(k)==='cb';
+  const cv=c?contractValue(c):0, boq=c?D('boq').filter(b=>b.contractId===c.id).length:0, acc=c?contractAcc(c.id):0, paid=c?contractPaid(c.id):0;
+  const kq=findLegal(k.projectId,k.id,'Kết quả lựa chọn nhà thầu');
+  const st=[
+    {t:'Gói thầu', ok:true, s:(k.contractorIds||[]).length? 'Nhà thầu: '+esc(pkgContractorName(k)) : kq? 'Đã có kết quả lựa chọn nhà thầu' : 'Chưa chọn nhà thầu', b:!(k.contractorIds||[]).length&&ed?`<button class="btn sm" data-act="edit-packages" data-id="${k.id}">Chọn nhà thầu</button>`:''},
+    {t:'Hợp đồng', ok:!!c, s:c? `${cNumH(c)} · ${fmtTy(cv)}` : 'Chưa nhập hợp đồng', b:!c&&ed?`<button class="btn sm primary" data-act="add-contract" data-id="${k.id}">Nhập hợp đồng</button>`:''},
+    {t:prod?'Sản phẩm của hợp đồng':'Bảng khối lượng', ok:boq>0, s:boq? boq+(prod?' sản phẩm':' dòng khối lượng') : (prod?'Chưa khai báo sản phẩm':'Chưa lập bảng khối lượng'), b:c&&!boq&&(ed||edt)?`<button class="btn sm primary" data-act="goto-kl" data-id="${c.id}">${prod?'Khai báo sản phẩm':'Lập bảng khối lượng'}</button>`:''},
+    {t:'Nghiệm thu', ok:cv>0 && acc>=cv-1, part:acc>0, s:c? (acc? fmtTy(acc)+' · '+fmtP(pct(acc,cv)) : 'Chưa nghiệm thu') : '—', b:c&&boq&&acc<cv-1?`<button class="btn sm" data-act="goto-kl" data-id="${c.id}">${prod?'Nghiệm thu sản phẩm':'Nghiệm thu khối lượng'}</button>`:''},
+    {t:'Thanh toán', ok:cv>0 && paid>=cv-1, part:paid>0, s:c? (paid? fmtTy(paid)+' · '+fmtP(pct(paid,cv)) : 'Chưa thanh toán') : '—', b:c&&paid<cv-1?`<button class="btn sm" data-act="goto-tt" data-id="${c.id}">Thanh toán</button>`:''}];
+  const now=st.findIndex(x=>!x.ok);
+  return `<div class="card"><div class="ch"><h2>Các bước của gói thầu</h2><span class="small muted">${now<0?'Đã đủ các bước':'Bước tiếp theo: '+esc(st[now].t.toLowerCase())}</span></div><div class="steps">${st.map((x,i)=>`<div class="st ${x.ok?'ok':i===now?'now':''}"><span class="small">Bước ${i+1}${x.ok?' ✓':x.part?' · đang thực hiện':''}</span><b>${esc(x.t)}</b><span class="small">${x.s}</span>${x.b}</div>`).join('')}</div></div>`;
 }
 function pkgDetail(k){
   const p=projOf(k.projectId); const c=contractOfPkg(k.id); const ed=can('goi-thau','edit');
@@ -96,21 +128,21 @@ function pkgDetail(k){
   if(!c) cBody=emptyBox('Gói thầu chưa có hợp đồng.', ed?`<button class="btn primary" data-act="add-contract" data-id="${k.id}">+ Nhập thông tin hợp đồng</button>`:'');
   else {
     const cv=contractValue(c), end=contractEnd(c), done=contractDone(c.id), acc=contractAcc(c.id), paid=contractPaid(c.id);
-    const tr=pkgTrack(k); const tEl=tr.mode==='done'?100:(c.start&&end? Math.min(100,pct(Math.max(0,days(c.start,TODAY)),days(c.start,end))):0); const sp=tr.v; const lag=tr.mode==='sched'? tEl-sp : 0;
+    const prod=contractProd(c); const tr=pkgTrack(k); const tEl=tr.mode==='done'?100:(c.start&&end? Math.min(100,pct(Math.max(0,days(c.start,TODAY)),days(c.start,end))):0); const sp=tr.v; const lag=tr.mode==='sched'? tEl-sp : 0;
     const ad=D('addenda').filter(a=>a.contractId===c.id).sort(by('date'));
     cBody=`<div class="grid g2"><div class="card"><div class="ch"><h2>Thông tin hợp đồng</h2>${wfOn('contracts',contractPid(c))||c.status?wfPill('contracts',c)+wfBtns('contracts',c):''}${ed&&wfEditable('contracts',c)?`<button class="btn sm" data-act="edit-contracts" data-id="${c.id}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="contracts" data-id="${c.id}">Xóa</button>`:''}</div><dl class="kv">
-      <dt>Số hợp đồng</dt><dd class="num">${esc(c.number)}</dd><dt>Nhà thầu</dt><dd>${esc(c.contractor)}</dd><dt>Ngày ký</dt><dd class="num">${fmtDate(c.signDate)}</dd><dt>Loại hợp đồng</dt><dd>${esc(c.ctype||'—')}</dd>
+      <dt>Số hợp đồng</dt><dd class="num">${cNumH(c)}</dd><dt>Nhà thầu</dt><dd>${esc(c.contractor)}</dd><dt>Ngày ký</dt><dd class="num">${fmtDate(c.signDate)}</dd><dt>Loại hợp đồng</dt><dd>${esc(c.ctype||'—')}</dd>
       <dt>Giá trị ký kết</dt><dd class="num">${fmtVND(c.value)} đ</dd><dt>Giá trị sau điều chỉnh</dt><dd class="num"><b>${fmtVND(cv)} đ</b></dd><dt>Thời gian thực hiện</dt><dd class="num">${fmtDate(c.start)} – ${fmtDate(end)}${end!==c.end?` <span class="pill warn">gia hạn ${days(c.end,end)} ngày</span>`:''}</dd>
       <dt>Bảo lãnh thực hiện</dt><dd>${esc(c.guarantee||'—')}${c.guaranteeUntil?` · hiệu lực đến <span class="num" style="${c.guaranteeUntil<=addDays(TODAY,30)?'color:var(--red);font-weight:600':''}">${fmtDate(c.guaranteeUntil)}</span>`:''}</dd><dt>Tỷ lệ tạm ứng</dt><dd>${c.advanceRate!=null?esc(c.advanceRate)+'%':'—'}${c.advanceGuaranteeUntil?` · bảo lãnh tạm ứng đến <span class="num" style="${c.advanceGuaranteeUntil<=addDays(TODAY,30)?'color:var(--red);font-weight:600':''}">${fmtDate(c.advanceGuaranteeUntil)}</span>`:''}</dd>
-      ${CONTRACT_DOCS.map(([kind,l])=>`<dt>${l}</dt><dd>${attLinks(atts('contracts',c.id,kind))}</dd>`).join('')}</dl></div>
+      ${CONTRACT_DOCS.map(([kind,l])=>`<dt>${l}</dt><dd>${attLinks(atts('contracts',c.id,kind))}</dd>`).join('')}${(o=>o.length?`<dt>Hồ sơ khác kèm hợp đồng</dt><dd>${attCell(o,true)}</dd>`:'')(contractOtherAtts(c.id))}</dl></div>
       <div class="card"><h2>Theo dõi tiến độ thực hiện hợp đồng</h2><div class="list">
         <div><div class="small muted">Thời gian hợp đồng đã qua</div>${progBar(tEl)}</div>
-        <div><div class="small muted">${tr.mode==='sched'?'Tiến độ thi công (theo kế hoạch tiến độ gói thầu)':tr.mode==='done'?'Tiến độ thực hiện (gói thầu đã hoàn thành)':(D('boq').some(b=>b.contractId===c.id)?'Tiến độ thực hiện (theo giá trị nghiệm thu)':'Tiến độ thực hiện (theo giá trị đã thanh toán)')}</div>${progBar(sp, lag>15?'warn':'')}</div>
-        <div><div class="small muted">Giá trị khối lượng thực hiện · ${fmtTy(done)}</div>${progBar(pct(done,cv), tEl-pct(done,cv)>15?'warn':'')}</div>
-        <div><div class="small muted">Giá trị nghiệm thu · ${fmtTy(acc)}</div>${progBar(pct(acc,cv))}</div>
+        <div><div class="small muted">${tr.mode==='sched'?XD('Tiến độ thi công','Tiến độ triển khai')+' (theo kế hoạch tiến độ gói thầu)':tr.mode==='done'?'Tiến độ thực hiện (gói thầu đã hoàn thành)':(D('boq').some(b=>b.contractId===c.id)?'Tiến độ thực hiện (theo giá trị nghiệm thu)':'Tiến độ thực hiện (theo giá trị đã thanh toán)')}</div>${progBar(sp, lag>15?'warn':'')}</div>
+        ${prod?'':`<div><div class="small muted">Giá trị khối lượng thực hiện · ${fmtTy(done)}</div>${progBar(pct(done,cv), tEl-pct(done,cv)>15?'warn':'')}</div>`}
+        <div><div class="small muted">${prod?'Giá trị nghiệm thu sản phẩm':'Giá trị nghiệm thu'} · ${fmtTy(acc)}</div>${progBar(pct(acc,cv))}</div>
         <div><div class="small muted">Giá trị đã thanh toán · ${fmtTy(paid)}</div>${progBar(pct(paid,cv))}</div>
-        ${lag>15?`<div class="alert">Tiến độ thi công đang chậm ${Math.round(lag)}% so với thời gian hợp đồng đã qua.</div>`:''}
-        <div class="toolbar">${pkgPhase(k)==='cb'?`<button class="btn sm" data-act="goto-kl" data-id="${c.id}">Nghiệm thu sản phẩm</button><button class="btn sm" data-act="goto-tt" data-id="${c.id}">Thanh toán</button>`:`<button class="btn sm" data-act="goto-kl" data-id="${c.id}">Khối lượng</button><button class="btn sm" data-act="goto-tt" data-id="${c.id}">Thanh toán</button><button class="btn sm" data-act="goto-td" data-id="${k.id}">Tiến độ</button>`}</div></div></div></div>
+        ${lag>15?`<div class="alert">${XD('Tiến độ thi công','Tiến độ triển khai')} đang chậm ${Math.round(lag)}% so với thời gian hợp đồng đã qua.</div>`:''}
+        <div class="toolbar">${prod?`<button class="btn sm" data-act="goto-kl" data-id="${c.id}">Nghiệm thu sản phẩm</button><button class="btn sm" data-act="goto-tt" data-id="${c.id}">Thanh toán</button>${pkgPhase(k)==='dt'&&SCHED().some(s=>s.packageId===k.id)?`<button class="btn sm" data-act="goto-td" data-id="${k.id}">Tiến độ</button>`:''}`:`<button class="btn sm" data-act="goto-kl" data-id="${c.id}">Khối lượng</button><button class="btn sm" data-act="goto-tt" data-id="${c.id}">Thanh toán</button><button class="btn sm" data-act="goto-td" data-id="${k.id}">Tiến độ</button>`}</div></div></div></div>
       <div class="card"><div class="ch"><h2>Điều chỉnh, phụ lục hợp đồng</h2>${ed?`<button class="btn primary sm" data-act="add-addendum" data-id="${c.id}">+ Thêm phụ lục</button>`:''}</div>
       ${table([{h:'Số phụ lục',k:'number'},{h:'Ngày ký',f:r=>`<span class="num">${fmtDate(r.date)}</span>`},{h:'Nội dung điều chỉnh',k:'content'},{h:'Giá trị điều chỉnh',r:1,f:r=>(N(r.valueChange)>0?'+':'')+fmtVND(r.valueChange)},{h:'Gia hạn (ngày)',r:1,f:r=>N(r.daysChange)||'—'},{h:'Trạng thái',f:r=>wfPill('addenda',r)},{h:'Tệp',f:r=>attCell(atts('addenda',r.id))}], ad, {actions:r=>wfBtns('addenda',r)+wfEditBtns('addenda',r), empty:'Chưa có phụ lục điều chỉnh.', foot:ad.length?['Tổng đã duyệt','','',fmtVND(sum(ad.filter(addApproved),'valueChange')),sum(ad.filter(addApproved),'daysChange')||'—','','']:null})}
       ${(()=>{ const pd=contractPending(c); return pd.n? `<p class="small" style="margin:8px 0 0;color:var(--amber)">Đang chờ duyệt ${pd.n} phụ lục: ${pd.value>0?'+':''}${fmtVND(pd.value)} đồng${pd.days?', gia hạn '+pd.days+' ngày':''}. Chưa tính vào giá trị và thời hạn hợp đồng cho đến khi phụ lục được duyệt.</p>` : ''; })()}</div>`;
@@ -119,21 +151,42 @@ function pkgDetail(k){
   ${(()=>{ const al=alerts({all:true}).filter(a=>a.kid===k.id); return al.length?`<div class="card"><h2>Cảnh báo của gói thầu (${al.length})</h2>${alertList(al.map(a=>a.go==='pkg|'+k.id?{...a,go:''}:a))}</div>`:''; })()}
   <div class="grid g4"><div class="card kpi"><div class="eyebrow">Loại gói thầu</div><div class="v" style="font-size:1.05rem;font-family:var(--f-ui)">${esc(k.type)}</div><div class="s">${esc(k.method||'')}</div></div><div class="card kpi"><div class="eyebrow">Giá gói thầu</div><div class="v">${fmtTy(k.estimate)}</div></div>
     <div class="card kpi"><div class="eyebrow">Giá trị hợp đồng</div><div class="v">${c?fmtTy(contractValue(c)):'—'}</div><div class="s">${(()=>{ if(!c||!N(k.estimate)) return ''; const d=contractValue(c)-N(k.estimate); if(Math.abs(d)<0.5) return 'Bằng giá gói thầu'; return d<0? 'Tiết kiệm '+fmtP(pct(-d,k.estimate))+' so với giá gói thầu' : `<span style="color:var(--red);font-weight:600">Vượt giá gói thầu ${fmtP(pct(d,k.estimate))}</span>`; })()}${c&&contractPending(c).n?`<br><span style="color:var(--amber)">Phụ lục chờ duyệt: ${fmtTy(contractPending(c).value)}</span>`:''}</div></div><div class="card kpi"><div class="eyebrow">Tiến độ gói thầu</div>${(()=>{ const t=pkgTrack(k); return `<div class="v">${fmtP(t.v)}</div><div class="s">${t.mode==='done'?'Đã hoàn thành':t.mode==='acc'?'Theo giá trị nghiệm thu, thanh toán':'Kế hoạch '+fmtP(t.plan)}</div>`; })()}</div></div>
+  ${pkgSteps(k, c)}
   ${pkgOrgCard(k)}
   ${cBody}
   ${legalCard(D('legal').filter(l=>l.packageId===k.id), k.projectId, k.id, 'goi-thau', 'Hồ sơ pháp lý gói thầu')}`;
 }
+/* Tệp gắn ở hợp đồng nhưng không thuộc các mục riêng (chuyển từ e-work: quyết định chỉ định, thông báo mời, hồ sơ thanh toán...) */
+const contractOtherAtts=id=>{ const shown=new Set([...CONTRACT_DOCS.map(d=>d[0]),'Bảng khối lượng hợp đồng','Biên bản nghiệm thu']); return atts('contracts',id).filter(a=>!shown.has(a.kind)); };
 const CONTRACT_DOCS=[['Hợp đồng đã ký','Bản hợp đồng đã ký'],['Bảo lãnh thực hiện hợp đồng','Bảo lãnh thực hiện HĐ'],['Bảo lãnh tạm ứng','Bảo lãnh tạm ứng']];
-const contractFields=()=>[{key:'number',label:'Số hợp đồng',req:true},{key:'signDate',label:'Ngày ký',type:'date',req:true},{key:'contractor',label:'Nhà thầu / Liên danh',req:true,full:true},{key:'ctype',label:'Loại hợp đồng',type:'select',options:()=>catalog('Loại hợp đồng')},
+const contractFields=()=>[{key:'number',label:'Số hợp đồng',hint:'Ghi đúng số trên hợp đồng đã ký. Chưa có số thì để trống, phần mềm ghi "Chưa có số hợp đồng" và nhắc bổ sung.'},{key:'signDate',label:'Ngày ký',type:'date'},{key:'_org',label:'Nhà thầu / Liên danh',type:'org',kind:'nt',req:true,full:true,hint:'Nhà thầu của hợp đồng phải trùng nhà thầu đã chọn ở gói thầu. Gói thầu chưa chọn nhà thầu thì được chọn theo hợp đồng này.'},{key:'ctype',label:'Loại hợp đồng',type:'select',options:()=>catalog('Loại hợp đồng')},
   {key:'value',label:'Giá trị hợp đồng (đồng)',type:'money',req:true},{key:'start',label:'Ngày bắt đầu',type:'date',req:true},{key:'end',label:'Ngày kết thúc',type:'date',req:true},{key:'guarantee',label:'Bảo lãnh thực hiện HĐ (số, ngân hàng phát hành)'},{key:'guaranteeUntil',label:'Bảo lãnh thực hiện HĐ hiệu lực đến',type:'date'},{key:'advanceRate',label:'Tỷ lệ tạm ứng (%)',type:'percent'},{key:'advanceGuaranteeUntil',label:'Bảo lãnh tạm ứng hiệu lực đến',type:'date'},{key:'note',label:'Ghi chú',type:'textarea'},
   ...CONTRACT_DOCS.map(([kind,l],i)=>({key:'att'+i,label:l,type:'attach',col:'contracts',kind}))];
-ACT['add-contract']=(kid)=>openForm({wf:'contracts', title:'Nhập thông tin hợp đồng', fields:contractFields(), value:{contractor:pkgContractorName(pkgOf(kid))}, onSave:v=>{ if(v.end<v.start){ $('#mform_err').textContent='Ngày kết thúc phải sau ngày bắt đầu.'; return false; } return save('contracts',{...v, packageId:kid, projectId:pkgOf(kid).projectId}); }});
-ACT['edit-contracts']=(id)=>openForm({wf:'contracts', title:'Cập nhật hợp đồng', fields:contractFields(), value:get('contracts',id), onSave:v=>save('contracts',v)});
+ACT['add-contract']=(kid)=>openForm({wf:'contracts', title:'Nhập thông tin hợp đồng', fields:contractFields(), value:{_org:((pkgOf(kid)||{}).contractorIds||[])[0]||''}, onSave:async v=>{ if(v.end<v.start){ $('#mform_err').textContent='Ngày kết thúc phải sau ngày bắt đầu.'; return false; } if(!await contractOrgSync(v, kid)) return false; return save('contracts',{...v, packageId:kid, projectId:pkgOf(kid).projectId}); }});
+ACT['edit-contracts']=(id)=>openForm({wf:'contracts', title:'Cập nhật hợp đồng', fields:contractFields(), value:contractOrgValue(get('contracts',id)), onSave:async v=>{ if(!await contractOrgSync(v, get('contracts',id).packageId)) return false; return save('contracts',v); }});
+/* Bản 1.8.3: nhà thầu của hợp đồng lấy theo danh mục nhà thầu và phải khớp nhà thầu đã chọn ở gói thầu.
+   Gói thầu chưa chọn nhà thầu thì chọn luôn đơn vị này; tên chưa có trong danh mục thì thêm vào danh mục. */
+async function contractOrgSync(v, kid){
+  const k=pkgOf(kid); const o=await orgResolve(v._org); v._org=undefined; if(!o){ $('#mform_err').textContent='Vui lòng chọn nhà thầu.'; return false; }
+  const ids=(k&&k.contractorIds)||[];
+  if(ids.length && !ids.includes(o.id)){ $('#mform_err').textContent=`Gói thầu ${k.code} đã chọn nhà thầu "${pkgContractorName(k)}". Nhà thầu của hợp đồng phải trùng nhà thầu của gói thầu; cần đổi thì sửa nhà thầu ở gói thầu trước.`; return false; }
+  v.contractor= ids.length>1 && k.jointVenture? k.jointVenture : o.name;
+  if(k && !ids.length) await save('packages',{...k, contractorIds:[o.id]});
+  return true; }
+/* Hợp đồng cũ chỉ có tên nhà thầu gõ tay: tìm đơn vị trong danh mục theo nhà thầu của gói thầu, rồi theo tên */
+function contractOrgValue(c){ const k=pkgOf(c.packageId)||{}; const ids=k.contractorIds||[];
+  const byName=D('orgs').find(o=>o.kind==='nt' && (normKey(o.name)===normKey(c.contractor)||(o.shortName && normKey(o.shortName)===normKey(c.contractor))));
+  const id=ids.find(id=>byName && id===byName.id) || ids[0] || (byName||{}).id || '';
+  /* Chưa có trong danh mục: mở sẵn ô thêm mới với tên đang ghi, lưu hợp đồng thì đơn vị vào danh mục */
+  return {...c, _org: id || (String(c.contractor||'').trim()? {_new:{name:String(c.contractor).trim()}} : '')}; }
+/* Đơn vị chọn hoặc thêm mới ở ô kiểu 'org': trả về bản ghi danh mục (thêm mới thì lưu vào danh mục; trùng tên hoặc mã số thuế thì dùng đơn vị đã có) */
+async function orgResolve(val){ if(!val) return null; if(typeof val==='string') return orgOf(val);
+  const n=val._new; const d=orgDupe({...n, id:''}); if(d) return d; return save('orgs',{...n, active:true}); }
 const addFields=()=>[{key:'number',label:'Số phụ lục',req:true},{key:'date',label:'Ngày ký',type:'date',req:true},{key:'content',label:'Nội dung điều chỉnh',type:'textarea',req:true},{key:'valueChange',label:'Giá trị điều chỉnh (+ tăng / − giảm, đồng)',type:'number',def:0},{key:'daysChange',label:'Gia hạn thời gian (ngày)',type:'number',def:0},{key:'wfnote',type:'html',label:'',full:true,html:'<p class="small muted" style="margin:0">Lưu nháp để soạn tiếp, hoặc Lưu và chuyển duyệt để chuyển hồ sơ theo quy trình duyệt. Chỉ phụ lục đã duyệt mới cộng vào giá trị và thời hạn hợp đồng.</p>'},{key:'att',label:'Phụ lục đã ký, văn bản đề nghị điều chỉnh',type:'attach',col:'addenda'}];
 ACT['add-addendum']=(cid)=>openForm({wf:'addenda', title:'Thêm phụ lục hợp đồng', fields:addFields(), onSave:v=>save('addenda',{...v, contractId:cid},'Phụ lục '+v.number)});
 ACT['edit-addenda']=(id)=>openForm({wf:'addenda', title:'Cập nhật phụ lục', fields:addFields(), value:get('addenda',id), onSave:v=>save('addenda',v,'Phụ lục '+v.number)});
-ACT['goto-kl']=(cid)=>{ if(cidPhase(cid)==='cb') return goPay(cid,'nt'); S.f.klc=cid; location.hash='khoi-luong'; };
-ACT['goto-tt']=(cid)=>goPay(cid, cidPhase(cid)==='cb'?'hs':null);
+ACT['goto-kl']=(cid)=>{ if(cidProd(cid)) return goPay(cid,'nt'); S.f.klc=cid; location.hash='khoi-luong'; };
+ACT['goto-tt']=(cid)=>goPay(cid, cidProd(cid)?'hs':null);
 ACT['goto-td']=(kid)=>{ S.f.tdk=kid; location.hash='tien-do'; };
 
 /* ===== DANH MỤC NHÀ THẦU, DANH MỤC ĐƠN VỊ GIÁM SÁT  =====
@@ -145,24 +198,49 @@ const ORG_KIND={nt:'nhà thầu', gs:'đơn vị giám sát'};
 const orgList=kind=>D('orgs').filter(o=>!kind||o.kind===kind).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
 /* Tên nhà thầu của gói thầu: tên liên danh, hoặc tên các đơn vị nối nhau */
 function pkgContractorName(k){ if(!k) return ''; const ids=k.contractorIds||[]; if(!ids.length) return ''; if(k.jointVenture) return k.jointVenture; return ids.map(id=>(orgOf(id)||{}).name||'').filter(Boolean).join(' – '); }
+/* Thành viên liên danh kèm tỷ lệ: "ITECH 41,8%, Tri Thức 58,2%" */
+function jvMembersText(k){ if(!k) return ''; const ids=k.contractorIds||[]; if(ids.length<2) return ''; const sh=k.contractorShares||{};
+  return ids.map(id=>{ const o=orgOf(id); const s=sh[id]; return o? (o.shortName||o.name)+(s!=null&&s!==''?' '+fmtP(N(s)):'') : ''; }).filter(Boolean).join(', '); }
 const pkgSupervisorNames=k=>(k&&k.supervisorIds||[]).map(orgName).filter(Boolean).join(', ');
 const orgPkgs=id=>{ const o=orgOf(id); return D('packages').filter(k=>o&&o.kind==='gs'?(k.supervisorIds||[]).includes(id):(k.contractorIds||[]).includes(id)); };
 const orgUsers=id=>D('users').filter(u=>u.orgId===id);
-const ORG_TABS=[['pkg','Gói thầu và hợp đồng'],['nt','Danh mục nhà thầu'],['gs','Danh mục đơn vị giám sát']];
+/* Bản 1.8.8: trong mỗi giai đoạn chỉ có "Nhà thầu của giai đoạn" (lọc theo gói thầu của giai đoạn);
+   danh mục đầy đủ (thêm, sửa nhà thầu, đơn vị giám sát) đặt một chỗ: Điều hành › Danh mục nhà thầu, đơn vị giám sát */
+const ORG_TABS=[['pkg','Gói thầu và hợp đồng'],['nt','Nhà thầu của giai đoạn']];
 function orgTabs(t){ return `<div class="tabs">${ORG_TABS.map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="gt" data-id="${k}">${l}</button>`).join('')}</div>`; }
+const DM_TABS=[['nt','Danh mục nhà thầu'],['gs','Danh mục đơn vị giám sát']];
+VIEWS['danh-muc-don-vi']=()=>orgView(S.tab.dm==='gs'?'gs':'nt');
+const pkgRef=k=>`<a href="#" data-act="go-pkg" data-id="${esc(k.id)}" class="small"><span class="num">${esc((projOf(k.projectId)||{}).code||'')} · ${esc(k.code)}</span> ${esc(k.name)}</a>`;
+ACT['go-pkg']=(id)=>goPkg(id);
+function orgPhaseView(ph){
+  const q=S.f.oq||''; const ks=D('packages').filter(k=>inFilter(k.projectId) && pkgPhase(k)===ph).sort(pkgSort);
+  const m=new Map(); const put=(id,k,role)=>{ const o=orgOf(id); if(!o) return; const e=m.get(id)||{o, ks:[]}; e.ks.push({k,role}); m.set(id,e); };
+  ks.forEach(k=>{ const ids=k.contractorIds||[]; ids.forEach((id,i)=>put(id,k,ids.length>1?(i===0?'Đứng đầu liên danh':'Thành viên liên danh'):'Nhà thầu')); (k.supervisorIds||[]).forEach(id=>put(id,k,'Giám sát')); });
+  const rows=[...m.values()].map(e=>({...e, id:e.o.id, name:e.o.name, cv:sum(e.ks.filter(x=>x.role!=='Giám sát'),x=>{ const c=contractOfPkg(x.k.id); return c?contractValue(c):0; })}))
+    .filter(r=>has({...r.o, pk:r.ks.map(x=>x.k.code+' '+x.k.name+' '+((projOf(x.k.projectId)||{}).code||'')).join(' ')},q)).sort((a,b)=>b.cv-a.cv||String(a.name).localeCompare(String(b.name),'vi'));
+  const noOrg=ks.filter(k=>!(k.contractorIds||[]).length).length;
+  return `<div class="head"><div class="grow"><h1>Nhà thầu của giai đoạn <span class="pill ${ph==='cb'?'info':'acc'}" style="vertical-align:middle;font-size:.8rem">${esc(PHASES[ph])}</span></h1><p>${rows.length} đơn vị tham gia ${ks.length} gói thầu ${esc(PHASES[ph].toLowerCase())}${noOrg?`; ${noOrg} gói thầu chưa chọn nhà thầu`:''}</p></div>${can('danh-muc-don-vi')?`<a class="btn" href="#danh-muc-don-vi">Danh mục nhà thầu, đơn vị giám sát →</a>`:''}</div>
+  ${orgTabs('nt')}
+  <p class="small muted" style="margin:0">Chỉ liệt kê nhà thầu, đơn vị giám sát có gói thầu ở giai đoạn này. Thêm, sửa thông tin đơn vị tại mục Điều hành › Danh mục nhà thầu, đơn vị giám sát.</p>
+  <div class="toolbar"><input type="search" data-f="oq" value="${esc(q)}" placeholder="Tìm tên nhà thầu, mã số thuế, tên gói thầu, mã dự án…" aria-label="Tìm nhà thầu"></div>
+  ${table([{h:'Đơn vị',f:r=>`<b style="font-weight:600">${esc(r.name)}</b>${r.o.member?' '+pill('Thành viên','acc'):''}${r.o.kind==='gs'?' '+pill('Đơn vị giám sát','info'):''}${r.o.taxCode?`<div class="small muted">MST ${esc(r.o.taxCode)}</div>`:''}`},
+    {h:'Gói thầu ở giai đoạn này',f:r=>`<div style="display:grid;gap:3px;min-width:260px">${r.ks.map(x=>`<div>${pkgRef(x.k)}${x.role!=='Nhà thầu'?` <span class="small muted">(${esc(x.role.toLowerCase())})</span>`:''}</div>`).join('')}</div>`},
+    {h:'Số gói',r:1,f:r=>r.ks.length},{h:'Giá trị hợp đồng',r:1,f:r=>r.cv?fmtTy(r.cv):'—'}], rows,
+    {rowAct:'open-org', empty:q?'Không có đơn vị phù hợp.':'Các gói thầu của giai đoạn này chưa chọn nhà thầu.'})}`;
+}
 function orgView(kind){
   const q=S.f.oq||'', st=S.f.ost||''; const ed=can('goi-thau','edit') && !Store.meta.orgId;
   const all=orgList(kind); const rows=all.filter(o=>has(o,q) && (!st || (st==='on'?o.active!==false:o.active===false)));
   const title=kind==='nt'?'Danh mục nhà thầu':'Danh mục đơn vị giám sát';
   return `<div class="head"><div class="grow"><h1>${title}</h1><p>${all.length} ${kind==='gs'?'đơn vị giám sát độc lập':'nhà thầu (thi công, tư vấn, cung cấp)'}; chọn ở biểu mẫu gói thầu khi hình thành gói thầu</p></div>${ed?`<button class="btn primary" data-act="add-org" data-id="${kind}">+ Thêm ${ORG_KIND[kind]}</button>`:''}</div>
-  ${orgTabs(kind)}
+  <div class="tabs">${DM_TABS.map(([k,l])=>`<button class="${kind===k?'on':''}" data-act="tab" data-g="dm" data-id="${k}">${l}</button>`).join('')}</div>
   <div class="toolbar"><input type="search" data-f="oq" value="${esc(q)}" placeholder="Tìm tên, mã số thuế, người đại diện, địa chỉ…" aria-label="Tìm đơn vị"><select data-f="ost" aria-label="Trạng thái">${opts([['on','Đang hoạt động'],['off','Ngừng hoạt động']],st,'Mọi trạng thái')}</select></div>
-  ${table([{h:kind==='gs'?'Tên đơn vị giám sát':'Tên nhà thầu',f:r=>`<b style="font-weight:600">${esc(r.name)}</b>${r.shortName?`<div class="small muted">${esc(r.shortName)}</div>`:''}${r.address?`<div class="small muted">${esc(r.address)}</div>`:''}`},
+  ${table([{h:kind==='gs'?'Tên đơn vị giám sát':'Tên nhà thầu',f:r=>`<b style="font-weight:600">${esc(r.name)}</b>${r.member?' '+pill('Thành viên','acc'):''}${r.shortName?`<div class="small muted">${esc(r.shortName)}</div>`:''}${r.address?`<div class="small muted">${esc(r.address)}</div>`:''}`},
     {h:'Mã số thuế',f:r=>`<span class="num">${esc(r.taxCode||'—')}</span>`},
     {h:'Người đại diện',f:r=>`${esc(r.representative||'—')}<div class="small muted">${esc(r.repTitle||'')}</div>`},
     {h:'Liên hệ',f:r=>`${esc(r.phone||'')}${r.email?`<div class="small">${esc(r.email)}</div>`:''}${r.contactName?`<div class="small muted">${esc(r.contactName)} ${esc(r.contactPhone||'')}</div>`:''}`},
     {h:'Chứng chỉ năng lực',f:r=>r.certNo?`<span class="num small">${esc(r.certNo)}</span>${r.certGrade?' · hạng '+esc(r.certGrade):''}${r.certDate?`<div class="small muted">cấp ${fmtDate(r.certDate)}</div>`:''}`:'<span class="muted small">—</span>'},
-    {h:kind==='gs'?'Gói thầu giám sát':'Gói thầu tham gia',f:r=>{ const ks=orgPkgs(r.id); return ks.length?ks.map(k=>`<span class="num small">${esc(k.code)}</span>`).join(', '):'<span class="muted small">Chưa có</span>'; }},
+    {h:kind==='gs'?'Gói thầu giám sát':'Gói thầu tham gia',f:r=>{ const ks=orgPkgs(r.id).filter(k=>pidOk(k.projectId)).sort(pkgSort); return ks.length?`<div style="display:grid;gap:3px;min-width:240px">${ks.slice(0,6).map(k=>`<div>${pkgRef(k)} <span class="pill" style="font-size:.7rem">${esc(PHASES[pkgPhase(k)])}</span></div>`).join('')}${ks.length>6?`<div class="small muted">… và ${ks.length-6} gói khác (bấm vào dòng để xem đủ)</div>`:''}</div>`:'<span class="muted small">Chưa có</span>'; }},
     {h:'Tài khoản',r:1,f:r=>orgUsers(r.id).length||'—'},
     {h:'Trạng thái',f:r=>r.active===false?pill('Ngừng hoạt động','bad'):pill('Hoạt động','ok')}], rows,
     {rowAct:'open-org', actions:r=>ed?editBtns('goi-thau','orgs',r.id):'', empty:q||st?'Không có đơn vị phù hợp.':`Chưa có ${ORG_KIND[kind]} trong danh mục.`})}
@@ -177,9 +255,10 @@ const orgFields=(kind)=>[
   {key:'field',label:'Lĩnh vực hoạt động',full:true,ph:kind==='gs'?'Ví dụ: giám sát thi công xây dựng công trình giao thông, hạ tầng kỹ thuật':'Ví dụ: thi công công trình giao thông, hạ tầng kỹ thuật'},
   {key:'contactName',label:'Người liên hệ'},{key:'contactPhone',label:'Điện thoại người liên hệ'},
   {key:'status',label:'Trạng thái',type:'select',options:[['on','Đang hoạt động'],['off','Ngừng hoạt động']],req:true,def:'on'},
+  ...(kind==='gs'?[]:[{key:'_mem',label:'Thành viên hệ sinh thái',type:'select',options:[['0','Không'],['1','Có: đơn vị thành viên']],req:true,def:'0',hint:'Đơn vị thành viên có bộ lọc và báo cáo riêng ở trang Tổng quan. Nên ghi Tên viết tắt (ví dụ Tri Thức) để hiển thị gọn.'}]),
   {key:'note',label:'Ghi chú',type:'textarea'},{key:'att',label:'Giấy chứng nhận đăng ký doanh nghiệp, chứng chỉ năng lực, hồ sơ năng lực',type:'attach',col:'orgs'}];
-const orgIn=o=>({...o, status:o.active===false?'off':'on'});
-function orgOut(v){ const o={...v, active:v.status!=='off'}; delete o.status; return o; }
+const orgIn=o=>({...o, status:o.active===false?'off':'on', _mem:o.member?'1':'0'});
+function orgOut(v){ const o={...v, active:v.status!=='off', member:v.kind!=='gs' && v._mem==='1'}; delete o.status; delete o._mem; return o; }
 function orgDupe(v){ const n=normKey(v.name), t=String(v.taxCode||'').replace(/\s/g,''); return D('orgs').find(o=>o.id!==v.id && o.kind===v.kind && (normKey(o.name)===n || (t && String(o.taxCode||'').replace(/\s/g,'')===t))); }
 async function orgSave(v){ const d=orgDupe(v); if(d){ $('#mform_err').textContent=`Đã có trong danh mục ${ORG_KIND[v.kind]} (trùng tên hoặc mã số thuế): ${d.name}`; return false; } return save('orgs', orgOut(v)); }
 ACT['add-org']=(kind)=>openForm({title:'Thêm '+ORG_KIND[kind], wide:true, fields:orgFields(kind), value:{kind, status:'on'}, onSave:orgSave});
@@ -188,7 +267,7 @@ ACT['open-org']=(id,el,e)=>{ if(e && e.target.closest('button')) return; const o
   const ks=orgPkgs(id), us=orgUsers(id), row=(l,v)=>v?`<dt>${l}</dt><dd>${v}</dd>`:'';
   const role=k=>{ if(o.kind==='gs') return 'Giám sát'+((k.supervisorIds||[]).length>1?' (cùng '+((k.supervisorIds||[]).length-1)+' đơn vị khác)':''); const ids=k.contractorIds||[]; return ids.length>1?(ids[0]===id?'Đứng đầu liên danh':'Thành viên liên danh'):'Nhà thầu'; };
   openModal(`<div class="mform wide"><header><h3>${esc(o.name)}</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;overflow:auto"><dl class="kv">
-    ${row('Danh mục',o.kind==='gs'?'Đơn vị giám sát độc lập':'Nhà thầu')}${row('Tên viết tắt',esc(o.shortName||''))}${row('Mã số thuế',esc(o.taxCode||''))}${row('Địa chỉ',esc(o.address||''))}
+    ${row('Danh mục',o.kind==='gs'?'Đơn vị giám sát độc lập':'Nhà thầu'+(o.member?', thành viên hệ sinh thái':''))}${row('Tên viết tắt',esc(o.shortName||''))}${row('Mã số thuế',esc(o.taxCode||''))}${row('Địa chỉ',esc(o.address||''))}
     ${row('Điện thoại',esc(o.phone||''))}${row('Thư điện tử',esc(o.email||''))}${row('Người đại diện',esc([o.representative,o.repTitle].filter(Boolean).join(' – ')))}
     ${row('Tài khoản ngân hàng',esc([o.bankAccount,o.bankName].filter(Boolean).join(' tại ')))}${row('Chứng chỉ năng lực',esc([o.certNo,o.certGrade?'hạng '+o.certGrade:'',o.certDate?'cấp ngày '+fmtDate(o.certDate):''].filter(Boolean).join(' · ')))}
     ${row('Lĩnh vực',esc(o.field||''))}${row('Người liên hệ',esc([o.contactName,o.contactPhone].filter(Boolean).join(' – ')))}${row('Trạng thái',o.active===false?'Ngừng hoạt động':'Đang hoạt động')}${row('Ghi chú',esc(o.note||''))}
@@ -199,20 +278,27 @@ ACT['open-org']=(id,el,e)=>{ if(e && e.target.closest('button')) return; const o
 /* Biểu mẫu gói thầu: nhà thầu gõ tên hoặc chọn từ danh mục nhà thầu; đơn vị giám sát chọn một hoặc nhiều từ danh mục đơn vị giám sát.
    Tên chưa có được thêm vào đúng danh mục. */
 function pkgOrgFields(){ return [
-  {key:'_ct',label:'Nhà thầu trúng thầu (đứng đầu liên danh nếu là liên danh)',full:true,suggest:()=>orgList('nt').filter(o=>o.active!==false).map(o=>o.name),ph:'Gõ tên hoặc chọn từ danh mục nhà thầu; tên mới sẽ được thêm vào danh mục nhà thầu'},
+  {key:'_ct',label:'Nhà thầu trúng thầu (liên danh: chọn liên danh hoặc thành viên đứng đầu)',type:'org',kind:'nt',full:true},
   {key:'_jv',label:'Thành viên liên danh khác (nếu có)',type:'checks',options:()=>orgList('nt').filter(o=>o.active!==false).map(o=>[o.id,o.name])},
   {key:'jointVenture',label:'Tên liên danh (nếu có)',full:true},
+  {key:'_sh',type:'html',full:true,label:'Tỷ lệ tham gia liên danh (%)',html:'<div id="f__shbox" class="shbox"></div>'},
   {key:'_sv',label:'Đơn vị giám sát độc lập (chọn một hoặc nhiều)',type:'checks',options:()=>orgList('gs').filter(o=>o.active!==false).map(o=>[o.id,o.name])},
   {key:'_svNew',label:'Đơn vị giám sát chưa có trong danh mục (gõ tên để thêm; nhiều đơn vị cách nhau dấu ;)',full:true}]; }
-const pkgOrgValue=k=>({_ct:(orgOf((k.contractorIds||[])[0])||{}).name||'', _jv:(k.contractorIds||[]).slice(1), _sv:(k.supervisorIds||[]).slice(), _svNew:''});
+const pkgOrgValue=k=>({_ct:(k.contractorIds||[])[0]||'', _jv:(k.contractorIds||[]).slice(1), _sv:(k.supervisorIds||[]).slice(), _svNew:''});
 async function orgByName(name, kind){ name=String(name||'').replace(/\s+/g,' ').trim(); if(!name) return null;
   const o=D('orgs').find(x=>x.kind===kind && (normKey(x.name)===normKey(name)||normKey(x.shortName)===normKey(name)));
   return o || save('orgs',{name, kind, active:true}); }
 async function pkgOrgApply(v){
-  const lead=await orgByName(v._ct,'nt');
+  const lead=await orgResolve(v._ct);
   v.contractorIds=lead? [lead.id, ...(v._jv||[]).filter(id=>id!==lead.id)] : [];
   const sv=[...(v._sv||[])]; for(const n of String(v._svNew||'').split(';')){ const o=await orgByName(n,'gs'); if(o && !sv.includes(o.id)) sv.push(o.id); }
   v.supervisorIds=sv; if(v.contractorIds.length<2) v.jointVenture='';
+  /* Tỷ lệ liên danh: ô của nhà thầu đứng đầu mới nhập (chưa có mã) gắn với mã vừa tạo */
+  const sh={}; $$('#f__shbox input[data-org]').forEach(i=>{ const t=i.value.trim().replace(',','.'); if(t==='') return; const id=i.dataset.org==='_lead'? (lead&&lead.id) : i.dataset.org; if(id) sh[id]=Number(t); });
+  v.contractorShares= v.contractorIds.length>1? Object.fromEntries(Object.entries(sh).filter(([id])=>v.contractorIds.includes(id))) : {};
+  const bad=Object.values(v.contractorShares).some(x=>!isFinite(x)||x<0||x>100), tot=Object.values(v.contractorShares).reduce((a,b)=>a+b,0);
+  if(v.contractorIds.length>1 && (bad || v.contractorIds.some(id=>v.contractorShares[id]==null) || Math.abs(tot-100)>0.01))
+    throw new Error('Gói liên danh phải nhập tỷ lệ liên danh cho từng thành viên, mỗi tỷ lệ từ 0 đến 100%, cộng lại đúng 100% (đang là '+fmtP(tot)+').');
   delete v._ct; delete v._jv; delete v._sv; delete v._svNew; return v; }
 /* Thẻ "Nhà thầu và đơn vị giám sát" ở trang chi tiết gói thầu */
 function pkgOrgCard(k){
@@ -344,9 +430,9 @@ VIEWS['nhat-ky']=()=>{
   const kid=S.f.nkk||'', from=S.f.nkf||'', to=S.f.nkt||'', q=S.f.nkq||'';
   const rows=D('diaries').filter(d=>inFilter(d.projectId) && (!kid||d.packageId===kid) && (!from||d.date>=from) && (!to||d.date<=to) && has(d,q)).sort((a,b)=>b.date.localeCompare(a.date)||String(b.updatedAt).localeCompare(String(a.updatedAt)));
   const ed=can('nhat-ky','edit');
-  return `<div class="head"><div class="grow"><h1>Nhật ký thi công</h1><p>${rows.length} trang nhật ký, ${sum(rows,'workers')} lượt nhân công</p></div>${ed?`<button class="btn primary" data-act="add-diary">+ Ghi nhật ký</button>`:''}</div>
+  return `<div class="head"><div class="grow"><h1>${modName('nhat-ky')}</h1><p>${rows.length} trang nhật ký, ${sum(rows,'workers')} ${XD('lượt nhân công','lượt người tham gia')}</p></div>${ed?`<button class="btn primary" data-act="add-diary">+ Ghi nhật ký</button>`:''}</div>
   <div class="toolbar"><select data-f="nkk" aria-label="Gói thầu">${opts(pkgOpts(S.pid),kid,'Tất cả gói thầu')}</select><input type="date" data-f="nkf" value="${esc(from)}" aria-label="Từ ngày"><input type="date" data-f="nkt" value="${esc(to)}" aria-label="Đến ngày"><input type="search" data-f="nkq" value="${esc(q)}" placeholder="Tra cứu nội dung, sự cố…" aria-label="Tra cứu nhật ký"></div>
-  <div class="list">${rows.slice(0, S.nkn||10).map(d=>{ const k=pkgOf(d.packageId)||{}; const w=parseWorks(d.works); return `<article class="card"><div class="ch"><div style="flex:1;min-width:200px"><h3><span class="num">${fmtDate(d.date)}</span> · ${esc(k.code||'')} ${esc(k.name||'')}</h3><div class="small muted">${esc(d.shift||'')} · Thời tiết: ${esc(d.weather||'—')} · Nhân công: <b class="num">${N(d.workers)}</b> · ${esc(d.machines||'')}</div></div>
+  <div class="list">${rows.slice(0, S.nkn||10).map(d=>{ const k=pkgOf(d.packageId)||{}; const w=parseWorks(d.works); return `<article class="card"><div class="ch"><div style="flex:1;min-width:200px"><h3><span class="num">${fmtDate(d.date)}</span> · ${esc(k.code||'')} ${esc(k.name||'')}</h3><div class="small muted">${[isIT()?'':esc(d.shift||''), d.weather?'Thời tiết: '+esc(d.weather):'', N(d.workers)?`${XD('Nhân công','Số người')}: <b class="num">${N(d.workers)}</b>`:'', esc(d.machines||'')].filter(Boolean).join(' · ')}</div></div>
       ${ed?`<button class="btn sm ghost" data-act="diary-photo" data-id="${d.id}">${ic('cam').replace('<svg','<svg width="15" height="15"')} Thêm ảnh</button><button class="btn sm ghost" data-act="edit-diaries" data-id="${d.id}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="diaries" data-id="${d.id}">Xóa</button>`:''}</div>
       ${w.length?`<div class="tw" style="margin-top:6px"><table><thead><tr><th>Công việc thực hiện</th><th class="r">Khối lượng</th><th>Đơn vị</th></tr></thead><tbody>${w.map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${esc(x.qty||'')}</td><td>${esc(x.unit||'')}</td></tr>`).join('')}</tbody></table></div>`:''}
       ${d.issues?`<div class="alert" style="margin-top:8px"><span><b>Vướng mắc, sự cố:</b> ${esc(d.issues)}</span></div>`:''}
@@ -356,19 +442,19 @@ VIEWS['nhat-ky']=()=>{
   ${rows.length>(S.nkn||10)?`<div class="pager"><span class="small muted">Đang xem ${S.nkn||10} / ${rows.length} trang nhật ký</span><span class="sp"></span><button class="btn" data-act="nk-more">Xem thêm 10 trang nhật ký</button></div>`:''}`;
 };
 ACT['nk-more']=()=>{ S.nkn=(S.nkn||10)+10; render(); };
-const diaryFields=()=>[{key:'packageId',label:'Gói thầu',type:'select',options:()=>pkgOpts(S.pid).filter(([id])=>{ const k=pkgOf(id); return k && /xây lắp|hỗn hợp|mua sắm/i.test(k.type); }),req:true,full:true,def:S.f.nkk},
-  {key:'date',label:'Ngày',type:'date',req:true,def:TODAY},{key:'shift',label:'Ca làm việc',type:'select',options:['Cả ngày','Ca sáng','Ca chiều','Ca đêm'],def:'Cả ngày'},
-  {key:'weather',label:'Thời tiết',type:'select',options:()=>catalog('Thời tiết')},{key:'workers',label:'Số nhân công',type:'number'},{key:'machines',label:'Máy móc, thiết bị',full:true},
+const diaryFields=()=>[{key:'packageId',label:'Gói thầu',type:'select',options:()=>pkgOpts(S.pid).filter(([id])=>{ const k=pkgOf(id); return k && (isIT() || /xây lắp|hỗn hợp|mua sắm/i.test(k.type)); }),req:true,full:true,def:S.f.nkk},
+  {key:'date',label:'Ngày',type:'date',req:true,def:TODAY},...(isIT()?[]:[{key:'shift',label:'Ca làm việc',type:'select',options:['Cả ngày','Ca sáng','Ca chiều','Ca đêm'],def:'Cả ngày'}]),
+  ...(isIT()?[]:[{key:'weather',label:'Thời tiết',type:'select',options:()=>catalog('Thời tiết')}]),{key:'workers',label:XD('Số nhân công','Số người tham gia'),type:'number'},{key:'machines',label:XD('Máy móc, thiết bị','Thiết bị, công cụ, môi trường triển khai'),full:true},
   {key:'works',label:'Công việc thực hiện',type:'works',req:true},{key:'issues',label:'Vướng mắc, sự cố, kiến nghị',type:'textarea',rows:2},
-  {key:'supervisor',label:'Cán bộ giám sát xác nhận'},{key:'photos_new',label:'Hình ảnh hiện trường',type:'files',multiple:true,accept:'image/*',hint:'Ảnh được lưu vào kho tệp trên máy chủ (tự thu nhỏ còn tối đa 1920 px).'},
+  {key:'supervisor',label:'Cán bộ giám sát xác nhận'},{key:'photos_new',label:XD('Hình ảnh hiện trường','Hình ảnh triển khai, ảnh chụp màn hình'),type:'files',multiple:true,accept:'image/*',hint:'Ảnh được lưu vào kho tệp trên máy chủ (tự thu nhỏ còn tối đa 1920 px).'},
   {key:'att',label:'Trang nhật ký đã ký (bản scan PDF/ảnh), biên bản hiện trường',type:'attach',col:'diaries',kind:'Trang nhật ký đã ký'}];
 async function diaryPhotos(v){
   const files=v.photos_new||[]; delete v.photos_new; const ph=[...(v.photos||[])];
   for(const f of files){ const p=await storePhoto(f); ph.push({...p, date:TODAY, by:S.user.name}); }
   v.photos=ph; return v;
 }
-ACT['add-diary']=()=>openForm({title:'Ghi nhật ký thi công', fields:diaryFields(), onSave:async v=>{ await diaryPhotos(v); return save('diaries',{...v, projectId:pkgOf(v.packageId).projectId, byName:S.user.name}, fmtDate(v.date)+' '+(pkgOf(v.packageId)||{}).code); }});
-ACT['edit-diaries']=(id)=>openForm({title:'Cập nhật nhật ký thi công', fields:diaryFields(), value:get('diaries',id), onSave:async v=>{ await diaryPhotos(v); return save('diaries',{...v, projectId:pkgOf(v.packageId).projectId}, fmtDate(v.date)); }});
+ACT['add-diary']=()=>openForm({title:XD('Ghi nhật ký thi công','Ghi nhật ký triển khai'), fields:diaryFields(), onSave:async v=>{ await diaryPhotos(v); return save('diaries',{...v, projectId:pkgOf(v.packageId).projectId, byName:S.user.name}, fmtDate(v.date)+' '+(pkgOf(v.packageId)||{}).code); }});
+ACT['edit-diaries']=(id)=>openForm({title:XD('Cập nhật nhật ký thi công','Cập nhật nhật ký triển khai'), fields:diaryFields(), value:get('diaries',id), onSave:async v=>{ await diaryPhotos(v); return save('diaries',{...v, projectId:pkgOf(v.packageId).projectId}, fmtDate(v.date)); }});
 /* Quản lý ảnh hiện trường: thêm ảnh, ghi chú thích, bỏ ảnh tải nhầm */
 ACT['diary-photo']=(id)=>{ const d=get('diaries',id); const ph=d.photos||[];
   const grid=ph.length?`<div class="photo-edit" id="ph_edit">${ph.map((p,i)=>`<figure data-i="${i}"><img src="${esc(fileUrl(p))}" alt=""><input type="text" placeholder="Chú thích ảnh" value="${esc(p.caption||'')}" data-cap="${i}" aria-label="Chú thích ảnh ${i+1}"><label class="small"><input type="checkbox" data-rm="${i}" onchange="this.closest('figure').classList.toggle('del',this.checked)"> Bỏ ảnh này</label></figure>`).join('')}</div>`:'<p class="muted small">Chưa có ảnh.</p>';

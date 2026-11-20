@@ -47,6 +47,8 @@ public class BrandingController : ApiControllerBase
         ("signApprove", "LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN", 120),
         ("signTech", "CÁN BỘ KỸ THUẬT", 120),
         ("signAcc", "KẾ TOÁN", 120),
+        // Lĩnh vực dự án của đơn vị: xd (đầu tư xây dựng, mặc định), cntt (CNTT, chuyển đổi số, đổi mới sáng tạo)
+        ("field", "xd", 10),
     };
 
     /// <summary>Tông màu được phép (trùng danh sách trong hộp thoại Giao diện) và màu nền thanh tiêu đề trình duyệt tương ứng.</summary>
@@ -70,6 +72,7 @@ public class BrandingController : ApiControllerBase
         r["loginBg"] = bg?.Value is { Length: > 0 } ? "/api/branding/loginbg?v=" + (bg.UpdatedAt?.Ticks ?? 0) : null;
         if (!Colors.ContainsKey((string)r["color"]!)) r["color"] = "navy";
         foreach (var f in Flags) if ((string)r[f]! != "0") r[f] = "1";
+        if ((string)r["field"]! != "cntt") r["field"] = "xd";
         return r;
     }
 

@@ -80,9 +80,10 @@ async function login(p, u, pw = PW) {
   else { const r = await p.request.get(BASE + diary.photos[0].url); if (r.status() !== 200) errs.push('Không tải lại được ảnh ' + r.status()); }
 
   // Tiến độ, khối lượng, thanh toán
-  await go(p, 'tien-do'); await p.click('[data-act=upd-sched]'); await p.fill('#f_progress', '90'); await p.click('#mform [type=submit]'); await p.waitForTimeout(500);
+  await go(p, 'tien-do'); await p.click('[data-act=upd-sched]'); await p.fill('#f_progress', '90'); await p.click('#mform [type=submit]'); await p.waitForSelector('#mform', { state: 'detached', timeout: 15000 }).catch(async () => console.log('Hộp thoại tiến độ còn mở:', await p.evaluate(() => document.querySelector('#mform_err')?.textContent || '')));
   await go(p, 'khoi-luong'); await p.click('[data-act=vb-new]'); await p.fill('.vb-grid tbody tr:first-child [data-k=d]', '10'); await p.fill('.vb-grid tbody tr:first-child [data-k=a]', '5'); await p.click('#mform [type=submit]'); await p.waitForSelector('#mform', { state: 'detached', timeout: 20000 }).catch(() => {}); await p.waitForFunction(() => Store.data.vbatches.some(b => b.status === 'Soạn thảo'), null, { timeout: 10000 }).catch(() => {});
   { const nb = await p.evaluate(() => Store.data.vbatches.filter(b => b.status === 'Soạn thảo').length); if (nb !== 1) errs.push('Không lập được đợt nghiệm thu: ' + nb + ' ' + (await p.evaluate(() => document.querySelector('#mform_err')?.textContent || ''))); }
+  if (await p.$('#ov:not([hidden])')) { const t = await p.evaluate(() => (document.querySelector('#ov')?.innerText || '').replace(/\s+/g, ' ').slice(0, 300)); errs.push('Hộp thoại còn mở sau khi lưu đợt khối lượng: ' + t); await p.evaluate(() => closeModal()); }
   for (const t of ['nt', 'th']) { await p.click(`[data-g=kl][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'thanh-toan'); for (const t of ['kh', 'hs', 'th']) { await p.click(`[data-g=tt][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'bao-cao'); for (const v of ['tiendo', 'hopdong', 'khoiluong', 'thoigian']) { await p.selectOption('[data-f=bct]', v); await p.waitForTimeout(250); }
@@ -132,7 +133,10 @@ async function login(p, u, pw = PW) {
     await p.fill('#f_householdsPaid', '2'); await submit();
     await go(p, 'nghiem-thu');
     await p.evaluate(() => ACT['add-acceptances']()); await p.waitForTimeout(200);
-    await p.selectOption('#f_projectId', 'p2'); await p.selectOption('#f_packageId', 'k1'); await p.selectOption('#f_kind', 'Nghiệm thu giai đoạn thi công');
+    await p.selectOption('#f_projectId', 'p2');
+    /* 1.8.8: danh sách gói thầu lọc theo dự án đã chọn; vẫn kiểm tra chặn khi gói khác dự án lọt vào (gửi thẳng giá trị) */
+    if (await p.evaluate(() => [...document.querySelectorAll('#f_packageId option')].some(o => o.value === 'k1'))) errs.push('C4: danh sách gói thầu chưa lọc theo dự án');
+    await p.evaluate(() => { const s = document.querySelector('#f_packageId'); s.add(new Option('k1', 'k1')); s.value = 'k1'; }); await p.selectOption('#f_kind', 'Nghiệm thu giai đoạn thi công');
     await p.click('#mform [type=submit]'); await p.waitForTimeout(300);
     if (!(await p.textContent('#mform_err')).includes('không thuộc')) errs.push('C4: không chặn gói thầu khác dự án');
     await p.selectOption('#f_packageId', 'k4'); await p.fill('#f_warrantyMonths', '12'); await submit();
@@ -169,6 +173,8 @@ async function login(p, u, pw = PW) {
   await openP('p1'); await p.click('[data-act=edit-projects]'); await p.waitForTimeout(200);
   if (!(await p.inputValue('#f_decNo')).includes('215/QĐ')) errs.push('A1: không nạp số QĐ phê duyệt hiện có');
   await p.fill('#f_decDate_t', '20/01/2025'); await putFiles('decAtt', [pdf]); await submit();
+  // tệp tải lên sau khi biểu mẫu đóng, máy CI chậm cần chờ đến khi gắn xong (tối đa 10 giây)
+  await p.waitForFunction(() => Store.data.attachments.some(a => a.collection === 'legal' && a.recordId === 'l2') && document.querySelector('#content').textContent.includes('QD-phe-duyet.pdf'), null, { timeout: 10000 }).catch(() => {});
   if (await attOf('legal', 'l2') !== 1) errs.push('A1: tệp QĐ phê duyệt chưa gắn vào hồ sơ pháp lý l2');
   if (!(await p.textContent('#content')).includes('QD-phe-duyet.pdf')) errs.push('A1: Thông tin chung chưa hiện tệp QĐ');
   await p.screenshot({ path: `${SHOTS}/dot1-du-an-thong-tin.png`, fullPage: true });

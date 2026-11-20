@@ -43,6 +43,8 @@ public class Project : EntityBase
     [MaxLength(200)] public string? MgmtForm { get; set; }
     /// <summary>Loại dự án: xây dựng mới, sửa chữa cải tạo, mua sắm, nhiệm vụ khác.</summary>
     [MaxLength(100)] public string? ProjectKind { get; set; }
+    /// <summary>Bản 1.8.5: lĩnh vực của dự án CNTT (chuyển đổi số, ứng dụng CNTT, đổi mới sáng tạo…), dùng khi đơn vị chọn lĩnh vực CNTT.</summary>
+    [MaxLength(100)] public string? Field { get; set; }
     /// <summary>Hồ sơ dự án: báo cáo nghiên cứu khả thi hoặc báo cáo kinh tế - kỹ thuật.</summary>
     [MaxLength(100)] public string? ReportType { get; set; }
 }
@@ -125,6 +127,8 @@ public class Package : EntityBase, IHasProject
     public List<string> ContractorIds { get; set; } = new();
     /// <summary>Tên liên danh (để trống khi chỉ một nhà thầu).</summary>
     [MaxLength(300)] public string? JointVenture { get; set; }
+    /// <summary>Bản 1.8.3: tỷ lệ tham gia liên danh (%) theo mã đơn vị; trống khi chưa có thông tin.</summary>
+    public Dictionary<string, decimal> ContractorShares { get; set; } = new();
     /// <summary>Các đơn vị tư vấn giám sát của gói thầu (chọn từ danh mục đơn vị giám sát).</summary>
     public List<string> SupervisorIds { get; set; } = new();
     /// <summary>Giai đoạn: "cb" chuẩn bị đầu tư, "dt" thực hiện đầu tư. Trống thì suy theo loại gói thầu.</summary>
@@ -156,6 +160,8 @@ public class Organization : EntityBase
     [MaxLength(200)] public string? ContactName { get; set; }
     [MaxLength(50)] public string? ContactPhone { get; set; }
     public bool Active { get; set; } = true;
+    /// <summary>Bản 1.8.3: đơn vị thành viên của hệ sinh thái (Tổng quan lọc, báo cáo riêng theo đơn vị thành viên).</summary>
+    public bool Member { get; set; }
     public string? Note { get; set; }
 }
 
@@ -476,6 +482,9 @@ public class AuditLog : EntityBase
     [MaxLength(100)] public string? Module { get; set; }
     [MaxLength(500)] public string? Target { get; set; }
     [MaxLength(64)] public string? Ip { get; set; }
+    /// <summary>Bản 1.8.9: loại dữ liệu và mã hồ sơ của thao tác, để xem lịch sử thay đổi trên từng hồ sơ.</summary>
+    [MaxLength(50)] public string? Collection { get; set; }
+    [MaxLength(64)] public string? RecordId { get; set; }
 }
 
 /// <summary>Lịch sử trình duyệt hồ sơ (phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu): ai trình, ai duyệt, trả lại, ý kiến.</summary>

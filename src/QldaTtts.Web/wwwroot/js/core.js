@@ -71,12 +71,15 @@ const MODULES = [
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
-const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao','cb-goi-thau','cb-thanh-toan'];
+const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-bao','cb-goi-thau','cb-thanh-toan','tv-thanh-toan','danh-muc-don-vi'];
 /* Menu Nghiệp vụ chia theo giai đoạn. Quyền vẫn theo phân hệ (MODULES); hai mục của giai đoạn chuẩn bị đầu tư dùng chung quyền
    với phân hệ tương ứng (ROUTE_PERM). Gói thầu thuộc một giai đoạn; hợp đồng và hồ sơ của hợp đồng theo giai đoạn của gói thầu. */
 const PHASES = {cb:'Chuẩn bị đầu tư', dt:'Thực hiện đầu tư'};
 const NAV_CB = [['cb-goi-thau','Gói thầu và hợp đồng','doc'],['cb-thanh-toan','Nghiệm thu, thanh toán','coin']];
-const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan'};
+const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan', 'tv-thanh-toan':'thanh-toan', 'danh-muc-don-vi':'goi-thau'};
+const NAV_DM = ['danh-muc-don-vi','Danh mục nhà thầu, đơn vị giám sát','user'];
+/* Bản 1.8.7: hợp đồng tư vấn giai đoạn thực hiện đầu tư (quản lý dự án, lập và thẩm định HSMT, giám sát, kiểm thử…) nghiệm thu theo sản phẩm như ở chuẩn bị đầu tư */
+const NAV_TV = ['tv-thanh-toan','Nghiệm thu, thanh toán tư vấn','coin'];
 const PH_ROUTE = {cb:{'goi-thau':'cb-goi-thau', 'thanh-toan':'cb-thanh-toan', 'khoi-luong':'cb-thanh-toan'}, dt:{}};
 const phRoute = (mod, ph) => (PH_ROUTE[ph]||{})[mod] || mod;
 const routePh = r => String(r||S.route).startsWith('cb-') ? 'cb' : 'dt';
@@ -88,10 +91,31 @@ const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA 
   reportOrg:'Ban QLDA đầu tư xây dựng xã/phường …', ownerDefault:'UBND xã/phường …', support:'Hỗ trợ: quản trị hệ thống của đơn vị',
   loginTitle:'Đăng nhập hệ thống', loginHint:'Sử dụng tài khoản do quản trị hệ thống cấp.', forgotText:'Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại.', bannerDeco:'1',
   color:'navy', printNation:'1', place:'…', signReport:'THỦ TRƯỞNG ĐƠN VỊ', signApprove:'LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN', signTech:'CÁN BỘ KỸ THUẬT', signAcc:'KẾ TOÁN',
-  logo:null, loginBg:null};
+  logo:null, loginBg:null, field:'xd'};
 let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy'};
+/* Lĩnh vực dự án của đơn vị (Quản trị hệ thống → Thông tin đơn vị): 'xd' đầu tư xây dựng (mặc định, các xã/phường),
+   'cntt' dự án CNTT, chuyển đổi số, đổi mới sáng tạo: đổi tên chức năng, nhãn theo nghề và ẩn chức năng chỉ dùng cho xây dựng. Dữ liệu giữ nguyên. */
+const isIT=()=>BR.field==='cntt';
+const IT_HIDE=new Set(['gpmb','mo-hinh']);
+const IT_MOD={'nhat-ky':'Nhật ký triển khai','khoi-luong':'Hạng mục, khối lượng công việc','nghiem-thu':'Nghiệm thu, vận hành thử, bảo hành'};
+const XD=(xd,it)=>isIT()?it:xd;
+MODULES.forEach(m=>m.label0=m.label);
+function applyField(){ MODULES.forEach(m=>{ m.label=(isIT()&&IT_MOD[m.key])||m.label0; }); }
+const modName=k=>(MODULES.find(m=>m.key===k)||{}).label||k;
+/* Danh mục mặc định cho lĩnh vực CNTT: nạp khi quản trị chọn lĩnh vực CNTT (giá trị đang dùng trong dữ liệu được giữ lại) */
+const IT_CATS={
+  'Loại dự án':['Đầu tư ứng dụng CNTT','Thuê dịch vụ CNTT','Mua sắm thiết bị, phần mềm','Nhiệm vụ chuyển đổi số','Nhiệm vụ KH&CN, đổi mới sáng tạo','Nhiệm vụ khác'],
+  'Lĩnh vực':['Chuyển đổi số','Ứng dụng CNTT','Chính quyền số','Dữ liệu, CSDL','An toàn thông tin','Đổi mới sáng tạo','Khoa học và công nghệ'],
+  'Trạng thái dự án':['Chuẩn bị đầu tư','Đang lựa chọn nhà thầu','Đang triển khai','Đang thực hiện','Tạm dừng','Hoàn thành','Đã bàn giao đưa vào sử dụng','Đang quyết toán','Đã quyết toán'],
+  'Hồ sơ dự án':['Báo cáo nghiên cứu khả thi','Báo cáo kinh tế - kỹ thuật','Đề cương và dự toán chi tiết','Không yêu cầu (mua sắm, nhiệm vụ)'],
+  'Loại gói thầu':['Tư vấn','Phi tư vấn','Thuê dịch vụ CNTT','Mua sắm hàng hóa, thiết bị CNTT','Phần mềm','Hỗn hợp'],
+  'Loại nghiệm thu, bàn giao':['Nghiệm thu giai đoạn triển khai','Vận hành thử','Nghiệm thu hoàn thành','Bàn giao đưa vào sử dụng'],
+  'Đơn vị tính':['Gói','Bộ','Hệ thống','Bản quyền','Người dùng','Tháng','Năm','Ngày công','Trang','Hồ sơ','Cái']};
+/* Đổi tên giá trị danh mục loại hồ sơ pháp lý khi hiển thị (lĩnh vực CNTT) và các giá trị ẩn khỏi danh sách chọn */
+const IT_CAT_HIDE={'Loại hồ sơ pháp lý':['Giấy phép xây dựng','Phương án bồi thường, giải phóng mặt bằng']};
+const IT_CAT_REN={'Thiết kế, dự toán':'Thiết kế chi tiết, dự toán (hoặc đề cương, dự toán chi tiết)'};
 function setBrand(b){
-  BR={...BR_DEF, ...(b||{})}; document.title=BR.appName+' – '+BR.orgShort; lsSet('qlda-brcolor', BR.color);
+  BR={...BR_DEF, ...(b||{})}; applyField(); document.title=BR.appName+' – '+BR.orgShort; lsSet('qlda-brcolor', BR.color);
   const fi=document.getElementById('favicon'); if(fi){ const h=BR.logo||'/icons/icon.svg'; if(fi.getAttribute('href')!==h){ fi.setAttribute('href',h); if(BR.logo) fi.removeAttribute('type'); else fi.type='image/svg+xml'; } }
   try{ if(UI.p && UI.p.color==='unit') UI.apply(UI.p); }catch{}
 }
@@ -213,9 +237,11 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
   mod=ROUTE_PERM[mod]||mod;
+  if(isIT() && IT_HIDE.has(mod)) return false;
   if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
+  if(mod==='quan-tri') return false; // Quản trị hệ thống: chỉ nhóm toàn quyền
   if(lvl==='approve') return (g.perms||{})[mod+':duyet']==='1';
   if(lvl==='check') return (g.perms||{})[mod+':kiemtra']==='1';
   const p=(g.perms||{})[mod]||'none';
@@ -357,6 +383,9 @@ function settleState(x){
 }
 function clearPct(c){ return N(c.area)? pct(N(c.handedArea),N(c.area)) : N(c.households)? pct(N(c.householdsPaid),N(c.households)) : 0; }
 function catalog(type){ return D('catalogs').filter(c=>c.type===type).sort(by('order')).map(c=>c.value); }
+/* Danh sách chọn theo lĩnh vực của đơn vị: bỏ giá trị chỉ dùng cho xây dựng, đổi tên hiển thị (giá trị lưu giữ nguyên) */
+const catSel=type=>{ const h=(isIT()&&IT_CAT_HIDE[type])||[]; return catalog(type).filter(x=>!h.includes(x)).map(x=>[x,catText(x)]); };
+const catText=v=>(isIT()&&IT_CAT_REN[v])||v;
 
 /* --- cảnh báo (UC19, UC37) --- */
 /* --- cảnh báo (UC19, UC37) ---
@@ -389,16 +418,21 @@ function alerts(o={}){
   D('contracts').filter(c=>ok(contractPid(c))).forEach(c=>{
     const e=contractEnd(c); const k=pkgOf(c.packageId); const pid=contractPid(c); const base={mod:'goi-thau', kind:'Hợp đồng', pid, kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:c.contractor||''};
     /* Ký hợp đồng vượt giá gói thầu được duyệt */
-    if(k && N(k.estimate)>0 && contractValue(c)>N(k.estimate)+1) add({...base, lvl:'bad', kind:'Vốn đầu tư', text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} có giá trị ${fmtVND(contractValue(c))} đ vượt giá gói thầu được duyệt ${fmtVND(k.estimate)} đ (vượt ${fmtVND(contractValue(c)-N(k.estimate))} đ).`});
+    if(k && N(k.estimate)>0 && contractValue(c)>N(k.estimate)+1) add({...base, lvl:'bad', kind:'Vốn đầu tư', text:`Hợp đồng <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)} có giá trị ${fmtVND(contractValue(c))} đ vượt giá gói thầu được duyệt ${fmtVND(k.estimate)} đ (vượt ${fmtVND(contractValue(c)-N(k.estimate))} đ).`});
     if(!e) return;
     if(k && /thanh lý|nghiệm thu/i.test(k.status||'')) return;
     /* HĐ không lập bảng khối lượng chi tiết (tư vấn, mua sắm, dịch vụ): đo mức hoàn thành theo giá trị đã thanh toán */
     const boq=contractHasBoq(c.id); const done=boq? pct(contractDone(c.id),contractValue(c)) : pct(contractPaid(c.id),contractValue(c));
     const what=boq? 'khối lượng thực hiện' : 'giá trị đã thanh toán';
     const left=days(TODAY,e);
-    if(left<0 && done<100) add({...base, lvl:'bad', due:e, text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} đã hết hạn ${-left} ngày, ${what} ${fmtP(done)}.`});
-    else if(left>=0 && left<=60 && done<90) add({...base, lvl:'warn', due:e, text:`Hợp đồng <b>${esc(c.number)}</b> ${tag(pid,k)} còn ${left} ngày đến hạn (${fmtDate(e)}), ${what} ${fmtP(done)}.`});
+    if(left<0 && done<100) add({...base, lvl:'bad', due:e, text:`Hợp đồng <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)} đã hết hạn ${-left} ngày, ${what} ${fmtP(done)}.`});
+    else if(left>=0 && left<=60 && done<90) add({...base, lvl:'warn', due:e, text:`Hợp đồng <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)} còn ${left} ngày đến hạn (${fmtDate(e)}), ${what} ${fmtP(done)}.`});
   });
+  /* Bản 1.8.8: hợp đồng chưa có số hoặc ngày ký (dữ liệu đầu kỳ thiếu): nhắc bổ sung; nhiều hợp đồng thì Tổng quan gom một dòng */
+  const nonum=D('contracts').filter(c=>ok(contractPid(c)) && (!String(c.number||'').trim() || !c.signDate)).sort((a,b)=>codeCmp(pc(contractPid(a)),pc(contractPid(b)))||codeCmp((pkgOf(a.packageId)||{}).code,(pkgOf(b.packageId)||{}).code));
+  const nnMiss=c=>[!String(c.number||'').trim()?'số hợp đồng':'', !c.signDate?'ngày ký':''].filter(Boolean).join(', ');
+  if(nonum.length>3 && !o.all) add({mod:'goi-thau', kind:'Hợp đồng', go:'cbk|Hợp đồng', who:'Cán bộ quản lý hợp đồng', lvl:'warn', text:`<b>${nonum.length} hợp đồng chưa có số hoặc ngày ký</b> (dữ liệu nhập đầu kỳ còn thiếu), cần bổ sung theo hợp đồng đã ký.`});
+  else nonum.forEach(c=>{ const k=pkgOf(c.packageId); add({mod:'goi-thau', kind:'Hợp đồng', pid:contractPid(c), kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:'Cán bộ quản lý hợp đồng', lvl:'warn', text:`Hợp đồng gói <b>${esc(k?k.name:'')}</b> ${tag(contractPid(c),k)}${c.contractor?', '+esc(ctShort(c)):''} chưa có ${nnMiss(c)}, cần bổ sung.`}); });
   /* Tổng giá trị hợp đồng của dự án vượt tổng mức đầu tư */
   projects().filter(p=>ok(p.id) && N(p.tmdt)>0).forEach(p=>{ const cv=sum(D('contracts').filter(c=>contractPid(c)===p.id),contractValue);
     if(cv>N(p.tmdt)+1) add({mod:'du-an', kind:'Vốn đầu tư', lvl:'bad', pid:p.id, go:'proj|'+p.id, who:'', text:`Dự án <b>${esc(p.code)}</b>: tổng giá trị hợp đồng ${fmtVND(cv)} đ vượt tổng mức đầu tư ${fmtVND(p.tmdt)} đ (vượt ${fmtVND(cv-N(p.tmdt))} đ).`}); });
@@ -410,9 +444,9 @@ function alerts(o={}){
   D('contracts').filter(c=>ok(contractPid(c))).forEach(c=>{ const k=pkgOf(c.packageId); if(k && /thanh lý/i.test(k.status||'')) return;
     const pid=contractPid(c); const base={mod:'goi-thau', kind:'Bảo lãnh', pid, kid:c.packageId, cid:c.id, go:'pkg|'+c.packageId, who:c.contractor||''};
     /* Bảo lãnh thực hiện HĐ: hết nghĩa vụ khi HĐ đã thanh toán đủ */
-    if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${esc(c.number)}</b> ${tag(pid,k)}`, base);
+    if(pct(contractPaid(c.id),contractValue(c))<100) expiry(c.guaranteeUntil, `Bảo lãnh thực hiện HĐ <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)}`, base);
     /* Bảo lãnh tạm ứng: chỉ nhắc khi còn dư nợ tạm ứng chưa thu hồi */
-    const adv=advanceLeft(c.id); if(adv>1) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${esc(c.number)}</b> ${tag(pid,k)}, dư nợ tạm ứng ${fmtVND(adv)} đ`, base); });
+    const adv=advanceLeft(c.id); if(adv>1) expiry(c.advanceGuaranteeUntil, `Bảo lãnh tạm ứng HĐ <b>${c.number?esc(c.number):'(chưa có số)'}</b> ${tag(pid,k)}, dư nợ tạm ứng ${fmtVND(adv)} đ`, base); });
   D('legal').filter(l=>l.validUntil && ok(l.projectId)).forEach(l=>{ const p=projOf(l.projectId); if(p && /hoàn thành|quyết toán|bàn giao/i.test(p.status||'')) return;
     const k=l.packageId&&pkgOf(l.packageId); expiry(l.validUntil, `${esc(l.type)} <b>${esc(l.number)}</b> ${tag(l.projectId,k)}`, {mod:k?'goi-thau':'du-an', kind:'Pháp lý', pid:l.projectId, kid:k?k.id:'', go:k?'pkg|'+k.id:'legal|'+l.projectId, who:l.issuer||''}); });
   /* Đợt thanh toán quá hạn: nhắc cho đến khi đợt được thực hiện; nhiều đợt thì gom một dòng ở Tổng quan, Trung tâm cảnh báo liệt kê đủ */
@@ -444,11 +478,17 @@ function alerts(o={}){
   out.sort((a,b)=>(a.lvl==='bad'?0:1)-(b.lvl==='bad'?0:1) || String(a.due||'9').localeCompare(String(b.due||'9')));
   /* Hồ sơ chờ người dùng duyệt: luôn đứng đầu */
   if(typeof WF!=='undefined'){ const mine=wfMine().filter(x=>ok(WF[x.col].pid(x.r))); if(mine.length) out.unshift({lvl:'warn', mod:'trinh-duyet', kind:'Trình duyệt', go:'mod|trinh-duyet', pcode:'', kcode:'', who:'', text:`Có <b>${mine.length} hồ sơ chờ bạn duyệt</b>: ${esc([...new Set(mine.map(x=>WF[x.col].name.toLowerCase()))].join(', '))}.`}); }
+  /* Bản 1.8.9: hồ sơ trình duyệt trễ hạn xử lý (tính theo ngày làm việc); nhiều hồ sơ thì gom một dòng */
+  if(typeof wfLateDays==='function'){ const lateWf=Object.keys(WF).filter(col=>can(WF[col].mod)).flatMap(col=>D(col).filter(r=>wfWaiting(col,r) && ok(WF[col].pid(r))).map(r=>({col,r,st:wfState(col,r)}))).map(x=>({...x, lt:wfLateDays(x.col,x.r,x.st)})).filter(x=>x.lt>0).sort((a,b)=>b.lt-a.lt);
+    if(lateWf.length>3 && !o.all) add({mod:'trinh-duyet', kind:'Trình duyệt', go:'wf|vt', who:'Người đang giữ hồ sơ', lvl:'bad', text:`<b>${lateWf.length} hồ sơ trình duyệt trễ hạn xử lý</b>, lâu nhất ${lateWf[0].lt} ngày làm việc (${esc(WF[lateWf[0].col].label(lateWf[0].r))}).`});
+    else lateWf.forEach(x=>add({mod:'trinh-duyet', kind:'Trình duyệt', pid:WF[x.col].pid(x.r), go:'wf|vt', who:wfHolder(x.col,x.st), lvl:'bad', due:x.st.due, text:`<b>${esc(WF[x.col].label(x.r))}</b> ${tag(WF[x.col].pid(x.r))} trễ hạn ${x.lt} ngày ở bước ${esc(x.st.step.label)}.`})); }
   return out;
 }
 /* Một dòng cảnh báo có nút "Xem" mở đúng đối tượng */
-function alertRow(a){ return `<div class="alert ${a.lvl==='bad'?'bad':''}"><span style="flex:1">${a.text}</span>${a.go?`<button type="button" class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''}</div>`; }
-function alertList(list, empty){ return list.length? `<div class="list">${list.map(alertRow).join('')}</div>` : (empty?`<div class="alert info">${empty}</div>`:''); }
+/* Bản 1.8.9: cảnh báo dạng danh sách gọn trong một khung; mức độ ghi bằng chữ (không chỉ bằng màu); quá 5 dòng thì thu gọn */
+function alertRow(a){ const bad=a.lvl==='bad'; return `<div class="alr ${bad?'bad':'warn'}"><span class="alr-d">${bad?'Nghiêm trọng':'Theo dõi'}</span><span class="alr-t">${a.text}</span>${a.go?`<button type="button" class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''}</div>`; }
+function alertList(list, empty, max=5){ if(!list.length) return empty?`<div class="alert info">${empty}</div>`:''; const a=list.slice(0,max), b=list.slice(max);
+  return `<div class="alrs">${a.map(alertRow).join('')}${b.length?`<details class="alr-more"><summary>Xem thêm ${b.length} cảnh báo</summary>${b.map(alertRow).join('')}</details>`:''}</div>`; }
 const cellText = h => { const d=document.createElement('div'); d.innerHTML=h; return d.textContent||''; };
 
 /* --- giao diện chung --- */
@@ -459,9 +499,81 @@ function statusPill(s){
   return pill(s||'—',k);
 }
 function progBar(v, k){ const w=Math.max(0,Math.min(100,N(v))); return `<div class="barl"><div class="bar ${k||''}"><i style="width:${w}%"></i></div><span>${Math.round(N(v))}%</span></div>`; }
-function opts(list, cur, empty){ return (empty!=null?`<option value="">${esc(empty)}</option>`:'') + list.map(o=>{ const [v,l]=Array.isArray(o)?o:[o,o]; return `<option value="${esc(v)}" ${String(v)===String(cur??'')?'selected':''}>${esc(l)}</option>`; }).join(''); }
+/* Mục chọn: [giá trị, nhãn, nhóm, chữ tìm thêm]. Có nhóm thì gom vào <optgroup> (gói thầu, hợp đồng nhóm theo dự án) */
+function opts(list, cur, empty){ let g=null, h=(empty!=null?`<option value="">${esc(empty)}</option>`:'');
+  list.forEach(o=>{ const [v,l,gr,sx]=Array.isArray(o)?o:[o,o];
+    if((gr||null)!==g){ if(g) h+='</optgroup>'; g=gr||null; if(g) h+=`<optgroup label="${esc(g)}">`; }
+    h+=`<option value="${esc(v)}" ${String(v)===String(cur??'')?'selected':''}${sx?` data-s="${esc(sx)}"`:''}>${esc(l)}</option>`; });
+  return h+(g?'</optgroup>':''); }
+/* Ô chọn dài (trên 12 mục) có ô gõ để tìm: gõ tên gói, tên dự án, số hợp đồng, nhà thầu, không cần dấu.
+   Ô chọn gốc vẫn giữ (ẩn) để biểu mẫu, bộ lọc đọc giá trị như cũ. */
+const fold = x => String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[đĐ]/g,'d').toLowerCase();
+let _combo=null;
+addEventListener('scroll',e=>{ if(_combo && !_combo.lst.hidden && !_combo.lst.contains(e.target)) _combo.place(); },true);
+addEventListener('resize',()=>{ if(_combo && !_combo.lst.hidden) _combo.place(); });
+function comboWire(root){ document.querySelectorAll('body > .combo-list').forEach(l=>{ if(!document.body.contains(l._inp)) l.remove(); });
+  (root||document).querySelectorAll('select').forEach(sel=>{ if(sel._cb || sel.classList.contains('pg-size') || sel.hasAttribute('data-nocombo')) return;
+    /* Bản 1.8.9: ô chọn dự án, gói thầu, hợp đồng, nhà thầu có ô tìm từ 6 mục; ô chọn khác từ 13 mục */
+    const key=fold((sel.getAttribute('aria-label')||'')+' '+(sel.id||'')+' '+((sel.closest('.fld')||{}).textContent||'').slice(0,60)+' '+(sel.options[0]?sel.options[0].text:''));
+    const big=sel.id==='gpid' || /du an|goi thau|hop dong|nha thau|don vi/.test(key);
+    if(sel.options.length <= (big?5:12)) return; comboMake(sel); }); }
+function comboMake(sel){
+  sel._cb=1; const box=document.createElement('span'); box.className='combo'; if(sel.style.maxWidth) box.style.maxWidth=sel.style.maxWidth;
+  sel.parentNode.insertBefore(box, sel); box.appendChild(sel); sel.classList.add('combo-src'); sel.tabIndex=-1;
+  const inp=document.createElement('input'); inp.type='text'; inp.className='combo-in'; inp.autocomplete='off'; inp.spellcheck=false;
+  inp.setAttribute('role','combobox'); inp.setAttribute('aria-expanded','false'); inp.setAttribute('aria-label',(sel.getAttribute('aria-label')||'')+' (gõ để tìm)');
+  inp.placeholder='Gõ để tìm…'; box.insertBefore(inp, sel);
+  const lst=document.createElement('div'); lst.className='combo-list'; lst.hidden=true; lst._inp=inp; document.body.appendChild(lst);
+  /* Bản 1.8.9: ô tìm có kính lúp ở đầu danh sách, mở ra là gõ tìm được ngay */
+  const qbox=document.createElement('div'); qbox.className='combo-qb'; const q=document.createElement('input'); q.type='search'; q.className='combo-q'; q.autocomplete='off'; q.spellcheck=false;
+  q.placeholder='Tìm: gõ mã, tên hoặc số…'; q.setAttribute('aria-label','Tìm trong danh sách'); qbox.appendChild(q); lst.appendChild(qbox);
+  const body=document.createElement('div'); body.className='combo-b'; body.setAttribute('role','listbox'); lst.appendChild(body);
+  const gcode=o=>{ const g=o.parentElement && o.parentElement.tagName==='OPTGROUP' ? o.parentElement.label : ''; return g? g.split(' – ')[0] : ''; };
+  const label=()=>{ const o=sel.options[sel.selectedIndex]; if(!o) return ''; const g=gcode(o); return (g&&o.value? g+' · ' : '')+o.text; };
+  const sync=()=>{ inp.value=label(); inp.title=(()=>{ const o=sel.options[sel.selectedIndex]; return o&&o.parentElement.tagName==='OPTGROUP'? o.parentElement.label : ''; })(); };
+  let items=[], on=-1;
+  const draw=q=>{ const ws=fold(q).split(/\s+/).filter(Boolean); let h='', gPrev=null, n=0; items=[];
+    [...sel.options].forEach(o=>{ const gl=o.parentElement.tagName==='OPTGROUP'? o.parentElement.label : '';
+      if(ws.length){ const t=fold(o.text+' '+gl+' '+(o.dataset.s||'')); if(!ws.every(w=>t.includes(w))) return; }
+      if(n>=300) return; n++;
+      if(gl!==gPrev){ gPrev=gl; if(gl) h+=`<div class="combo-g">${esc(gl)}</div>`; }
+      h+=`<div class="combo-o${o.value===sel.value?' cur':''}" role="option" data-i="${items.length}">${esc(o.text)}</div>`; items.push(o); });
+    body.innerHTML=h||'<div class="combo-none">Không tìm thấy. Thử gõ mã, tên dự án, tên gói, số hợp đồng hoặc tên nhà thầu.</div>'; on=-1; };
+  const place=()=>{ const r=inp.getBoundingClientRect(); const below=innerHeight-r.bottom; lst.style.left=Math.max(8,Math.min(r.left, innerWidth-Math.max(r.width,320)-8))+'px'; lst.style.minWidth=Math.min(innerWidth-16,Math.max(r.width,320))+'px';
+    if(below<240 && r.top>below){ lst.style.top=''; lst.style.bottom=(innerHeight-r.top+2)+'px'; lst.style.maxHeight=Math.min(360,r.top-12)+'px'; } else { lst.style.bottom=''; lst.style.top=(r.bottom+2)+'px'; lst.style.maxHeight=Math.min(360,below-12)+'px'; } };
+  const open=(qs, focusQ)=>{ if(_combo && _combo.lst!==lst) _combo.lst.hidden=true; _combo={lst,place}; q.value=qs||''; draw(q.value); place(); lst.hidden=false; inp.setAttribute('aria-expanded','true');
+    if(focusQ!==false){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch{} const c=!n && body.querySelector('.combo-o.cur'); if(c) c.scrollIntoView({block:'nearest'}); } };
+  const close=()=>{ lst.hidden=true; inp.setAttribute('aria-expanded','false'); };
+  const pick=o=>{ close(); if(o && sel.value!==o.value){ sel.value=o.value; sync(); sel.dispatchEvent(new Event('change',{bubbles:true})); } else sync(); };
+  const mark=i=>{ const els=body.querySelectorAll('.combo-o'); if(!els.length) return; on=(i+els.length)%els.length; els.forEach((e,j)=>e.classList.toggle('on',j===on)); els[on].scrollIntoView({block:'nearest'}); };
+  inp.readOnly=true; inp.placeholder='';
+  inp.addEventListener('click',()=>{ if(lst.hidden) open(''); else { close(); } });
+  const away=()=>setTimeout(()=>{ if(document.activeElement!==inp && document.activeElement!==q){ close(); sync(); } },150);
+  inp.addEventListener('blur',away); q.addEventListener('blur',away);
+  q.addEventListener('input',()=>{ draw(q.value); place(); });
+  const keys=e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); if(lst.hidden) open(''); mark(on+1); } else if(e.key==='ArrowUp'){ e.preventDefault(); mark(on-1); }
+    else if(e.key==='Enter'){ if(!lst.hidden){ e.preventDefault(); pick(items[on>=0?on:0]); inp.focus(); } else { e.preventDefault(); open(''); } }
+    else if(e.key==='Escape'){ if(!lst.hidden){ e.stopPropagation(); e.preventDefault(); close(); sync(); inp.focus(); } }
+    else if(e.target===inp && e.key.length===1 && !e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); open(e.key); } };
+  inp.addEventListener('keydown',keys); q.addEventListener('keydown',keys);
+  lst.addEventListener('mousedown',e=>{ e.preventDefault(); const d=e.target.closest('.combo-o'); if(d) pick(items[+d.dataset.i]); });
+  sel.addEventListener('change',sync); sel.addEventListener('focus',()=>inp.focus()); sel._cbSync=sync;
+  sync(); }
 const projOpts = () => projects().map(p=>[p.id, p.code+' – '+p.name]);
-const pkgOpts = (pid) => D('packages').filter(k=>pidOk(k.projectId) && (!pid||k.projectId===pid)).sort(by('code')).map(k=>[k.id, k.code+' – '+k.name]);
+/* Bản 1.8.8: gói thầu, hợp đồng nhóm theo dự án, ghi tên gói trước, ký hiệu sau; tìm được theo số hợp đồng, nhà thầu */
+const pjGroup = pid => { const p=projOf(pid)||{}; return (p.code||'')+' – '+(p.name||''); };
+const codeCmp = (a,b) => String(a||'').localeCompare(String(b||''),'vi',{numeric:true});
+const pkgSort = (a,b) => codeCmp((projOf(a.projectId)||{}).code, (projOf(b.projectId)||{}).code) || codeCmp(a.code,b.code);
+const pkgOpts = (pid) => D('packages').filter(k=>pidOk(k.projectId) && (!pid||k.projectId===pid)).sort(pkgSort).map(k=>{ const c=contractOfPkg(k.id);
+  return [k.id, k.name+' ('+k.code+')', pjGroup(k.projectId), [k.code, c&&c.number, c&&c.contractor, typeof pkgContractorName==='function'?pkgContractorName(k):''].filter(Boolean).join(' ')]; });
+/* Số hợp đồng: hợp đồng chưa có số (dữ liệu đầu kỳ thiếu số) ghi rõ "Chưa có số hợp đồng" */
+const NO_CNUM='Chưa có số hợp đồng';
+const cNum = c => (c && String(c.number||'').trim()) || NO_CNUM;
+const cNumH = c => (c && String(c.number||'').trim()) ? esc(c.number) : `<span class="no-num">${NO_CNUM}</span>`;
+/* Tên ngắn của nhà thầu (tên viết tắt trong danh mục nếu có) */
+const ctShort = c => { if(!c) return ''; const n=normKey(c.contractor); const o=n && D('orgs').find(x=>normKey(x.name)===n); return (o&&o.shortName)||c.contractor||''; };
+/* Mô tả hợp đồng một dòng: DA050 · TV07 Tư vấn quản lý dự án */
+const cDesc = c => { const k=c&&pkgOf(c.packageId); const p=projOf(contractPid(c)); return [(p||{}).code, k? k.code+' '+k.name : ''].filter(Boolean).join(' · '); };
 /* Giai đoạn của gói thầu: chọn ở biểu mẫu gói thầu; chưa chọn thì gói tư vấn (trừ tư vấn giám sát) thuộc chuẩn bị đầu tư */
 const isSupPkg = k => (/GS/i.test(k.code||'') && /tư vấn/i.test(k.type||'')) || /giám sát/i.test((k.name||'')+' '+(k.type||''));
 const pkgPhaseDef = k => /tư vấn/i.test(k.type||'') && !/phi tư vấn/i.test(k.type||'') && !isSupPkg(k) ? 'cb' : 'dt';
@@ -469,7 +581,14 @@ const pkgPhase = k => !k ? 'dt' : (k.phase==='cb'||k.phase==='dt') ? k.phase : p
 const contractPhase = c => pkgPhase(c && pkgOf(c.packageId));
 const cidPhase = cid => contractPhase(get('contracts',cid));
 const phaseOpts = () => Object.entries(PHASES);
-const contractOpts = (pid, ph) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid) && (!ph||contractPhase(c)===ph)).sort(by('number')).map(c=>[c.id, c.number+' – '+((pkgOf(c.packageId)||{}).code||'')]);
+/* Gói tư vấn (không gồm phi tư vấn). Hợp đồng nghiệm thu theo sản phẩm: mọi hợp đồng chuẩn bị đầu tư và hợp đồng tư vấn thực hiện đầu tư */
+const isTVPkg = k => !!k && /tư vấn/i.test(k.type||'') && !/phi tư vấn/i.test(k.type||'');
+const contractProd = c => !!c && (contractPhase(c)==='cb' || isTVPkg(pkgOf(c.packageId)));
+const cidProd = cid => contractProd(get('contracts',cid));
+/* Nhóm hợp đồng: 'cb' chuẩn bị đầu tư, 'dt' mọi hợp đồng thực hiện đầu tư, 'tv' hợp đồng tư vấn thực hiện đầu tư, 'kl' hợp đồng thực hiện đầu tư quản lý theo khối lượng */
+const phMatch = (c, ph) => !ph || (ph==='tv'? contractPhase(c)==='dt' && contractProd(c) : ph==='kl'? contractPhase(c)==='dt' && !contractProd(c) : contractPhase(c)===ph);
+const contractOpts = (pid, ph) => D('contracts').filter(c=>pidOk(contractPid(c)) && (!pid||contractPid(c)===pid) && phMatch(c,ph)).map(c=>({c, k:pkgOf(c.packageId)||{}})).sort((a,b)=>codeCmp((projOf(contractPid(a.c))||{}).code,(projOf(contractPid(b.c))||{}).code)||codeCmp(a.k.code,b.k.code))
+  .map(({c,k})=>[c.id, [(k.name||'')+(k.code?' ('+k.code+')':''), ctShort(c), cNum(c)].filter(Boolean).join(' · '), pjGroup(contractPid(c)), [c.number, c.contractor, k.code].filter(Boolean).join(' ')]);
 function emptyBox(text, btn){ return `<div class="empty">${text}${btn?`<div style="margin-top:10px">${btn}</div>`:''}</div>`; }
 
 /* Bảng dữ liệu chung */
@@ -513,7 +632,10 @@ function fieldHTML(f, v, rec={}){
   switch(f.type){
     case 'textarea': input=`<textarea id="${id}" rows="${f.rows||3}" placeholder="${esc(f.ph||'')}">${esc(val)}</textarea>`; break;
     case 'works': input=worksHTML(id, val, f); break;
-    case 'select': { const list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options; input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
+    case 'select': { let list=typeof f.options==='function'?f.options(f.dep? rec[f.dep] : undefined):f.options;
+      // giá trị đang lưu không còn trong danh mục (đã đổi, ẩn): vẫn giữ trong danh sách để lưu lại không bị đổi ngầm
+      if(!f.dep && val!=='' && val!=null && !(list||[]).some(o=>String(Array.isArray(o)?o[0]:o)===String(val))) list=[...(list||[]),[val,catText(String(val))]];
+      input=`<select id="${id}">${opts(list,val, f.req?null:'— Chọn —')}</select>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
     case 'money': input=`<input id="${id}" type="number" step="1" min="0" value="${esc(val)}" data-money><span class="hint" id="${id}_h">${val!==''?fmtVND(val)+' đồng':''}</span>`; break;
     case 'number': case 'percent': input=`<input id="${id}" type="number" step="any" ${f.type==='percent'?'min="0" max="100"':''} value="${esc(val)}">`; break;
     case 'date': input=`<input id="${id}" type="date" value="${esc(val)}">`; break;
@@ -522,6 +644,14 @@ function fieldHTML(f, v, rec={}){
     case 'files': input=`<input id="${id}" type="file" ${f.multiple?'multiple':''} accept="${esc(f.accept||'')}">${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break;
     case 'attach': input=attachHTML(f, rec); break;
     case 'html': input=f.html; break;
+    /* Bản 1.8.3: chọn đơn vị từ danh mục (nhà thầu, đơn vị giám sát); chưa có thì bấm "+ Thêm" nhập ngay tại chỗ, lưu vào danh mục */
+    case 'org': { const nw=val && typeof val==='object' && val._new || null; const ov=nw? '' : val;
+      const list=D('orgs').filter(o=>o.kind===(f.kind||'nt') && (o.active!==false || o.id===ov)).sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
+      const what=f.kind==='gs'?'đơn vị giám sát':'nhà thầu';
+      input=`<div class="orgpick" id="${id}"><div class="orgpick-row"${nw?' hidden':''}><select id="${id}_s" aria-label="${esc(f.label)}">${opts(list.map(o=>[o.id,o.name+(o.shortName?' ('+o.shortName+')':'')]),ov,'— Chọn từ danh mục '+what+' —')}</select><button type="button" class="btn sm" data-orgnew>+ Thêm ${what}</button></div>
+        <div class="orgnew"${nw?'':' hidden'}><div class="small muted">${nw?`Tên ${what} đang ghi chưa có trong danh mục; khi lưu sẽ thêm vào danh mục ${what} (hoặc bấm Chọn từ danh mục):`:`${esc(what.charAt(0).toUpperCase()+what.slice(1))} mới, được lưu vào danh mục ${what}:`}</div>
+        <input id="${id}_n" type="text" value="${esc(nw?nw.name||'':'')}" placeholder="Tên đầy đủ theo giấy chứng nhận đăng ký doanh nghiệp, hoặc tên liên danh"><div class="orgnew-2"><input id="${id}_sn" type="text" placeholder="Tên viết tắt"><input id="${id}_mst" type="text" placeholder="Mã số thuế"></div>
+        ${f.kind==='gs'?'':`<label class="small"><input type="checkbox" id="${id}_m"> Thành viên hệ sinh thái</label>`}<button type="button" class="btn sm ghost" data-orgback>← Chọn từ danh mục</button></div></div>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
     default: { const sg=fieldSuggest(f);
       input=`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(f.ph||'')}"${sg.length?` list="${id}_dl" autocomplete="off"`:''}>${sg.length?`<datalist id="${id}_dl">${sg.map(o=>`<option value="${esc(o)}"></option>`).join('')}</datalist><div class="chips" data-chips-for="${id}">${sg.slice(0,12).map(o=>`<button type="button" class="chip${o===val?' on':''}" data-chip="${esc(o)}" title="Chọn nhanh">${esc(o)}</button>`).join('')}</div>`:''}${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; }
   }
@@ -529,8 +659,8 @@ function fieldHTML(f, v, rec={}){
 }
 function openModal(html, narrow){
   const ov=$('#ov'); ov.innerHTML=html; ov.hidden=false;
-  fitTables(ov);
-  const first=ov.querySelector('input:not([type=checkbox]):not([type=file]),select,textarea'); if(first) setTimeout(()=>first.focus(),30);
+  fitTables(ov); comboWire(ov);
+  const first=ov.querySelector('input:not([type=checkbox]):not([type=file]):not(.combo-in),select:not(.combo-src),textarea'); /* Bản 1.8.9: không tự chọn ô gõ để tìm (tránh bôi đen cả dòng khi mở biểu mẫu) */ if(first) setTimeout(()=>first.focus(),30);
   return ov;
 }
 function closeModal(){ const ov=$('#ov'); ov.hidden=true; ov.innerHTML=''; if(S.dirty){ S.dirty=false; render(); } }
@@ -538,15 +668,21 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
   /* Bản 1.8: biểu mẫu hồ sơ có quy trình duyệt: Lưu nháp / Lưu và chuyển duyệt */
   const wfSend = wf && WF[wf] && wfOn(wf, value.id? WF[wf].pid(value) : S.pid||null) && (!value.id || wfStatus(wf,value)===WF[wf].draft) && (can(WF[wf].mod,'edit')||can(WF[wf].mod,'approve'));
   if(wfSend && submit==='Lưu') submit='Lưu nháp';
-  const ov=openModal(`<form class="mform ${narrow?'narrow':''} ${wide?'wide':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key], value)).join('')}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn ${wfSend?'':'primary'}" type="submit">${esc(submit)}</button>${wfSend?'<button class="btn primary" type="submit" data-send="1">Lưu và chuyển duyệt</button>':''}</footer></form>`);
+  /* Bản 1.8.9: hồ sơ đã có thì kèm mục Lịch sử thay đổi (ai, lúc nào, sửa gì) */
+  const hcol = value.id && typeof recHistBox==='function' ? COLS.find(c=>!['logs','approvals','attachments','guides'].includes(c) && get(c, value.id)) : null;
+  const ov=openModal(`<form class="mform ${narrow?'narrow':''} ${wide?'wide':''}" id="mform" novalidate><header><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid">${fields.map(f=>fieldHTML(f, value[f.key], value)).join('')}${hcol?`<div class="fld full">${recHistBox(hcol, value.id)}</div>`:''}</div><footer><span class="small muted" id="mform_err" style="flex:1;color:var(--red)"></span><button type="button" class="btn ghost" data-close>Hủy</button><button class="btn ${wfSend?'':'primary'}" type="submit">${esc(submit)}</button>${wfSend?'<button class="btn primary" type="submit" data-send="1">Lưu và chuyển duyệt</button>':''}</footer></form>`);
+  if(hcol) recHistWire(ov);
   ov.querySelectorAll('[data-money]').forEach(inp=>inp.addEventListener('input',()=>{ const h=$('#'+inp.id+'_h'); if(h) h.textContent=inp.value?fmtVND(inp.value)+' đồng':''; }));
   const form=$('#mform');
   fields.filter(f=>f.type==='attach').forEach(f=>attachWire($('#f_'+f.key)));
+  fields.filter(f=>f.type==='org').forEach(f=>{ const box=$('#f_'+f.key); if(!box) return; const nb=$('.orgnew',box), row=$('.orgpick-row',box);
+    const mode=on=>{ nb.hidden=!on; row.hidden=on; if(on) setTimeout(()=>$('#f_'+f.key+'_n').focus(),20); };
+    box.addEventListener('click',e=>{ if(e.target.closest('[data-orgnew]')){ e.preventDefault(); mode(true); } else if(e.target.closest('[data-orgback]')){ e.preventDefault(); mode(false); } }); });
   ov.querySelectorAll('[data-chips-for]').forEach(box=>{ const inp=$('#'+box.dataset.chipsFor); const mark=()=>box.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', normKey(c.dataset.chip)===normKey(inp.value)));
     box.addEventListener('click',e=>{ const c=e.target.closest('[data-chip]'); if(!c) return; e.preventDefault(); inp.value=c.dataset.chip; inp.dispatchEvent(new Event('input',{bubbles:true})); mark(); }); inp.addEventListener('input',mark); });
   /* Ô chọn phụ thuộc ô khác (dep): đổi ô gốc thì nạp lại danh sách */
   fields.filter(f=>f.dep && f.type==='select').forEach(f=>{ const src=$('#f_'+f.dep), el=$('#f_'+f.key); if(!src||!el) return;
-    const fill=()=>{ const cur=el.value; el.innerHTML=opts(f.options(src.value), cur, f.req?null:'— Chọn —'); };
+    const fill=()=>{ const cur=el.value; el.innerHTML=opts(f.options(src.value), cur, f.req?null:'— Chọn —'); if(el._cbSync) el._cbSync(); else comboWire(el.parentNode); };
     fill(); src.addEventListener('change', fill); });
   form.onsubmit=async e=>{
     e.preventDefault(); const send=!!(e.submitter && e.submitter.dataset.send);
@@ -555,6 +691,11 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
       if(f.type==='html') continue;
       const el=$('#f_'+f.key);
       if(f.type==='attach'){ const n=el._keep()+el._files.length; if(f.req && !n){ err.textContent='Vui lòng đính kèm "'+f.label+'".'; return; } continue; }
+      if(f.type==='org'){ const nb=$('.orgnew',el);
+        if(!nb.hidden){ const nm=$('#f_'+f.key+'_n').value.replace(/\s+/g,' ').trim(); if(!nm){ err.textContent='Vui lòng nhập tên '+(f.kind==='gs'?'đơn vị giám sát':'nhà thầu')+' mới.'; $('#f_'+f.key+'_n').focus(); return; }
+          v[f.key]={_new:{name:nm, shortName:$('#f_'+f.key+'_sn').value.trim(), taxCode:$('#f_'+f.key+'_mst').value.trim(), member:!!($('#f_'+f.key+'_m')||{}).checked, kind:f.kind||'nt'}}; }
+        else v[f.key]=$('#f_'+f.key+'_s').value;
+        if(f.req && !v[f.key]){ err.textContent='Vui lòng chọn "'+f.label+'".'; return; } continue; }
       if(f.type==='checks') v[f.key]=$$('input:checked',el).map(i=>i.value);
       else if(f.type==='files') v[f.key]=[...el.files];
       else if(f.type==='password') v[f.key]=el.value;
@@ -777,8 +918,11 @@ function barChart({labels, series, h=240, fmt=v=>fmtN(v), max}){
     const x0=L+gw*i+(gw-bw*series.length)/2;
     series.forEach((s,j)=>{ const v=Math.max(0,N(s.values[i])); const bh=ih*Math.min(1,v/mx); g+=`<rect x="${x0+j*bw}" y="${T+ih-bh}" width="${Math.max(1,bw-2)}" height="${Math.max(0,bh)}" rx="2" fill="${s.color}"><title>${esc(lb)}, ${esc(s.name)}: ${esc(fmt(v))}</title></rect>`; });
     // Nhiều cột thì thưa nhãn trục, tránh chữ chồng lên nhau
-    const t=String(lb), step=Math.ceil(labels.length*Math.min(80,Math.max(48,t.length*6.2))/iw);
-    if(i%step===0) g+=`<text x="${L+gw*i+gw/2}" y="${T+ih+16}" text-anchor="middle">${esc(t.length>14?t.slice(0,13)+'…':t)}</text>`;
+    /* Bản 1.8.9: nhãn hai phần (mã dự án, mã gói) ghi thành hai dòng cho khỏi chồng chữ */
+    const t=String(lb), sp=t.indexOf(' '), two=sp>0 && t.length>8, a=two?t.slice(0,sp):t, b2=two?t.slice(sp+1):'', cut=x=>x.length>14?x.slice(0,13)+'…':x;
+    const wch=Math.max(a.length, b2.length), step=Math.ceil(labels.length*Math.min(84,Math.max(40,Math.min(14,wch)*6.8+8))/iw), cx=L+gw*i+gw/2;
+    if(i%step===0) g+= two? `<text x="${cx}" y="${T+ih+15}" text-anchor="middle"><tspan x="${cx}">${esc(cut(a))} </tspan><tspan x="${cx}" dy="13">${esc(cut(b2))}</tspan></text>`
+      : `<text x="${cx}" y="${T+ih+16}" text-anchor="middle">${esc(cut(t))}</text>`;
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">${g}</svg>${legend(series)}`;
 }
@@ -870,7 +1014,7 @@ new MutationObserver(()=>document.querySelectorAll('input[type=date]:not([data-d
  *  Vẫn lưu dạng văn bản "Nội dung | Khối lượng | Đơn vị" mỗi dòng như bản trước nên nhật ký cũ đọc được ngay. */
 function worksParse(t){ return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const [name,qty,unit]=l.split('|').map(x=>(x||'').trim()); return {name,qty,unit}; }); }
 function worksRow(r={}){ const q=r.qty==null?'':String(r.qty).replace(',','.');
-  return `<div class="wk-row"><input class="wk-n" placeholder="Công việc, vị trí thi công" value="${esc(r.name||'')}" aria-label="Công việc">
+  return `<div class="wk-row"><input class="wk-n" placeholder="${XD('Công việc, vị trí thi công','Công việc, nội dung triển khai')}" value="${esc(r.name||'')}" aria-label="Công việc">
     <input class="wk-q" inputmode="decimal" placeholder="Khối lượng" value="${esc(q)}" aria-label="Khối lượng"><input class="wk-u" placeholder="Đơn vị" value="${esc(r.unit||'')}" list="wk_units" aria-label="Đơn vị">
     <button type="button" class="btn sm ghost danger wk-del" title="Xóa dòng" aria-label="Xóa dòng">×</button></div>`; }
 function worksHTML(id, val, f){
@@ -991,7 +1135,7 @@ const wfLogs = (col, id) => D('approvals').filter(a=>a.collection===col && a.rec
 const wfAmount = (col, r) => WF[col].amt ? Math.abs(N(r[WF[col].amt])) : 0;
 const wfRouteFor = (fc, amt, col, r) => (fc.steps||[]).filter(s=>(s.minAmount==null || amt>=s.minAmount) && (s.maxAmount==null || amt<s.maxAmount))
   /* Đợt nghiệm thu sản phẩm tư vấn giai đoạn chuẩn bị đầu tư không qua bước tư vấn giám sát xác nhận */
-  .filter(s=>!(col==='vbatches' && s.key==='check' && r && cidPhase(r.contractId)==='cb'));
+  .filter(s=>!(col==='vbatches' && s.key==='check' && r && cidProd(r.contractId)));
 /** Tình trạng xử lý: các bước, bước đang chờ, lần chuyển duyệt, thao tác gần nhất, người được chuyển đích danh, hạn xử lý. */
 function wfState(col, r){
   const logs=wfLogs(col,r.id), last=logs[0]||null, sub=logs.find(a=>a.route)||null; let route=null;
@@ -1024,6 +1168,23 @@ function wfDisp(col, s, r){ if(r && wfPendingS(col,s)){ const st=wfState(col,r);
   return s===WF_CHECK ? 'Chờ kiểm tra' : (WF[col].disp&&WF[col].disp[s]) || s; }
 /** Hồ sơ quá hạn xử lý bước đang chờ. */
 const wfOverdue = (col, r, st=wfState(col,r)) => !!(st.due && st.due < TODAY);
+/* Bản 1.8.9: ngày làm việc (bỏ thứ Bảy, Chủ nhật và ngày nghỉ quản trị khai báo), sắp đến hạn, trễ hạn báo lên */
+const wfHol = () => new Set(wfCfg().holidays||[]);
+/** Số ngày làm việc từ ngày a (không tính) đến ngày b (có tính); b trước a thì số âm. */
+function wdBetween(a, b, hol=wfHol()){ if(!a||!b) return 0; let d=new Date(String(a).slice(0,10)+'T00:00:00'), e=new Date(String(b).slice(0,10)+'T00:00:00'), sg=1, n=0;
+  if(e<d){ [d,e]=[e,d]; sg=-1; }
+  for(let i=0; d<e && i<4000; i++){ d.setDate(d.getDate()+1); const w=d.getDay(); if(w!==0 && w!==6 && !hol.has(isoLocal(d))) n++; }
+  return n*sg; }
+/** Số ngày làm việc trễ so với hạn tính đến ngày end (mặc định hôm nay); quá hạn vào ngày nghỉ vẫn tính 1 ngày. */
+const wdLate = (due, end=TODAY) => due && String(end).slice(0,10) > String(due).slice(0,10) ? Math.max(1, wdBetween(due, end)) : 0;
+/** Ngày giờ máy chủ (giờ UTC) đổi ra ngày theo giờ Việt Nam. */
+const tsDay = s => s ? isoLocal(parseTs(s)) : '';
+const wfLateDays = (col, r, st=wfState(col,r)) => st.step ? wdLate(st.due) : 0;
+/** Sắp đến hạn: còn trong số ngày nhắc trước của bước (mặc định 1 ngày làm việc). */
+function wfSoon(col, r, st=wfState(col,r)){ if(!st.step || !st.due || st.due < TODAY) return false; return wdBetween(TODAY, st.due) <= Math.max(1, N(st.step.remindDays)); }
+/** Trễ đủ số ngày phải báo cấp trên. */
+const wfEscalated = (col, r, st=wfState(col,r)) => !!(st.step && N(st.step.escalateDays)>0 && wfLateDays(col,r,st) >= N(st.step.escalateDays));
+const wfEscTarget = (step, u=S.user) => !!(u && step && ((step.escalateUsers||[]).includes(u.id) || (step.escalateGroups||[]).includes(u.groupId)));
 /** Người dùng sửa được hồ sơ không (người duyệt luôn sửa được; người khác chỉ sửa khi đang soạn thảo). Loại hồ sơ tắt quy trình thì không khóa. */
 const wfEditable = (col, r) => !wfOn(col, WF[col].pid(r)) || can(WF[col].mod,'approve') || (can(WF[col].mod,'edit') && !wfLocked(col,r) && !wfWaiting(col,r));
 /** Hồ sơ bị trả lại và chưa chuyển lại (lần thao tác gần nhất là Trả lại): trả về dòng lịch sử đó. */
@@ -1032,7 +1193,7 @@ function wfReturned(col, r){ if(!WF[col] || wfStatus(col,r)!==WF[col].draft) ret
 /** Hồ sơ thanh toán đang đề nghị (mới lập, đang duyệt, đang trình Kho bạc); hồ sơ bị trả lại không tính. */
 function payInProc(p){ return ['Đề nghị',WF_CHECK,'Chờ duyệt','Đang trình KBNN'].includes(p.status) && !wfReturned('payments',p); }
 /** Thanh toán khối lượng hoàn thành (không gồm tạm ứng, thu hồi tạm ứng). */
-const payIsVol = p => /khối lượng/i.test(p.kind||'') && !/tạm ứng/i.test(p.kind||'');
+const payIsVol = p => /khối lượng|theo sản phẩm/i.test(p.kind||'') && !/tạm ứng/i.test(p.kind||'');
 function wfPill(col, r){ const w=WF[col], s=wfStatus(col,r), rt=wfReturned(col,r);
   if(rt) return `<span class="pill bad" title="${esc('Trả lại: '+(rt.note||''))}">Bị trả lại</span>${rt.note?`<div class="small muted">${esc(rt.note)}</div>`:''}`;
   if(wfPendingS(col,s)){ const st=wfState(col,r), od=wfOverdue(col,r,st);

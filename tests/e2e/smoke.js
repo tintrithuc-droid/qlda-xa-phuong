@@ -80,10 +80,10 @@ async function login(p, u, pw = PW) {
   else { const r = await p.request.get(BASE + diary.photos[0].url); if (r.status() !== 200) errs.push('Không tải lại được ảnh ' + r.status()); }
 
   // Tiến độ, khối lượng, thanh toán
-  await go(p, 'tien-do'); await p.click('[data-act=upd-sched]'); await p.fill('#f_progress', '90'); await p.click('#mform [type=submit]'); await p.waitForTimeout(500);
+  await go(p, 'tien-do'); await p.click('[data-act=upd-sched]'); await p.fill('#f_progress', '90'); await p.click('#mform [type=submit]'); await p.waitForSelector('#mform', { state: 'detached', timeout: 15000 }).catch(async () => console.log('Hộp thoại tiến độ còn mở:', await p.evaluate(() => document.querySelector('#mform_err')?.textContent || '')));
   await go(p, 'khoi-luong'); await p.click('[data-act=vb-new]'); await p.fill('.vb-grid tbody tr:first-child [data-k=d]', '10'); await p.fill('.vb-grid tbody tr:first-child [data-k=a]', '5'); await p.click('#mform [type=submit]'); await p.waitForSelector('#mform', { state: 'detached', timeout: 20000 }).catch(() => {}); await p.waitForFunction(() => Store.data.vbatches.some(b => b.status === 'Soạn thảo'), null, { timeout: 10000 }).catch(() => {});
   { const nb = await p.evaluate(() => Store.data.vbatches.filter(b => b.status === 'Soạn thảo').length); if (nb !== 1) errs.push('Không lập được đợt nghiệm thu: ' + nb + ' ' + (await p.evaluate(() => document.querySelector('#mform_err')?.textContent || ''))); }
-  if (await p.$('#ov')) { console.log('Hộp thoại khối lượng còn mở:', await p.evaluate(() => document.querySelector('#mform_err')?.textContent || '')); await p.keyboard.press('Escape'); await p.evaluate(() => document.querySelector('#ov')?.remove()); }
+  if (await p.$('#ov:not([hidden])')) { const t = await p.evaluate(() => (document.querySelector('#ov')?.innerText || '').replace(/\s+/g, ' ').slice(0, 300)); errs.push('Hộp thoại còn mở sau khi lưu đợt khối lượng: ' + t); await p.evaluate(() => closeModal()); }
   for (const t of ['nt', 'th']) { await p.click(`[data-g=kl][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'thanh-toan'); for (const t of ['kh', 'hs', 'th']) { await p.click(`[data-g=tt][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'bao-cao'); for (const v of ['tiendo', 'hopdong', 'khoiluong', 'thoigian']) { await p.selectOption('[data-f=bct]', v); await p.waitForTimeout(250); }

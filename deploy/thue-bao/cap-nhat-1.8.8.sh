@@ -12,6 +12,8 @@ echo "== 3. Dựng ảnh qlda-xa-phuong:$TAG (vài phút)"; docker build -q -t "
 echo "== 4. Giữ bản đang chạy để quay về: qlda-xa-phuong:truoc-cap-nhat-188"
 docker image inspect qlda-xa-phuong:truoc-cap-nhat-188 >/dev/null 2>&1 && echo "(Đã có ảnh trước cập nhật 1.8.8, giữ nguyên để quay về bản 1.8.7)" || docker commit "$APP" qlda-xa-phuong:truoc-cap-nhat-188 >/dev/null
 echo "== 5. Sao lưu dữ liệu"; bash "$DIR/sao-luu.sh" </dev/null || echo "(Sao lưu báo lỗi, xem lại trước khi tiếp tục)"
+# Giữ riêng bản CSDL của lần cập nhật này (sao lưu cùng ngày ghi vào cùng thư mục ngày, lần sau sẽ ghi đè)
+BK="/srv/qlda-saoluu/truoc-cap-nhat-$TAG-$(date +%H%M)"; mkdir -p "$BK" && cp -a "/srv/qlda-saoluu/$(date +%Y-%m-%d)/csdl" "$BK/" && chmod -R go-rwx "$BK" && echo "  Bản CSDL riêng của lần cập nhật: $BK"
 echo "== 6. Chạy bản mới"
 cd "$DIR"; cp .env ".env.bak-188"
 if grep -q '^QLDA_IMAGE=' .env; then sed -i "s#^QLDA_IMAGE=.*#QLDA_IMAGE=qlda-xa-phuong:$TAG#" .env; else echo "QLDA_IMAGE=qlda-xa-phuong:$TAG" >> .env; fi

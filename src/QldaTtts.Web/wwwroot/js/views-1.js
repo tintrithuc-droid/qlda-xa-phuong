@@ -544,8 +544,8 @@ VIEWS['du-an']=()=>{
   const rows=projListRows(), all=projects().filter(p=>!S.pid||p.id===S.pid).length;
   return `<div class="head"><div class="grow"><h1>Danh sách dự án</h1><p>${rows.length} dự án (${esc(pjFilterText())}${rows.length<all?`, trong tổng số ${all} dự án`:''}), tổng mức đầu tư ${fmtTy(sum(rows,'tmdt'))}</p></div><button class="btn" data-act="export-projects">Xuất Excel</button>${can('du-an','edit')?`<button class="btn primary" data-act="add-project">+ Thêm dự án</button>`:''}</div>
   <div class="toolbar"><input type="search" placeholder="Tìm theo mã, tên, địa điểm…" data-f="pq" value="${esc(q)}" aria-label="Tìm dự án">${pjFilterBar()}</div>
-  ${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên dự án',f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(r.group||'')} · ${esc(r.phase||'')}</div>`},{h:'Trạng thái',f:r=>statusPill(r.status)},
-    {h:'Tổng mức đầu tư',r:1,f:r=>fmtTy(r.tmdt)},{h:'Gói thầu',r:1,f:r=>r.nk},{h:'Thời gian',f:r=>`<span class="num small">${fmtDate(r.start)} – ${fmtDate(r.end)}</span>`},
+  ${table([{h:'Mã',f:r=>`<span class="num" style="white-space:nowrap">${esc(r.code)}</span>`},{h:'Tên dự án',f:r=>`<b style="font-weight:600">${esc(r.name)}</b>${[r.group,r.phase].filter(Boolean).length?`<div class="small muted">${esc([r.group,r.phase].filter(Boolean).join(' · '))}</div>`:''}`},{h:'Trạng thái',f:r=>statusPill(r.status)},
+    {h:'Tổng mức đầu tư',r:1,f:r=>fmtTy(r.tmdt)},{h:'Gói thầu',r:1,f:r=>r.nk},{h:'Thời gian',f:r=>r.start||r.end?`<span class="num small">${fmtDate(r.start)} – ${fmtDate(r.end)}</span>`:'<span class="small muted">Chưa có</span>'},
     {h:'Tiến độ',f:r=>`<div style="min-width:130px">${progBar(r.prog, r.exp-r.prog>10?'warn':'')}</div>`}], rows, {rowAct:'open-project', empty:'Không có dự án phù hợp.'})}`;
 };
 function projectDetail(p){

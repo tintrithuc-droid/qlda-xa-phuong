@@ -646,6 +646,8 @@ tbody tr.grp td{background:var(--panel2); font-weight:700; color:var(--ink); bor
 /* Bản 1.8.8: ô chọn gõ để tìm (gói thầu, hợp đồng, dự án) */
 .combo{position:relative; display:inline-flex; flex:1 1 220px; min-width:0; max-width:420px}
 .fld .combo,.orgpick-row .combo{display:flex; max-width:none; width:100%}
+/* Bản 1.8.9: trong ô biểu mẫu (cột dọc) không cho hộp chọn giãn theo chiều cao */
+.fld .combo{flex:0 0 auto}
 .combo-in{width:100%; padding-right:30px!important; background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%); background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%; background-size:5px 5px; background-repeat:no-repeat; text-overflow:ellipsis}
 .combo-src{position:absolute!important; left:0; bottom:0; width:1px!important; height:1px!important; min-height:0!important; padding:0!important; border:0!important; opacity:0; pointer-events:none}
 .combo-list{position:fixed; z-index:200; overflow:auto; background:var(--panel); border:1px solid var(--line2); border-radius:var(--r-sm); box-shadow:0 12px 32px rgba(0,0,0,.18); max-width:calc(100vw - 16px); font-size:.92rem}
@@ -679,3 +681,43 @@ details.rhist{margin-top:10px; border-top:1px solid var(--line); padding-top:8px
 .vtc button{display:flex; flex-direction:column; justify-content:flex-start; text-align:left; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--ink); cursor:pointer; font:inherit}
 .vtc button.on{border-color:var(--blue); box-shadow:0 0 0 2px var(--blue-soft)} .vtc button.bad{border-left:4px solid var(--red)}
 .vtc .n{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px} .vtc .n b{font-size:18px; display:block}
+
+/* ===== Bản 1.8.9: rà soát giao diện (thẩm mỹ, dễ dùng) ===== */
+/* Ô chọn: một kiểu mũi tên chung cho ô chọn thường và ô gõ để tìm */
+select:not([multiple]):not([size]){-webkit-appearance:none; appearance:none; padding-right:32px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%; background-size:5px 5px; background-repeat:no-repeat; text-overflow:ellipsis}
+select:not([multiple]):not([size]):disabled{opacity:.6}
+.pager select{padding-right:28px!important}
+/* Danh sách cảnh báo gọn: một khung, mỗi dòng có chấm màu và chữ mức độ, nhiều thì thu gọn */
+.alrs{border:1px solid var(--line); border-radius:var(--r-sm); background:var(--panel); overflow:hidden}
+.alr{display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:13px; border-top:1px solid var(--line); line-height:1.45}
+.alrs > .alr:first-child{border-top:0}
+.alr b{font-weight:600}
+.alr-d{flex:none; font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; white-space:nowrap}
+.alr.bad .alr-d{background:var(--red-soft); color:var(--red)} .alr.warn .alr-d{background:var(--amber-soft); color:var(--amber)}
+.alr-t{flex:1; min-width:0}
+.alr .btn{flex:none}
+.alr-more{border-top:1px solid var(--line)} .alr-more > summary{cursor:pointer; padding:9px 12px; font-size:13px; font-weight:600; color:var(--accent); list-style:none}
+.alr-more > summary::-webkit-details-marker{display:none} .alr-more[open] > summary{border-bottom:1px solid var(--line)}
+.alr-more > .alr:first-of-type{border-top:0}
+/* Chữ trên biểu đồ, thước thời gian không nhỏ hơn 11,5px */
+.chart text{font-size:11.5px} .gmonth{font-size:11.5px}
+/* Bảng phân quyền trong biểu mẫu nhóm: cuộn ngang trong khung thay vì tràn */
+.fld .perm{display:block; overflow-x:auto}
+@media (max-width:820px){
+  /* Thanh trên điện thoại: ô chọn dự án xuống dòng riêng, các nút ở cùng dòng tiêu đề */
+  .top .combo{order:5; flex:1 1 100%; max-width:none}
+  .top .title{flex:1 1 0; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .top .sp{display:none}
+  /* Vùng chạm tối thiểu cho ngón tay */
+  .btn.sm{min-height:38px; padding:0 12px}
+  .icon-btn{min-width:40px; min-height:40px; display:inline-grid; place-items:center}
+  .dx .dx-b{width:36px; height:36px}
+  .pager .btn{min-width:38px; justify-content:center}
+  .alr{display:block; padding:10px 12px} .alr-d{display:inline-block; margin-right:6px; vertical-align:1px} .alr-t{display:inline} .alr .btn{display:flex; margin:6px 0 0 auto}
+  /* Ô nhập chữ 16px để điện thoại không tự phóng to khi chạm */
+  input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px}
+  .mform footer .btn{min-height:44px}
+  .fld .chip{min-height:34px; padding:5px 12px; font-size:13px}
+}

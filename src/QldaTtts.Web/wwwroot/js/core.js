@@ -484,8 +484,10 @@ function alerts(o={}){
   return out;
 }
 /* Một dòng cảnh báo có nút "Xem" mở đúng đối tượng */
-function alertRow(a){ return `<div class="alert ${a.lvl==='bad'?'bad':''}"><span style="flex:1">${a.text}</span>${a.go?`<button type="button" class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''}</div>`; }
-function alertList(list, empty){ return list.length? `<div class="list">${list.map(alertRow).join('')}</div>` : (empty?`<div class="alert info">${empty}</div>`:''); }
+/* Bản 1.8.9: cảnh báo dạng danh sách gọn trong một khung; mức độ ghi bằng chữ (không chỉ bằng màu); quá 5 dòng thì thu gọn */
+function alertRow(a){ const bad=a.lvl==='bad'; return `<div class="alr ${bad?'bad':'warn'}"><span class="alr-d">${bad?'Nghiêm trọng':'Theo dõi'}</span><span class="alr-t">${a.text}</span>${a.go?`<button type="button" class="btn sm ghost" data-act="alert-go" data-id="${esc(a.go)}">Xem</button>`:''}</div>`; }
+function alertList(list, empty, max=5){ if(!list.length) return empty?`<div class="alert info">${empty}</div>`:''; const a=list.slice(0,max), b=list.slice(max);
+  return `<div class="alrs">${a.map(alertRow).join('')}${b.length?`<details class="alr-more"><summary>Xem thêm ${b.length} cảnh báo</summary>${b.map(alertRow).join('')}</details>`:''}</div>`; }
 const cellText = h => { const d=document.createElement('div'); d.innerHTML=h; return d.textContent||''; };
 
 /* --- giao diện chung --- */
@@ -644,7 +646,7 @@ function fieldHTML(f, v, rec={}){
 function openModal(html, narrow){
   const ov=$('#ov'); ov.innerHTML=html; ov.hidden=false;
   fitTables(ov); comboWire(ov);
-  const first=ov.querySelector('input:not([type=checkbox]):not([type=file]),select,textarea'); if(first) setTimeout(()=>first.focus(),30);
+  const first=ov.querySelector('input:not([type=checkbox]):not([type=file]):not(.combo-in),select:not(.combo-src),textarea'); /* Bản 1.8.9: không tự chọn ô gõ để tìm (tránh bôi đen cả dòng khi mở biểu mẫu) */ if(first) setTimeout(()=>first.focus(),30);
   return ov;
 }
 function closeModal(){ const ov=$('#ov'); ov.hidden=true; ov.innerHTML=''; if(S.dirty){ S.dirty=false; render(); } }

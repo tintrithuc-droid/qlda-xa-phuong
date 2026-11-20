@@ -113,6 +113,14 @@ function totp(secret) {
   const th = await p.evaluate(() => [...document.querySelectorAll('#content thead th')].map(x => x.textContent.trim()));
   check(th.includes('Nội dung') && !th.some(x => ['Nhóm', 'Dự án', 'Gói thầu', 'Hợp đồng'].includes(x)), 'Trung tâm cảnh báo không hiện cột Nhóm, Dự án, Gói thầu, Hợp đồng');
 
+  // Rà soát giao diện: ô chọn có tìm kiếm trong biểu mẫu không phình cao; cảnh báo dạng danh sách gọn
+  await p.evaluate(() => { const ps = D('projects'); for (let i = 0; i < 14; i++) ps.push({ ...ps[0], id: 'tmp' + i, code: 'TMP' + i }); ACT['add-pkg'](); }); await p.waitForTimeout(400);
+  const ch = await p.evaluate(() => { const c = document.querySelector('#mform .fld .combo'); return c ? c.getBoundingClientRect().height : -1; });
+  check(ch > 0 && ch < 60, 'Ô chọn có tìm kiếm trong biểu mẫu cao bình thường (' + Math.round(ch) + 'px)');
+  check(await p.evaluate(() => document.activeElement && !document.activeElement.classList.contains('combo-in')), 'Mở biểu mẫu không bôi đen ô chọn có tìm kiếm');
+  await p.evaluate(() => { closeModal(); Store.data.projects = D('projects').filter(x => !String(x.id).startsWith('tmp')); });
+  check(await p.evaluate(() => { const h = alertList(Array.from({ length: 7 }, (_, i) => ({ lvl: i ? 'warn' : 'bad', text: 'Cảnh báo ' + i, go: 'mod|tong-quan' }))); return /Nghiêm trọng/.test(h) && /Xem thêm 2 cảnh báo/.test(h); }), 'Cảnh báo ghi mức độ bằng chữ, quá 5 dòng thì thu gọn');
+
   // E. Công việc theo người thực hiện trong dự án
   const pid = await p.evaluate(() => (D('tasks')[0] || {}).projectId);
   await p.evaluate(id => { S.sel.project = id; S.tab.proj = 'tasks'; S.f.tview = 'person'; }, pid); await go('tong-quan'); await go('du-an');

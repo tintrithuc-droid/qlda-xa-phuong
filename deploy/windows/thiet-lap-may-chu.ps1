@@ -39,5 +39,5 @@ if ($TaoKhoaChep) {
   Chay $a
   $sc = Join-Path $ThuMucChep "chep-cham-cong-ework.ps1"
   if ($Qlda -and (Test-Path $sc)) { & $sc -Qlda $Qlda -Khoa FILE -CaiLich }
-  elseif ($Qlda) { Write-Host "Chưa có $sc: chép từ thư mục ework của gói cài đặt rồi chạy lại." -ForegroundColor Yellow }
+  elseif ($Qlda) { Write-Host "Chưa có ${sc}: chép từ thư mục ework của gói cài đặt rồi chạy lại." -ForegroundColor Yellow }
 }

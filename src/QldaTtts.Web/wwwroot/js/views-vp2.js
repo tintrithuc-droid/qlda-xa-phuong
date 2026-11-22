@@ -237,7 +237,7 @@ VIEWS['kpi']=()=>{
     body=`<p class="small muted" style="margin:0 0 8px">Tổng điểm = Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%. Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}. ${locked?pill('Đã chốt','ok'):need?pill(need+' người chưa chấm đủ','warn'):''}</p>`
     + table([
       {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
-      {h:`Công việc (${k.wWork}%)`, r:1, f:r=>`${kpiN(r.work)}${r.workOverride!=null?' <span class="small muted" title="Quản lý ghi đè">✎</span>':''}${r.workAuto?`<div class="small muted">${r.workAuto.total} việc, ${r.workAuto.onTime} đúng hạn${r.workAuto.late?', '+r.workAuto.late+' trễ':''}${r.workAuto.overdue?', '+r.workAuto.overdue+' quá hạn':''}</div>`:''}`},
+      {h:`Công việc (${k.wWork}%)`, r:1, f:r=>`${kpiN(r.work)}${r.workOverride!=null?' <span class="small muted" title="Quản lý ghi đè">✎</span>':''}${r.workAuto?`<div class="small muted">${r.workAuto.total} việc, ${r.workAuto.onTime} đúng hạn${r.workAuto.late?', '+r.workAuto.late+' trễ':''}${r.workAuto.overdue?', '+r.workAuto.overdue+' quá hạn':''}${r.workAuto.collab?', '+r.workAuto.collab+' phối hợp':''}</div>`:''}`},
       {h:`Dự án (${k.wProject}%)`, r:1, f:r=> r.canRate? `<input type="number" min="0" max="100" step="5" value="${r.project??''}" data-kpi-proj="${esc(r.employeeId)}" style="width:70px;text-align:right" aria-label="Điểm kết quả dự án của ${esc(r.name)}">` : kpiN(r.project)},
       {h:`Chuyên cần (${k.wAttendance}%)`, r:1, f:r=>`${kpiN(r.attendance)}${r.attendance!=null?`<div class="small muted">muộn ${r.attDetail.late}${r.attDetail.absent?', nghỉ KLD '+fmtN(r.attDetail.absent,1):''}${r.attDetail.noOut?', quên ra '+r.attDetail.noOut:''}</div>`:''}`},
       {h:`Quản lý (${k.wManager}%)`, f:r=>kpiStars(r)+(r.ratingNote?`<div class="small muted" title="${esc(r.ratingNote)}">${esc(r.ratingNote.slice(0,40))}</div>`:'')},
@@ -273,7 +273,8 @@ ACT['kpi-lock']=async l=>{ const m=kpiMonth(); const d=VP.kpi[m];
   if(l==='1' && !await confirmBox(`Chốt KPI tháng ${m.slice(5)}/${m.slice(0,4)}? Điểm, xếp loại được lưu cố định để tính thưởng.${miss?` <b>${miss} người chưa chấm đủ</b> (phần thiếu tính 0 điểm).`:''}`,'Chốt')) return;
   await api('POST',`/api/vp/kpi/${m}/chot`,{lock:l==='1'}); delete VP.kpi[m]; render(); toast(l==='1'?'Đã chốt KPI tháng':'Đã mở chốt'); };
 ACT['kpi-set']=async()=>{ const k=await api('GET','/api/vp/kpi-settings');
-  openForm({title:'Thiết lập KPI', value:{...k, grades:k.grades.map(g=>[g.name,g.min,g.bonus].join('; ')).join('\n'), rankOn:k.rankOn?'1':'0', rankTables:(k.rankTables||[]).map(x=>x.from+' | '+x.amounts.join('; ')).join('\n')},
+  openForm({title:'Thiết lập KPI', value:{...k, grades:k.grades.map(g=>[g.name,g.min,g.bonus].join('; ')).join('\n'), rankOn:k.rankOn?'1':'0', rankTables:(k.rankTables||[]).map(x=>x.from+' | '+x.amounts.join('; ')).join('\n'),
+      levels:(k.levels||[]).map(x=>x.name+'; '+x.weight).join('\n'), lateSteps:(k.lateSteps||[]).map(x=>x.days+'; '+x.factor).join('\n'), qualityFactors:(k.qualityFactors||[]).join('; ')},
     fields:[{key:'_h1',type:'html',html:'<div class="fld full"><b>Trọng số bốn nhóm (tổng 100)</b></div>'},{key:'wWork',label:'Hoàn thành công việc',type:'number',req:true},{key:'wProject',label:'Kết quả dự án',type:'number',req:true},
       {key:'wAttendance',label:'Chuyên cần',type:'number',req:true},{key:'wManager',label:'Đánh giá của quản lý',type:'number',req:true},
       {key:'_h2',type:'html',html:'<div class="fld full"><b>Chuyên cần: 100 điểm, trừ mỗi lần</b></div>'},{key:'penLate',label:'Đi muộn',type:'number'},{key:'graceMinutes',label:'Phút ân hạn (muộn không quá số phút này không trừ)',type:'number'},
@@ -281,11 +282,22 @@ ACT['kpi-set']=async()=>{ const k=await api('GET','/api/vp/kpi-settings');
       {key:'grades',label:'Xếp loại: mỗi dòng "tên; điểm từ; thưởng (đồng)"',type:'textarea',rows:4,keepLines:true},
       {key:'_h3',type:'html',html:'<div class="fld full"><b>Thưởng theo hạng trong phòng ban (như e-work)</b><div class="small muted">Mỗi phòng xếp hạng theo tổng điểm; người đạt xếp loại tối thiểu mới được xếp hạng; bằng điểm thì cùng hạng. Cộng vào lương tháng khi chốt KPI.</div></div>'},
       {key:'rankOn',label:'Thưởng theo hạng',type:'select',options:[['0','Không dùng'],['1','Có']]},{key:'rankMinGrade',label:'Xếp loại tối thiểu để được xếp hạng',type:'text'},
-      {key:'rankTables',label:'Mức thưởng: mỗi dòng "tháng áp dụng | hạng 1; hạng 2; …"',type:'textarea',rows:3,keepLines:true,ph:'2026-05 | 1000000; 500000'}],
+      {key:'rankTables',label:'Mức thưởng: mỗi dòng "tháng áp dụng | hạng 1; hạng 2; …"',type:'textarea',rows:3,keepLines:true,ph:'2026-05 | 1000000; 500000'},
+      {key:'_h4',type:'html',html:'<div class="fld full"><b>Cách tính điểm công việc</b><div class="small muted">Mỗi việc: hệ số mức độ × hệ số đúng hạn × hệ số chất lượng × (1 − trừ mỗi lần mở lại − trừ mỗi lần gia hạn). Người phối hợp tính hệ số mức độ × hệ số phối hợp. Điểm = 100 × tổng đạt / tổng hệ số mức độ. Nhiệm vụ có việc con chỉ tính các việc con; việc phát sinh tính khi đã xác nhận.</div></div>'},
+      {key:'levels',label:'Mức độ: mỗi dòng "tên; hệ số"',type:'textarea',rows:3,keepLines:true,ph:'Bình thường; 1'},
+      {key:'lateSteps',label:'Trễ hạn: mỗi dòng "trễ đến (ngày làm việc); hệ số"',type:'textarea',rows:3,keepLines:true,ph:'0; 1'},
+      {key:'lateOver',label:'Hệ số khi trễ quá bậc cuối',type:'number'},
+      {key:'qualityFactors',label:'Hệ số chất lượng 1; 2; 3; 4; 5 sao (chưa nghiệm thu = 1)',type:'text'},
+      {key:'reopenPenalty',label:'Trừ mỗi lần mở lại (0–1)',type:'number'},{key:'extendPenalty',label:'Trừ mỗi lần gia hạn (0–1)',type:'number'},
+      {key:'collabFactor',label:'Hệ số người phối hợp (0–1)',type:'number'},{key:'remindDays',label:'Nhắc việc trước hạn (ngày)',type:'number'}],
     onSave:async v=>{ const rankTables=String(v.rankTables||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2&&p[0].trim()).map(p=>({from:p[0].trim(), amounts:p[1].split(';').map(x=>N(x.trim().replace(/\./g,''))).filter(x=>!isNaN(x))}));
       const grades=String(v.grades||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0], min:N(p[1]), bonus:N(String(p[2]||'0').replace(/\./g,''))}));
       if(N(v.wWork)+N(v.wProject)+N(v.wAttendance)+N(v.wManager)!==100) throw new Error('Tổng trọng số phải bằng 100.');
-      await api('PUT','/api/vp/kpi-settings',{wWork:N(v.wWork), wProject:N(v.wProject), wAttendance:N(v.wAttendance), wManager:N(v.wManager), penLate:N(v.penLate), penEarly:N(v.penEarly), penNoOut:N(v.penNoOut), penAbsent:N(v.penAbsent), graceMinutes:N(v.graceMinutes), grades, rankOn:v.rankOn==='1', rankMinGrade:(v.rankMinGrade||'').trim(), rankTables});
+      await api('PUT','/api/vp/kpi-settings',{wWork:N(v.wWork), wProject:N(v.wProject), wAttendance:N(v.wAttendance), wManager:N(v.wManager), penLate:N(v.penLate), penEarly:N(v.penEarly), penNoOut:N(v.penNoOut), penAbsent:N(v.penAbsent), graceMinutes:N(v.graceMinutes), grades, rankOn:v.rankOn==='1', rankMinGrade:(v.rankMinGrade||'').trim(), rankTables,
+        levels:String(v.levels||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0], weight:N(String(p[1]||'1').replace(',','.'))})),
+        lateSteps:String(v.lateSteps||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]!==''&&p.length>1).map(p=>({days:Math.round(N(p[0])), factor:N(String(p[1]).replace(',','.'))})),
+        lateOver:N(v.lateOver), qualityFactors:String(v.qualityFactors||'').split(';').map(x=>N(x.trim().replace(',','.'))).filter(x=>!isNaN(x)),
+        reopenPenalty:N(v.reopenPenalty), extendPenalty:N(v.extendPenalty), collabFactor:N(v.collabFactor), remindDays:Math.round(N(v.remindDays))});
       VP.kpi={}; return {id:'kpi'}; }}); };
 function kpiTable(){ const m=kpiMonth(), d=VP.kpi[m]; if(!d||!d.rows) return null; const dep=S.f.kpid||'';
   return {m, k:d.settings, rows:d.rows.filter(r=>!dep||r.departmentId===dep).slice().sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||b.total-a.total)}; }

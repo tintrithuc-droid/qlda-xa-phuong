@@ -2159,15 +2159,40 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<bool>("Arising")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ArisingConfirmedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("AssignedByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Assignee")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("AssigneeUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Collaborators")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateOnly?>("DoneDate")
                         .HasColumnType("date");
 
                     b.Property<DateOnly?>("Due")
                         .HasColumnType("date");
+
+                    b.Property<string>("EworkId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("ExtendCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -2177,6 +2202,13 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<string>("Note")
                         .HasColumnType("text");
 
+                    b.Property<DateOnly?>("OriginalDue")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ParentId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Priority")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -2184,6 +2216,15 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<string>("ProjectId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("Quality")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ReopenCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("Status")
                         .HasMaxLength(50)

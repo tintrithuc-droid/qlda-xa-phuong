@@ -40,6 +40,37 @@ public class KpiSettings
         return tb is not null && rank >= 1 && rank <= tb.Amounts.Count ? tb.Amounts[rank - 1] : 0;
     }
 
+    /// <summary>Bản 1.10.4: cách tính điểm công việc (thiết lập được). Mỗi việc: hệ số mức độ × hệ số đúng hạn × hệ số chất lượng × (1 − trừ mở lại − trừ gia hạn);
+    /// người phối hợp tính hệ số mức độ × CollabFactor. Điểm = 100 × tổng được / tổng hệ số mức độ. Nhiệm vụ đã chia việc con không tính, chỉ tính việc con (việc phát sinh không làm mất việc cha).</summary>
+    public class LevelRule { public string Name { get; set; } = ""; public decimal Weight { get; set; } = 1; }
+    public List<LevelRule> Levels { get; set; } = new() { new() { Name = "Bình thường", Weight = 1 }, new() { Name = "Quan trọng", Weight = 1.5m }, new() { Name = "Khẩn cấp", Weight = 2 } };
+    public class LateStep { public int Days { get; set; } public decimal Factor { get; set; } }
+    /// <summary>Trễ không quá Days ngày làm việc thì nhân Factor; quá bậc cuối thì nhân LateOver.</summary>
+    public List<LateStep> LateSteps { get; set; } = new() { new() { Days = 0, Factor = 1 }, new() { Days = 1, Factor = 0.75m }, new() { Days = 3, Factor = 0.5m } };
+    public decimal LateOver { get; set; } = 0;
+    /// <summary>Hệ số theo nghiệm thu 1–5 sao (chưa nghiệm thu: 1).</summary>
+    public List<decimal> QualityFactors { get; set; } = new() { 0.25m, 0.5m, 0.75m, 0.9m, 1m };
+    public decimal ReopenPenalty { get; set; } = 0.2m;
+    public decimal ExtendPenalty { get; set; } = 0.1m;
+    public decimal CollabFactor { get; set; } = 0.3m;
+    /// <summary>Nhắc việc: số ngày trước hạn bắt đầu nhắc.</summary>
+    public int RemindDays { get; set; } = 2;
+
+    public decimal LevelWeight(string? level)
+    {
+        var l = (level ?? "").Trim();
+        var r = Levels.FirstOrDefault(x => string.Equals(x.Name, l, StringComparison.OrdinalIgnoreCase));
+        if (r is not null) return r.Weight;
+        // mức ưu tiên cũ của công việc dự án
+        return l switch { "Cao" => Levels.ElementAtOrDefault(1)?.Weight ?? 1.5m, "Thấp" => 0.5m, _ => Levels.FirstOrDefault()?.Weight ?? 1m };
+    }
+    public decimal LateFactor(int lateDays)
+    {
+        foreach (var st in LateSteps.OrderBy(x => x.Days)) if (lateDays <= st.Days) return st.Factor;
+        return LateOver;
+    }
+    public decimal QualityFactor(int? q) => q is int v && v >= 1 && v <= QualityFactors.Count ? QualityFactors[v - 1] : 1m;
+
     public const string Key = "kpi";
     private static readonly JsonSerializerOptions Opts = new(JsonSerializerDefaults.Web);
     public static KpiSettings Load(AppDbContext db)
@@ -70,31 +101,59 @@ public class KpiController : ApiControllerBase
 
     private async Task<HashSet<string>> ManagedDepts() => Uc.User is null ? new() :
         (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Uc.User.Id).Select(d => d.Id).ToListAsync()).ToHashSet();
-    private static string Norm(string? s) => System.Text.RegularExpressions.Regex.Replace((s ?? "").Normalize(System.Text.NormalizationForm.FormC).Trim().ToLowerInvariant(), @"\s+", " ");
+    public static string Norm(string? s) => System.Text.RegularExpressions.Regex.Replace((s ?? "").Normalize(System.Text.NormalizationForm.FormC).Trim().ToLowerInvariant(), @"\s+", " ");
 
-    public record WorkDetail(int Total, int OnTime, int Late, int Overdue, decimal Score);
+    public record WorkDetail(int Total, int OnTime, int Late, int Overdue, decimal Score, int Collab = 0);
 
-    /// <summary>Điểm công việc từ công việc dự án giao cho người đó (trường Người phụ trách ghi họ tên hoặc tên đăng nhập), hạn hoặc ngày xong rơi vào tháng.</summary>
-    private static WorkDetail? WorkOf(Employee e, string? username, List<ProjectTask> tasks, DateOnly from, DateOnly to, VpSettings vs)
+    public static bool IsDone(ProjectTask t) => t.Status == "Hoàn thành";
+    /// <summary>Việc được tính KPI: không phải nhiệm vụ có việc con, chưa hủy, việc phát sinh đã được xác nhận.</summary>
+    public static bool Countable(ProjectTask t, HashSet<string> parents) => t.Due != null && !parents.Contains(t.Id) && t.Status != "Đã hủy" && t.Status != "Tạm dừng" && (!t.Arising || t.ArisingConfirmedAt != null);
+    public static List<string> CollabIds(ProjectTask t) => (t.Collaborators ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    /// <summary>Người phụ trách của việc: theo tài khoản (việc giao trên Văn phòng, chuyển từ e-work), không có thì theo họ tên, tên đăng nhập ghi ở công việc dự án.</summary>
+    public static bool IsAssignee(ProjectTask t, Employee e, string? username)
     {
-        var name = Norm(e.Name); var un = Norm(username);
-        var mine = tasks.Where(t => { var a = Norm(t.Assignee); return a.Length > 0 && (a == name || a == un || a.Split(new[] { ',', ';' }).Select(x => x.Trim()).Any(x => x == name || (un.Length > 0 && x == un))); })
-            .Where(t => t.Due is { } d && ((d >= from && d < to) || (t.DoneDate is { } dd && dd >= from && dd < to))).ToList();
-        var today = DateOnly.FromDateTime(VnTime.Now);
-        decimal sw = 0, got = 0; int onTime = 0, late = 0, overdue = 0, n = 0;
-        foreach (var t in mine)
+        if (t.AssigneeUserId is not null) return e.UserId is not null && t.AssigneeUserId == e.UserId;
+        var name = Norm(e.Name); var un = Norm(username); var a = Norm(t.Assignee);
+        return a.Length > 0 && (a == name || a == un || a.Split(new[] { ',', ';' }).Select(x => x.Trim()).Any(x => x == name || (un.Length > 0 && x == un)));
+    }
+
+    /// <summary>Điểm công việc của tháng: việc có hạn hoặc ngày xong rơi vào tháng; việc chưa đến hạn chưa tính.</summary>
+    public static WorkDetail? WorkOf(Employee e, string? username, List<ProjectTask> tasks, HashSet<string> parents, DateOnly from, DateOnly to, VpSettings vs, KpiSettings k, DateOnly? asOf = null)
+    {
+        var today = asOf ?? DateOnly.FromDateTime(VnTime.Now);
+        decimal sw = 0, got = 0; int onTime = 0, late = 0, overdue = 0, n = 0, collab = 0;
+        foreach (var t in tasks)
         {
-            var done = t.Status == "Hoàn thành";
-            if (!done && t.Due >= today) continue; // chưa đến hạn: chưa tính
-            var w = t.Priority == "Cao" ? 1.5m : t.Priority == "Thấp" ? 0.5m : 1m; sw += w; n++;
+            if (!Countable(t, parents)) continue;
+            var mineMain = IsAssignee(t, e, username);
+            var mineCo = !mineMain && e.UserId is not null && CollabIds(t).Contains(e.UserId);
+            if (!mineMain && !mineCo) continue;
+            var d = t.Due!.Value;
+            if (!((d >= from && d < to) || (t.DoneDate is { } dd && dd >= from && dd < to))) continue;
+            var done = IsDone(t);
+            if (!done && d >= today) continue; // chưa đến hạn: chưa tính
+            var w = k.LevelWeight(t.Priority) * (mineCo ? k.CollabFactor : 1m); if (w <= 0) continue;
+            sw += w; n++; if (mineCo) collab++;
             if (!done) { overdue++; continue; }
             var fin = t.DoneDate ?? today; var lateDays = 0;
-            for (var d = t.Due!.Value.AddDays(1); d <= fin; d = d.AddDays(1)) if (VnTime.WorkValue(d, vs) > 0) lateDays++;
-            var c = lateDays == 0 ? 1m : lateDays <= 1 ? 0.75m : lateDays <= 3 ? 0.5m : 0m;
+            for (var x = d.AddDays(1); x <= fin; x = x.AddDays(1)) if (VnTime.WorkValue(x, vs) > 0) lateDays++;
             if (lateDays == 0) onTime++; else late++;
+            var c = k.LateFactor(lateDays) * k.QualityFactor(t.Quality) * Math.Max(0m, 1m - t.ReopenCount * k.ReopenPenalty - t.ExtendCount * k.ExtendPenalty);
             got += w * c;
         }
-        return n == 0 ? null : new WorkDetail(n, onTime, late, overdue, Math.Round(100 * got / sw, 1));
+        return n == 0 ? null : new WorkDetail(n, onTime, late, overdue, Math.Round(100 * got / sw, 1, MidpointRounding.AwayFromZero), collab);
+    }
+
+    /// <summary>Nhiệm vụ đã chia thành việc con (do người giao chia, không tính việc phát sinh): KPI tính theo việc con, không tính chính nhiệm vụ.</summary>
+    public static async Task<HashSet<string>> Containers(AppDbContext db) =>
+        (await db.Tasks.AsNoTracking().Where(t => t.ParentId != null && !t.Arising).Select(t => t.ParentId!).Distinct().ToListAsync()).ToHashSet();
+
+    /// <summary>Công việc cần để tính KPI của khoảng tháng (kèm danh sách nhiệm vụ có việc con).</summary>
+    public static async Task<(List<ProjectTask> tasks, HashSet<string> parents)> TasksFor(AppDbContext db, DateOnly from, DateOnly to)
+    {
+        var tasks = await db.Tasks.AsNoTracking().Where(t => t.Due != null && ((t.Due >= from && t.Due < to) || (t.DoneDate >= from && t.DoneDate < to))).ToListAsync();
+        return (tasks, await Containers(db));
     }
 
     private static decimal AttendanceOf(VpCalc.Row r, List<Attendance> atts, KpiSettings k)
@@ -119,7 +178,7 @@ public class KpiController : ApiControllerBase
         var sheets = await Db.KpiSheets.AsNoTracking().Where(x => x.Month == month).ToDictionaryAsync(x => x.EmployeeId);
         var (_, stats) = await VpCalc.Month(Db, vs, emps, from);
         var atts = (await Db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
-        var tasks = await Db.Tasks.AsNoTracking().Where(t => t.Assignee != null && t.Due != null).ToListAsync();
+        var (tasks, parents) = await TasksFor(Db, from, to);
         var users = await Db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);
         // Hạng trong phòng (tạm tính khi chưa chốt; đã chốt thì dùng hạng lưu cố định)
         var minG = k.Grades.FirstOrDefault(g => g.Name == k.RankMinGrade)?.Min ?? 0;
@@ -128,7 +187,7 @@ public class KpiController : ApiControllerBase
             sheets.TryGetValue(e.Id, out var sh);
             if (sh?.LockedAt != null) return (e, total: sh.Total ?? 0m);
             var st = stats.First(x => x.EmployeeId == e.Id);
-            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, from, to, vs);
+            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, parents, from, to, vs, k);
             var att = e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
             return (e, total: Total(k, sh?.WorkScore ?? wd?.Score, sh?.ProjectScore, att, sh?.ManagerRating is { } mr ? mr * 20m : null));
         }).ToList();
@@ -143,7 +202,7 @@ public class KpiController : ApiControllerBase
         {
             sheets.TryGetValue(e.Id, out var sh); var locked = sh?.LockedAt != null;
             var st = stats.First(x => x.EmployeeId == e.Id);
-            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, from, to, vs);
+            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, parents, from, to, vs, k);
             var work = locked ? sh!.WorkFinal : sh?.WorkScore ?? wd?.Score;
             var att = locked ? sh!.AttendanceFinal : e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
             var mgr = sh?.ManagerRating is { } mr ? mr * 20m : (decimal?)null;
@@ -261,6 +320,12 @@ public class KpiController : ApiControllerBase
         if (k.Grades.Count == 0 || k.Grades.Any(g => string.IsNullOrWhiteSpace(g.Name))) return Error(400, "Nhập ngưỡng xếp loại.");
         k.Grades = k.Grades.OrderByDescending(g => g.Min).ToList();
         if (k.RankTables.Any(x => !System.Text.RegularExpressions.Regex.IsMatch(x.From ?? "", @"^\d{4}-\d{2}$") || x.Amounts.Any(a => a < 0))) return Error(400, "Bảng thưởng theo hạng: tháng áp dụng dạng 2026-05, số tiền không âm.");
+        k.Levels = k.Levels.Where(x => !string.IsNullOrWhiteSpace(x.Name)).Select(x => new KpiSettings.LevelRule { Name = x.Name.Trim(), Weight = x.Weight }).ToList();
+        if (k.Levels.Count == 0 || k.Levels.Any(x => x.Weight < 0 || x.Weight > 10)) return Error(400, "Mức độ công việc: cần ít nhất một mức, hệ số từ 0 đến 10.");
+        if (k.LateSteps.Any(x => x.Days < 0 || x.Factor < 0 || x.Factor > 1) || k.LateOver is < 0 or > 1) return Error(400, "Hệ số trễ hạn từ 0 đến 1, số ngày không âm.");
+        k.LateSteps = k.LateSteps.OrderBy(x => x.Days).ToList();
+        if (k.QualityFactors.Count != 5 || k.QualityFactors.Any(x => x < 0 || x > 1.5m)) return Error(400, "Hệ số chất lượng: đủ 5 mức (1–5 sao), từ 0 đến 1,5.");
+        if (k.ReopenPenalty is < 0 or > 1 || k.ExtendPenalty is < 0 or > 1 || k.CollabFactor is < 0 or > 1 || k.RemindDays is < 0 or > 30) return Error(400, "Hệ số trừ, hệ số phối hợp từ 0 đến 1; nhắc trước 0–30 ngày.");
         k.Save(Db, Uc.User.Username);
         Uc.Log("Cập nhật thiết lập KPI", "KPI", $"Trọng số {k.WWork}/{k.WProject}/{k.WAttendance}/{k.WManager}");
         await Db.SaveChangesAsync(); return Ok(new { ok = true });

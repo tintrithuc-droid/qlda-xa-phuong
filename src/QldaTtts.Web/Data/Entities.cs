@@ -60,6 +60,24 @@ public class ProjectTask : EntityBase, IHasProject
     [MaxLength(50)] public string? Priority { get; set; }
     public string? Note { get; set; }
     public DateOnly? DoneDate { get; set; }
+    // ---- bản 1.10.4: dự án → nhiệm vụ → công việc, việc phát sinh, phối hợp, nghiệm thu chất lượng (tính KPI)
+    /// <summary>Nhiệm vụ (công việc cha). Không có dự án là việc nội bộ công ty.</summary>
+    [MaxLength(64)] public string? ParentId { get; set; }
+    [MaxLength(64)] public string? AssigneeUserId { get; set; }
+    /// <summary>Người phối hợp: mã tài khoản, cách nhau dấu phẩy.</summary>
+    [MaxLength(1000)] public string? Collaborators { get; set; }
+    [MaxLength(64)] public string? AssignedByUserId { get; set; }
+    public DateOnly? StartDate { get; set; }
+    /// <summary>Hạn ban đầu (khi được gia hạn thì Due là hạn mới).</summary>
+    public DateOnly? OriginalDue { get; set; }
+    public int ExtendCount { get; set; }
+    /// <summary>Việc phát sinh trong khi làm nhiệm vụ/công việc ParentId; người giao xác nhận.</summary>
+    public bool Arising { get; set; }
+    public DateTime? ArisingConfirmedAt { get; set; }
+    /// <summary>Nghiệm thu chất lượng 1–5 sao (trống = đạt).</summary>
+    public int? Quality { get; set; }
+    public int ReopenCount { get; set; }
+    [MaxLength(64)] public string? EworkId { get; set; }
 }
 
 [Table("LegalDocuments")]

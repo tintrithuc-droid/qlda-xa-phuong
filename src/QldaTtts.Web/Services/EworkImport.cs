@@ -25,13 +25,15 @@ public static class EworkImport
         public int Notices { get; set; }
         public int PayProfiles { get; set; }
         public int HrRecords { get; set; }
+        public int Projects { get; set; }
+        public int Tasks { get; set; }
         /// <summary>Số dòng lưu trữ theo từng bảng e-work.</summary>
         public Dictionary<string, int> Archive { get; set; } = new();
         public List<string> LinkedAccounts { get; set; } = new();
         /// <summary>Tài khoản mới tạo kèm mật khẩu tạm (chỉ trả về một lần cho quản trị, không lưu).</summary>
         public List<NewAccount> NewAccounts { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
-        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
+        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {Projects} dự án, {Tasks} nhiệm vụ và công việc, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
     }
     public record NewAccount(string Name, string Username, string Password, string? Department);
 
@@ -336,6 +338,104 @@ public static class EworkImport
                 await Save(db, rep);
             }
         }
+
+        // ---- bản 1.10.4: dự án (QuanLyDuAns) → nhiệm vụ (NhomViecs) → công việc (QuanLyCongViecs); khóa theo mã e-work, đã có thì giữ bản trên QLDA
+        var projByEw = new Dictionary<string, string>();
+        var existingProj = await db.Projects.AsNoTracking().ToListAsync();
+        foreach (var d in Luu("QuanLyDuAns"))
+        {
+            var ew = S(d, "Id"); if (ew is null) continue; var id = Cut("da-ew-" + ew, 64)!;
+            var nm = (S(d, "TenGoiThau") ?? "").Trim(); if (nm.Length == 0) nm = "Dự án " + (S(d, "MaHopDong") ?? ew);
+            var code = (S(d, "MaHopDong") ?? "").Trim();
+            var same = existingProj.FirstOrDefault(p => p.Id == id) ?? existingProj.FirstOrDefault(p => Norm(p.Name) == Norm(nm) || (code.Length > 0 && Norm(p.Code) == Norm(code)));
+            if (same is not null) { projByEw[ew] = same.Id; continue; }
+            var stt = Norm(S(d, "TenTrangThaiXuLy"));
+            var pr = new Project
+            {
+                Id = id, Code = Cut(code.Length > 0 ? code : "EW-" + (existingProj.Count + rep.Projects + 1), 50)!, Name = Cut(nm, 500)!, Owner = Cut(S(d, "TenChuDauTu"), 300),
+                Tmdt = Num(d, "GiaTriHopDong") is { } gt && gt > 0 ? (decimal)gt : null, Start = Date(S(d, "NgayBatDau")), End = Date(S(d, "HanXuLy")),
+                Status = Regex.IsMatch(stt, "hoàn thành|kết thúc|đã xử lý") || Date(S(d, "NgayHoanThanh")) is not null ? "Hoàn thành" : "Đang thực hiện",
+                Desc = Plain(S(d, "MoTa")) is { Length: > 0 } mt ? mt : null, ProjectKind = "Nhiệm vụ khác", UpdatedAt = now, UpdatedBy = by
+            };
+            db.Projects.Add(pr); existingProj.Add(pr); projByEw[ew] = id; rep.Projects++;
+        }
+        await Save(db, rep);
+        var haveT = (await db.Tasks.AsNoTracking().Where(t => t.EworkId != null).Select(t => new { t.EworkId, t.Id }).ToListAsync()).ToDictionary(x => x.EworkId!, x => x.Id);
+        var nvId = new Dictionary<string, string>();
+        foreach (var g in Luu("NhomViecs"))
+        {
+            var ew = S(g, "Id"); if (ew is null) continue; var key = Cut("nv:" + ew, 64)!;
+            if (haveT.TryGetValue(key, out var hid)) { nvId[ew] = hid; continue; }
+            var id = Cut("nv-ew-" + ew, 64)!;
+            var pid = S(g, "RefIdQuanLyDuAn") is { } rp && projByEw.TryGetValue(rp, out var pp) ? pp : null;
+            var stt = Norm(S(g, "RefTenTrangThai"));
+            db.Tasks.Add(new ProjectTask
+            {
+                Id = id, EworkId = key, Name = Cut((S(g, "Ten") ?? "").Trim() is { Length: > 0 } tn ? tn : "Nhiệm vụ", 500)!, ProjectId = pid, Note = Plain(S(g, "MoTa")) is { Length: > 0 } mt ? mt : null,
+                Status = Regex.IsMatch(stt, "hoàn thành|kết thúc|đóng") ? "Hoàn thành" : "Đang thực hiện", AssignedByUserId = UserOf(S(g, "CreatedBy")),
+                StartDate = Date(S(g, "CreatedDate")), UpdatedAt = now, UpdatedBy = by
+            });
+            nvId[ew] = id; haveT[key] = id; rep.Tasks++;
+        }
+        await Save(db, rep);
+        // công việc: hai lượt (việc tạo ra từ công việc khác là việc phát sinh, cha là công việc đó)
+        var cvs = Luu("QuanLyCongViecs").Where(c => S(c, "Id") is not null).ToList();
+        string CvId(string ew) => Cut("cv-ew-" + ew, 64)!;
+        var cvSet = cvs.Select(c => S(c, "Id")!).ToHashSet();
+        var statusStat = new Dictionary<string, int>();
+        var n0 = 0;
+        foreach (var c in cvs)
+        {
+            var ew = S(c, "Id")!; var key = Cut("cv:" + ew, 64)!;
+            if (haveT.ContainsKey(key)) continue;
+            var stRaw = (S(c, "TenTrangThaiXuLy") ?? S(c, "TrangThaiCongViec") ?? "").Trim();
+            statusStat[stRaw] = statusStat.GetValueOrDefault(stRaw) + 1;
+            var stt = Norm(stRaw);
+            var isDone = Regex.IsMatch(stt, "hoàn thành|đã xử lý|kết thúc|đã duyệt|chờ duyệt|chờ nghiệm thu|chờ đánh giá") || (stt.Length == 0 && Date(S(c, "NgayHoanThanh")) is not null);
+            var status = Regex.IsMatch(stt, "hủy|huỷ|từ chối") ? "Đã hủy" : isDone ? "Hoàn thành" : Regex.IsMatch(stt, "tạm dừng|dừng") ? "Tạm dừng"
+                : Regex.IsMatch(stt, "chưa|mới|chờ") ? "Chưa bắt đầu" : "Đang thực hiện";
+            var doneAt = isDone ? Date(S(c, "NgayHoanThanh")) ?? Date(S(c, "NgayKetThucXuLy")) ?? Date(S(c, "ModifiedDate")) ?? Date(S(c, "HanXuLy")) : null;
+            string? parent = null; var arising = false;
+            if (Norm(S(c, "RefTableNameCreate")).Contains("congviec") && S(c, "TableCreateRefId") is { } tc && cvSet.Contains(tc) && tc != ew) { parent = CvId(tc); arising = true; }
+            else if (S(c, "NhomViec") is { } nv && nvId.TryGetValue(nv, out var nvi)) parent = nvi;
+            var assignee = UserOf(S(c, "NguoiXuLy"));
+            var co = Regex.Split((S(c, "ThongTinPhoiHop") ?? "") + "," + (S(c, "ThongTinXuLyPhu") ?? ""), "[^A-Za-z0-9-]+").Where(x => x.Length > 0 && empByEw.ContainsKey(x))
+                .Select(x => empByEw[x].UserId).Where(x => x is not null && x != assignee).Distinct().ToList();
+            var created = Dt(S(c, "CreatedDate"));
+            db.Tasks.Add(new ProjectTask
+            {
+                Id = CvId(ew), EworkId = key, Name = Cut((S(c, "TenCongViec") ?? "").Trim() is { Length: > 0 } tn ? tn : Plain(S(c, "NoiDung")).Split('\n')[0] is { Length: > 0 } nd ? nd : "Công việc", 500)!,
+                Note = Cut(string.Join("\n", new[] { Plain(S(c, "NoiDung")), Plain(S(c, "KetQuaXuLy")) is { Length: > 0 } kq ? "Kết quả: " + kq : "" }.Where(x => x.Length > 0)), 8000) is { Length: > 0 } nt ? nt : null,
+                ParentId = parent, Arising = arising, ArisingConfirmedAt = arising ? (created is { } cd ? VnTime.ToUtc(cd) : DateTime.UtcNow) : null,
+                AssigneeUserId = assignee, Assignee = Cut(S(c, "TenNguoiXuLy"), 200), AssignedByUserId = UserOf(S(c, "NguoiGiaoViec") ?? S(c, "NguoiNhap")),
+                Collaborators = co.Count > 0 ? Cut(string.Join(",", co), 1000) : null, Priority = Cut(S(c, "TenCapDo"), 50),
+                StartDate = Date(S(c, "NgayBatDau")) ?? (created is { } c2 ? DateOnly.FromDateTime(c2) : null), Due = Date(S(c, "HanXuLy")), Status = status,
+                DoneDate = status == "Hoàn thành" ? doneAt : null, ExtendCount = (int)(Num(c, "SoLanGiaHan") ?? 0), ReopenCount = (int)(Num(c, "SoLanMoLai") ?? 0),
+                UpdatedAt = now, UpdatedBy = by
+            });
+            haveT[key] = CvId(ew); rep.Tasks++;
+            if (++n0 % 2000 == 0) await Save(db, rep);
+        }
+        await Save(db, rep);
+        // việc cha phát sinh trỏ đến công việc không có trong bản xuất: bỏ liên kết; dự án theo việc cha
+        var ewTasks = await db.Tasks.Where(t => t.EworkId != null && t.EworkId.StartsWith("cv:")).ToListAsync();
+        var tById = (await db.Tasks.AsNoTracking().Select(t => new { t.Id, t.ProjectId, t.ParentId }).ToListAsync()).ToDictionary(t => t.Id);
+        foreach (var t in ewTasks.Where(t => t.ParentId is not null && t.ProjectId is null))
+        {
+            var p = t.ParentId; var guard = 0;
+            while (p is not null && tById.TryGetValue(p, out var pt) && guard++ < 20) { if (pt.ProjectId is not null) { t.ProjectId = pt.ProjectId; break; } p = pt.ParentId; }
+        }
+        // hạn ban đầu từ lịch sử gia hạn (TaskGiaHans), lần mở lại từ TaskMoLais nếu bảng công việc không ghi
+        var giaHan = Luu("TaskGiaHans").Where(x => S(x, "RefId") is not null).GroupBy(x => S(x, "RefId")!).ToDictionary(g => g.Key, g => g.Count());
+        var moLai = Luu("TaskMoLais").Where(x => S(x, "RefId") is not null).GroupBy(x => S(x, "RefId")!).ToDictionary(g => g.Key, g => g.Count());
+        foreach (var t in ewTasks)
+        {
+            var ew = t.EworkId![3..];
+            if (t.ExtendCount == 0 && giaHan.TryGetValue(ew, out var gh)) t.ExtendCount = gh;
+            if (t.ReopenCount == 0 && moLai.TryGetValue(ew, out var ml)) t.ReopenCount = ml;
+        }
+        await Save(db, rep); db.ChangeTracker.Clear();
+        if (statusStat.Count > 0) rep.Warnings.Add("Trạng thái công việc e-work: " + string.Join("; ", statusStat.OrderByDescending(x => x.Value).Take(12).Select(x => $"{(x.Key.Length > 0 ? x.Key : "(trống)")}: {x.Value}")));
 
         // ---- lưu trữ nguyên vẹn mọi bảng nghiệp vụ e-work (thay theo từng bảng, chạy lại không trùng)
         if (lt.ValueKind == JsonValueKind.Object)

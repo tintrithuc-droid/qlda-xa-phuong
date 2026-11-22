@@ -1,6 +1,6 @@
 /* Service worker: lưu sẵn khung giao diện để mở nhanh trên điện thoại; dữ liệu nghiệp vụ (/api) luôn lấy từ máy chủ */
-const CACHE = 'qlda-shell-v30';
-const SHELL = ['/', '/css/app.css', '/css/congnghe.css', '/js/seed.js', '/js/core.js', '/js/views-1.js', '/js/views-2.js', '/js/views-3.js', '/js/views-4.js', '/js/import.js', '/js/opening.js', '/js/views-vp.js', '/js/views-vp2.js', '/lib/xlsx.full.min.js', '/lib/exceljs.min.js', '/icons/icon.svg', '/manifest.webmanifest'];
+const CACHE = 'qlda-shell-v31';
+const SHELL = ['/', '/css/app.css', '/css/congnghe.css', '/js/seed.js', '/js/core.js', '/js/views-1.js', '/js/views-2.js', '/js/views-3.js', '/js/views-4.js', '/js/import.js', '/js/opening.js', '/js/views-vp.js', '/js/views-vp2.js', '/js/views-vp3.js', '/lib/xlsx.full.min.js', '/lib/exceljs.min.js', '/icons/icon.svg', '/manifest.webmanifest'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

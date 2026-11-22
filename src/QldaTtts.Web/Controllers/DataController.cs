@@ -51,6 +51,8 @@ public class DataController : ApiControllerBase
             if (Hidden(def.Name)) { result[def.Name] = new List<object>(); continue; }
             // Sắp theo mã để thứ tự ổn định trên mọi CSDL (PostgreSQL không giữ thứ tự dòng sau khi cập nhật)
             var list = await def.Query(Db).AsNoTracking().OrderBy(e => e.Id).ToListAsync();
+            // Bản 1.10.4: việc nội bộ (không thuộc dự án) và việc cũ chuyển từ e-work đã xong quá 90 ngày xem ở Văn phòng → Công việc, không gửi kèm dữ liệu dự án
+            if (def.Name == "tasks") { var old = DateOnly.FromDateTime(VnTime.Now).AddDays(-90); list = list.Where(e => e is ProjectTask t && t.ProjectId != null && !(t.EworkId != null && t.Status == "Hoàn thành" && t.DoneDate < old)).ToList(); }
             result[def.Name] = list.Where(Visible).Where(e => e is not Guide g || Uc.SeesGuide(g)).Where(e => e is not ApprovalLog a || !Hidden(a.Collection)).Cast<object>().ToList();
         }
         var hiddenGuides = (await Db.Guides.AsNoTracking().ToListAsync()).Where(g => !Uc.SeesGuide(g)).Select(g => g.Id).ToHashSet();

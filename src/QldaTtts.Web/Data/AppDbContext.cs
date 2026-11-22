@@ -44,6 +44,9 @@ public class AppDbContext : DbContext
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Attendance> Attendances => Set<Attendance>();
     public DbSet<Request> Requests => Set<Request>();
+    public DbSet<Meeting> Meetings => Set<Meeting>();
+    public DbSet<Notice> Notices => Set<Notice>();
+    public DbSet<NoticeRead> NoticeReads => Set<NoticeRead>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -98,6 +101,9 @@ public class AppDbContext : DbContext
         b.Entity<Attendance>().HasIndex(x => x.Date);
         b.Entity<Request>().HasIndex(x => x.EmployeeId);
         b.Entity<Request>().HasIndex(x => x.Status);
+        b.Entity<Meeting>().HasIndex(x => x.StartAt);
+        b.Entity<Notice>().HasIndex(x => x.PublishedAt);
+        b.Entity<NoticeRead>().HasIndex(x => new { x.NoticeId, x.UserId }).IsUnique();
     }
 }
 

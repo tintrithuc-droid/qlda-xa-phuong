@@ -116,6 +116,22 @@ public class BackupController : ApiControllerBase
                     foreach (var a in await Db.Attachments.Where(a => a.DeletedAt == null && business.Contains(a.Collection)).ToListAsync())
                         if (!inFile.Contains(a.Id)) { a.DeletedAt = DateTime.UtcNow; a.DeletedBy = Uc.User.Name + " (phục hồi sao lưu)"; }
             }
+            // Phân hệ Văn phòng: chỉ ghi đè, thêm (không xóa), để phục hồi tệp sao lưu cũ không làm mất dữ liệu nhân sự, chấm công đang có
+            foreach (var (name, type) in BackupService.VpTypes)
+            {
+                if (!data.TryGetProperty(name, out var va) || va.ValueKind != JsonValueKind.Array) continue;
+                foreach (var el in va.EnumerateArray())
+                {
+                    var o = (EntityBase)JsonSerializer.Deserialize(el.GetRawText(), type, JsonConfig.Options)!;
+                    if (!ValidId(o.Id)) continue;
+                    var ex = await Db.FindAsync(type, o.Id);
+                    // Trùng khóa duy nhất với bản ghi khác mã (một người một ngày điểm danh, một người xem một thông báo): giữ bản đang có
+                    if (ex is null && o is Attendance at && await Db.Attendances.AnyAsync(x => x.EmployeeId == at.EmployeeId && x.Date == at.Date)) continue;
+                    if (ex is null && o is NoticeRead nr && await Db.NoticeReads.AnyAsync(x => x.NoticeId == nr.NoticeId && x.UserId == nr.UserId)) continue;
+                    if (ex is null) Db.Add(o); else Db.Entry(ex).CurrentValues.SetValues(o);
+                    n++;
+                }
+            }
             if (data.TryGetProperty("settings", out var sa) && sa.ValueKind == JsonValueKind.Array)
                 foreach (var el in sa.EnumerateArray())
                 {

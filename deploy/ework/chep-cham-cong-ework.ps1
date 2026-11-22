@@ -25,6 +25,8 @@ if ($Khoa -eq "FILE") { $Khoa = (Get-Content (Join-Path (Split-Path -Parent $me)
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $log = Join-Path (Split-Path -Parent $me) "chep-cham-cong.log"
 function Ghi($m) { Add-Content -Path $log -Value ("{0:yyyy-MM-dd HH:mm:ss} {1}" -f (Get-Date), $m) -Encoding UTF8 }
+# Bản 1.10: lỗi (mất kết nối QLDA, SQL Server từ chối tài khoản SYSTEM…) ghi vào chep-cham-cong.log để kiểm tra
+trap { Ghi ("LỖI: " + $_.Exception.Message); exit 1 }
 $ds = Invoke-RestMethod -Uri "$Qlda/api/vp/sync/pending" -Headers @{ "X-Sync-Key" = $Khoa } -TimeoutSec 60
 if (-not $ds -or $ds.Count -eq 0) { exit 0 }
 $cn = New-Object System.Data.SqlClient.SqlConnection "Server=$May;Database=$Csdl;Integrated Security=True;TrustServerCertificate=True"; $cn.Open()

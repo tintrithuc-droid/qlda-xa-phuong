@@ -108,3 +108,60 @@ public class Request : EntityBase
     public DateTime CreatedAt { get; set; }
     [MaxLength(64)] public string? EworkId { get; set; }
 }
+
+/* Bản 1.10: lịch công tác, lịch họp và thông báo nội bộ. */
+
+/// <summary>Một mục lịch công tác tuần: cuộc họp, buổi làm việc, đi công tác, sự kiện.</summary>
+[Table("Meetings")]
+public class Meeting : EntityBase
+{
+    /// <summary>Họp / Làm việc / Công tác / Sự kiện.</summary>
+    [MaxLength(30)] public string Kind { get; set; } = "Họp";
+    [MaxLength(500)] public string Title { get; set; } = "";
+    public DateTime StartAt { get; set; }
+    public DateTime? EndAt { get; set; }
+    [MaxLength(300)] public string? Place { get; set; }
+    [MaxLength(500)] public string? OnlineLink { get; set; }
+    /// <summary>Người chủ trì (tên hiển thị, ghi tự do: "Giám đốc", "Ông A").</summary>
+    [MaxLength(200)] public string? Chair { get; set; }
+    /// <summary>Thành phần (ghi tự do, in ra lịch tuần).</summary>
+    [MaxLength(1000)] public string? Participants { get; set; }
+    /// <summary>Mã hồ sơ nhân sự được mời, cách nhau dấu phẩy (hiện ở "Lịch của tôi").</summary>
+    public string? AttendeeIds { get; set; }
+    /// <summary>Đơn vị, người chuẩn bị nội dung.</summary>
+    [MaxLength(300)] public string? Preparer { get; set; }
+    public string? Content { get; set; }
+    /// <summary>Kết luận, ghi chép sau cuộc họp.</summary>
+    public string? Conclusion { get; set; }
+    /// <summary>Đã lên lịch / Đã hoãn / Đã hủy.</summary>
+    [MaxLength(30)] public string Status { get; set; } = "Đã lên lịch";
+    [MaxLength(64)] public string? CreatedByUserId { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>Thông báo nội bộ gửi toàn công ty hoặc một số phòng ban.</summary>
+[Table("Notices")]
+public class Notice : EntityBase
+{
+    [MaxLength(500)] public string Title { get; set; } = "";
+    public string? Body { get; set; }
+    /// <summary>Quan trọng: hiện nổi trên trang Điểm danh đến khi người nhận đã xem.</summary>
+    public bool Important { get; set; }
+    public bool Pinned { get; set; }
+    /// <summary>Phòng ban nhận, cách nhau dấu phẩy; trống = toàn công ty.</summary>
+    public string? DeptIds { get; set; }
+    public DateTime PublishedAt { get; set; }
+    public DateOnly? ExpireOn { get; set; }
+    [MaxLength(200)] public string? AuthorName { get; set; }
+    [MaxLength(64)] public string? CreatedByUserId { get; set; }
+    [MaxLength(500)] public string? Link { get; set; }
+}
+
+/// <summary>Ai đã xem thông báo, lúc nào.</summary>
+[Table("NoticeReads")]
+public class NoticeRead : EntityBase
+{
+    [MaxLength(64)] public string NoticeId { get; set; } = "";
+    [MaxLength(64)] public string UserId { get; set; } = "";
+    public DateTime ReadAt { get; set; }
+}

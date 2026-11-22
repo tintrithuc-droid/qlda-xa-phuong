@@ -170,7 +170,7 @@ function authArt(){
   return `<div class="art${bg}">${deco&&!BR.logo&&!BR.loginBg?`<div class="drum-mark">${drumSVG()}</div>`:''}
   <div class="art-head"><div class="seal${BR.logo?' logo':''}">${brandMark()}</div><div><div class="org1">${esc(BR.orgName)}</div><div class="org2">${esc(BR.unitName)}</div></div></div>
   <div class="art-title"><h1>${esc(BR.bannerTitle)}</h1><p>${esc(BR.bannerText)}</p></div>
-  <div class="meta">${esc(BR.address)}</div></div>`;
+  ${/* địa chỉ chưa điền (còn dấu …) thì không hiện dòng giữ chỗ */ /…\s*$|\.\.\.\s*$/.test(BR.address||'')?'':`<div class="meta">${esc(BR.address)}</div>`}</div>`;
 }
 const authCls = () => 'auth'+(BR.bannerDeco==='0'?' plain':'');
 function renderSetup(){

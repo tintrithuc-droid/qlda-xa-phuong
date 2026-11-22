@@ -105,7 +105,8 @@
 :root[data-style="tech"] .ov{background:rgba(8,11,18,.48)}
 
 /* ===== Trang đăng nhập, khởi tạo ===== */
-:root[data-style="tech"] .auth{border-top:0; grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+:root[data-style="tech"] .auth{border-top:0}
+@media (min-width:821px){ :root[data-style="tech"] .auth{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
 :root[data-style="tech"] .auth .art{border-right:0; background-color:var(--brand);
   background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.07) 1px, transparent 0); background-size:22px 22px}
 :root[data-style="tech"] .auth .art.has-bg{background:var(--brand) var(--art-bg) center/cover no-repeat}
@@ -132,3 +133,18 @@
 @media (max-width:820px){
   :root[data-style="tech"] .app{grid-template-columns:1fr}
 }
+
+/* ===== Nút xuất Excel, PDF: luôn có khung và biểu tượng tải xuống để dễ nhận ra (kể cả nút kiểu ghost) ===== */
+:root[data-style="tech"] .btn:not(.primary):is([data-act$="-xlsx"],[data-act$="-pdf"],[data-act^="export-"],[data-act$="-csv"]){
+  background:var(--panel); border-color:var(--line2); color:var(--ink)}
+:root[data-style="tech"] .btn:not(.primary):is([data-act$="-xlsx"],[data-act$="-pdf"],[data-act^="export-"],[data-act$="-csv"]):hover{background:var(--panel2)}
+:root[data-style="tech"] .btn:is([data-act$="-xlsx"],[data-act$="-pdf"],[data-act^="export-"],[data-act$="-csv"])::before{
+  content:""; width:14px; height:14px; flex:none; background:currentColor; opacity:.75;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2'/%3E%3C/svg%3E") center/contain no-repeat}
+
+/* Liên kết tên người trong bảng: không gạch chân, gạch khi rê chuột */
+:root[data-style="tech"] td a{text-decoration:none; font-weight:500}
+:root[data-style="tech"] td a:hover{text-decoration:underline}
+/* Tiêu đề trang và dòng mô tả: khoảng cách đều cho mọi màn hình */
+:root[data-style="tech"] .head .grow > p, :root[data-style="tech"] .head > div > p{margin-top:6px}

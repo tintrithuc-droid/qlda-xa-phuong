@@ -743,3 +743,12 @@ select:not([multiple]):not([size]):disabled{opacity:.6}
 .vp-types{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px}
 .vp-types .btn{justify-content:center; min-height:44px}
 @media (max-width:820px){ .vp-top{grid-template-columns:1fr!important} }
+/* Bản 1.10.1: trang đăng nhập trên điện thoại không bao giờ tràn ngang (tên đơn vị dài, mã kiểm tra, ảnh logo, cỡ chữ lớn) */
+@media (max-width:820px){
+  .auth{overflow-x:hidden; width:100%}
+  .auth .art, .auth .box, .auth form{min-width:0; max-width:100%}
+  .auth form{width:100%}
+  .auth form *, .art-head, .art-title{min-width:0; overflow-wrap:anywhere}
+  .auth form input:not([type=checkbox]):not([type=radio]){width:100%}
+  .auth .cap-img{max-width:100%; height:auto}
+}

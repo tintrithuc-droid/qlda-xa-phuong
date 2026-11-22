@@ -5,7 +5,7 @@ const fs = require('fs'), path = require('path');
 // TT=1: thông tin Công ty CP Tin học Tri Thức, lĩnh vực CNTT, không nạp dữ liệu mẫu xã/phường
 const TT = process.env.TT === '1';
 const BR_TT = { appName: 'Quản lý dự án, văn phòng', orgShort: 'Tin học Tri Thức', orgName: 'Công ty Cổ phần Tin học Tri Thức', unitName: 'Hệ thống quản lý dự án và văn phòng',
-  bannerTitle: 'Quản lý dự án, văn phòng Tri Thức', bannerText: 'Tri Thức số hóa công việc. Điểm danh, đề xuất, bảng công, lịch công tác, thông báo, KPI và dự án trên một hệ thống.', address: 'Tầng 3, Tòa nhà An Phú Plaza, 117-119 Lý Chính Thắng, P. Võ Thị Sáu, Q.3, TP.HCM', footer: '© {năm} Công ty Cổ phần Tin học Tri Thức',
+  bannerTitle: 'Quản lý dự án, văn phòng Tri Thức', bannerText: 'Tri Thức số hóa công việc. Điểm danh, đề xuất, bảng công, lịch công tác, thông báo, KPI và dự án trên một hệ thống.', address: 'Tầng 3, Tòa nhà An Phú Plaza, 117-119 Lý Chính Thắng, P. Võ Thị Sáu, Q.3, TP.HCM · ĐT 028-62748006 / 028-2228 6677 · info@trithuc.asia', footer: '© {năm} Công ty Cổ phần Tin học Tri Thức',
   reportOrg: 'Công ty Cổ phần Tin học Tri Thức', support: 'Hỗ trợ: quản trị hệ thống Tri Thức', field: 'cntt', bannerDeco: '0', printNation: '1', signReport: 'GIÁM ĐỐC', signApprove: 'BAN GIÁM ĐỐC' };
 const OUT = process.argv[2], STYLE = process.argv[3] || '', BASE = process.argv[4] || 'http://127.0.0.1:5080';
 fs.mkdirSync(OUT, { recursive: true });

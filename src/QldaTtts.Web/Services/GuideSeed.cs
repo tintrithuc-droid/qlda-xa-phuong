@@ -1,4 +1,4 @@
-using QldaTtts.Web.Data;
+﻿using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
 
@@ -90,12 +90,22 @@ public static class GuideSeed
         if (pdfs.Length == 0) return;
         var key = RefreshFlag + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("|", pdfs.Select(Path.GetFileName)))))[..32];
         if (db.Settings.Any(s => s.Key == key)) return;
-        foreach (var (file, title, _, content) in RolesOf(dir))
+        var roles = RolesOf(dir); var custom = !ReferenceEquals(roles, Roles);
+        var order = (db.Guides.Max(x => (int?)x.Order) ?? 0) + 1;
+        foreach (var (file, title, groups, content) in roles)
         {
             var pdf = pdfs.FirstOrDefault(p => Path.GetFileName(p).Contains(" - " + file + " - ", StringComparison.OrdinalIgnoreCase));
             var g = db.Guides.FirstOrDefault(x => x.Title == title && x.UpdatedBy == "he-thong")
                 ?? (file == "Lanh dao xa phuong" ? db.Guides.FirstOrDefault(x => x.Title == "Hướng dẫn sử dụng dành cho Lãnh đạo UBND xã" && x.UpdatedBy == "he-thong") : null);
             if (g is not null && g.Title != title) { g.Title = title; g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
+            // Bản 1.10.4: bộ riêng của đơn vị (vai-tro.json) có vai trò mới chưa có hướng dẫn thì thêm (máy đã nạp bộ chuẩn trước đó)
+            if (g is null && pdf is not null && custom)
+            {
+                g = new Guide { Id = "gd-" + Guid.NewGuid().ToString("N")[..12], Title = title, Category = "Tài liệu hướng dẫn sử dụng", Content = content,
+                    Groups = groups.ToList(), Order = order++, UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" };
+                db.Guides.Add(g);
+            }
+            if (g is not null && custom && pdf is not null && !g.Groups.OrderBy(x => x).SequenceEqual(groups.OrderBy(x => x))) { g.Groups = groups.ToList(); g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
             if (pdf is null || g is null) continue;
             var olds = db.Attachments.Where(a => a.Collection == "guides" && a.RecordId == g.Id && a.DeletedAt == null).ToList();
             if (olds.Any(a => a.FileName == Path.GetFileName(pdf))) continue;

@@ -26,7 +26,11 @@ const BASE = process.argv[2] || 'http://127.0.0.1:5080';
   await p.screenshot({ path: __dirname + '/shots/v12-bao-cao-loc-ngay.png' });
 
   // 3) Phân trang: bảng hơn 20 dòng có thanh phân trang, bấm trang sau ra dòng 21–
-  await p.evaluate(() => { location.hash = 'thanh-toan'; S.tab.tt = 'kh'; }); await p.waitForTimeout(500); await p.evaluate(() => render()); await p.waitForTimeout(300);
+  await p.evaluate(() => { location.hash = 'thanh-toan'; S.tab.tt = 'kh';
+    // bản 1.8 trở đi: trang Thanh toán mở danh sách hợp đồng trước, kế hoạch thanh toán xem theo từng hợp đồng (chọn hợp đồng nhiều kế hoạch nhất)
+    const n = {}; Store.data.payplans.forEach(x => n[x.contractId] = (n[x.contractId] || 0) + 1); S.f.ttc = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+    // thêm tạm (chỉ trên trình duyệt, không lưu) cho đủ hơn 20 dòng để kiểm tra phân trang
+    const t = Store.data.payplans.find(x => x.contractId === S.f.ttc); for (let i = n[S.f.ttc]; i < 23; i++) Store.data.payplans.push({ ...t, id: 'tmp-' + i }); }); await p.waitForTimeout(500); await p.evaluate(() => render()); await p.waitForTimeout(300);
   const pg1 = await p.textContent('.pager'); if (!/1–20 \/ 2\d dòng/.test(pg1)) errs.push('Không có phân trang kế hoạch thanh toán: ' + pg1);
   await p.click('.pager [data-p="2"] >> nth=0'); await p.waitForTimeout(300);
   const pg2 = await p.textContent('.pager'); if (!/^21–/.test(pg2.trim())) errs.push('Bấm trang sau không chuyển trang: ' + pg2);

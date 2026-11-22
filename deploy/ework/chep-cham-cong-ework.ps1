@@ -28,7 +28,7 @@ if ($Khoa -eq "FILE") { $Khoa = (Get-Content (Join-Path (Split-Path -Parent $me)
 $log = Join-Path (Split-Path -Parent $me) "chep-cham-cong.log"
 function Ghi($m) { Add-Content -Path $log -Value ("{0:yyyy-MM-dd HH:mm:ss} {1}" -f (Get-Date), $m) -Encoding UTF8 }
 # Bản 1.10: lỗi (mất kết nối QLDA, SQL Server từ chối tài khoản SYSTEM…) ghi vào chep-cham-cong.log để kiểm tra
-trap { Ghi ("LỖI: " + $_.Exception.Message); exit 1 }
+trap { Ghi ("LỖI: " + $_.Exception.Message + $(if ($_.ErrorDetails) { " | " + $_.ErrorDetails.Message } else { "" })); exit 1 }   # 1.10.4: ghi cả thân lỗi máy chủ trả về
 $ds = Invoke-RestMethod -Uri "$Qlda/api/vp/sync/pending" -Headers @{ "X-Sync-Key" = $Khoa } -TimeoutSec 60
 if (-not $ds -or $ds.Count -eq 0) { exit 0 }
 $cn = New-Object System.Data.SqlClient.SqlConnection "Server=$May;Database=$Csdl;Integrated Security=True;TrustServerCertificate=True"; $cn.Open()
@@ -56,5 +56,5 @@ foreach ($a in $ds) {
   $ack += @{ id = $a.id; eworkId = $id }
 }
 $cn.Close()
-Invoke-RestMethod -Uri "$Qlda/api/vp/sync/ack" -Method Post -Headers @{ "X-Sync-Key" = $Khoa } -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes((@{ items = $ack } | ConvertTo-Json -Depth 4))) -TimeoutSec 60 | Out-Null
+Invoke-RestMethod -Uri "$Qlda/api/vp/sync/ack" -Method Post -Headers @{ "X-Sync-Key" = $Khoa; "X-QLDA" = "1" } -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes((@{ items = $ack } | ConvertTo-Json -Depth 4))) -TimeoutSec 60 | Out-Null
 Ghi "Đã chép $them lượt, đánh dấu $($ack.Count)."

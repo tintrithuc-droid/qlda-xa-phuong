@@ -88,6 +88,11 @@ function cli(args, extraEnv = {}) {
   const ctx4 = await b.newContext();
   ok((await ctx4.request.get(BASE + '/api/vp/sync/pending', { headers: { 'X-Sync-Key': key } })).ok(), 'Khóa tạo bằng lệnh không dùng được');
   ok((await ctx4.request.get(BASE + '/api/vp/sync/pending', { headers: { 'X-Sync-Key': 'sai' } })).status() === 403, 'Khóa sai vẫn chép được');
+  // 1.10.4: script chép báo lại "đã chép" phải kèm X-QLDA (chặn CSRF), như chep-cham-cong-ework.ps1
+  const ackBody = { items: [{ id: 'khong-co', eworkId: null }] };
+  ok((await ctx4.request.post(BASE + '/api/vp/sync/ack', { headers: { 'X-Sync-Key': key }, data: ackBody })).status() === 400, 'Thiếu X-QLDA mà vẫn nhận');
+  const ack = await ctx4.request.post(BASE + '/api/vp/sync/ack', { headers: { 'X-Sync-Key': key, 'X-QLDA': '1' }, data: ackBody });
+  ok(ack.ok(), 'Báo đã chép lỗi: ' + ack.status());
   const vs = await (await r.get(BASE + '/api/vp/settings', { headers: H })).json();
   ok(JSON.stringify(vs).includes('2026-11-23'), 'Không lưu ngày bắt đầu chép');
   c = cli(['--tao-khoa-chep', '/khong/co/thu-muc/k.txt']);

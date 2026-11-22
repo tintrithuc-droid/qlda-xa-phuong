@@ -32,7 +32,7 @@ function totp(secret) {
   const imp2 = await (await r.post(BASE + '/api/vp/import-ework', { headers: H, multipart: { file: { name: 'ework.json', mimeType: 'application/json', buffer: fs.readFileSync(path.join(__dirname, '../fixtures/ework_mau.json')) } } })).json();
   ok(imp2.employees === 0 && imp2.attendances === 0 && imp2.requests === 0 && imp2.newAccounts.length === 0, 'Nhập lần 2 bị trùng');
   const st0 = await (await r.get(BASE + '/api/vp/state', { headers: H })).json();
-  ok(st0.settings.places.length === 1 && st0.settings.holidays.length === 2, 'Thiết lập nơi điểm danh, ngày nghỉ chưa nạp');
+  ok(st0.settings.places.length === 1 && st0.settings.holidays.includes('2026-09-02 Quốc khánh') && st0.settings.holidays.includes('2026-12-31:s Cuối năm'), 'Thiết lập nơi điểm danh, ngày nghỉ chưa nạp');
   // Gắn hồ sơ cho quản trị để điểm danh
   const depts = await (await r.get(BASE + '/api/vp/departments', { headers: H })).json();
   await r.put(BASE + '/api/vp/employees/ns-admin', { headers: H, data: { name: 'Quản Trị', userId: st0.perms ? (await p.evaluate(() => S.user.id)) : null, departmentId: depts[0].id, status: 'Đang làm việc', attendance: true } });

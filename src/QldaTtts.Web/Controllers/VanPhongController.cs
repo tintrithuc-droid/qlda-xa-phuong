@@ -74,7 +74,7 @@ public class VanPhongController : ApiControllerBase
             me = me is null ? null : Public(me), today = today.ToString("yyyy-MM-dd"), now = VnTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), attendance = att,
             settings = new { s.CheckIn, s.CheckOut, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.AllowOutside,
                 places = s.Places.Select(p => new { p.Name, p.Lat, p.Lng, p.Radius }), s.Holidays, s.Workdays, ipCount = s.Ips.Count, syncOn = s.SyncKeyHash != null, s.SyncFrom },
-            leave = new { year, total = s.LeavePerYear, used, left = s.LeavePerYear - used },
+            leave = new { year, total = me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year), used, left = (me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year)) - used },
             perms = new { hr = Uc.Can("nhan-su"), hrEdit = Uc.Can("nhan-su", true), att = Uc.Can("diem-danh"), attEdit = Uc.Can("diem-danh", true),
                 req = Uc.Can("de-xuat"), approve = CanApproveAll || depts.Count > 0, admin = Uc.IsAdmin, managed = depts },
             pending, types = RequestTypes, ip = Uc.Ip
@@ -172,6 +172,23 @@ public class VanPhongController : ApiControllerBase
         Uc.Log("Cập nhật hồ sơ nhân sự", "Nhân sự", x.Name, "employees", x.Id);
         await Db.SaveChangesAsync();
         return Ok(x);
+    }
+
+    public record PayrollBody(bool? Include);
+
+    /// <summary>Bản 1.10.4: Ban giám đốc, kế toán quyết định đưa hay không đưa một đề xuất (tạm ứng, xăng xe) vào bảng lương; null = theo thiết lập lương.</summary>
+    [HttpPut("requests/{id}/payroll")]
+    public async Task<IActionResult> RequestPayroll(string id, [FromBody] PayrollBody b)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.Can("luong", true)) return Denied("Chỉ người quản lý lương được quyết định.");
+        var r = await Db.Requests.FirstOrDefaultAsync(x => x.Id == id); if (r is null) return NotFound();
+        if (r.Type is not ("Tạm ứng" or "Xăng xe")) return Error(400, "Chỉ áp dụng cho đề xuất tạm ứng, xăng xe.");
+        var m = VnTime.ToVn(r.FromAt ?? r.CreatedAt).ToString("yyyy-MM");
+        if (await Db.Payslips.AnyAsync(x => x.Month == m && x.EmployeeId == r.EmployeeId && x.LockedAt != null)) return Error(409, $"Bảng lương tháng {m} đã chốt.");
+        r.Payroll = b.Include; r.UpdatedAt = DateTime.UtcNow; r.UpdatedBy = Uc.User.Username;
+        Uc.Log(b.Include == true ? "Đưa đề xuất vào lương" : b.Include == false ? "Không đưa đề xuất vào lương" : "Đề xuất theo thiết lập lương", "Lương", $"{r.Code} {r.Type}");
+        await Db.SaveChangesAsync(); return Ok(new { ok = true });
     }
 
     // ------------------------------------------------------------------ bản 1.10.4: các mục hồ sơ nhân sự

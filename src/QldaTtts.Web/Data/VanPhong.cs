@@ -138,6 +138,8 @@ public class Request : EntityBase
     [MaxLength(1000)] public string? DecisionNote { get; set; }
     public DateTime CreatedAt { get; set; }
     [MaxLength(64)] public string? EworkId { get; set; }
+    /// <summary>Bản 1.10.4: đưa đề xuất (tạm ứng, xăng xe) vào bảng lương: null = theo thiết lập lương, true/false = Ban giám đốc, kế toán quyết định riêng.</summary>
+    public bool? Payroll { get; set; }
 }
 
 /* Bản 1.10: lịch công tác, lịch họp và thông báo nội bộ. */
@@ -220,6 +222,9 @@ public class KpiSheet : EntityBase
     [Column(TypeName = "decimal(6,2)")] public decimal? AttendanceFinal { get; set; }
     [Column(TypeName = "decimal(6,2)")] public decimal? Total { get; set; }
     [MaxLength(10)] public string? Grade { get; set; }
+    /// <summary>Bản 1.10.4: hạng trong phòng ban và tiền thưởng theo hạng (lưu khi chốt).</summary>
+    public int? Rank { get; set; }
+    [Column(TypeName = "decimal(18,0)")] public decimal? RankBonus { get; set; }
     public DateTime? LockedAt { get; set; }
     [MaxLength(200)] public string? LockedBy { get; set; }
 }

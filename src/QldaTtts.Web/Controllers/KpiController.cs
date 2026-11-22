@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +27,18 @@ public class KpiSettings
         new() { Name = "A", Min = 90, Bonus = 1000000 }, new() { Name = "B", Min = 75, Bonus = 500000 },
         new() { Name = "C", Min = 60, Bonus = 0 }, new() { Name = "D", Min = 0, Bonus = 0 }
     };
+
+    /// <summary>Bản 1.10.4: thưởng theo hạng trong nhóm như e-work: mỗi phòng ban xếp hạng theo điểm KPI, hạng 1, 2… nhận mức thưởng của bảng
+    /// có tháng áp dụng gần nhất; phải đạt xếp loại tối thiểu. Cộng với thưởng theo xếp loại (đặt thưởng xếp loại = 0 nếu chỉ thưởng theo hạng).</summary>
+    public bool RankOn { get; set; }
+    public string RankMinGrade { get; set; } = "B";
+    public class RankTable { public string From { get; set; } = ""; public List<decimal> Amounts { get; set; } = new(); }
+    public List<RankTable> RankTables { get; set; } = new();
+    public decimal RankBonus(string month, int rank)
+    {
+        var tb = RankTables.Where(x => string.CompareOrdinal(x.From, month) <= 0).OrderByDescending(x => x.From).FirstOrDefault();
+        return tb is not null && rank >= 1 && rank <= tb.Amounts.Count ? tb.Amounts[rank - 1] : 0;
+    }
 
     public const string Key = "kpi";
     private static readonly JsonSerializerOptions Opts = new(JsonSerializerDefaults.Web);
@@ -100,14 +112,34 @@ public class KpiController : ApiControllerBase
         var to = from.AddMonths(1);
         var k = KpiSettings.Load(Db); var vs = VpSettings.Load(Db);
         var depts = await ManagedDepts(); var all = Uc.Can("kpi"); var edit = Uc.Can("kpi", true);
-        var emps = (await Db.Employees.AsNoTracking().Where(e => e.Status != "Nghỉ việc" || e.UpdatedAt >= from.ToDateTime(TimeOnly.MinValue)).OrderBy(e => e.Name).ToListAsync())
-            .Where(e => all || e.UserId == Uc.User.Id || (e.DepartmentId != null && depts.Contains(e.DepartmentId))).ToList();
+        // Tính cho mọi người (để xếp hạng trong phòng), trả về phần được xem
+        var emps = await Db.Employees.AsNoTracking().Where(e => e.Status != "Nghỉ việc" || e.UpdatedAt >= from.ToDateTime(TimeOnly.MinValue)).OrderBy(e => e.Name).ToListAsync();
+        bool Visible(Employee e) => all || e.UserId == Uc.User.Id || (e.DepartmentId != null && depts.Contains(e.DepartmentId));
+        var deptNames = await Db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name);
         var sheets = await Db.KpiSheets.AsNoTracking().Where(x => x.Month == month).ToDictionaryAsync(x => x.EmployeeId);
         var (_, stats) = await VpCalc.Month(Db, vs, emps, from);
         var atts = (await Db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
         var tasks = await Db.Tasks.AsNoTracking().Where(t => t.Assignee != null && t.Due != null).ToListAsync();
         var users = await Db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);
-        var rows = emps.Select(e =>
+        // Hạng trong phòng (tạm tính khi chưa chốt; đã chốt thì dùng hạng lưu cố định)
+        var minG = k.Grades.FirstOrDefault(g => g.Name == k.RankMinGrade)?.Min ?? 0;
+        var pre = emps.Select(e =>
+        {
+            sheets.TryGetValue(e.Id, out var sh);
+            if (sh?.LockedAt != null) return (e, total: sh.Total ?? 0m);
+            var st = stats.First(x => x.EmployeeId == e.Id);
+            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, from, to, vs);
+            var att = e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
+            return (e, total: Total(k, sh?.WorkScore ?? wd?.Score, sh?.ProjectScore, att, sh?.ManagerRating is { } mr ? mr * 20m : null));
+        }).ToList();
+        var rankOf = new Dictionary<string, int>();
+        if (k.RankOn)
+            foreach (var g in pre.Where(x => x.e.DepartmentId != null && x.total > 0 && x.total >= minG).GroupBy(x => x.e.DepartmentId!))
+            {
+                int rank = 0; decimal? prev = null; int i = 0;
+                foreach (var x in g.OrderByDescending(x => x.total)) { i++; if (prev != x.total) rank = i; prev = x.total; rankOf[x.e.Id] = rank; } // bằng điểm thì cùng hạng
+            }
+        var rows = emps.Where(Visible).Select(e =>
         {
             sheets.TryGetValue(e.Id, out var sh); var locked = sh?.LockedAt != null;
             var st = stats.First(x => x.EmployeeId == e.Id);
@@ -125,6 +157,10 @@ public class KpiController : ApiControllerBase
                 attDetail = new { st.Late, st.LateMinutes, st.Early, st.NoOut, st.Absent, st.Worked, st.Standard },
                 rating = sh?.ManagerRating, ratingNote = sh?.ManagerNote, ratedBy = sh?.RatedBy, employeeNote = sh?.EmployeeNote,
                 total, grade = locked ? sh!.Grade : k.GradeOf(total), bonus = k.Grades.FirstOrDefault(g => g.Name == (locked ? sh!.Grade : k.GradeOf(total)))?.Bonus ?? 0,
+                rank = locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk) ? rk : (int?)null,
+                rankBonus = locked ? sh!.RankBonus ?? 0 : rankOf.TryGetValue(e.Id, out var rk2) ? k.RankBonus(month, rk2) : 0,
+                rankLabel = (locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk3) ? rk3 : (int?)null) is int rr && (locked ? sh!.RankBonus ?? 0 : k.RankBonus(month, rr)) > 0
+                    ? $"{(e.DepartmentId != null && deptNames.TryGetValue(e.DepartmentId, out var dn) ? dn : "")} - Hạng {rr}" : null,
                 missing, locked, lockedAt = sh?.LockedAt, canRate, self = e.UserId == Uc.User.Id
             };
         }).ToList();
@@ -201,7 +237,7 @@ public class KpiController : ApiControllerBase
         {
             var sh = await Sheet(month, (string)r.employeeId);
             if (b.Lock && sh.LockedAt == null)
-            { sh.WorkFinal = r.work; sh.AttendanceFinal = r.attendance; sh.Total = r.total; sh.Grade = r.grade; sh.LockedAt = DateTime.UtcNow; sh.LockedBy = Uc.User.Name; n++; }
+            { sh.WorkFinal = r.work; sh.AttendanceFinal = r.attendance; sh.Total = r.total; sh.Grade = r.grade; sh.Rank = r.rank; sh.RankBonus = r.rankBonus; sh.LockedAt = DateTime.UtcNow; sh.LockedBy = Uc.User.Name; n++; }
             else if (!b.Lock && sh.LockedAt != null) { sh.LockedAt = null; sh.LockedBy = null; n++; }
         }
         Uc.Log(b.Lock ? "Chốt KPI tháng" : "Mở chốt KPI tháng", "KPI", $"Tháng {month}: {n} người");
@@ -224,6 +260,7 @@ public class KpiController : ApiControllerBase
         if (k.WWork + k.WProject + k.WAttendance + k.WManager != 100) return Error(400, "Tổng trọng số bốn nhóm phải bằng 100.");
         if (k.Grades.Count == 0 || k.Grades.Any(g => string.IsNullOrWhiteSpace(g.Name))) return Error(400, "Nhập ngưỡng xếp loại.");
         k.Grades = k.Grades.OrderByDescending(g => g.Min).ToList();
+        if (k.RankTables.Any(x => !System.Text.RegularExpressions.Regex.IsMatch(x.From ?? "", @"^\d{4}-\d{2}$") || x.Amounts.Any(a => a < 0))) return Error(400, "Bảng thưởng theo hạng: tháng áp dụng dạng 2026-05, số tiền không âm.");
         k.Save(Db, Uc.User.Username);
         Uc.Log("Cập nhật thiết lập KPI", "KPI", $"Trọng số {k.WWork}/{k.WProject}/{k.WAttendance}/{k.WManager}");
         await Db.SaveChangesAsync(); return Ok(new { ok = true });

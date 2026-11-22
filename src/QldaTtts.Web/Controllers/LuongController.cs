@@ -24,6 +24,14 @@ public class PaySettings
     public string PayDay { get; set; } = "Ngày 05 tháng sau";
     /// <summary>Bản 1.10.4: người lao động tự xác nhận lương từ ngày ConfirmFrom đến hết ngày ConfirmTo của tháng sau; quá hạn coi như đồng ý.</summary>
     public int ConfirmFrom { get; set; } = 1; public int ConfirmTo { get; set; } = 3;
+    /// <summary>Bản 1.10.4: công tác phí theo ngày công tác được duyệt (bật/tắt, mức đồng/ngày); không tính thuế TNCN.</summary>
+    public bool TripOn { get; set; } public decimal TripRate { get; set; }
+    /// <summary>Nghỉ phép vượt số ngày phép năm được hưởng thì trừ lương như nghỉ không lương.</summary>
+    public bool LeaveOverDeduct { get; set; } = true;
+    /// <summary>Tháng 12: ngày phép năm chưa nghỉ hết được trả vào lương (lương chính ÷ công chuẩn × số ngày).</summary>
+    public bool PayUnusedLeave { get; set; } = true;
+    /// <summary>Mặc định đưa đề xuất xăng xe (cộng, không tính thuế) và tạm ứng (trừ) đã duyệt vào lương; từng đề xuất có thể chọn khác.</summary>
+    public bool FuelToPayroll { get; set; } = true; public bool AdvanceToPayroll { get; set; }
     /// <summary>Hạn xác nhận lương của tháng: từ ngày ConfirmFrom tháng sau; nếu chốt muộn hơn thì mở từ ngày chốt và kéo dài đủ số ngày.</summary>
     public (DateOnly from, DateOnly to) ConfirmWindow(string month, DateTime? lockedAtUtc)
     {
@@ -89,6 +97,8 @@ public class LuongController : ApiControllerBase
     public static List<Allowance> Allow(string? json) { try { return string.IsNullOrEmpty(json) ? new() : JsonSerializer.Deserialize<List<Allowance>>(json, Opts) ?? new(); } catch { return new(); } }
 
     public record Line(string Code, string Label, decimal Amount, string? Note = null);
+    /// <summary>Đề xuất tạm ứng, xăng xe trong tháng: có đưa vào lương không (theo thiết lập hoặc chọn riêng).</summary>
+    public record PayItem(string Id, string Code, string Type, decimal Amount, bool Included, bool? Choice, string? Title);
     public class Slip
     {
         public string EmployeeId { get; set; } = ""; public string Name { get; set; } = ""; public string? DepartmentId { get; set; } public string? Position { get; set; }
@@ -97,6 +107,11 @@ public class LuongController : ApiControllerBase
         public decimal KpiBonus { get; set; } public string? KpiGrade { get; set; } public decimal Bonus { get; set; } public decimal Gross { get; set; }
         public decimal InsBase { get; set; } public decimal Bhxh { get; set; } public decimal Bhyt { get; set; } public decimal Bhtn { get; set; } public decimal Insurance { get; set; }
         public int Dependents { get; set; } public decimal Taxable { get; set; } public decimal Assessable { get; set; } public decimal Pit { get; set; }
+        // Bản 1.10.4: phép năm, công tác phí, xăng xe, tạm ứng
+        public decimal LeaveDays { get; set; } public decimal LeaveOver { get; set; } public decimal LeaveTotal { get; set; } public decimal LeaveUsedYear { get; set; }
+        public decimal UnusedLeave { get; set; } public decimal UnusedLeavePay { get; set; }
+        public decimal TripDays { get; set; } public decimal TripPay { get; set; } public decimal FuelPay { get; set; } public decimal TempAdvance { get; set; }
+        public List<PayItem> Items { get; set; } = new();
         public decimal Advance { get; set; } public decimal Deduction { get; set; } public decimal Net { get; set; } public decimal EmployerIns { get; set; } public decimal Cost { get; set; }
         public List<Line> AllowanceLines { get; set; } = new(); public string? Note { get; set; }
         public bool HasProfile { get; set; } public bool Locked { get; set; } public DateTime? LockedAt { get; set; }
@@ -140,8 +155,13 @@ public class LuongController : ApiControllerBase
         var kpi = (await Db.KpiSheets.AsNoTracking().Where(x => x.Month == month && x.LockedAt != null).ToListAsync()).ToDictionary(x => x.EmployeeId);
         var (standard, stats) = await VpCalc.Month(Db, vs, emps, from);
         var f = VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue)); var t = VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue));
-        var adv = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Ứng lương").ToListAsync())
-            .Where(r => (r.FromAt ?? r.CreatedAt) >= f && (r.FromAt ?? r.CreatedAt) < t).GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount ?? 0));
+        var monthReqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && (r.Type == "Ứng lương" || r.Type == "Tạm ứng" || r.Type == "Xăng xe")).ToListAsync())
+            .Where(r => (r.FromAt ?? r.CreatedAt) >= f && (r.FromAt ?? r.CreatedAt) < t).ToList();
+        var adv = monthReqs.Where(r => r.Type == "Ứng lương").GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount ?? 0));
+        // Phép năm đã nghỉ trong năm trước tháng này (để biết tháng này còn phép hay đã vượt)
+        var y0 = VnTime.ToUtc(new DateTime(from.Year, 1, 1));
+        var leaveBefore = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Nghỉ phép" && r.FromAt != null && r.FromAt >= y0 && r.FromAt < f).ToListAsync())
+            .GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Days ?? 0));
         var res = new List<Slip>();
         foreach (var e in emps)
         {
@@ -152,18 +172,41 @@ public class LuongController : ApiControllerBase
             profiles.TryGetValue(e.Id, out var p); var st = stats.First(x => x.EmployeeId == e.Id);
             var s = new Slip { EmployeeId = e.Id, Name = e.Name, DepartmentId = e.DepartmentId, Position = e.Position, Standard = standard, HasProfile = p is not null, Dependents = e.Dependents };
             s.Absent = e.Attendance ? st.Absent : 0;
-            s.Paid = Math.Max(0, standard - s.Absent); s.OtHours = st.Overtime;
+            // Phép năm (Điều 113, 114 BLLĐ): còn phép thì hưởng lương, vượt số ngày được hưởng thì trừ như nghỉ không lương
+            s.LeaveTotal = VnTime.LeaveEntitlement(e, vs, from.Year); s.LeaveDays = st.Leave;
+            var before = leaveBefore.TryGetValue(e.Id, out var lb) ? lb : 0; s.LeaveUsedYear = before + st.Leave;
+            s.LeaveOver = ps.LeaveOverDeduct ? Math.Min(st.Leave, Math.Max(0, s.LeaveUsedYear - s.LeaveTotal)) : 0;
+            s.Paid = Math.Max(0, standard - s.Absent - s.LeaveOver); s.OtHours = st.Overtime;
             s.BaseSalary = p?.BaseSalary ?? 0;
             s.TimePay = standard > 0 ? Math.Round(s.BaseSalary * s.Paid / standard, 0) : 0;
+            var daily = standard > 0 ? s.BaseSalary / standard : 0;
+            if (from.Month == 12 && ps.PayUnusedLeave && p is not null)
+            {
+                s.UnusedLeave = Math.Max(0, s.LeaveTotal - s.LeaveUsedYear); s.UnusedLeavePay = Math.Round(daily * s.UnusedLeave, 0);
+            }
+            if (ps.TripOn && ps.TripRate > 0) { s.TripDays = st.Trip; s.TripPay = Math.Round(st.Trip * ps.TripRate, 0); }
+            foreach (var r in monthReqs.Where(r => r.EmployeeId == e.Id && r.Type != "Ứng lương"))
+            {
+                var inc = r.Payroll ?? (r.Type == "Xăng xe" ? ps.FuelToPayroll : ps.AdvanceToPayroll);
+                s.Items.Add(new PayItem(r.Id, r.Code, r.Type, r.Amount ?? 0, inc, r.Payroll, r.Title ?? r.Place));
+                if (!inc) continue;
+                if (r.Type == "Xăng xe") s.FuelPay += r.Amount ?? 0; else s.TempAdvance += r.Amount ?? 0;
+            }
             var al = Allow(p?.Allowances); decimal exempt = 0;
             foreach (var a in al) { s.AllowanceLines.Add(new Line("pc", a.Name, a.Amount, a.Exempt > 0 ? $"không tính thuế {a.Exempt:#,0}" : null)); exempt += Math.Min(a.Amount, a.Exempt); }
             s.Allowances = al.Sum(a => a.Amount);
             var hourly = standard > 0 ? s.BaseSalary / standard / 8 : 0;
             s.OtPay = Math.Round(hourly * s.OtHours * ps.OtRate / 100, 0);
             var otPremium = Math.Max(0, s.OtPay - Math.Round(hourly * s.OtHours, 0)); // phần trả cao hơn giờ bình thường không chịu thuế
-            if (kpi.TryGetValue(e.Id, out var k)) { s.KpiGrade = k.Grade; s.KpiBonus = ks.Grades.FirstOrDefault(g => g.Name == k.Grade)?.Bonus ?? 0; }
+            if (kpi.TryGetValue(e.Id, out var k))
+            {
+                s.KpiGrade = k.Grade; s.KpiBonus = (ks.Grades.FirstOrDefault(g => g.Name == k.Grade)?.Bonus ?? 0) + (k.RankBonus ?? 0);
+                if (k.RankBonus > 0 && k.Rank is { } rk) s.KpiGrade += $", hạng {rk} trong phòng"; // 1.10.4: thưởng theo hạng như e-work
+            }
             s.Bonus = sl?.Bonus ?? 0; s.Deduction = sl?.Deduction ?? 0; s.Note = sl?.Note;
-            s.Gross = s.TimePay + s.Allowances + s.OtPay + s.KpiBonus + s.Bonus;
+            // Công tác phí, xăng xe đi công việc là khoản chi theo chế độ, không tính thuế TNCN; tiền phép năm chưa nghỉ tính thuế như tiền lương
+            s.Gross = s.TimePay + s.Allowances + s.OtPay + s.KpiBonus + s.Bonus + s.UnusedLeavePay + s.TripPay + s.FuelPay;
+            exempt += s.TripPay + s.FuelPay;
             if (p is { NoInsurance: false } && s.BaseSalary > 0)
             {
                 var ib = p.InsuranceSalary ?? p.BaseSalary; s.InsBase = ib;
@@ -176,6 +219,7 @@ public class LuongController : ApiControllerBase
             if (p?.FlatTax == true) { s.Assessable = s.Taxable; s.Pit = s.Taxable >= 2000000 ? Math.Round(s.Taxable * 0.1m, 0) : 0; }
             else { s.Assessable = Math.Max(0, s.Taxable - s.Insurance - ps.PersonalDeduction - e.Dependents * ps.DependentDeduction); s.Pit = ps.Pit(s.Assessable, month); }
             s.Advance = adv.TryGetValue(e.Id, out var av) ? av : 0;
+            s.Advance += s.TempAdvance;
             s.Net = s.Gross - s.Insurance - s.Pit - s.Advance - s.Deduction;
             s.Cost = s.Gross + s.EmployerIns;
             res.Add(s);

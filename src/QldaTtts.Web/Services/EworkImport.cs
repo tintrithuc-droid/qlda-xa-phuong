@@ -315,6 +315,28 @@ public static class EworkImport
             }
         await Save(db, rep);
 
+        // ---- bản 1.10.4: thưởng KPI theo hạng (CauHinhThuongKPIs: mỗi mốc tháng áp dụng, mỗi hạng một mức); chỉ điền khi QLDA chưa có bảng nào
+        var ck = Luu("CauHinhThuongKPIs").Select(x => new
+        {
+            from = Num(x, "NamApDung") is { } y && y > 1900 ? $"{(int)y:0000}-{(int)Math.Clamp(Num(x, "ThangApDung") ?? 1, 1, 12):00}" : Dt(S(x, "NgayApDung"))?.ToString("yyyy-MM"),
+            rank = int.TryParse(Regex.Match(S(x, "TenMucDo") ?? S(x, "MucDo") ?? "", @"\d+").Value, out var rn) ? rn : 0, amount = (decimal)(Num(x, "GiaTri") ?? 0)
+        }).Where(x => x.from is not null && x.rank > 0).ToList();
+        if (ck.Count > 0)
+        {
+            var ks = Controllers.KpiSettings.Load(db);
+            if (ks.RankTables.Count == 0)
+            {
+                ks.RankOn = true;
+                ks.RankTables = ck.GroupBy(x => x.from!).OrderBy(g => g.Key).Select(g => new Controllers.KpiSettings.RankTable
+                {
+                    From = g.Key, Amounts = Enumerable.Range(1, g.Max(x => x.rank)).Select(r => g.FirstOrDefault(x => x.rank == r)?.amount ?? 0).ToList()
+                }).ToList();
+                foreach (var gr in ks.Grades) gr.Bonus = 0; // e-work chỉ thưởng theo hạng
+                ks.Save(db, by); rep.Warnings.Add($"Thưởng KPI theo hạng trong phòng từ e-work: {string.Join("; ", ks.RankTables.Select(x => x.From + ": " + string.Join(" / ", x.Amounts.Select(a => a.ToString("#,0")))))}. Thưởng theo xếp loại đặt 0.");
+                await Save(db, rep);
+            }
+        }
+
         // ---- lưu trữ nguyên vẹn mọi bảng nghiệp vụ e-work (thay theo từng bảng, chạy lại không trùng)
         if (lt.ValueKind == JsonValueKind.Object)
             foreach (var tb in lt.EnumerateObject())

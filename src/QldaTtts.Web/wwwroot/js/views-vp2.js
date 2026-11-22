@@ -241,7 +241,7 @@ VIEWS['kpi']=()=>{
       {h:`Dự án (${k.wProject}%)`, r:1, f:r=> r.canRate? `<input type="number" min="0" max="100" step="5" value="${r.project??''}" data-kpi-proj="${esc(r.employeeId)}" style="width:70px;text-align:right" aria-label="Điểm kết quả dự án của ${esc(r.name)}">` : kpiN(r.project)},
       {h:`Chuyên cần (${k.wAttendance}%)`, r:1, f:r=>`${kpiN(r.attendance)}${r.attendance!=null?`<div class="small muted">muộn ${r.attDetail.late}${r.attDetail.absent?', nghỉ KLD '+fmtN(r.attDetail.absent,1):''}${r.attDetail.noOut?', quên ra '+r.attDetail.noOut:''}</div>`:''}`},
       {h:`Quản lý (${k.wManager}%)`, f:r=>kpiStars(r)+(r.ratingNote?`<div class="small muted" title="${esc(r.ratingNote)}">${esc(r.ratingNote.slice(0,40))}</div>`:'')},
-      {h:'Tổng', r:1, f:r=>`<b>${fmtN(r.total,1)}</b>`}, {h:'Xếp loại', f:r=>kpiGradePill(r.grade)+(r.employeeNote?` <span title="Có phản hồi: ${esc(r.employeeNote)}">💬</span>`:'')}],
+      {h:'Tổng', r:1, f:r=>`<b>${fmtN(r.total,1)}</b>`}, {h:'Xếp loại', f:r=>kpiGradePill(r.grade)+(r.rankLabel?`<div class="small" style="color:var(--green,#16a34a)">${esc(r.rankLabel)}${r.rankBonus?' · '+fmtVND(r.rankBonus):''}</div>`:'')+(r.employeeNote?` <span title="Có phản hồi: ${esc(r.employeeNote)}">💬</span>`:'')}],
       rows, {empty:'Chưa có nhân sự trong phạm vi bạn xem.', nopage:true, rowAct:'kpi-row'});
   }
   const ed=d&&d.canEdit, locked=d&&d.rows&&d.rows.length&&d.rows.every(r=>r.locked);
@@ -273,22 +273,26 @@ ACT['kpi-lock']=async l=>{ const m=kpiMonth(); const d=VP.kpi[m];
   if(l==='1' && !await confirmBox(`Chốt KPI tháng ${m.slice(5)}/${m.slice(0,4)}? Điểm, xếp loại được lưu cố định để tính thưởng.${miss?` <b>${miss} người chưa chấm đủ</b> (phần thiếu tính 0 điểm).`:''}`,'Chốt')) return;
   await api('POST',`/api/vp/kpi/${m}/chot`,{lock:l==='1'}); delete VP.kpi[m]; render(); toast(l==='1'?'Đã chốt KPI tháng':'Đã mở chốt'); };
 ACT['kpi-set']=async()=>{ const k=await api('GET','/api/vp/kpi-settings');
-  openForm({title:'Thiết lập KPI', value:{...k, grades:k.grades.map(g=>[g.name,g.min,g.bonus].join('; ')).join('\n')},
+  openForm({title:'Thiết lập KPI', value:{...k, grades:k.grades.map(g=>[g.name,g.min,g.bonus].join('; ')).join('\n'), rankOn:k.rankOn?'1':'0', rankTables:(k.rankTables||[]).map(x=>x.from+' | '+x.amounts.join('; ')).join('\n')},
     fields:[{key:'_h1',type:'html',html:'<div class="fld full"><b>Trọng số bốn nhóm (tổng 100)</b></div>'},{key:'wWork',label:'Hoàn thành công việc',type:'number',req:true},{key:'wProject',label:'Kết quả dự án',type:'number',req:true},
       {key:'wAttendance',label:'Chuyên cần',type:'number',req:true},{key:'wManager',label:'Đánh giá của quản lý',type:'number',req:true},
       {key:'_h2',type:'html',html:'<div class="fld full"><b>Chuyên cần: 100 điểm, trừ mỗi lần</b></div>'},{key:'penLate',label:'Đi muộn',type:'number'},{key:'graceMinutes',label:'Phút ân hạn (muộn không quá số phút này không trừ)',type:'number'},
       {key:'penEarly',label:'Về sớm',type:'number'},{key:'penNoOut',label:'Quên điểm danh ra',type:'number'},{key:'penAbsent',label:'Mỗi ngày nghỉ không lý do',type:'number'},
-      {key:'grades',label:'Xếp loại: mỗi dòng "tên; điểm từ; thưởng (đồng)"',type:'textarea',rows:4,keepLines:true}],
-    onSave:async v=>{ const grades=String(v.grades||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0], min:N(p[1]), bonus:N(String(p[2]||'0').replace(/\./g,''))}));
+      {key:'grades',label:'Xếp loại: mỗi dòng "tên; điểm từ; thưởng (đồng)"',type:'textarea',rows:4,keepLines:true},
+      {key:'_h3',type:'html',html:'<div class="fld full"><b>Thưởng theo hạng trong phòng ban (như e-work)</b><div class="small muted">Mỗi phòng xếp hạng theo tổng điểm; người đạt xếp loại tối thiểu mới được xếp hạng; bằng điểm thì cùng hạng. Cộng vào lương tháng khi chốt KPI.</div></div>'},
+      {key:'rankOn',label:'Thưởng theo hạng',type:'select',options:[['0','Không dùng'],['1','Có']]},{key:'rankMinGrade',label:'Xếp loại tối thiểu để được xếp hạng',type:'text'},
+      {key:'rankTables',label:'Mức thưởng: mỗi dòng "tháng áp dụng | hạng 1; hạng 2; …"',type:'textarea',rows:3,keepLines:true,ph:'2026-05 | 1000000; 500000'}],
+    onSave:async v=>{ const rankTables=String(v.rankTables||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2&&p[0].trim()).map(p=>({from:p[0].trim(), amounts:p[1].split(';').map(x=>N(x.trim().replace(/\./g,''))).filter(x=>!isNaN(x))}));
+      const grades=String(v.grades||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0], min:N(p[1]), bonus:N(String(p[2]||'0').replace(/\./g,''))}));
       if(N(v.wWork)+N(v.wProject)+N(v.wAttendance)+N(v.wManager)!==100) throw new Error('Tổng trọng số phải bằng 100.');
-      await api('PUT','/api/vp/kpi-settings',{wWork:N(v.wWork), wProject:N(v.wProject), wAttendance:N(v.wAttendance), wManager:N(v.wManager), penLate:N(v.penLate), penEarly:N(v.penEarly), penNoOut:N(v.penNoOut), penAbsent:N(v.penAbsent), graceMinutes:N(v.graceMinutes), grades});
+      await api('PUT','/api/vp/kpi-settings',{wWork:N(v.wWork), wProject:N(v.wProject), wAttendance:N(v.wAttendance), wManager:N(v.wManager), penLate:N(v.penLate), penEarly:N(v.penEarly), penNoOut:N(v.penNoOut), penAbsent:N(v.penAbsent), graceMinutes:N(v.graceMinutes), grades, rankOn:v.rankOn==='1', rankMinGrade:(v.rankMinGrade||'').trim(), rankTables});
       VP.kpi={}; return {id:'kpi'}; }}); };
 function kpiTable(){ const m=kpiMonth(), d=VP.kpi[m]; if(!d||!d.rows) return null; const dep=S.f.kpid||'';
   return {m, k:d.settings, rows:d.rows.filter(r=>!dep||r.departmentId===dep).slice().sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||b.total-a.total)}; }
 ACT['kpi-xlsx']=()=>{ const t=kpiTable(); if(!t) return;
-  const rows=t.rows.map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.work??'', r.project??'', r.attendance??'', r.rating?r.rating*20:'', r.total, r.grade||'', r.bonus||0, r.ratingNote||'']);
+  const rows=t.rows.map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.work??'', r.project??'', r.attendance??'', r.rating?r.rating*20:'', r.total, r.grade||'', r.rankLabel||'', (r.bonus||0)+(r.rankBonus||0), r.ratingNote||'']);
   exportXlsx(`KPI_${t.m}.xlsx`, [{name:'KPI '+t.m, title:`BẢNG TỔNG HỢP KẾT QUẢ ĐÁNH GIÁ KPI THÁNG ${t.m.slice(5)}/${t.m.slice(0,4)}`, sub:`Trọng số: công việc ${t.k.wWork}%, kết quả dự án ${t.k.wProject}%, chuyên cần ${t.k.wAttendance}%, đánh giá quản lý ${t.k.wManager}%`,
-    head:['STT','Họ tên','Phòng ban','Công việc','Kết quả dự án','Chuyên cần','Đánh giá quản lý','Tổng điểm','Xếp loại','Thưởng (đồng)','Nhận xét'], rows, money:[9]}]); };
+    head:['STT','Họ tên','Phòng ban','Công việc','Kết quả dự án','Chuyên cần','Đánh giá quản lý','Tổng điểm','Xếp loại','Hạng trong phòng','Thưởng (đồng)','Nhận xét'], rows, money:[10]}]); };
 ACT['kpi-pdf']=()=>{ const t=kpiTable(); if(!t) return;
   const f=v=>v==null||v===''?'':fmtN(v,1);
   const html=`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>KPI ${t.m}</title><style>
@@ -300,7 +304,7 @@ ACT['kpi-pdf']=()=>{ const t=kpiTable(); if(!t) return;
   </style></head><body>${printHead()}<h1>BẢNG TỔNG HỢP KẾT QUẢ ĐÁNH GIÁ KPI THÁNG ${t.m.slice(5)}/${t.m.slice(0,4)}</h1>
   <div class="sub">Trọng số: công việc ${t.k.wWork}%, kết quả dự án ${t.k.wProject}%, chuyên cần ${t.k.wAttendance}%, đánh giá quản lý ${t.k.wManager}%</div>
   <table><thead><tr><th>STT</th><th>Họ tên</th><th>Phòng ban</th><th>Công việc</th><th>Kết quả dự án</th><th>Chuyên cần</th><th>Đánh giá quản lý</th><th>Tổng điểm</th><th>Xếp loại</th><th>Thưởng (đồng)</th></tr></thead>
-  <tbody>${t.rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.name)}</td><td>${esc(vpDeptName(r.departmentId))}</td><td class="r">${f(r.work)}</td><td class="r">${f(r.project)}</td><td class="r">${f(r.attendance)}</td><td class="r">${r.rating?f(r.rating*20):''}</td><td class="r"><b>${f(r.total)}</b></td><td class="c"><b>${esc(r.grade||'')}</b></td><td class="r">${r.bonus?fmtVND(r.bonus):''}</td></tr>`).join('')}</tbody></table>
+  <tbody>${t.rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.name)}</td><td>${esc(vpDeptName(r.departmentId))}</td><td class="r">${f(r.work)}</td><td class="r">${f(r.project)}</td><td class="r">${f(r.attendance)}</td><td class="r">${r.rating?f(r.rating*20):''}</td><td class="r"><b>${f(r.total)}</b></td><td class="c"><b>${esc(r.grade||'')}</b></td><td class="r">${(r.bonus||0)+(r.rankBonus||0)?fmtVND((r.bonus||0)+(r.rankBonus||0)):''}${r.rankLabel?'<br><i>'+esc(r.rankLabel)+'</i>':''}</td></tr>`).join('')}</tbody></table>
   <div class="sign"><div><b>NGƯỜI LẬP</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(S.user&&S.user.name||'')}</div><div><b>KẾ TOÁN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div>
   <div><i>${printDate()}</i><b>${esc(BR.signReport)}</b><i>(Ký, ghi rõ họ tên, đóng dấu)</i><div class="sp"></div></div></div></body></html>`;
   const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.title='In KPI';
@@ -413,6 +417,12 @@ function payConfirmHTML(r, m){ if(!r.locked) return '';
     <div class="fld full"><label for="pc_fb">Kiến nghị (nếu có)</label><textarea id="pc_fb" rows="3" style="width:100%" placeholder="Ví dụ: ngày 12 tôi đi công tác nhưng đang tính vắng"></textarea></div>
     <div class="toolbar"><button class="btn primary" data-act="pay-confirm" data-id="1">Đồng ý, xác nhận lương</button><button class="btn" data-act="pay-confirm" data-id="0">Gửi kiến nghị</button></div></div>`;
   return h+`<p class="small muted" style="margin-top:10px">${esc(r.confirmState||'')}${r.confirmFrom?` · hạn xác nhận ${fmtDate(r.confirmFrom)} đến ${fmtDate(r.confirmTo)}`:''}</p>`; }
+function payItemsHTML(r, ed){ const l=r.items||[]; if(!l.length) return '';
+  return `<div class="card" style="max-width:640px;margin-top:10px"><h3 style="margin-top:0">Đề xuất tạm ứng, xăng xe trong tháng</h3><p class="small muted" style="margin-top:0">Ban giám đốc, kế toán chọn đưa hay không đưa vào lương. Xăng xe cộng vào thu nhập (không tính thuế), tạm ứng trừ vào thực lĩnh.</p>
+    ${table([{h:'Đề xuất',f:x=>`<b style="font-weight:600">${esc(x.type)}</b> <span class="small muted">${esc(x.code)}</span>${x.title?`<div class="small muted">${esc(x.title)}</div>`:''}`},{h:'Số tiền',r:1,f:x=>vnd(x.amount)},
+      {h:'Vào lương',f:x=>ed?`<select data-act-change="pay-item" data-id="${esc(x.id)}" aria-label="Đưa vào lương">${opts([['','Theo thiết lập ('+(x.included&&x.choice==null?'có':x.choice==null?'không':'')+')'],['1','Đưa vào lương'],['0','Không đưa']], x.choice==null?'':x.choice?'1':'0')}</select>`:(x.included?pill('Có','ok'):pill('Không'))}], l, {nopage:true})}</div>`; }
+document.addEventListener('change', async ev=>{ const el=ev.target.closest && ev.target.closest('[data-act-change="pay-item"]'); if(!el) return;
+  try{ await api('PUT',`/api/vp/requests/${encodeURIComponent(el.dataset.id)}/payroll`,{include: el.value===''?null:el.value==='1'}); const m=payMonth(); delete VP.pay[m]; closeModal(); toast('Đã cập nhật'); render(); }catch(e){ toast(errText(e),'err'); } });
 ACT['pay-goto']=m=>{ S.f.plm=m; if(location.hash!=='#luong') location.hash='#luong'; else render(); };
 ACT['pay-confirm']=async a=>{ const fb=($('#pc_fb')||{}).value||''; if(a==='0'&&!fb.trim()){ toast('Ghi nội dung kiến nghị.','err'); return; }
   if(a==='1'&&!await confirmBox(fb.trim()?'Xác nhận đồng ý bảng lương và gửi kèm ghi chú?':'Xác nhận bạn đồng ý với phiếu lương tháng này?','Xác nhận')) return;
@@ -420,6 +430,13 @@ ACT['pay-confirm']=async a=>{ const fb=($('#pc_fb')||{}).value||''; if(a==='0'&&
 ACT['pay-reply']=id=>{ const r=payRow(id); if(!r) return; closeModal();
   openForm({title:'Trả lời kiến nghị: '+r.name, narrow:true, value:{reply:r.reply||''}, fields:[{key:'_k',type:'html',html:`<div class="fld full"><div class="small muted">Kiến nghị</div><div style="white-space:pre-wrap">${esc(r.feedback||'')}</div></div>`},{key:'reply',label:'Nội dung trả lời',type:'textarea',rows:4,req:true,keepLines:true}],
     onSave:async v=>{ await api('POST',`/api/vp/luong/${payMonth()}/${encodeURIComponent(id)}/tra-loi`,{reply:v.reply}); delete VP.pay[payMonth()]; VP.st=null; vpLoad(true); return {id}; }}); };
+/* Bản 1.10.4: phép năm, tiền phép chưa nghỉ (tháng 12), công tác phí, xăng xe */
+function payExtraLines(r, L){ let h='';
+  if(r.unusedLeavePay) h+=L('<b>6. Tiền phép năm chưa nghỉ</b>', vnd(r.unusedLeavePay), fmtN(r.unusedLeave,1)+' ngày');
+  if(r.tripPay) h+=L('<b>7. Công tác phí</b>', vnd(r.tripPay), fmtN(r.tripDays,1)+' ngày, không tính thuế');
+  if(r.fuelPay) h+=L('<b>8. Xăng xe</b>', vnd(r.fuelPay), 'không tính thuế');
+  if(r.leaveTotal!=null && (r.leaveDays||r.leaveOver)) h+=L('Phép năm', '', `tháng này nghỉ ${fmtN(r.leaveDays||0,1)} ngày, cả năm ${fmtN(r.leaveUsedYear||0,1)}/${fmtN(r.leaveTotal,1)}${r.leaveOver?`, <b>vượt ${fmtN(r.leaveOver,1)} ngày trừ lương</b>`:''}`);
+  return h; }
 function paySlipHTML(r, m){
   const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="small muted">${c}</td></tr>`;
   return `<div class="card" style="max-width:640px"><h2 style="margin-top:0">${esc(r.name)}</h2><p class="small muted" style="margin-top:-6px">${esc(vpDeptName(r.departmentId))}${r.position?', '+esc(r.position):''} · Tháng ${m.slice(5)}/${m.slice(0,4)}</p>
@@ -429,15 +446,16 @@ function paySlipHTML(r, m){
   ${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;Phụ cấp: '+esc(a.label), vnd(a.amount), esc(a.note||''))).join('')}
   ${L('<b>2. Phụ cấp</b>', vnd(r.allowances))}${L('<b>3. Tăng ca</b>', vnd(r.otPay), r.otHours?fmtN(r.otHours,1)+' giờ':'')}
   ${L('<b>4. Thưởng KPI</b>', vnd(r.kpiBonus), r.kpiGrade?'xếp loại '+esc(r.kpiGrade):'')}${L('<b>5. Thưởng, bổ sung khác</b>', vnd(r.bonus), esc(r.note||''))}
-  ${L('<b>TỔNG THU NHẬP (1+2+3+4+5)</b>', '<b>'+vnd(r.gross)+'</b>')}
+  ${payExtraLines(r, L)}
+  ${L('<b>TỔNG THU NHẬP</b>', '<b>'+vnd(r.gross)+'</b>')}
   ${L('BHXH, BHYT, BHTN người lao động', vnd(r.insurance), r.insBase?`trên mức ${vnd(r.insBase)}`:'')}
   ${L('Thu nhập tính thuế', vnd(r.assessable), r.dependents?`${r.dependents} người phụ thuộc`:'')}${L('Thuế TNCN', vnd(r.pit))}
-  ${L('Ứng lương', vnd(r.advance))}${L('Khấu trừ khác', vnd(r.deduction))}
+  ${L('Ứng lương, tạm ứng', vnd(r.advance), r.tempAdvance?'gồm tạm ứng '+vnd(r.tempAdvance):'')}${L('Khấu trừ khác', vnd(r.deduction))}
   ${L('<b>THỰC LĨNH</b>', '<b style="font-size:1.15em">'+vnd(r.net)+'</b>')}</tbody></table></div>`;
 }
 ACT['pay-row']=id=>{ const r=payRow(id), d=VP.pay[payMonth()]; if(!r) return;
   const edit=d.canEdit && !r.locked;
-  openModal(`<div class="mform wide"><header><h3>Phiếu lương</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">${paySlipHTML(r, payMonth())}${payFeedbackHTML(r)}${r.locked?`<p class="small" style="margin-top:8px">Xác nhận: ${payStatePill(r)}</p>`:''}
+  openModal(`<div class="mform wide"><header><h3>Phiếu lương</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;max-height:calc(100vh - 120px);overflow:auto">${paySlipHTML(r, payMonth())}${payItemsHTML(r, d.canEdit && !r.locked)}${payFeedbackHTML(r)}${r.locked?`<p class="small" style="margin-top:8px">Xác nhận: ${payStatePill(r)}</p>`:''}
     <div class="toolbar" style="margin-top:10px">${d.canEdit&&r.feedback?`<button class="btn primary" data-act="pay-reply" data-id="${esc(id)}">${r.reply?'Sửa trả lời':'Trả lời kiến nghị'}</button>`:''}${edit?`<button class="btn" data-act="pay-adj" data-id="${esc(id)}">Thưởng, khấu trừ khác</button>`:''}<button class="btn ghost" data-act="pay-pdf" data-id="${esc(id)}">In, lưu PDF</button></div></div></div>`); };
 ACT['pay-adj']=id=>{ const r=payRow(id); if(!r) return; closeModal();
   openForm({title:'Điều chỉnh lương: '+r.name, narrow:true, value:{bonus:r.bonus||'', deduction:r.deduction||'', note:r.note||''},
@@ -465,23 +483,29 @@ ACT['pay-prof']=id=>{ const e=VP.emps.find(x=>x.id===id), p=(VP._prof||{})[id]||
     onSave:async v=>{ await api('PUT',`/api/vp/luong-ho-so/${encodeURIComponent(id)}`,{baseSalary:N(v.base), insuranceSalary:v.ins===''||v.ins==null?null:N(v.ins), allowances:payAllowParse(v.allow), noInsurance:v.noIns==='1', flatTax:v.flat==='1', fromMonth:v.from||null, dependents:N(v.dep)});
       e.dependents=N(v.dep); VP.pay={}; return {id}; }}); };
 ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
-  openForm({title:'Thiết lập lương', value:{...s, taxText:s.taxTables.map(t=>t.from+' | '+t.brackets.map(b=>`${b.upTo/1e6||0}:${b.rate}`).join(' ')).join('\n')},
+  openForm({title:'Thiết lập lương', value:{...s, ...Object.fromEntries(['tripOn','leaveOverDeduct','payUnusedLeave','fuelToPayroll','advanceToPayroll'].map(k=>[k,s[k]?'1':'0'])), taxText:s.taxTables.map(t=>t.from+' | '+t.brackets.map(b=>`${b.upTo/1e6||0}:${b.rate}`).join(' ')).join('\n')},
     fields:[{key:'_h1',type:'html',html:'<div class="fld full"><b>Bảo hiểm người lao động đóng (%)</b></div>'},{key:'empBhxh',label:'BHXH',type:'number'},{key:'empBhyt',label:'BHYT',type:'number'},{key:'empBhtn',label:'BHTN',type:'number'},
       {key:'_h2',type:'html',html:'<div class="fld full"><b>Doanh nghiệp đóng (%)</b></div>'},{key:'coBhxh',label:'BHXH (gồm TNLĐ-BNN)',type:'number'},{key:'coBhyt',label:'BHYT',type:'number'},{key:'coBhtn',label:'BHTN',type:'number'},{key:'coKpcd',label:'Kinh phí công đoàn',type:'number'},
       {key:'baseWage',label:'Lương cơ sở (trần BHXH, BHYT = 20 lần)',type:'number'},{key:'regionMinWage',label:'Lương tối thiểu vùng (trần BHTN = 20 lần)',type:'number'},
       {key:'personalDeduction',label:'Giảm trừ bản thân (đồng/tháng)',type:'number'},{key:'dependentDeduction',label:'Giảm trừ mỗi người phụ thuộc',type:'number'},
       {key:'otRate',label:'Hệ số tăng ca (%)',type:'number'},{key:'payDay',label:'Ngày trả lương (in trên phiếu)',type:'text'},
       {key:'confirmFrom',label:'Nhân viên xác nhận lương từ ngày (tháng sau)',type:'number'},{key:'confirmTo',label:'đến hết ngày',type:'number'},
+      {key:'_h3',type:'html',html:'<div class="fld full"><b>Công tác phí, phép năm, đề xuất</b></div>'},
+      {key:'tripOn',label:'Công tác phí',type:'select',options:[['0','Không tính'],['1','Tính theo ngày công tác được duyệt']]},{key:'tripRate',label:'Mức công tác phí (đồng/ngày)',type:'money'},
+      {key:'leaveOverDeduct',label:'Nghỉ phép vượt số ngày được hưởng',type:'select',options:[['1','Trừ lương như nghỉ không lương'],['0','Không trừ']]},
+      {key:'payUnusedLeave',label:'Phép năm chưa nghỉ hết',type:'select',options:[['1','Trả vào lương tháng 12'],['0','Không trả']]},
+      {key:'fuelToPayroll',label:'Đề xuất xăng xe đã duyệt (mặc định)',type:'select',options:[['1','Đưa vào lương'],['0','Không đưa (thanh toán riêng)']]},
+      {key:'advanceToPayroll',label:'Đề xuất tạm ứng đã duyệt (mặc định)',type:'select',options:[['0','Không trừ vào lương (hoàn ứng riêng)'],['1','Trừ vào lương']]},
       {key:'taxText',label:'Biểu thuế TNCN theo tháng: mỗi dòng "ngày hiệu lực | đến (triệu):thuế suất …", bậc cuối ghi 0',type:'textarea',rows:3,keepLines:true}],
-    onSave:async v=>{ const taxTables=String(v.taxText||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2).map(p=>({from:p[0].trim(), brackets:p[1].trim().split(/\s+/).map(x=>x.split(':')).map(([u,r])=>({upTo:N(u)*1e6, rate:N(r)}))}));
+    onSave:async v=>{ ['tripOn','leaveOverDeduct','payUnusedLeave','fuelToPayroll','advanceToPayroll'].forEach(k=>s[k]=v[k]==='1'); s.tripRate=N(v.tripRate); const taxTables=String(v.taxText||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2).map(p=>({from:p[0].trim(), brackets:p[1].trim().split(/\s+/).map(x=>x.split(':')).map(([u,r])=>({upTo:N(u)*1e6, rate:N(r)}))}));
       const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate','confirmFrom','confirmTo'].forEach(k=>b[k]=N(v[k])); b.payDay=v.payDay||''; b.taxTables=taxTables;
       await api('PUT','/api/vp/luong-settings', b); VP.pay={}; return {id:'luong'}; }}); };
 ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||'';
   const rows=d.rows.filter(r=>!dep||r.departmentId===dep).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'))
-    .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost, r.confirmState||'', r.feedback||'']);
+    .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost, r.leaveOver||0, r.unusedLeavePay||0, r.tripPay||0, r.fuelPay||0, r.tempAdvance||0, r.confirmState||'', r.feedback||'']);
   exportXlsx(`Bang_luong_${m}.xlsx`, [{name:'Luong '+m, title:`BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}`, sub:`Ngày công chuẩn ${fmtN(d.rows[0]?.standard||0,1)}`,
-    head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty','Xác nhận','Kiến nghị'],
-    rows, money:[3,6,7,9,10,11,12,13,14,15,17,18,19,20,21,22,23]}]); };
+    head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty','Nghỉ vượt phép (ngày)','Tiền phép chưa nghỉ','Công tác phí','Xăng xe','Tạm ứng trừ lương','Xác nhận','Kiến nghị'],
+    rows, money:[3,6,7,9,10,11,12,13,14,15,17,18,19,20,21,22,23,25,26,27,28]}]); };
 ACT['pay-pdf']=id=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const s=d.settings||{};
   const list=d.rows.filter(r=>id? r.employeeId===id : r.hasProfile||r.locked);
   const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="n">${c}</td></tr>`;
@@ -490,7 +514,7 @@ ACT['pay-pdf']=id=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; co
     <table><tbody>${L('Lương chính',vnd(r.baseSalary))}${L('Ngày công hưởng lương / công chuẩn',fmtN(r.paid,1)+' / '+fmtN(r.standard,1))}
     ${L('<b>1. Lương theo ngày công</b>',vnd(r.timePay))}${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;'+esc(a.label),vnd(a.amount))).join('')}${L('<b>2. Phụ cấp</b>',vnd(r.allowances))}
     ${L('<b>3. Tăng ca</b>',vnd(r.otPay),r.otHours?fmtN(r.otHours,1)+' giờ':'')}${L('<b>4. Thưởng KPI</b>',vnd(r.kpiBonus),r.kpiGrade?'Xếp loại '+esc(r.kpiGrade):'')}${L('<b>5. Thưởng, bổ sung khác</b>',vnd(r.bonus),esc(r.note||''))}
-    ${L('<b>TỔNG THU NHẬP</b>','<b>'+vnd(r.gross)+'</b>')}${L(`BHXH (${fmtN(s.empBhxh??8,1)}%), BHYT (${fmtN(s.empBhyt??1.5,1)}%), BHTN (${fmtN(s.empBhtn??1,1)}%)`,vnd(r.insurance))}${L('Thu nhập tính thuế',vnd(r.assessable),r.dependents?r.dependents+' người phụ thuộc':'')}${L('Thuế TNCN',vnd(r.pit))}
+    ${payExtraLines(r, L)}${L('<b>TỔNG THU NHẬP</b>','<b>'+vnd(r.gross)+'</b>')}${L(`BHXH (${fmtN(s.empBhxh??8,1)}%), BHYT (${fmtN(s.empBhyt??1.5,1)}%), BHTN (${fmtN(s.empBhtn??1,1)}%)`,vnd(r.insurance))}${L('Thu nhập tính thuế',vnd(r.assessable),r.dependents?r.dependents+' người phụ thuộc':'')}${L('Thuế TNCN',vnd(r.pit))}
     ${L('Ứng lương',vnd(r.advance))}${L('Khấu trừ khác',vnd(r.deduction))}${L('<b>THỰC LĨNH</b>','<b>'+vnd(r.net)+'</b>')}</tbody></table>
     <p class="n">${esc(s.payDay||'')}${r.locked?'':' · Bản tạm tính, chưa chốt'}</p>
     <div class="sign"><div><b>NGƯỜI NHẬN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(r.name)}</div><div><b>KẾ TOÁN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div></div></div>`;

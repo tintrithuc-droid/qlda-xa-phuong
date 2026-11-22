@@ -79,6 +79,24 @@ public static class VnTime
     /// <summary>Ngày làm việc trong tháng: 1 = cả ngày, 0.5 = nửa ngày (thứ Bảy buổi sáng, lễ nửa ngày), 0 = nghỉ.</summary>
     public static decimal WorkValue(DateOnly d, VpSettings s) => Day(d, s).Value;
 
+    /// <summary>Bản 1.10.4: số ngày phép năm được hưởng (Điều 113, 114 Bộ luật Lao động 2019): mức chung của công ty, cứ đủ 5 năm làm việc thêm 1 ngày;
+    /// năm đầu vào làm tính theo số tháng làm việc trong năm; nghỉ việc trong năm tính đến tháng nghỉ.</summary>
+    public static decimal LeaveEntitlement(Employee e, VpSettings s, int year)
+    {
+        var baseDays = s.LeavePerYear;
+        if (e.StartDate is { } sd)
+        {
+            if (sd.Year > year) return 0;
+            var years = year - sd.Year - (new DateOnly(year, 12, 31) < sd.AddYears(year - sd.Year) ? 1 : 0);
+            baseDays += Math.Max(0, years / 5);
+        }
+        int fromM = e.StartDate is { } st && st.Year == year ? st.Month : 1;
+        int toM = e.EndDate is { } en && en.Year == year ? en.Month : 12;
+        if (e.EndDate is { } en2 && en2.Year < year) return 0;
+        var months = Math.Max(0, toM - fromM + 1);
+        return months >= 12 ? baseDays : Math.Round(baseDays * months / 12m * 2, MidpointRounding.AwayFromZero) / 2;
+    }
+
     /// <summary>Một dòng ngày trong thiết lập: "2026-09-02", "2026-09-02:s", "2026-09-02 Quốc khánh", "2026-09-02:c Nghỉ chiều".</summary>
     public record DayLine(DateOnly Date, string? Half, string? Name);
     public static DayLine? ParseDay(string? line)

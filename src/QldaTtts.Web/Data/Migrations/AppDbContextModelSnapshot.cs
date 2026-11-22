@@ -1327,6 +1327,12 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<decimal?>("ProjectScore")
                         .HasColumnType("decimal(6,2)");
 
+                    b.Property<int?>("Rank")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("RankBonus")
+                        .HasColumnType("decimal(18,0)");
+
                     b.Property<string>("RatedBy")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -2244,6 +2250,9 @@ namespace QldaTtts.Web.Data.Migrations
 
                     b.Property<decimal?>("Hours")
                         .HasColumnType("decimal(10,2)");
+
+                    b.Property<bool?>("Payroll")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Place")
                         .HasMaxLength(300)

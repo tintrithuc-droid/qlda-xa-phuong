@@ -24,6 +24,11 @@ public class PaySettings
     public string PayDay { get; set; } = "Ngày 05 tháng sau";
     /// <summary>Bản 1.10.4: người lao động tự xác nhận lương từ ngày ConfirmFrom đến hết ngày ConfirmTo của tháng sau; quá hạn coi như đồng ý.</summary>
     public int ConfirmFrom { get; set; } = 1; public int ConfirmTo { get; set; } = 3;
+    /// <summary>Bản 1.10.4: danh sách chuyển khoản ngân hàng: tài khoản trích nợ của công ty, nội dung chuyển khoản ({thang}, {nam}, {ten}), tên người hưởng (giữ dấu như mẫu MB Bank hoặc viết hoa không dấu), tên trang tính.</summary>
+    public string? PayAccount { get; set; } public string? PayBank { get; set; }
+    public string TransferNote { get; set; } = "THANH TOAN LUONG T{thang}.{nam}";
+    public bool TransferAscii { get; set; }
+    public string TransferSheet { get; set; } = "Chuyển lương";
     /// <summary>Bản 1.10.4: công tác phí theo ngày công tác được duyệt (bật/tắt, mức đồng/ngày); không tính thuế TNCN.</summary>
     public bool TripOn { get; set; } public decimal TripRate { get; set; }
     /// <summary>Nghỉ phép vượt số ngày phép năm được hưởng thì trừ lương như nghỉ không lương.</summary>
@@ -119,6 +124,7 @@ public class LuongController : ApiControllerBase
         public DateTime? ConfirmedAt { get; set; } public string? Feedback { get; set; } public DateTime? FeedbackAt { get; set; } public string? FeedbackStatus { get; set; }
         public string? Reply { get; set; } public DateTime? RepliedAt { get; set; } public string? RepliedBy { get; set; }
         public string? ConfirmFrom { get; set; } public string? ConfirmTo { get; set; } public bool ConfirmOpen { get; set; } public string? ConfirmState { get; set; }
+        public DateTime? ApprovedAt { get; set; } public string? ApprovedBy { get; set; }
     }
 
 
@@ -126,6 +132,7 @@ public class LuongController : ApiControllerBase
     private static void Confirm(Slip s, Payslip sl, PaySettings ps, string month)
     {
         var (f, t) = ps.ConfirmWindow(month, sl.LockedAt); var today = DateOnly.FromDateTime(VnTime.Now);
+        s.ApprovedAt = sl.ApprovedAt; s.ApprovedBy = sl.ApprovedBy;
         s.ConfirmedAt = sl.ConfirmedAt; s.Feedback = sl.Feedback; s.FeedbackAt = sl.FeedbackAt; s.FeedbackStatus = sl.FeedbackStatus; s.Reply = sl.Reply; s.RepliedAt = sl.RepliedAt; s.RepliedBy = sl.RepliedBy;
         s.ConfirmFrom = f.ToString("yyyy-MM-dd"); s.ConfirmTo = t.ToString("yyyy-MM-dd"); s.ConfirmOpen = today >= f && today <= t && sl.ConfirmedAt is null;
         s.ConfirmState = sl.ConfirmedAt is not null ? "Đã xác nhận" : sl.FeedbackStatus == "Chờ xử lý" ? "Có kiến nghị" : sl.FeedbackStatus == "Đã trả lời" ? "Đã trả lời kiến nghị"
@@ -244,7 +251,9 @@ public class LuongController : ApiControllerBase
             return Ok(new { month, canEdit = false, all = false, settings = (object?)null, rows = mine });
         }
         var rows = await Compute(month, emps);
-        return Ok(new { month, canEdit = Uc.Can("luong", true), all = true, settings = PaySettings.Load(Db), rows });
+        // tài khoản nhận lương: chỉ người quản lý lương, người duyệt chi (để lập danh sách chuyển khoản)
+        var bank = Uc.Can("luong", true) || CanApprove ? emps.Select(e => new { employeeId = e.Id, account = e.BankAccount, bankName = e.BankName, idNumber = e.IdNumber }).ToList() : null;
+        return Ok(new { month, canEdit = Uc.Can("luong", true), canApprove = CanApprove, all = true, settings = PaySettings.Load(Db), rows, bank });
     }
 
     public record AdjustBody(decimal Bonus, decimal Deduction, string? Note);
@@ -274,6 +283,7 @@ public class LuongController : ApiControllerBase
         if (!DateOnly.TryParse(month + "-01", out var from)) return Error(400, "Tháng không hợp lệ.");
         var emps = await Staff(from); var rows = b.Lock ? await Compute(month, emps) : new();
         var slips = await Db.Payslips.Where(x => x.Month == month).ToListAsync(); var n = 0;
+        if (!b.Lock && slips.Any(x => x.ApprovedAt != null)) return Error(409, "Bảng lương đã duyệt chi: Giám đốc hoặc Kế toán hủy duyệt trước khi mở chốt.");
         if (b.Lock)
             foreach (var s in rows.Where(r => !r.Locked && r.HasProfile))
             {
@@ -284,6 +294,32 @@ public class LuongController : ApiControllerBase
         else foreach (var sl in slips.Where(x => x.LockedAt != null)) { sl.LockedAt = null; sl.LockedBy = null; sl.Data = null; sl.Net = null; n++; }
         Uc.Log(b.Lock ? "Chốt bảng lương" : "Mở chốt bảng lương", "Lương", $"Tháng {month}: {n} người");
         await Db.SaveChangesAsync(); return Ok(new { ok = true, n });
+    }
+
+    /// <summary>Quyền duyệt chi lương (Giám đốc hoặc Kế toán): nhóm có "Duyệt hồ sơ" ở phân hệ Lương.</summary>
+    private bool CanApprove => Uc.IsAdmin || (Uc.Group?.Perms.TryGetValue("luong:duyet", out var v) == true && v == "1");
+
+    public record ApproveBody(bool Approve);
+
+    /// <summary>Bản 1.10.4: duyệt chi (hoặc hủy duyệt) bảng lương đã chốt. Còn kiến nghị chưa trả lời thì chưa duyệt được.</summary>
+    [HttpPost("luong/{month}/duyet")]
+    public async Task<IActionResult> Approve(string month, [FromBody] ApproveBody b)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!CanApprove) return Denied("Chỉ Giám đốc hoặc Kế toán (quyền duyệt lương) được duyệt chi.");
+        if (!DateOnly.TryParse(month + "-01", out _)) return Error(400, "Tháng không hợp lệ.");
+        var slips = await Db.Payslips.Where(x => x.Month == month && x.LockedAt != null).ToListAsync();
+        if (slips.Count == 0) return Error(409, "Bảng lương tháng này chưa chốt.");
+        if (b.Approve)
+        {
+            var fb = slips.Count(x => x.FeedbackStatus == "Chờ xử lý");
+            if (fb > 0) return Error(409, $"Còn {fb} kiến nghị lương chưa trả lời: trả lời trước khi duyệt chi.");
+            foreach (var sl in slips.Where(x => x.ApprovedAt == null)) { sl.ApprovedAt = DateTime.UtcNow; sl.ApprovedBy = Uc.User.Name; }
+        }
+        else foreach (var sl in slips) { sl.ApprovedAt = null; sl.ApprovedBy = null; }
+        var unconfirmed = slips.Count(x => x.ConfirmedAt == null);
+        Uc.Log(b.Approve ? "Duyệt chi bảng lương" : "Hủy duyệt chi bảng lương", "Lương", $"Tháng {month}: {slips.Count} người" + (b.Approve && unconfirmed > 0 ? $", {unconfirmed} người chưa xác nhận" : ""));
+        await Db.SaveChangesAsync(); return Ok(new { ok = true, n = slips.Count, unconfirmed });
     }
 
     public record ConfirmBody(bool Agree, string? Feedback);

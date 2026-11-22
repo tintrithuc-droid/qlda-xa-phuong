@@ -1982,6 +1982,13 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<decimal>("Bonus")
                         .HasColumnType("decimal(18,0)");
 

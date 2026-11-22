@@ -409,11 +409,13 @@ VIEWS['luong']=()=>{
       {h:'Xác nhận', f:r=>payStatePill(r)}],
       rows, {empty:'Chưa có nhân sự.', nopage:true, rowAct:'pay-row'});
   }
-  const ed=d&&d.canEdit, locked=d&&d.all&&d.rows.some(r=>r.locked);
-  return `<div class="head"><div class="grow"><h1>${d&&!d.all?'Phiếu lương':'Bảng lương'} tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${d&&d.all?(locked?pill('Đã chốt','ok'):pill('Đang tính, chưa chốt','warn')):'Của bạn'}</p></div>
-    <div class="toolbar">${ed?`<button class="btn" data-act="pay-profiles">Hồ sơ lương</button><button class="btn" data-act="pay-set">Thiết lập</button><button class="btn ${locked?'':'primary'}" data-act="pay-lock" data-id="${locked?'0':'1'}">${locked?'Mở chốt':'Chốt bảng lương'}</button>`:''}</div></div>
+  const ed=d&&d.canEdit, locked=d&&d.all&&d.rows.some(r=>r.locked), appr=d&&d.all&&d.rows.some(r=>r.locked&&r.approvedAt), ap=d&&d.canApprove;
+  const ar=appr&&d.rows.find(r=>r.approvedAt);
+  return `<div class="head"><div class="grow"><h1>${d&&!d.all?'Phiếu lương':'Bảng lương'} tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${d&&d.all?(appr?pill('Đã duyệt chi','ok')+` <span class="small muted">${esc(ar.approvedBy||'')}, ${fmtDate(String(ar.approvedAt).slice(0,10))}</span>`:locked?pill('Đã chốt, chờ duyệt chi','info'):pill('Đang tính, chưa chốt','warn')):'Của bạn'}</p></div>
+    <div class="toolbar">${ed?`<button class="btn" data-act="pay-profiles">Hồ sơ lương</button><button class="btn" data-act="pay-set">Thiết lập</button>${appr?'':`<button class="btn ${locked?'':'primary'}" data-act="pay-lock" data-id="${locked?'0':'1'}">${locked?'Mở chốt':'Chốt bảng lương'}</button>`}`:''}
+      ${ap&&locked?`<button class="btn ${appr?'':'primary'}" data-act="pay-approve" data-id="${appr?'0':'1'}">${appr?'Hủy duyệt chi':'Duyệt chi lương'}</button>`:''}</div></div>
   <div class="toolbar" style="margin:4px 0 10px"><input type="month" data-f="plm" value="${esc(m)}" aria-label="Tháng">${d&&d.all?`<select data-f="pld" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
-    <span style="flex:1"></span><button class="btn sm ghost" data-act="pay-pdf" data-id="">In phiếu lương (PDF)</button><button class="btn sm ghost" data-act="pay-xlsx">Xuất Excel bảng lương</button>`:''}</div>${body}`;
+    <span style="flex:1"></span><button class="btn sm ghost" data-act="pay-pdf" data-id="">In phiếu lương (PDF)</button><button class="btn sm ghost" data-act="pay-xlsx">Bảng lương kế toán (Excel)</button><button class="btn sm ghost" data-act="pay-acc-pdf">Bảng lương kế toán (PDF)</button>${d.bank?`<button class="btn sm ${appr?'':'ghost'}" data-act="pay-bank" ${appr?'':'disabled title="Xuất được sau khi Giám đốc hoặc Kế toán duyệt chi"'}>Danh sách chuyển khoản ngân hàng</button>`:''}`:''}</div>${body}`;
 };
 /* Bản 1.10.4: người lao động tự xác nhận lương trong hạn (mặc định ngày 1 đến 3 tháng sau), có thể gửi kiến nghị */
 function payStatePill(r){ if(!r.locked||!r.confirmState) return '<span class="small muted">—</span>';
@@ -495,7 +497,7 @@ ACT['pay-prof']=id=>{ const e=VP.emps.find(x=>x.id===id), p=(VP._prof||{})[id]||
     onSave:async v=>{ await api('PUT',`/api/vp/luong-ho-so/${encodeURIComponent(id)}`,{baseSalary:N(v.base), insuranceSalary:v.ins===''||v.ins==null?null:N(v.ins), allowances:payAllowParse(v.allow), noInsurance:v.noIns==='1', flatTax:v.flat==='1', fromMonth:v.from||null, dependents:N(v.dep)});
       e.dependents=N(v.dep); VP.pay={}; return {id}; }}); };
 ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
-  openForm({title:'Thiết lập lương', value:{...s, ...Object.fromEntries(['tripOn','leaveOverDeduct','payUnusedLeave','fuelToPayroll','advanceToPayroll'].map(k=>[k,s[k]?'1':'0'])), taxText:s.taxTables.map(t=>t.from+' | '+t.brackets.map(b=>`${b.upTo/1e6||0}:${b.rate}`).join(' ')).join('\n')},
+  openForm({title:'Thiết lập lương', value:{...s, ...Object.fromEntries(['tripOn','leaveOverDeduct','payUnusedLeave','fuelToPayroll','advanceToPayroll','transferAscii'].map(k=>[k,s[k]?'1':'0'])), taxText:s.taxTables.map(t=>t.from+' | '+t.brackets.map(b=>`${b.upTo/1e6||0}:${b.rate}`).join(' ')).join('\n')},
     fields:[{key:'_h1',type:'html',html:'<div class="fld full"><b>Bảo hiểm người lao động đóng (%)</b></div>'},{key:'empBhxh',label:'BHXH',type:'number'},{key:'empBhyt',label:'BHYT',type:'number'},{key:'empBhtn',label:'BHTN',type:'number'},
       {key:'_h2',type:'html',html:'<div class="fld full"><b>Doanh nghiệp đóng (%)</b></div>'},{key:'coBhxh',label:'BHXH (gồm TNLĐ-BNN)',type:'number'},{key:'coBhyt',label:'BHYT',type:'number'},{key:'coBhtn',label:'BHTN',type:'number'},{key:'coKpcd',label:'Kinh phí công đoàn',type:'number'},
       {key:'baseWage',label:'Lương cơ sở (trần BHXH, BHYT = 20 lần)',type:'number'},{key:'regionMinWage',label:'Lương tối thiểu vùng (trần BHTN = 20 lần)',type:'number'},
@@ -508,8 +510,11 @@ ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
       {key:'payUnusedLeave',label:'Phép năm chưa nghỉ hết',type:'select',options:[['1','Trả vào lương tháng 12'],['0','Không trả']]},
       {key:'fuelToPayroll',label:'Đề xuất xăng xe đã duyệt (mặc định)',type:'select',options:[['1','Đưa vào lương'],['0','Không đưa (thanh toán riêng)']]},
       {key:'advanceToPayroll',label:'Đề xuất tạm ứng đã duyệt (mặc định)',type:'select',options:[['0','Không trừ vào lương (hoàn ứng riêng)'],['1','Trừ vào lương']]},
+      {key:'_h4',type:'html',html:'<div class="fld full"><b>Danh sách chuyển khoản ngân hàng</b><div class="small muted">Xuất sau khi Giám đốc hoặc Kế toán duyệt chi. Theo mẫu danh sách giao dịch của ngân hàng (MB Bank). Nội dung viết hoa không dấu, dùng {thang}, {nam}, {ten}.</div></div>'},
+      {key:'payAccount',label:'Tài khoản trích nợ của công ty',type:'text'},{key:'payBank',label:'Ngân hàng của công ty',type:'text'},
+      {key:'transferNote',label:'Nội dung chuyển khoản',type:'text'},{key:'transferAscii',label:'Tên người hưởng',type:'select',options:[['0','Giữ nguyên có dấu (như mẫu MB Bank)'],['1','Viết hoa không dấu']]},{key:'transferSheet',label:'Tên trang tính',type:'text'},
       {key:'taxText',label:'Biểu thuế TNCN theo tháng: mỗi dòng "ngày hiệu lực | đến (triệu):thuế suất …", bậc cuối ghi 0',type:'textarea',rows:3,keepLines:true}],
-    onSave:async v=>{ ['tripOn','leaveOverDeduct','payUnusedLeave','fuelToPayroll','advanceToPayroll'].forEach(k=>s[k]=v[k]==='1'); s.tripRate=N(v.tripRate); const taxTables=String(v.taxText||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2).map(p=>({from:p[0].trim(), brackets:p[1].trim().split(/\s+/).map(x=>x.split(':')).map(([u,r])=>({upTo:N(u)*1e6, rate:N(r)}))}));
+    onSave:async v=>{ ['tripOn','leaveOverDeduct','payUnusedLeave','fuelToPayroll','advanceToPayroll','transferAscii'].forEach(k=>s[k]=v[k]==='1'); s.payAccount=v.payAccount||''; s.payBank=v.payBank||''; s.transferNote=v.transferNote||'THANH TOAN LUONG T{thang}.{nam}'; s.transferSheet=v.transferSheet||'Chuyển lương'; s.tripRate=N(v.tripRate); const taxTables=String(v.taxText||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2).map(p=>({from:p[0].trim(), brackets:p[1].trim().split(/\s+/).map(x=>x.split(':')).map(([u,r])=>({upTo:N(u)*1e6, rate:N(r)}))}));
       const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate','confirmFrom','confirmTo'].forEach(k=>b[k]=N(v[k])); b.payDay=v.payDay||''; b.taxTables=taxTables;
       await api('PUT','/api/vp/luong-settings', b); VP.pay={}; return {id:'luong'}; }}); };
 ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||'';
@@ -518,6 +523,52 @@ ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; c
   exportXlsx(`Bang_luong_${m}.xlsx`, [{name:'Luong '+m, title:`BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}`, sub:`Ngày công chuẩn ${fmtN(d.rows[0]?.standard||0,1)}`,
     head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty','Nghỉ vượt phép (ngày)','Tiền phép chưa nghỉ','Công tác phí','Xăng xe','Tạm ứng trừ lương','Xác nhận','Kiến nghị'],
     rows, money:[3,6,7,9,10,11,12,13,14,15,17,18,19,20,21,22,23,25,26,27,28]}]); };
+ACT['pay-approve']=async a=>{ const m=payMonth(), d=VP.pay[m]; const rows=(d&&d.rows||[]).filter(r=>r.locked);
+  const un=rows.filter(r=>!r.confirmedAt && r.confirmState!=='Quá hạn, coi như đồng ý').length, fb=rows.filter(r=>r.feedbackStatus==='Chờ xử lý').length;
+  if(a==='1' && !await confirmBox(`Duyệt chi lương tháng ${m.slice(5)}/${m.slice(0,4)}: ${rows.length} người, thực lĩnh ${vnd(rows.reduce((s,r)=>s+(r.net||0),0))} đồng?${fb?` <b>Còn ${fb} kiến nghị chưa trả lời.</b>`:''}${un?` <b>${un} người chưa xác nhận</b> (còn trong hạn).`:''} Sau khi duyệt mới xuất được danh sách chuyển khoản; muốn sửa bảng lương phải hủy duyệt.`,'Duyệt chi')) return;
+  try{ const r=await api('POST',`/api/vp/luong/${m}/duyet`,{approve:a==='1'}); delete VP.pay[m]; render(); toast(a==='1'?'Đã duyệt chi lương '+r.n+' người':'Đã hủy duyệt chi'); }catch(ex){ toast(errText(ex),'err'); } };
+const payAscii = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toUpperCase().replace(/\s+/g,' ').trim();
+function payBankRows(){ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows||!d.bank) return null; const s=d.settings||{}; const bk=Object.fromEntries(d.bank.map(x=>[x.employeeId,x]));
+  const note=r=>payAscii(String(s.transferNote||'THANH TOAN LUONG T{thang}.{nam}').replace(/\{thang\}/g,m.slice(5)).replace(/\{nam\}/g,m.slice(0,4)).replace(/\{ten\}/g,r.name));
+  const rows=d.rows.filter(r=>r.locked&&r.approvedAt&&r.net>0).sort((a,b)=>a.name.localeCompare(b.name,'vi'))
+    .map(r=>({r, acc:(bk[r.employeeId]||{}).account||'', bank:(bk[r.employeeId]||{}).bankName||'', name:s.transferAscii?payAscii(r.name):r.name, note:note(r)}));
+  return {m, s, rows};
+}
+/* Mẫu danh sách giao dịch chuyển lương theo lô của ngân hàng (mẫu MB Bank Tri Thức đang nộp): tiêu đề song ngữ, 6 cột, số tài khoản dạng chữ, không dòng tổng */
+ACT['pay-bank']=async()=>{ const t=payBankRows(); if(!t) return; if(!t.rows.length) return toast('Chưa có phiếu lương đã duyệt chi.','err');
+  try{ await loadExcel(); }catch(e){ return toast('Không tải được thư viện Excel, thử lại sau.','err'); }
+  const wb=new ExcelJS.Workbook(); wb.creator=BR.appName||'QLDA'; const ws=wb.addWorksheet(String(t.s.transferSheet||'Chuyển lương').slice(0,31));
+  ws.columns=[12.8,17.8,30.3,33.8,21.4,45].map(w=>({width:w}));
+  ws.mergeCells('B1:F1'); const h=ws.getCell('B1'); h.value='DANH SÁCH GIAO DỊCH\n(LIST OF TRANSACTIONS)'; h.font={name:'Times New Roman',size:12,bold:true}; h.alignment={horizontal:'center',vertical:'middle',wrapText:true}; ws.getRow(1).height=36;
+  const head=['STT\n(Ord. No.)\n(1)','Số tài khoản\n(Account No.)\n(2)','Tên đơn vị thụ hưởng\n(Beneficiary Organization)\n(3)','Ngân hàng thụ hưởng/Chi nhánh\n(Beneficiary Bank)\n(4)','Số tiền\n(Amount)\n(5)','Chi tiết thanh toán\n(Payment Detail)\n(6)'];
+  const thin={style:'thin'}, bd={top:thin,left:thin,bottom:thin,right:thin};
+  const hr=ws.getRow(2); hr.height=45; head.forEach((x,k)=>{ const c=hr.getCell(k+1); c.value=x; c.font={name:'Times New Roman',size:11,bold:true}; c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD8DAD9'}}; c.alignment={horizontal:'center',vertical:'middle',wrapText:true}; c.border=bd; });
+  t.rows.forEach((x,i)=>{ const r=ws.getRow(3+i); [i+1, String(x.acc), x.name, x.bank, Math.round(x.r.net), x.note].forEach((v,k)=>{ const c=r.getCell(k+1); c.value=v; c.font={name:'Times New Roman',size:11}; c.border=bd; if(k===1) c.numFmt='@'; if(k===4) c.numFmt='_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)'; if(k===0) c.alignment={horizontal:'center'}; }); });
+  const out=await wb.xlsx.writeBuffer(); saveFile(`ChuyenLuong-T${t.m.slice(5)}.${t.m.slice(0,4)}.xlsx`, new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const miss=t.rows.filter(x=>!x.acc).map(x=>x.r.name);
+  toast(miss.length? 'Chưa có số tài khoản: '+miss.join(', ')+' (cập nhật ở hồ sơ nhân sự)' : `Đã xuất ${t.rows.length} giao dịch, tổng ${vnd(t.rows.reduce((a,x)=>a+x.r.net,0))} đồng`, miss.length?'err':''); };
+ACT['pay-acc-pdf']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||''; const s=d.settings||{};
+  const rows=d.rows.filter(r=>(!dep||r.departmentId===dep)&&(r.hasProfile||r.locked)).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'));
+  const sum=k=>rows.reduce((a,r)=>a+(r[k]||0),0), v=x=>x?fmtVND(x):'';
+  const cols=[['Lương chính','baseSalary'],['Công','paid'],['Lương theo công','timePay'],['Phụ cấp','allowances'],['Tăng ca','otPay'],['Thưởng KPI','kpiBonus'],['Thưởng khác','bonus'],['Tổng thu nhập','gross'],['BHXH','bhxh'],['BHYT','bhyt'],['BHTN','bhtn'],['Thu nhập tính thuế','assessable'],['Thuế TNCN','pit'],['Ứng, khấu trừ','_adv'],['Thực lĩnh','net']];
+  const val=(r,k)=>k==='paid'?fmtN(r.paid,1):k==='_adv'?v((r.advance||0)+(r.deduction||0)):v(r[k]);
+  const tot=k=>k==='paid'?'':k==='_adv'?v(sum('advance')+sum('deduction')):k==='baseSalary'?'':v(sum(k));
+  const html=`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Bảng lương ${m}</title><style>
+  @page{size:A4 landscape; margin:10mm} body{font:11px/1.35 "Times New Roman",Times,serif; color:#000; margin:0}
+  .hd{display:grid; grid-template-columns:1fr 1.2fr; text-align:center; margin-bottom:8px} .hd b{display:block} .hd .u{display:inline-block; border-top:1px solid #000; width:40%; margin-top:2px}
+  h1{font-size:15px; text-align:center; margin:6px 0 2px} .sub{text-align:center; font-style:italic; margin-bottom:8px}
+  table{width:100%; border-collapse:collapse} th,td{border:1px solid #000; padding:2px 3px; vertical-align:top} th{background:#eee; font-size:10.5px} td.r{text-align:right; white-space:nowrap} td.c{text-align:center}
+  thead{display:table-header-group} tr{page-break-inside:avoid} .sign{display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; margin-top:14px; page-break-inside:avoid} .sign i{display:block} .sp{height:60px}
+  </style></head><body>${printHead()}<h1>BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}</h1>
+  <div class="sub">BHXH ${fmtN(s.empBhxh??8,1)}%, BHYT ${fmtN(s.empBhyt??1.5,1)}%, BHTN ${fmtN(s.empBhtn??1,1)}% (người lao động) · Đơn vị tính: đồng</div>
+  <table><thead><tr><th>STT</th><th>Họ tên</th><th>Phòng ban</th>${cols.map(c=>`<th>${c[0]}</th>`).join('')}<th>Ký nhận</th></tr></thead>
+  <tbody>${rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.name)}</td><td>${esc(vpDeptName(r.departmentId))}</td>${cols.map(c=>`<td class="r">${val(r,c[1])}</td>`).join('')}<td></td></tr>`).join('')}
+  <tr><td></td><td colspan="2"><b>TỔNG CỘNG</b></td>${cols.map(c=>`<td class="r"><b>${tot(c[1])}</b></td>`).join('')}<td></td></tr></tbody></table>
+  <div class="sign"><div><b>NGƯỜI LẬP BIỂU</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(S.user&&S.user.name||'')}</div><div><b>KẾ TOÁN TRƯỞNG</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div>
+  <div><i>${printDate()}</i><b>GIÁM ĐỐC</b><i>(Ký, ghi rõ họ tên, đóng dấu)</i><div class="sp"></div></div></div></body></html>`;
+  const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.title='In bảng lương';
+  document.body.appendChild(fr); const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  setTimeout(()=>{ try{ fr.contentWindow.focus(); fr.contentWindow.print(); }finally{ setTimeout(()=>fr.remove(), 60000); } }, 250); };
 ACT['pay-pdf']=id=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const s=d.settings||{};
   const list=d.rows.filter(r=>id? r.employeeId===id : r.hasProfile||r.locked);
   const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="n">${c}</td></tr>`;

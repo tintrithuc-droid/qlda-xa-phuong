@@ -283,4 +283,7 @@ public class Payslip : EntityBase
     [MaxLength(2000)] public string? Reply { get; set; }
     public DateTime? RepliedAt { get; set; }
     [MaxLength(200)] public string? RepliedBy { get; set; }
+    /// <summary>Bản 1.10.4: Giám đốc hoặc Kế toán (quyền "luong:duyet") duyệt chi sau khi người lao động xác nhận; đã duyệt mới xuất danh sách chuyển khoản ngân hàng.</summary>
+    public DateTime? ApprovedAt { get; set; }
+    [MaxLength(200)] public string? ApprovedBy { get; set; }
 }

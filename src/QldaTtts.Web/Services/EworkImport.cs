@@ -339,6 +339,19 @@ public static class EworkImport
             }
         }
 
+        // ---- bản 1.10.4: nội dung chuyển khoản lương theo lần chuyển gần nhất trên e-work (ví dụ "TRI THUC THANH TOAN LUONG T10.2026" → "... T{thang}.{nam}")
+        var lastCl = Luu("ChuyenLuongs").Where(x => !string.IsNullOrWhiteSpace(S(x, "NoiDung"))).OrderByDescending(x => (Num(x, "Nam") ?? 0) * 100 + (Num(x, "Thang") ?? 0)).FirstOrDefault();
+        if (lastCl.ValueKind == JsonValueKind.Object)
+        {
+            var ps = Controllers.PaySettings.Load(db);
+            if (ps.TransferNote == new Controllers.PaySettings().TransferNote)
+            {
+                var nd = S(lastCl, "NoiDung")!.Trim();
+                var tpl = Regex.Replace(nd, @"(\d{1,2})([./-])(\d{4})", m => "{thang}" + m.Groups[2].Value + "{nam}");
+                if (tpl != nd && tpl.Length <= 200) { ps.TransferNote = tpl; ps.Save(db, by); rep.Warnings.Add($"Nội dung chuyển khoản lương theo e-work: {tpl}"); await Save(db, rep); }
+            }
+        }
+
         // ---- bản 1.10.4: dự án (QuanLyDuAns) → nhiệm vụ (NhomViecs) → công việc (QuanLyCongViecs); khóa theo mã e-work, đã có thì giữ bản trên QLDA
         var projByEw = new Dictionary<string, string>();
         var existingProj = await db.Projects.AsNoTracking().ToListAsync();

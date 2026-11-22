@@ -43,18 +43,28 @@ function cli(args, extraEnv = {}) {
   ok(br.address === 'Địa chỉ cũ giữ nguyên', 'Mất mục cũ khi gộp: ' + br.address);
   ok(br.color === 'navy' && br.field === 'xd', 'Nhận giá trị sai (màu/lĩnh vực): ' + br.color + ' ' + br.field);
 
+  // Bản 1.10.3: dữ liệu thật có mô tả đề xuất, vị trí điểm danh dài hơn cột (lỗi 22001 trên máy chủ Tri Thức)
+  const fx = JSON.parse(fs.readFileSync(path.join(__dirname, '../fixtures/ework_luutru.json'), 'utf8').replace(/^\uFEFF/, ''));
+  const LONG = 'Mô tả đề xuất rất dài. '.repeat(40); // ~920 ký tự
+  fx.dexuat.push({ ...fx.dexuat[0], Id: 'dx-dai', RefObjectDescription: LONG, LyDo: 'Lý do ngắn' });
+  fx.chamcong[0].ViTriDiemDanh = 'Số 1 đường dài '.repeat(30);
+  const FX = path.join(tmp, 'ework_dai.json'); fs.writeFileSync(FX, JSON.stringify(fx));
   // 2) Nạp e-work: mật khẩu chung yếu bị từ chối, không ghi gì
-  c = cli(['--nhap-ework', path.join(__dirname, '../fixtures/ework_luutru.json'), '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: '123' });
+  c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: '123' });
   ok(c.code !== 0, 'Chấp nhận mật khẩu chung yếu');
   let emps = await (await r.get(BASE + '/api/vp/employees', { headers: H })).json();
   ok(emps.length === 0, 'Đã nạp dù mật khẩu chung bị từ chối');
-  c = cli(['--nhap-ework', path.join(__dirname, '../fixtures/ework_luutru.json'), '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: 'TriThuc2026' });
+  c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: 'TriThuc2026' });
   ok(c.code === 0 && c.out.includes('Đã chuyển'), 'Lệnh nạp e-work lỗi: ' + c.out);
   ok(!c.out.includes('TriThuc2026'), 'In mật khẩu chung ra màn hình');
   const csv = fs.existsSync(path.join(tmp, 'tk.csv')) ? fs.readFileSync(path.join(tmp, 'tk.csv'), 'utf8') : '';
   ok(csv.charCodeAt(0) === 0xFEFF && csv.includes('ttb') && !csv.includes('TriThuc2026') && csv.includes('mật khẩu ban đầu chung'), 'Tệp tài khoản sai: ' + csv);
   emps = await (await r.get(BASE + '/api/vp/employees', { headers: H })).json();
   ok(emps.some(e => e.name === 'Trần Thị B'), 'Chưa nạp nhân sự');
+  const reqs = await (await r.get(BASE + '/api/vp/requests', { headers: H })).json().catch(() => null);
+  const rq = Array.isArray(reqs) ? reqs.find(x => (x.reason || '').includes('Mô tả đề xuất rất dài')) : null;
+  ok(rq && rq.title.length <= 300 && rq.reason.includes(LONG.trim()) && rq.reason.startsWith('Lý do ngắn'), 'Đề xuất mô tả dài không giữ đủ nội dung: ' + JSON.stringify(rq && { t: rq.title.length, r: (rq.reason || '').length }));
+  ok(c.out.includes('Cắt bớt Attendance.Site'), 'Không báo cắt vị trí điểm danh dài: ' + c.out.slice(0, 500));
   const logs = (await (await r.get(BASE + '/api/data', { headers: H })).json()).logs;
   ok(JSON.stringify(logs).includes('dòng lệnh trên máy chủ'), 'Không ghi nhật ký lệnh máy chủ');
   // Đăng nhập bằng mật khẩu chung, bị bắt đổi
@@ -63,8 +73,9 @@ function cli(args, extraEnv = {}) {
   ok((await q2.get(BASE + '/api/vp/employees', { headers: H })).status() >= 400, 'Chưa đổi mật khẩu mà vẫn dùng được');
   ok((await q2.post(BASE + '/api/auth/change-password', { headers: H, data: { old: 'TriThuc2026', password: 'Rieng2026x' } })).ok(), 'Đổi mật khẩu lỗi');
   // Nạp lại không sinh trùng, không đổi mật khẩu đã đổi
-  c = cli(['--nhap-ework', path.join(__dirname, '../fixtures/ework_luutru.json'), '--tai-khoan-ra', path.join(tmp, 'tk2.csv')]);
-  ok(c.code === 0 && !fs.existsSync(path.join(tmp, 'tk2.csv')), 'Nạp lại sinh tài khoản mới: ' + c.out);
+  c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk2.csv')]);
+  const csv2 = fs.existsSync(path.join(tmp, 'tk2.csv')) ? fs.readFileSync(path.join(tmp, 'tk2.csv'), 'utf8') : '';
+  ok(c.code === 0 && csv2.includes('tài khoản đã có') && !csv2.includes('mật khẩu ban đầu chung') && c.out.includes('0 tài khoản mới'), 'Nạp lại sinh tài khoản mới: ' + c.out);
   const ctx3 = await b.newContext();
   ok((await ctx3.request.post(BASE + '/api/auth/login', { headers: H, data: { username: 'ttb', password: 'Rieng2026x' } })).ok(), 'Nạp lại làm mất mật khẩu đã đổi');
 

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using QldaTtts.Web.Controllers;
+using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
@@ -40,14 +41,22 @@ public static class ServerCli
             var common = Environment.GetEnvironmentVariable("QLDA_MAT_KHAU_CHUNG");
             if (string.IsNullOrEmpty(common)) common = null;
             else if (!Passwords.Strong(common)) Fail("Mật khẩu ban đầu chung phải có ít nhất 8 ký tự, gồm chữ và số.");
-            var rep = await EworkImport.Run(db, doc.RootElement, By, common);
+            db.Database.SetCommandTimeout(600);
+            EworkImport.Report rep;
+            try { rep = await EworkImport.Run(db, doc.RootElement, By, common); }
+            catch (Exception ex)
+            {
+                var root = ex; while (root.InnerException is not null) root = root.InnerException;
+                Fail("Nạp e-work lỗi: " + root.Message + "\nChạy lại lệnh sau khi xử lý (chạy lại không sinh trùng)."); return true;
+            }
             Log("Chuyển dữ liệu từ e-work (dòng lệnh trên máy chủ)", "Văn phòng", rep.Summary);
             await db.SaveChangesAsync();
-            if (rep.NewAccounts.Count > 0)
+            if (rep.NewAccounts.Count > 0 || rep.LinkedAccounts.Count > 0)
             {
                 var sb = new StringBuilder("Họ tên,Tên đăng nhập,Mật khẩu ban đầu,Phòng ban\r\n");
                 string C(string? s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
                 foreach (var a in rep.NewAccounts) sb.Append($"{C(a.Name)},{C(a.Username)},{C(a.Password)},{C(a.Department)}\r\n");
+                foreach (var l in rep.LinkedAccounts) sb.Append($"{C(l)},,{C("(tài khoản đã có, giữ mật khẩu)")},\r\n");
                 await File.WriteAllTextAsync(outCsv, sb.ToString(), new UTF8Encoding(true));
                 Console.WriteLine($"Tài khoản mới và mật khẩu tạm: {outCsv} (chỉ giao quản trị; người dùng đổi mật khẩu khi đăng nhập lần đầu).");
             }

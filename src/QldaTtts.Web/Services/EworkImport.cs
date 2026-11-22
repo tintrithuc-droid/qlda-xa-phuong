@@ -117,7 +117,7 @@ public static class EworkImport
             // Trưởng phòng theo vai trò e-work
             if (dept is not null && dept.ManagerUserId is null && acc is not null && Regex.IsMatch(role, "LANHDAO", RegexOptions.IgnoreCase)) dept.ManagerUserId = acc.Id;
         }
-        await db.SaveChangesAsync();
+        await Save(db, rep);
 
         // ---- chấm công (mỗi người mỗi ngày một dòng: giờ vào sớm nhất)
         var have = (await db.Attendances.AsNoTracking().Select(a => new { a.EmployeeId, a.Date }).ToListAsync()).Select(a => a.EmployeeId + "|" + a.Date.ToString("yyyy-MM-dd")).ToHashSet();
@@ -162,12 +162,15 @@ public static class EworkImport
             if (status == "Chờ duyệt" && created < DateTime.Now.AddDays(-30)) { status = "Đã hủy"; note = "Chờ duyệt quá 30 ngày trên e-work"; }
             var from = Dt(J("ThoiGianBatDau", "TuNgay", "NgayBatDau", "ThoiGian", "Ngay"));
             var to = Dt(J("ThoiGianKetThuc", "DenNgay", "NgayKetThuc"));
+            // Bản 1.10.3: mô tả dài hơn tiêu đề (300 ký tự) thì giữ nguyên văn trong phần lý do
+            var desc = S(x, "RefObjectDescription"); var reason = S(x, "LyDo");
+            if (desc is { Length: > 300 }) reason = string.IsNullOrWhiteSpace(reason) ? desc : reason + "\n\n" + desc;
             db.Requests.Add(new Request
             {
                 Id = "dx-" + Guid.NewGuid().ToString("N")[..16], Code = $"DX-EW{++seq:0000}", Type = MapType(S(x, "TenDeXuat")), EmployeeId = e.Id,
-                Title = S(x, "RefObjectDescription"), FromAt = from is { } f ? VnTime.ToUtc(f) : null, ToAt = to is { } t ? VnTime.ToUtc(t) : null,
+                Title = Cut(desc, 300), FromAt = from is { } f ? VnTime.ToUtc(f) : null, ToAt = to is { } t ? VnTime.ToUtc(t) : null,
                 Days = Jn("SoNgay", "SoNgayNghi", "SoNgayCongTac"), Hours = Jn("SoGio", "SoGioTangCa", "TongSoGio"), Amount = Jn("SoTien", "TongTien", "ThanhTien", "SoTienDeNghi"),
-                Place = J("DiaDiem", "NoiCongTac", "DiaDiemCongTac", "LoTrinh"), Reason = S(x, "LyDo"), Status = status,
+                Place = J("DiaDiem", "NoiCongTac", "DiaDiemCongTac", "LoTrinh"), Reason = reason, Status = status,
                 ApproverName = S(x, "TenNguoiDuyet"), DecidedAt = Dt(S(x, "NgayHoanThanh")) is { } dc ? VnTime.ToUtc(dc) : null, DecisionNote = note,
                 CreatedAt = VnTime.ToUtc(created), EworkId = ew, UpdatedAt = now, UpdatedBy = by
             });
@@ -195,7 +198,7 @@ public static class EworkImport
             if (!s.Holidays.Any(h => h.StartsWith(d.ToString("yyyy-MM-dd")))) { s.Holidays.Add(key); rep.Holidays++; }
         }
         VpSettings.Save(db, s, by);
-        await db.SaveChangesAsync();
+        await Save(db, rep);
 
         var lt = root.TryGetProperty("luutru", out var l0) && l0.ValueKind == JsonValueKind.Object ? l0 : default;
         IEnumerable<JsonElement> Luu(string t) => lt.ValueKind == JsonValueKind.Object ? Arr(lt, t) : Arr(root, t);
@@ -243,7 +246,7 @@ public static class EworkImport
             });
             haveN.Add(id); rep.Notices++;
         }
-        await db.SaveChangesAsync();
+        await Save(db, rep);
 
         // ---- hồ sơ lương: lương cơ bản, phụ cấp, người phụ thuộc mới nhất theo ngày áp dụng (chỉ tạo khi QLDA chưa có)
         var hsUser = Luu("BangLuongCoBans").Where(h => S(h, "Id") is not null && S(h, "UserId") is not null).GroupBy(h => S(h, "Id")!).ToDictionary(g => g.Key, g => S(g.First(), "UserId")!);
@@ -269,7 +272,7 @@ public static class EworkImport
             });
             haveP.Add(e.Id); rep.PayProfiles++;
         }
-        await db.SaveChangesAsync();
+        await Save(db, rep);
 
         // ---- lưu trữ nguyên vẹn mọi bảng nghiệp vụ e-work (thay theo từng bảng, chạy lại không trùng)
         if (lt.ValueKind == JsonValueKind.Object)
@@ -290,12 +293,25 @@ public static class EworkImport
                         TableName = name, RowKey = Cut(S(r, "Id") ?? i.ToString(), 100)!,
                         EworkUserId = Cut(S(r, "UserId") ?? S(r, "NguoiXuLy") ?? S(r, "CreatedBy"), 64), Period = period, Data = r.GetRawText(), UpdatedAt = now, UpdatedBy = by
                     });
-                    if (++n % 2000 == 0) { await db.SaveChangesAsync(); db.ChangeTracker.Clear(); }
+                    if (++n % 2000 == 0) { await Save(db, rep); db.ChangeTracker.Clear(); }
                 }
-                await db.SaveChangesAsync(); db.ChangeTracker.Clear();
+                await Save(db, rep); db.ChangeTracker.Clear();
                 rep.Archive[name] = i;
             }
         return rep;
+    }
+
+    /// <summary>Bản 1.10.3: dữ liệu e-work dài hơn cột của QLDA thì cắt vừa cột (ghi lưu ý) thay vì dừng cả lần nạp.</summary>
+    private static async Task Save(AppDbContext db, Report rep)
+    {
+        foreach (var en in db.ChangeTracker.Entries().Where(x => x.State is EntityState.Added or EntityState.Modified))
+            foreach (var pr in en.Properties)
+                if (pr.CurrentValue is string v && pr.Metadata.GetMaxLength() is int max && v.Length > max)
+                {
+                    pr.CurrentValue = v[..max];
+                    if (rep.Warnings.Count < 200) rep.Warnings.Add($"Cắt bớt {en.Metadata.ClrType.Name}.{pr.Metadata.Name} ({v.Length} → {max} ký tự).");
+                }
+        await db.SaveChangesAsync();
     }
 
     private static string? Cut(string? s, int n) => s is null ? null : s.Length <= n ? s : s[..n];

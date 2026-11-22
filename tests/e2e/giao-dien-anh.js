@@ -50,6 +50,31 @@ function totp(secret) {
   const m = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh', geolocation: { latitude: 10.0343, longitude: 105.7470 }, permissions: ['geolocation'], isMobile: true, hasTouch: true, storageState: await ctx.storageState() });
   const mp = await m.newPage(); await mp.goto(BASE + '/#tong-quan'); await mp.waitForSelector('#app', { timeout: 15000 }); await mp.waitForTimeout(900); await mp.screenshot({ path: `${OUT}/15-di-dong.png` });
   for (const [n, r] of [['16-di-dong-diem-danh', 'van-phong'], ['19-di-dong-de-xuat', 'de-xuat'], ['20-di-dong-lich', 'lich-hop'], ['21-di-dong-thong-bao', 'thong-bao'], ['22-di-dong-bang-cong', 'diem-danh']]) { await mp.evaluate(r => location.hash = r, r); await mp.waitForTimeout(900); await mp.screenshot({ path: `${OUT}/${n}.png` }); }
+  // SIDES=blue,night,...: ảnh so sánh màu nền menu và trang đăng nhập (Thông tin đơn vị → Màu nền menu)
+  for (const sd of (process.env.SIDES || '').split(',').filter(Boolean)) {
+    const cur = await (await p.request.get(BASE + '/api/branding')).json();
+    await p.request.put(BASE + '/api/branding', { headers: H, data: { ...Object.fromEntries(Object.entries(cur).filter(([k, v]) => typeof v === 'string')), sideBg: sd } });
+    await p.reload(); await p.waitForSelector('#app', { timeout: 15000 }); await p.evaluate(() => location.hash = 'van-phong'); await p.waitForTimeout(900);
+    if (await p.evaluate(() => document.documentElement.dataset.sidebg) !== sd) errs.push('Màu nền menu không đổi: ' + sd);
+    await p.screenshot({ path: `${OUT}/m-${sd}-van-phong.png` });
+    await mp.reload(); await mp.waitForSelector('#app', { timeout: 15000 }); await mp.evaluate(() => location.hash = 'van-phong'); await mp.waitForTimeout(700);
+    await mp.click('#tabbar [data-act="menu"]'); await mp.waitForTimeout(500); await mp.screenshot({ path: `${OUT}/m-${sd}-dt-menu.png` });
+    await mp.mouse.click(380, 400); await mp.waitForTimeout(200);
+    const lc = await b.newContext({ viewport: { width: 1440, height: 900 }, locale: 'vi-VN' }); const lp = await lc.newPage();
+    await lp.goto(BASE + '/'); await lp.waitForSelector('#login', { timeout: 15000 }); await lp.waitForTimeout(500); await lp.screenshot({ path: `${OUT}/m-${sd}-dang-nhap.png` }); await lc.close();
+    const lm = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'vi-VN' }); const lq = await lm.newPage();
+    await lq.goto(BASE + '/'); await lq.waitForSelector('#login', { timeout: 15000 }); await lq.waitForTimeout(500); await lq.screenshot({ path: `${OUT}/m-${sd}-dt-dang-nhap.png` }); await lm.close();
+  }
+  // Hộp Giao diện: người dùng tự chọn màu nền menu, không ảnh hưởng đơn vị
+  if (STYLE === 'tech') {
+    await p.evaluate(() => ACT.appearance()); await p.waitForTimeout(400);
+    const lab = await p.$('input[data-ap="sidebg"][value="peach"]'); if (!lab) errs.push('Hộp Giao diện thiếu mục Màu nền menu');
+    else { await p.click('label:has(input[data-ap="sidebg"][value="peach"])'); await p.waitForTimeout(400);
+      await p.screenshot({ path: `${OUT}/26-hop-giao-dien-mau-nen.png` });
+      if (await p.evaluate(() => document.documentElement.dataset.sidebg) !== 'peach') errs.push('Người dùng chọn Cam nhạt nhưng menu không đổi');
+      await p.click('label:has(input[data-ap="sidebg"][value="unit"])'); await p.waitForTimeout(300); }
+    await p.keyboard.press('Escape');
+  }
   // Đăng xuất → trang đăng nhập
   await p.evaluate(() => { localStorage.clear(); }); await ctx.clearCookies(); await p.goto(BASE + '/'); await p.waitForSelector('#login', { timeout: 15000 }); await p.waitForTimeout(500); await p.screenshot({ path: `${OUT}/00-dang-nhap.png` });
   // Trang đăng nhập trên điện thoại 360px và 390px: không được tràn ngang

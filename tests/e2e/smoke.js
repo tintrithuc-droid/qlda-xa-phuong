@@ -182,6 +182,9 @@ async function login(p, u, pw = PW) {
   await p.evaluate(() => ACT['add-project']()); await p.waitForTimeout(200);
   await p.fill('#f_code', 'DA-TEST'); await p.fill('#f_name', 'Dự án kiểm thử đính kèm'); await p.fill('#f_tmdt', '1000000000');
   await p.fill('#f_decNo', '99/QĐ-UBND'); await p.fill('#f_decDate_t', '01/10/2026'); await putFiles('decAtt', [pdf, img]); await submit();
+  // như bước trên: tệp tải lên sau khi biểu mẫu đóng, chờ đến khi hồ sơ pháp lý mới có đủ 2 tệp (tối đa 10 giây)
+  await p.waitForFunction(() => { const pr = Store.data.projects.find(x => x.code === 'DA-TEST'); const l = pr && Store.data.legal.find(x => x.projectId === pr.id && x.type === 'Quyết định phê duyệt dự án');
+    return l && Store.data.attachments.filter(a => a.collection === 'legal' && a.recordId === l.id).length >= 2; }, null, { timeout: 10000 }).catch(() => {});
   const newP = await p.evaluate(() => Store.data.projects.find(x => x.code === 'DA-TEST'));
   const newL = await p.evaluate(id => Store.data.legal.find(l => l.projectId === id && l.type === 'Quyết định phê duyệt dự án'), newP && newP.id);
   if (!newL || await attOf('legal', newL.id) !== 2 || !newP.decision.includes('99/QĐ-UBND')) errs.push('A1: dự án mới không tạo được QĐ phê duyệt kèm 2 tệp');

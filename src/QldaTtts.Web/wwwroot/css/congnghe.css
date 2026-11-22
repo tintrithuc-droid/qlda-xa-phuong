@@ -32,6 +32,18 @@
 :root[data-style="tech"][data-mode="dark"][data-color="green"] {--accent:#5fcf8a; --accent-ink:#062312; --gold:#5fcf8a}
 :root[data-style="tech"][data-mode="dark"][data-color="earth"] {--accent:#f6a56f; --accent-ink:#2a1206; --gold:#f6a56f}
 :root[data-style="tech"][data-mode="dark"][data-color="slate"] {--accent:#c3cad6; --accent-ink:#111827; --gold:#c3cad6}
+/* Bản 1.10.6: màu nền menu và banner đăng nhập của đơn vị (Thông tin đơn vị → Màu giao diện). Mặc định Xanh Tri Thức. */
+:root[data-style="tech"][data-sidebg="blue"]    {--brand:#133a8a; --brand-hi:#2149a3; --brand-ink:#d3ddf3; --side-line:#1b4396; --gold:#b9cdff}
+:root[data-style="tech"][data-sidebg="night"]   {--brand:#0d1b3d; --brand-hi:#1d2e58; --brand-ink:#b9c5de; --side-line:#18284c; --gold:#9fb8ff}
+:root[data-style="tech"][data-sidebg="teal"]    {--brand:#0c3b3f; --brand-hi:#175358; --brand-ink:#c2dfdf; --side-line:#14494d; --gold:#8fe0d4}
+:root[data-style="tech"][data-sidebg="slate"]   {--brand:#1f2937; --brand-hi:#323d4f; --brand-ink:#c8ced8; --side-line:#2b3544; --gold:#a9c0ff}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="blue"]  {--brand:#0c2664; --brand-hi:#1a3a82; --brand-ink:#c3cfea; --side-line:#163273}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="night"] {--brand:#081229; --brand-hi:#16243f; --brand-ink:#b0bcd4; --side-line:#121e38}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="teal"]  {--brand:#072729; --brand-hi:#10393c; --brand-ink:#b3d3d3; --side-line:#0e3336}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="slate"] {--brand:#111827; --brand-hi:#232c3b; --brand-ink:#c3cad6; --side-line:#1d2533}
+/* Nền xanh: ô biểu tượng nền trắng cho rõ */
+:root[data-style="tech"][data-sidebg="blue"] :is(.brand .mark, .art-head .seal):not(.logo){background:#fff; color:#133a8a}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="blue"] :is(.brand .mark, .art-head .seal):not(.logo){color:#0c2664}
 /* Thanh bên kiểu sáng vẫn theo biến chung */
 :root[data-style="tech"][data-side="light"]{--side-line:var(--line); --side-mark:var(--accent)}
 

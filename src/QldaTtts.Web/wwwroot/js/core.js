@@ -99,8 +99,8 @@ const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA 
   reportOrg:'Ban QLDA đầu tư xây dựng xã/phường …', ownerDefault:'UBND xã/phường …', support:'Hỗ trợ: quản trị hệ thống của đơn vị',
   loginTitle:'Đăng nhập hệ thống', loginHint:'Sử dụng tài khoản do quản trị hệ thống cấp.', forgotText:'Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại.', bannerDeco:'1',
   color:'navy', printNation:'1', place:'…', signReport:'THỦ TRƯỞNG ĐƠN VỊ', signApprove:'LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN', signTech:'CÁN BỘ KỸ THUẬT', signAcc:'KẾ TOÁN',
-  logo:null, loginBg:null, field:'xd', hideMods:'', style:'gov'};
-let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy', style:lsGet('qlda-brstyle')||'gov'};
+  logo:null, loginBg:null, field:'xd', hideMods:'', style:'gov', sideBg:'blue'};
+let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy', style:lsGet('qlda-brstyle')||'gov', sideBg:lsGet('qlda-brside')||'blue'};
 /* Lĩnh vực dự án của đơn vị (Quản trị hệ thống → Thông tin đơn vị): 'xd' đầu tư xây dựng (mặc định, các xã/phường),
    'cntt' dự án CNTT, chuyển đổi số, đổi mới sáng tạo: đổi tên chức năng, nhãn theo nghề và ẩn chức năng chỉ dùng cho xây dựng. Dữ liệu giữ nguyên. */
 const isIT=()=>BR.field==='cntt';
@@ -124,9 +124,9 @@ const IT_CATS={
 const IT_CAT_HIDE={'Loại hồ sơ pháp lý':['Giấy phép xây dựng','Phương án bồi thường, giải phóng mặt bằng']};
 const IT_CAT_REN={'Thiết kế, dự toán':'Thiết kế chi tiết, dự toán (hoặc đề cương, dự toán chi tiết)'};
 function setBrand(b){
-  BR={...BR_DEF, ...(b||{})}; applyField(); document.title=BR.appName+' – '+BR.orgShort; lsSet('qlda-brcolor', BR.color); lsSet('qlda-brstyle', BR.style);
+  BR={...BR_DEF, ...(b||{})}; applyField(); document.title=BR.appName+' – '+BR.orgShort; lsSet('qlda-brcolor', BR.color); lsSet('qlda-brstyle', BR.style); lsSet('qlda-brside', BR.sideBg);
   const fi=document.getElementById('favicon'); if(fi){ const h=BR.logo||'/icons/icon.svg'; if(fi.getAttribute('href')!==h){ fi.setAttribute('href',h); if(BR.logo) fi.removeAttribute('type'); else fi.type='image/svg+xml'; } }
-  try{ if(UI.p && (UI.p.color==='unit' || UI.p.style==='unit')) UI.apply(UI.p); }catch{}
+  try{ if(UI.p) UI.apply(UI.p); }catch{}
 }
 /* Bản 1.10: phong cách Công nghệ dùng biểu tượng hình học (lớp chồng) thay trống đồng; CSS chọn hiện một trong hai theo data-style */
 const TECH_MARK='<svg class="bm-tech" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 4.5-9 4.5-9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/></svg>';
@@ -1069,7 +1069,7 @@ const UI = {
     if(o && !o.v && r.color==='navy') r.color='unit'; r.v=2; return r; },
   apply(p){
     this.p=this.clean(p); const r=document.documentElement, dark=this.p.mode==='dark' || (this.p.mode==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-    r.dataset.mode=dark?'dark':'light'; r.dataset.color=this.p.color==='unit'?(BR.color||'navy'):this.p.color; r.dataset.style=this.p.style==='unit'?(BR.style||'gov'):this.p.style; r.dataset.side=this.p.side; r.dataset.size=this.p.size; r.dataset.density=this.p.density;
+    r.dataset.mode=dark?'dark':'light'; r.dataset.color=this.p.color==='unit'?(BR.color||'navy'):this.p.color; r.dataset.style=this.p.style==='unit'?(BR.style||'gov'):this.p.style; r.dataset.sidebg=BR.sideBg||'blue'; r.dataset.side=this.p.side; r.dataset.size=this.p.size; r.dataset.density=this.p.density;
     if(this.p.mode==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',this.p.mode);
     const mc=document.querySelector('meta[name=theme-color]'); if(mc) setTimeout(()=>{ mc.content=getComputedStyle(r).getPropertyValue('--brand').trim()||'#0d2a57'; },0);
   },

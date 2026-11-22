@@ -128,6 +128,7 @@ public class BackupController : ApiControllerBase
                     // Trùng khóa duy nhất với bản ghi khác mã (một người một ngày điểm danh, một người xem một thông báo): giữ bản đang có
                     if (ex is null && o is Attendance at && await Db.Attendances.AnyAsync(x => x.EmployeeId == at.EmployeeId && x.Date == at.Date)) continue;
                     if (ex is null && o is NoticeRead nr && await Db.NoticeReads.AnyAsync(x => x.NoticeId == nr.NoticeId && x.UserId == nr.UserId)) continue;
+                    if (ex is null && o is KpiSheet ks && await Db.KpiSheets.AnyAsync(x => x.Month == ks.Month && x.EmployeeId == ks.EmployeeId)) continue;
                     if (ex is null) Db.Add(o); else Db.Entry(ex).CurrentValues.SetValues(o);
                     n++;
                 }

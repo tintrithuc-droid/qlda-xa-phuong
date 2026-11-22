@@ -8,7 +8,7 @@ async function vpLoad(force){
   }catch(e){ VP.err=errText(e); }
   VP.loading=false; onData();
 }
-function vpReset(){ VP.st=null; VP.att={}; VP.ts={}; VP.reqs={}; VP.set=null; }
+function vpReset(){ VP.st=null; VP.att={}; VP.ts={}; VP.reqs={}; VP.set=null; VP.ew={}; VP.mt={}; VP.nt=null; VP.ib=null; }
 const vpEmp = id => VP.emps.find(e=>e.id===id);
 const vpDept = id => VP.depts.find(d=>d.id===id);
 const vpDeptName = id => (vpDept(id)||{}).name || '';
@@ -248,7 +248,7 @@ function vpSettingsHTML(){
   <div class="card"><h2 style="margin-top:0">Ngày nghỉ lễ, tết</h2><p class="small muted" style="margin-top:0">Mỗi dòng một ngày dạng 2026-09-02; nghỉ nửa ngày ghi thêm :s (sáng) hoặc :c (chiều).</p><textarea id="vs_holidays" rows="6" style="width:100%">${esc((s.holidays||[]).join('\n'))}</textarea></div>
   <div class="card"><h2 style="margin-top:0">Chuyển tiếp với e-work</h2>
     ${VP.st.perms.admin?`<p class="small">1. Chuyển dữ liệu: chạy <b>xuat-ework.ps1</b> trên máy chủ e-work, rồi chọn tệp <b>ework_xuat.json</b> tại đây (chạy lại được, không sinh trùng).</p>
-    <div class="toolbar"><input type="file" id="vs_ew" accept=".json"><button class="btn sm" data-act="vp-ew-import">Chuyển dữ liệu từ e-work</button></div>
+    <div class="toolbar"><input type="file" id="vs_ew" accept=".json"><button class="btn sm" data-act="vp-ew-import">Chuyển dữ liệu từ e-work</button><a class="btn sm" href="#ework-cu">Tra cứu dữ liệu e-work cũ</a></div>
     <p class="small" style="margin-top:12px">2. Chép chấm công sang e-work để tính lương trong thời gian chuyển tiếp: ${s.syncKeyHash?pill('Đang bật','ok')+` từ ngày ${fmtDate(s.syncFrom)}`:pill('Chưa bật')}</p>
     <div class="toolbar"><button class="btn sm" data-act="vp-sync-key">${s.syncKeyHash?'Tạo lại khóa':'Tạo khóa chép chấm công'}</button></div>`:'<p class="small muted">Dành cho quản trị hệ thống.</p>'}</div></div>
   <div class="toolbar" style="margin-top:12px"><button class="btn primary" data-act="vp-set-save">Lưu thiết lập</button></div>`;
@@ -268,9 +268,10 @@ ACT['vp-ew-import']=async(id,el)=>{
   const f=($('#vs_ew').files||[])[0]; if(!f){ toast('Chọn tệp ework_xuat.json','err'); return; }
   el.disabled=true; el.textContent='Đang chuyển…';
   try{ const fd=new FormData(); fd.append('file', f); const r=await api('POST','/api/vp/import-ework', fd);
-    VP.att={}; VP.ts={}; VP.reqs={}; VP.set=null; await Store.load().catch(()=>{}); vpLoad(true);
+    VP.att={}; VP.ts={}; VP.reqs={}; VP.set=null; VP.ew={}; VP.mt={}; VP.nt=null; VP.ib=null; await Store.load().catch(()=>{}); vpLoad(true);
     openModal(`<div class="mform wide"><header><h3>Đã chuyển dữ liệu từ e-work</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">
-      <p>Thêm mới: <b>${r.departments}</b> phòng ban, <b>${r.employees}</b> hồ sơ nhân sự, <b>${r.attendances}</b> lượt chấm công, <b>${r.requests}</b> đề xuất, <b>${r.holidays}</b> ngày nghỉ.</p>
+      <p>Thêm mới: <b>${r.departments}</b> phòng ban, <b>${r.employees}</b> hồ sơ nhân sự, <b>${r.attendances}</b> lượt chấm công, <b>${r.requests}</b> đề xuất, <b>${r.meetings}</b> lịch họp, <b>${r.notices}</b> thông báo, <b>${r.holidays}</b> ngày nghỉ.</p>
+      ${Object.keys(r.archive||{}).length?`<p>Lưu trữ để tra cứu: <b>${fmtN(Object.values(r.archive).reduce((a,b)=>a+b,0))}</b> dòng của <b>${Object.keys(r.archive).length}</b> bảng (công việc, KPI, bảng lương…). <a href="#ework-cu" data-close>Xem dữ liệu e-work cũ</a></p>`:''}
       ${r.newAccounts.length?`<h3>Tài khoản mới (${r.newAccounts.length}): mật khẩu tạm chỉ hiện một lần, người dùng phải đổi ở lần đăng nhập đầu</h3><div class="toolbar"><button class="btn sm" data-act="vp-acc-xlsx">Tải danh sách (Excel)</button></div>
       ${table([{h:'Họ tên',k:'name'},{h:'Phòng ban',k:'department'},{h:'Tên đăng nhập',k:'username'},{h:'Mật khẩu tạm',f:x=>`<code>${esc(x.password)}</code>`}], r.newAccounts, {nopage:true})}`:''}
       ${r.linkedAccounts.length?`<details><summary>Gắn với tài khoản sẵn có (${r.linkedAccounts.length})</summary><p class="small">${r.linkedAccounts.map(esc).join('<br>')}</p></details>`:''}

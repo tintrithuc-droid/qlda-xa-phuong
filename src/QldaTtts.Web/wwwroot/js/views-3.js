@@ -585,6 +585,8 @@ const BR_FIELD_OPTS=[['xd','Đầu tư xây dựng (xã, phường)'],['cntt','C
 const BR_SECS=[
   ['Lĩnh vực dự án', 'Chọn CNTT, chuyển đổi số: phần mềm đổi tên chức năng, nhãn theo dự án CNTT (Nhật ký triển khai; Hạng mục, khối lượng công việc; Nghiệm thu, vận hành thử, bảo hành…), ẩn Giải phóng mặt bằng, Mô hình hóa công trình, giấy phép xây dựng, thời tiết; nạp danh mục mặc định cho dự án CNTT. Dữ liệu đã nhập giữ nguyên.',
     [['field','Lĩnh vực dự án của đơn vị',BR_FIELD_OPTS]]],
+  ['Phân hệ sử dụng', 'Bỏ chọn phân hệ đơn vị không dùng: phân hệ đó ẩn khỏi menu, màn hình phân quyền, tổng quan với mọi người dùng. Dữ liệu đã có giữ nguyên, chọn lại là hiện lại.',
+    [['hideMods','Phân hệ đang dùng','mods']]],
   ['Tên đơn vị và phần mềm', '', [['orgShort','Tên đơn vị rút gọn (thanh bên trái, phía trên tên phần mềm)'],['appName','Tên phần mềm (thanh bên trái, tiêu đề trình duyệt)'],
     ['orgName','Tên cơ quan chủ quản (trang đăng nhập dòng 1, đầu mẫu in)'],['unitName','Tên đơn vị sử dụng (trang đăng nhập dòng 2, đầu mẫu in)'],
     ['support','Thông tin hỗ trợ (cuối thanh bên trái)'],['footer','Chân trang ({năm} tự thay bằng năm hiện tại)','area']]],
@@ -602,6 +604,8 @@ function brField([k,l,t],ed){
   const dis=ed?'':'disabled', id='br_'+k;
   if(typeof t==='function'||Array.isArray(t)){ const list=typeof t==='function'?t():t;
     return `<div class="fld"><label for="${id}">${esc(l)}</label><select id="${id}" ${dis}>${list.map(([v,n])=>`<option value="${esc(v)}" ${String(BR[k])===v?'selected':''}>${esc(n)}</option>`).join('')}</select></div>`; }
+  if(t==='mods'){ const hid=String(BR.hideMods||'').split(',').filter(Boolean);
+    return `<div class="fld full" id="${id}"><div class="checks">${MODULES.filter(m=>!['tong-quan','quan-tri','bao-cao'].includes(m.key)).map(m=>`<label><input type="checkbox" value="${esc(m.key)}" ${hid.includes(m.key)?'':'checked'} ${dis}> ${esc(m.label0||m.label)}</label>`).join('')}</div></div>`; }
   if(t==='area') return `<div class="fld full"><label for="${id}">${esc(l)}</label><textarea id="${id}" rows="2" ${dis}>${esc(BR[k])}</textarea></div>`;
   return `<div class="fld"><label for="${id}">${esc(l)}</label><input id="${id}" value="${esc(BR[k])}" ${dis}></div>`;
 }
@@ -629,7 +633,7 @@ const _brWire=()=>{ $$('input[type=file][data-kind]').forEach(f=>{ if(f._w) retu
   if(file.size>mb*1024*1024) return toast((lg?'Logo':'Ảnh nền')+' tối đa '+mb+' MB','err');
   const fd=new FormData(); fd.append('file',file);
   try{ setBrand(await api('POST','/api/branding/'+f.dataset.kind,fd)); toast(lg?'Đã cập nhật logo':'Đã cập nhật ảnh nền trang đăng nhập'); render(); }catch(ex){ toast(errText(ex),'err'); } }; }); };
-ACT['brand-save']=async()=>{ const b={}; BR_FIELDS.forEach(([k])=>b[k]=$('#br_'+k).value.trim()); const was=BR.field;
+ACT['brand-save']=async()=>{ const b={}; BR_FIELDS.forEach(([k,,t])=>{ b[k]= t==='mods'? $$('#br_'+k+' input:not(:checked)').map(i=>i.value).join(',') : $('#br_'+k).value.trim(); }); const was=BR.field;
   try{ setBrand(await api('PUT','/api/branding',b));
     let n=0; if(BR.field==='cntt' && was!=='cntt') n=await applyITCats();
     toast(n?`Đã lưu thông tin đơn vị, cập nhật ${n} giá trị danh mục cho dự án CNTT`:'Đã lưu thông tin đơn vị'); render(); }catch(ex){ toast(errText(ex),'err'); } };

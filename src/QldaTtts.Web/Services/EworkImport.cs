@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -21,11 +21,15 @@ public static class EworkImport
         public int Attendances { get; set; }
         public int Requests { get; set; }
         public int Holidays { get; set; }
+        public int Meetings { get; set; }
+        public int Notices { get; set; }
+        /// <summary>Số dòng lưu trữ theo từng bảng e-work.</summary>
+        public Dictionary<string, int> Archive { get; set; } = new();
         public List<string> LinkedAccounts { get; set; } = new();
         /// <summary>Tài khoản mới tạo kèm mật khẩu tạm (chỉ trả về một lần cho quản trị, không lưu).</summary>
         public List<NewAccount> NewAccounts { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
-        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {NewAccounts.Count} tài khoản mới";
+        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
     }
     public record NewAccount(string Name, string Username, string Password, string? Department);
 
@@ -190,7 +194,91 @@ public static class EworkImport
         }
         VpSettings.Save(db, s, by);
         await db.SaveChangesAsync();
+
+        var lt = root.TryGetProperty("luutru", out var l0) && l0.ValueKind == JsonValueKind.Object ? l0 : default;
+        IEnumerable<JsonElement> Luu(string t) => lt.ValueKind == JsonValueKind.Object ? Arr(lt, t) : Arr(root, t);
+        string? UserOf(string? ew) => ew is not null && empByEw.TryGetValue(ew, out var e) ? e.UserId : null;
+
+        // ---- lịch họp (khóa theo mã e-work: lh-ew-<Id>; đã có thì giữ bản trên QLDA)
+        var haveM = (await db.Meetings.AsNoTracking().Where(m => m.Id.StartsWith("lh-ew-")).Select(m => m.Id).ToListAsync()).ToHashSet();
+        var ketQua = Luu("KetQuaLichHops").Where(k => S(k, "RefId") is not null).GroupBy(k => S(k, "RefId")!)
+            .ToDictionary(g => g.Key, g => string.Join("\n", g.OrderBy(k => Num(k, "Sort") ?? 0).Select(k => Plain(S(k, "NoiDung"))).Where(x => x.Length > 0)));
+        var rooms = Luu("PhongHops").Where(r => S(r, "Id") is not null).ToDictionary(r => S(r, "Id")!, r => S(r, "Ten") ?? "");
+        foreach (var m in Luu("LichHops"))
+        {
+            var ew = S(m, "Id"); if (ew is null) continue; var id = Cut("lh-ew-" + ew, 64);
+            if (haveM.Contains(id) || Dt(S(m, "NgayBatDau")) is not { } st) continue;
+            var content = Plain(S(m, "NoiDung"));
+            var concl = string.Join("\n", new[] { Plain(S(m, "KetQuaCuocHop")), ketQua.TryGetValue(ew, out var kq) ? kq : "" }.Where(x => x.Length > 0));
+            var stat = Norm(S(m, "TenTrangThaiXuLy"));
+            var att = Regex.Split(S(m, "ThanhPhanThamDu") ?? "", "[,;\\s]+").Where(x => empByEw.ContainsKey(x)).Select(x => empByEw[x].Id).Distinct();
+            var roomId = S(m, "PhongHop");
+            db.Meetings.Add(new Meeting
+            {
+                Id = id, Kind = "Họp", Title = Cut(content.Split('\n')[0], 500) is { Length: > 0 } t ? t : "Cuộc họp", Content = content,
+                StartAt = VnTime.ToUtc(st), EndAt = Dt(S(m, "NgayKetThuc")) is { } en && en > st ? VnTime.ToUtc(en) : null,
+                Place = Cut(S(m, "TenPhongHop") ?? (roomId is not null && rooms.TryGetValue(roomId, out var rn) ? rn : null), 300),
+                Chair = Cut(S(m, "TenNguoiChuTri"), 200), Participants = Cut(S(m, "TenThanhPhanThamDu"), 1000), AttendeeIds = string.Join(",", att) is { Length: > 0 } a ? a : null,
+                Preparer = S(m, "TenThuKy") is { Length: > 0 } tk ? Cut("Thư ký: " + tk, 300) : null, Conclusion = concl.Length > 0 ? concl : null,
+                Status = stat.Contains("hủy") ? "Đã hủy" : stat.Contains("hoãn") ? "Đã hoãn" : "Đã lên lịch",
+                CreatedByUserId = UserOf(S(m, "CreatedBy")), CreatedAt = VnTime.ToUtc(Dt(S(m, "CreatedDate")) ?? st), UpdatedAt = now, UpdatedBy = by
+            });
+            haveM.Add(id); rep.Meetings++;
+        }
+
+        // ---- thông báo (tb-ew-<Id>; coi như mọi người đã đọc để không dồn vào hộp thư)
+        var haveN = (await db.Notices.AsNoTracking().Where(n => n.Id.StartsWith("tb-ew-")).Select(n => n.Id).ToListAsync()).ToHashSet();
+        foreach (var n in Luu("ThongBaos"))
+        {
+            var ew = S(n, "Id"); if (ew is null) continue; var id = Cut("tb-ew-" + ew, 64);
+            if (haveN.Contains(id)) continue;
+            var depIds = Regex.Split(S(n, "PhamViThongBao") ?? "", "[,;\\s]+").Where(x => deptByEw.ContainsKey(x)).Select(x => deptByEw[x].Id).Distinct();
+            db.Notices.Add(new Notice
+            {
+                Id = id, Title = Cut(S(n, "TieuDe"), 500) is { Length: > 0 } t ? t : "Thông báo", Body = Plain(S(n, "NoiDung")),
+                DeptIds = string.Join(",", depIds) is { Length: > 0 } dp ? dp : null, PublishedAt = VnTime.ToUtc(Dt(S(n, "CreatedDate")) ?? DateTime.Now),
+                AuthorName = Cut(S(n, "TenNguoiNhap"), 200), CreatedByUserId = UserOf(S(n, "CreatedBy") ?? S(n, "NguoiNhap")), UpdatedAt = now, UpdatedBy = by
+            });
+            haveN.Add(id); rep.Notices++;
+        }
+        await db.SaveChangesAsync();
+
+        // ---- lưu trữ nguyên vẹn mọi bảng nghiệp vụ e-work (thay theo từng bảng, chạy lại không trùng)
+        if (lt.ValueKind == JsonValueKind.Object)
+            foreach (var tb in lt.EnumerateObject())
+            {
+                if (tb.Value.ValueKind != JsonValueKind.Array) continue;
+                var name = Cut(tb.Name, 100)!;
+                await db.EworkArchive.Where(r => r.TableName == name).ExecuteDeleteAsync();
+                int i = 0, n = 0;
+                foreach (var r in tb.Value.EnumerateArray())
+                {
+                    i++;
+                    var period = Num(r, "Nam") is { } y && Num(r, "Thang") is { } mo && y > 1900 && mo is >= 1 and <= 12 ? $"{(int)y:0000}-{(int)mo:00}"
+                        : Dt(S(r, "CreatedDate")) is { } cd ? cd.ToString("yyyy-MM") : null;
+                    db.EworkArchive.Add(new EworkRow
+                    {
+                        Id = "ew-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(name + "|" + (S(r, "Id") ?? i.ToString()))))[..40].ToLowerInvariant(),
+                        TableName = name, RowKey = Cut(S(r, "Id") ?? i.ToString(), 100)!,
+                        EworkUserId = Cut(S(r, "UserId") ?? S(r, "NguoiXuLy") ?? S(r, "CreatedBy"), 64), Period = period, Data = r.GetRawText(), UpdatedAt = now, UpdatedBy = by
+                    });
+                    if (++n % 2000 == 0) { await db.SaveChangesAsync(); db.ChangeTracker.Clear(); }
+                }
+                await db.SaveChangesAsync(); db.ChangeTracker.Clear();
+                rep.Archive[name] = i;
+            }
         return rep;
+    }
+
+    private static string? Cut(string? s, int n) => s is null ? null : s.Length <= n ? s : s[..n];
+    /// <summary>Bỏ thẻ HTML (nội dung e-work soạn bằng trình soạn thảo), giữ xuống dòng.</summary>
+    private static string Plain(string? h)
+    {
+        if (string.IsNullOrWhiteSpace(h)) return "";
+        var t = Regex.Replace(h, @"<\s*(br|/p|/div|/li|/tr|/h\d)\s*/?>", "\n", RegexOptions.IgnoreCase);
+        t = Regex.Replace(t, "<[^>]+>", "");
+        t = System.Net.WebUtility.HtmlDecode(t);
+        return Regex.Replace(Regex.Replace(t, "[ \t\u00a0]+", " "), @"\s*\n\s*", "\n").Trim();
     }
 
     private static string MapType(string? t)

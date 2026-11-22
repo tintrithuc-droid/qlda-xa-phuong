@@ -75,11 +75,13 @@ function renderNav(){
   let html='', grp='';
   const link=(r,l,i,t)=>`<a href="#${r}" title="${esc(t||l)}" class="${S.route===r?'on':''}">${ic(i)}<span>${esc(l)}</span>${cnt[r]?`<span class="cnt">${cnt[r]}</span>`:''}</a>`;
   /* Bản 1.9: nhóm Văn phòng (điểm danh, đề xuất cho mọi người; bảng công cho người có quyền, trưởng phòng; nhân sự theo quyền) */
-  if(typeof VP!=='undefined'){ if(!VP.st && !VP.loading && !VP.err) setTimeout(()=>vpLoad(),0);
-    const pend=VP.st? VP.st.pending : 0;
-    html+=`<div class="grp">Văn phòng</div>`+link('van-phong','Điểm danh','check')+`<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>`
-      +link('lich-hop','Lịch công tác','cal')+`<a href="#thong-bao" class="${S.route==='thong-bao'?'on':''}">${ic('bell')}<span>Thông báo</span>${VP.ib&&VP.ib.unread?`<span class="cnt">${VP.ib.unread}</span>`:''}</a>`
-      +(vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : ''); grp='Văn phòng'; }
+  /* Bản 1.10: từng mục ẩn được theo Thông tin đơn vị → Phân hệ sử dụng (đơn vị không dùng Văn phòng thì ẩn cả nhóm) */
+  const vpOn=['diem-danh','de-xuat','lich-hop','thong-bao','kpi','nhan-su'].filter(k=>!modHidden(k));
+  if(typeof VP!=='undefined' && vpOn.length){ if(!VP.st && !VP.loading && !VP.err) setTimeout(()=>vpLoad(),0);
+    const pend=VP.st? VP.st.pending : 0, on=k=>vpOn.includes(k);
+    html+=`<div class="grp">Văn phòng</div>`+(on('diem-danh')? link('van-phong','Điểm danh','check') : '')+(on('de-xuat')? `<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>` : '')
+      +(on('lich-hop')? link('lich-hop','Lịch công tác','cal') : '')+(on('thong-bao')? `<a href="#thong-bao" class="${S.route==='thong-bao'?'on':''}">${ic('bell')}<span>Thông báo</span>${VP.ib&&VP.ib.unread?`<span class="cnt">${VP.ib.unread}</span>`:''}</a>` : '')
+      +(on('diem-danh') && vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(on('kpi')? link('kpi','KPI','chart') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : ''); grp='Văn phòng'; }
   MODULES.filter(m=>can(m.key) && m.grp!=='Văn phòng').forEach(m=>{
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;
       if(grp==='Nghiệp vụ'){ const cb=NAV_CB.filter(([r])=>can(r)); if(cb.length) html+=`<div class="sub">${esc(PHASES.cb)}</div>`+cb.map(([r,l,i])=>link(r,l,i,PHASES.cb+': '+l)).join('')+`<div class="sub">${esc(PHASES.dt)}</div>`; } }

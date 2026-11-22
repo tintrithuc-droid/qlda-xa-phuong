@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -277,35 +277,7 @@ public class VanPhongController : ApiControllerBase
         var s = VpSettings.Load(Db);
         var scope = await AttendanceScope(await Me());
         var emps = (await Db.Employees.AsNoTracking().Where(e => e.Attendance).OrderBy(e => e.Name).ToListAsync()).Where(e => scope is null || scope.Contains(e.Id)).ToList();
-        var atts = (await Db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
-        var reqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.FromAt != null).ToListAsync())
-            .Where(r => r.FromAt < VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue)) && (r.ToAt ?? r.FromAt) >= VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue))).ToList();
-        decimal standard = 0; for (var d = from; d < to; d = d.AddDays(1)) standard += VnTime.WorkValue(d, s);
-        var today = DateOnly.FromDateTime(VnTime.Now);
-        var rows = emps.Select(e =>
-        {
-            var xs = atts.TryGetValue(e.Id, out var l) ? l : new();
-            var mine = reqs.Where(r => r.EmployeeId == e.Id).ToList();
-            decimal Days(string type) => mine.Where(r => r.Type == type).Sum(r => r.Days ?? 0);
-            var worked = xs.Where(a => a.InAt != null || a.OutAt != null).Sum(a => Math.Max(0.5m, VnTime.WorkValue(a.Date, s) == 0 ? 1 : VnTime.WorkValue(a.Date, s)));
-            var leave = Days("Nghỉ phép");
-            var trip = mine.Where(r => r.Type == "Công tác").Sum(r => r.Days ?? 0);
-            // Ngày làm việc đã qua không có điểm danh, không có đề xuất nghỉ/công tác được duyệt
-            var absent = 0m;
-            for (var d = from; d < to && d <= today; d = d.AddDays(1))
-            {
-                var wv = VnTime.WorkValue(d, s); if (wv == 0 || xs.Any(a => a.Date == d)) continue;
-                var covered = mine.Any(r => r.FromAt is { } f && DateOnly.FromDateTime(VnTime.ToVn(f)) <= d && DateOnly.FromDateTime(VnTime.ToVn(r.ToAt ?? f)) >= d
-                    && (r.Type is "Nghỉ phép" or "Công tác" or "Làm việc online"));
-                if (!covered) absent += wv;
-            }
-            return new
-            {
-                employeeId = e.Id, e.Name, e.DepartmentId, standard, worked, late = xs.Count(a => a.LateMinutes > 0), lateMinutes = xs.Sum(a => a.LateMinutes),
-                early = xs.Count(a => a.EarlyMinutes > 0), outside = xs.Count(a => a.InPlace == "Ngoài công ty"), online = xs.Count(a => a.InPlace == "Làm việc online"),
-                noOut = xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today), leave, trip, overtime = mine.Where(r => r.Type == "Tăng ca").Sum(r => r.Hours ?? 0), absent
-            };
-        });
+        var (standard, rows) = await VpCalc.Month(Db, s, emps, from);
         return Ok(new { month, standard, rows });
     }
 
@@ -417,7 +389,7 @@ public class VanPhongController : ApiControllerBase
     // ------------------------------------------------------------------ chuyển dữ liệu từ e-work, chép chấm công ngược lại
 
     /// <summary>Nạp tệp xuất từ e-work (xuat-ework.ps1): phòng ban, nhân sự, tài khoản, chấm công, ngày nghỉ, đề xuất. Chạy lại được (khớp theo mã e-work).</summary>
-    [HttpPost("import-ework"), RequestSizeLimit(200L * 1024 * 1024)]
+    [HttpPost("import-ework"), RequestSizeLimit(600L * 1024 * 1024), RequestFormLimits(MultipartBodyLengthLimit = 600L * 1024 * 1024)]
     public async Task<IActionResult> ImportEwork(IFormFile file)
     {
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
@@ -427,6 +399,31 @@ public class VanPhongController : ApiControllerBase
         Uc.Log("Chuyển dữ liệu từ e-work", "Văn phòng", rep.Summary);
         await Db.SaveChangesAsync();
         return Ok(rep);
+    }
+
+    /// <summary>Lưu trữ e-work: danh sách bảng đã chuyển và số dòng (chỉ quản trị).</summary>
+    [HttpGet("ework-archive")]
+    public async Task<IActionResult> EworkTables()
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được tra cứu dữ liệu e-work cũ.");
+        var l = await Db.EworkArchive.AsNoTracking().GroupBy(r => r.TableName).Select(g => new { table = g.Key, rows = g.Count(), updatedAt = g.Max(r => r.UpdatedAt) }).ToListAsync();
+        return Ok(l.OrderBy(x => x.table));
+    }
+
+    /// <summary>Các dòng của một bảng e-work đã lưu trữ; q tìm trong mọi cột, period lọc kỳ yyyy-MM.</summary>
+    [HttpGet("ework-archive/{table}")]
+    public async Task<IActionResult> EworkRows(string table, [FromQuery] string? q, [FromQuery] string? period, [FromQuery] int skip = 0, [FromQuery] int take = 200)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.IsAdmin) return Denied("Chỉ quản trị hệ thống được tra cứu dữ liệu e-work cũ.");
+        var x = Db.EworkArchive.AsNoTracking().Where(r => r.TableName == table);
+        if (!string.IsNullOrWhiteSpace(period)) x = x.Where(r => r.Period == period);
+        if (!string.IsNullOrWhiteSpace(q)) { var k = q.Trim().ToLower(); x = x.Where(r => r.Data.ToLower().Contains(k)); }
+        var total = await x.CountAsync();
+        var rows = await x.OrderBy(r => r.Period == null).ThenByDescending(r => r.Period).ThenBy(r => r.RowKey).Skip(Math.Max(0, skip)).Take(Math.Clamp(take, 1, 50000)).Select(r => r.Data).ToListAsync();
+        var periods = await Db.EworkArchive.AsNoTracking().Where(r => r.TableName == table && r.Period != null).Select(r => r.Period!).Distinct().OrderByDescending(p => p).ToListAsync();
+        return Ok(new { total, periods, rows = rows.Select(d => JsonDocument.Parse(d).RootElement) });
     }
 
     /// <summary>Tạo khóa mới cho tác vụ chép chấm công sang e-work (chỉ hiện một lần).</summary>

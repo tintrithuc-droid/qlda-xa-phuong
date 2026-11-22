@@ -165,3 +165,44 @@ public class NoticeRead : EntityBase
     [MaxLength(64)] public string UserId { get; set; } = "";
     public DateTime ReadAt { get; set; }
 }
+
+/* Bản 1.10: KPI tháng nhiều nguồn (công việc, kết quả dự án, chuyên cần, đánh giá của quản lý). */
+
+/// <summary>Phiếu KPI một người một tháng. Điểm công việc, chuyên cần tự tính khi chưa chốt; chốt thì lưu cố định.</summary>
+[Table("KpiSheets")]
+public class KpiSheet : EntityBase
+{
+    [MaxLength(64)] public string EmployeeId { get; set; } = "";
+    /// <summary>Tháng dạng yyyy-MM.</summary>
+    [MaxLength(7)] public string Month { get; set; } = "";
+    /// <summary>Điểm hoàn thành công việc (0–100) do quản lý ghi đè; trống = theo số liệu công việc.</summary>
+    [Column(TypeName = "decimal(6,2)")] public decimal? WorkScore { get; set; }
+    [Column(TypeName = "decimal(6,2)")] public decimal? ProjectScore { get; set; }
+    /// <summary>Đánh giá của quản lý, thang 1–5.</summary>
+    public int? ManagerRating { get; set; }
+    [MaxLength(1000)] public string? ManagerNote { get; set; }
+    [MaxLength(200)] public string? RatedBy { get; set; }
+    /// <summary>Phản hồi, khiếu nại của người được đánh giá (trước khi chốt).</summary>
+    [MaxLength(1000)] public string? EmployeeNote { get; set; }
+    // ---- giá trị cố định khi chốt
+    [Column(TypeName = "decimal(6,2)")] public decimal? WorkFinal { get; set; }
+    [Column(TypeName = "decimal(6,2)")] public decimal? AttendanceFinal { get; set; }
+    [Column(TypeName = "decimal(6,2)")] public decimal? Total { get; set; }
+    [MaxLength(10)] public string? Grade { get; set; }
+    public DateTime? LockedAt { get; set; }
+    [MaxLength(200)] public string? LockedBy { get; set; }
+}
+
+/// <summary>Bản 1.10: bản lưu nguyên dữ liệu e-work (mọi bảng nghiệp vụ) để tra cứu và để phân hệ lương, công việc chuyển tiếp không phải nhập lại.
+/// Chỉ quản trị hệ thống xem. Nạp lại tệp xuất thì thay toàn bộ bản lưu của bảng đó.</summary>
+[Table("EworkArchive")]
+public class EworkRow : EntityBase
+{
+    [MaxLength(100)] public string TableName { get; set; } = "";
+    [MaxLength(100)] public string RowKey { get; set; } = "";
+    /// <summary>Mã tài khoản e-work của dòng (cột UserId nếu có) để tra theo người.</summary>
+    [MaxLength(64)] public string? EworkUserId { get; set; }
+    /// <summary>Kỳ yyyy-MM (cột Nam, Thang nếu có).</summary>
+    [MaxLength(7)] public string? Period { get; set; }
+    public string Data { get; set; } = "";
+}

@@ -73,6 +73,7 @@ const MODULES = [
   {key:'de-xuat', label:'Đề xuất', icon:'doc', grp:'Văn phòng'},
   {key:'lich-hop', label:'Lịch công tác, lịch họp', icon:'cal', grp:'Văn phòng'},
   {key:'thong-bao', label:'Thông báo nội bộ', icon:'bell', grp:'Văn phòng'},
+  {key:'kpi', label:'KPI, đánh giá tháng', icon:'chart', grp:'Văn phòng'},
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
@@ -81,7 +82,7 @@ const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-
    với phân hệ tương ứng (ROUTE_PERM). Gói thầu thuộc một giai đoạn; hợp đồng và hồ sơ của hợp đồng theo giai đoạn của gói thầu. */
 const PHASES = {cb:'Chuẩn bị đầu tư', dt:'Thực hiện đầu tư'};
 const NAV_CB = [['cb-goi-thau','Gói thầu và hợp đồng','doc'],['cb-thanh-toan','Nghiệm thu, thanh toán','coin']];
-const ROUTE_PERM = {'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan', 'tv-thanh-toan':'thanh-toan', 'danh-muc-don-vi':'goi-thau'};
+const ROUTE_PERM = {'ework-cu':'quan-tri', 'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan', 'tv-thanh-toan':'thanh-toan', 'danh-muc-don-vi':'goi-thau'};
 const NAV_DM = ['danh-muc-don-vi','Danh mục nhà thầu, đơn vị giám sát','user'];
 /* Bản 1.8.7: hợp đồng tư vấn giai đoạn thực hiện đầu tư (quản lý dự án, lập và thẩm định HSMT, giám sát, kiểm thử…) nghiệm thu theo sản phẩm như ở chuẩn bị đầu tư */
 const NAV_TV = ['tv-thanh-toan','Nghiệm thu, thanh toán tư vấn','coin'];
@@ -96,11 +97,12 @@ const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA 
   reportOrg:'Ban QLDA đầu tư xây dựng xã/phường …', ownerDefault:'UBND xã/phường …', support:'Hỗ trợ: quản trị hệ thống của đơn vị',
   loginTitle:'Đăng nhập hệ thống', loginHint:'Sử dụng tài khoản do quản trị hệ thống cấp.', forgotText:'Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại.', bannerDeco:'1',
   color:'navy', printNation:'1', place:'…', signReport:'THỦ TRƯỞNG ĐƠN VỊ', signApprove:'LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN', signTech:'CÁN BỘ KỸ THUẬT', signAcc:'KẾ TOÁN',
-  logo:null, loginBg:null, field:'xd'};
+  logo:null, loginBg:null, field:'xd', hideMods:''};
 let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy'};
 /* Lĩnh vực dự án của đơn vị (Quản trị hệ thống → Thông tin đơn vị): 'xd' đầu tư xây dựng (mặc định, các xã/phường),
    'cntt' dự án CNTT, chuyển đổi số, đổi mới sáng tạo: đổi tên chức năng, nhãn theo nghề và ẩn chức năng chỉ dùng cho xây dựng. Dữ liệu giữ nguyên. */
 const isIT=()=>BR.field==='cntt';
+const modHidden = k => String(BR.hideMods||'').split(',').includes(k);
 const IT_HIDE=new Set(['gpmb','mo-hinh']);
 const IT_MOD={'nhat-ky':'Nhật ký triển khai','khoi-luong':'Hạng mục, khối lượng công việc','nghiem-thu':'Nghiệm thu, vận hành thử, bảo hành'};
 const XD=(xd,it)=>isIT()?it:xd;
@@ -243,9 +245,10 @@ function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
 function can(mod, lvl='view'){
   mod=ROUTE_PERM[mod]||mod;
   if(isIT() && IT_HIDE.has(mod)) return false;
+  if(modHidden(mod)) return false; /* Bản 1.10: phân hệ đơn vị không dùng (Thông tin đơn vị → Phân hệ sử dụng) */
   if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   /* Bản 1.9: mọi tài khoản tự điểm danh, gửi đề xuất; bảng công (trưởng phòng xem phòng mình) do máy chủ lọc phạm vi */
-  if(lvl==='view' && (mod==='van-phong'||mod==='de-xuat'||mod==='diem-danh'||mod==='lich-hop'||mod==='thong-bao')) return !!S.user;
+  if(lvl==='view' && (mod==='van-phong'||mod==='de-xuat'||mod==='diem-danh'||mod==='lich-hop'||mod==='thong-bao'||mod==='kpi')) return !!S.user;
   if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(mod==='quan-tri') return false; // Quản trị hệ thống: chỉ nhóm toàn quyền

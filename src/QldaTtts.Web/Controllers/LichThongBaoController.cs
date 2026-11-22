@@ -101,7 +101,7 @@ public class LichThongBaoController : ApiControllerBase
             var expired = n.ExpireOn is { } ex && ex < today;
             if (expired && !(all && (mgr || n.CreatedByUserId == Uc.User.Id))) continue;
             outp.Add(new { n.Id, n.Title, n.Body, n.Important, n.Pinned, n.DeptIds, n.PublishedAt, n.ExpireOn, n.AuthorName, n.Link, n.CreatedByUserId,
-                read = reads.Contains(n.Id) || n.CreatedByUserId == Uc.User.Id, expired, readCount = counts.TryGetValue(n.Id, out var c) ? c : (int?)null });
+                read = reads.Contains(n.Id) || n.CreatedByUserId == Uc.User.Id || n.Id.StartsWith("tb-ew-"), expired, readCount = counts.TryGetValue(n.Id, out var c) ? c : (int?)null });
         }
         return Ok(outp);
     }
@@ -172,7 +172,7 @@ public class LichThongBaoController : ApiControllerBase
         var ns = await Db.Notices.AsNoTracking().Where(n => n.PublishedAt >= since || n.Pinned).OrderByDescending(n => n.PublishedAt).ToListAsync();
         var unread = new List<Notice>();
         foreach (var n in ns)
-            if (!reads.Contains(n.Id) && !(n.ExpireOn is { } ex && ex < today) && n.CreatedByUserId != Uc.User.Id && await ForMe(n, me)) unread.Add(n);
+            if (!reads.Contains(n.Id) && !n.Id.StartsWith("tb-ew-") && !(n.ExpireOn is { } ex && ex < today) && n.CreatedByUserId != Uc.User.Id && await ForMe(n, me)) unread.Add(n);
         var a = VnTime.ToUtc(today.ToDateTime(TimeOnly.MinValue)); var b = VnTime.ToUtc(today.AddDays(8).ToDateTime(TimeOnly.MinValue));
         var ms = await Db.Meetings.AsNoTracking().Where(m => m.StartAt >= a && m.StartAt < b && m.Status != "Đã hủy").OrderBy(m => m.StartAt).ToListAsync();
         var mine = ms.Where(m => (me is not null && Split(m.AttendeeIds).Contains(me.Id)) || m.CreatedByUserId == Uc.User.Id).Take(10);

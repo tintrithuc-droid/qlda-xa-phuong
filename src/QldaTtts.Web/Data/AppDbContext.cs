@@ -47,6 +47,8 @@ public class AppDbContext : DbContext
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<Notice> Notices => Set<Notice>();
     public DbSet<NoticeRead> NoticeReads => Set<NoticeRead>();
+    public DbSet<KpiSheet> KpiSheets => Set<KpiSheet>();
+    public DbSet<EworkRow> EworkArchive => Set<EworkRow>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -104,6 +106,9 @@ public class AppDbContext : DbContext
         b.Entity<Meeting>().HasIndex(x => x.StartAt);
         b.Entity<Notice>().HasIndex(x => x.PublishedAt);
         b.Entity<NoticeRead>().HasIndex(x => new { x.NoticeId, x.UserId }).IsUnique();
+        b.Entity<KpiSheet>().HasIndex(x => new { x.Month, x.EmployeeId }).IsUnique();
+        b.Entity<EworkRow>().HasIndex(x => new { x.TableName, x.RowKey });
+        b.Entity<EworkRow>().HasIndex(x => x.EworkUserId);
     }
 }
 

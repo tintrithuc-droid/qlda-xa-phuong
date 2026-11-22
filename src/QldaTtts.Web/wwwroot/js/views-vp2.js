@@ -214,3 +214,146 @@ ACT['nt-reads']=async id=>{ const n=ntFind(id); const l=await api('GET','/api/vp
 ACT['nt-reads-xlsx']=()=>{ const r=VP._reads; if(!r) return;
   exportXlsx('Theo_doi_xem_thong_bao.xlsx', [{name:'Da xem', title:'THEO DÕI XEM THÔNG BÁO', sub:r.n?r.n.title:'', head:['STT','Họ tên','Phòng ban','Đã xem','Lúc xem'],
     rows:r.l.map((x,i)=>[i+1, x.name, vpDeptName(x.departmentId), x.readAt?'Đã xem':'Chưa xem', x.readAt? (d=>pad(d.getHours())+':'+pad(d.getMinutes())+' '+fmtDate(isoD(d)))(parseTs(x.readAt)) : ''])}]); };
+
+/* ---------------------------------------------------------------- KPI tháng (Bản 1.10) */
+VP.kpi={};
+EXTRA_ROUTES.push('kpi');
+const kpiMonth = () => S.f.kpim || (()=>{ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-(new Date().getDate()<=5?1:0)); return d.getFullYear()+'-'+pad(d.getMonth()+1); })();
+const kpiGradePill = g => g? pill(g, g==='A'?'ok':g==='B'?'info':g==='C'?'warn':'bad') : '';
+const kpiN = v => v==null? '<span class="muted">—</span>' : fmtN(v,1);
+function kpiStars(r){ const v=r.rating||0;
+  if(!r.canRate) return v? '★'.repeat(v)+'<span class="muted">'+'★'.repeat(5-v)+'</span>' : '<span class="muted">Chưa chấm</span>';
+  return `<span class="kpi-stars" role="radiogroup" aria-label="Đánh giá của quản lý">${[1,2,3,4,5].map(n=>`<button type="button" class="btn sm ghost" style="padding:0 2px;font-size:18px;line-height:1;color:${n<=v?'#e0a100':'#bbb'}" data-act="kpi-star" data-id="${esc(r.employeeId+'|'+n)}" aria-label="${n} sao" title="${['','Chưa đạt yêu cầu','Cần cố gắng','Đạt yêu cầu','Tốt','Xuất sắc'][n]}">★</button>`).join('')}</span>`; }
+VIEWS['kpi']=()=>{
+  if(!VP.st){ vpLoad(); return `<div class="head"><div class="grow"><h1>KPI</h1></div></div>`+vpWait(); }
+  const m=kpiMonth(); const d=vpFetch(VP.kpi, m, '/api/vp/kpi?month='+m); const dep=S.f.kpid||'';
+  let body;
+  if(d===null) body='<div class="empty">Đang tải…</div>';
+  else if(d.error) body=emptyBox(esc(d.error));
+  else {
+    const k=d.settings; const rows=d.rows.filter(r=>!dep||r.departmentId===dep);
+    const locked=d.rows.length && d.rows.every(r=>r.locked);
+    const need=rows.filter(r=>r.canRate && r.missing.length).length;
+    body=`<p class="small muted" style="margin:0 0 8px">Tổng điểm = Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%. Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}. ${locked?pill('Đã chốt','ok'):need?pill(need+' người chưa chấm đủ','warn'):''}</p>`
+    + table([
+      {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
+      {h:`Công việc (${k.wWork}%)`, r:1, f:r=>`${kpiN(r.work)}${r.workOverride!=null?' <span class="small muted" title="Quản lý ghi đè">✎</span>':''}${r.workAuto?`<div class="small muted">${r.workAuto.total} việc, ${r.workAuto.onTime} đúng hạn${r.workAuto.late?', '+r.workAuto.late+' trễ':''}${r.workAuto.overdue?', '+r.workAuto.overdue+' quá hạn':''}</div>`:''}`},
+      {h:`Dự án (${k.wProject}%)`, r:1, f:r=> r.canRate? `<input type="number" min="0" max="100" step="5" value="${r.project??''}" data-kpi-proj="${esc(r.employeeId)}" style="width:70px;text-align:right" aria-label="Điểm kết quả dự án của ${esc(r.name)}">` : kpiN(r.project)},
+      {h:`Chuyên cần (${k.wAttendance}%)`, r:1, f:r=>`${kpiN(r.attendance)}${r.attendance!=null?`<div class="small muted">muộn ${r.attDetail.late}${r.attDetail.absent?', nghỉ KLD '+fmtN(r.attDetail.absent,1):''}${r.attDetail.noOut?', quên ra '+r.attDetail.noOut:''}</div>`:''}`},
+      {h:`Quản lý (${k.wManager}%)`, f:r=>kpiStars(r)+(r.ratingNote?`<div class="small muted" title="${esc(r.ratingNote)}">${esc(r.ratingNote.slice(0,40))}</div>`:'')},
+      {h:'Tổng', r:1, f:r=>`<b>${fmtN(r.total,1)}</b>`}, {h:'Xếp loại', f:r=>kpiGradePill(r.grade)+(r.employeeNote?` <span title="Có phản hồi: ${esc(r.employeeNote)}">💬</span>`:'')}],
+      rows, {empty:'Chưa có nhân sự trong phạm vi bạn xem.', nopage:true, rowAct:'kpi-row'});
+  }
+  const ed=d&&d.canEdit, locked=d&&d.rows&&d.rows.length&&d.rows.every(r=>r.locked);
+  return `<div class="head"><div class="grow"><h1>KPI tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${VP.st.perms.admin||ed?'Toàn công ty':(VP.st.perms.managed||[]).length?'Phòng do bạn phụ trách và của bạn':'Kết quả của bạn'}</p></div>
+    <div class="toolbar">${ed?`<button class="btn" data-act="kpi-set">Thiết lập</button><button class="btn ${locked?'':'primary'}" data-act="kpi-lock" data-id="${locked?'0':'1'}">${locked?'Mở chốt':'Chốt KPI tháng'}</button>`:''}</div></div>
+  <div class="toolbar" style="margin:4px 0 10px"><input type="month" data-f="kpim" value="${esc(m)}" aria-label="Tháng"><select data-f="kpid" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
+    <span style="flex:1"></span><button class="btn sm ghost" data-act="kpi-pdf">In, lưu PDF</button><button class="btn sm ghost" data-act="kpi-xlsx">Xuất Excel</button></div>${body}`;
+};
+async function kpiSave(emp, body){ const m=kpiMonth(); await api('PUT',`/api/vp/kpi/${m}/${encodeURIComponent(emp)}`, body); delete VP.kpi[m]; render(); }
+ACT['kpi-star']=async id=>{ const [emp,n]=id.split('|'); await kpiSave(emp, {rating:+n}); toast('Đã chấm '+n+' sao'); };
+document.addEventListener('change', e=>{ const el=e.target.closest && e.target.closest('[data-kpi-proj]'); if(!el) return;
+  const v=el.value===''? null : Number(el.value); if(v!=null && (v<0||v>100)){ toast('Điểm từ 0 đến 100','err'); return; }
+  kpiSave(el.dataset.kpiProj, {projectScore:v}).then(()=>toast('Đã lưu điểm dự án')).catch(ex=>toast(errText(ex),'err')); });
+const kpiRow = id => { const d=VP.kpi[kpiMonth()]; return d&&d.rows&&d.rows.find(r=>r.employeeId===id); };
+ACT['kpi-row']=(id,el,ev)=>{ if(ev&&ev.target&&ev.target.closest('input,button')) return; const r=kpiRow(id); if(!r) return;
+  if(r.self && !r.locked) return openForm({title:'Phản hồi KPI tháng '+kpiMonth().slice(5)+'/'+kpiMonth().slice(0,4), narrow:true, value:{note:r.employeeNote||''},
+    fields:[{key:'_i',type:'html',html:`<div class="fld full small">Tổng điểm hiện tại <b>${fmtN(r.total,1)}</b> (${esc(r.grade||'')}). Công việc ${kpiN(r.work)}, dự án ${kpiN(r.project)}, chuyên cần ${kpiN(r.attendance)}, quản lý ${r.rating?r.rating+' sao':'chưa chấm'}${r.ratingNote?': '+esc(r.ratingNote):''}.</div>`},{key:'note',label:'Ý kiến, giải trình của bạn (gửi trưởng phòng trước khi chốt)',type:'textarea',keepLines:true}],
+    submit:'Gửi phản hồi', onSave:async v=>{ await api('POST',`/api/vp/kpi/${kpiMonth()}/phan-hoi`,{note:v.note||''}); delete VP.kpi[kpiMonth()]; return {id:'x'}; }});
+  if(!r.canRate) return;
+  openForm({title:'Chấm KPI: '+r.name, narrow:true, value:{work:r.workOverride??'', project:r.project??'', rating:r.rating?String(r.rating):'', note:r.ratingNote||''},
+    fields:[{key:'_i',type:'html',html:`<div class="fld full small">${r.workAuto?`Công việc theo số liệu: <b>${fmtN(r.workAuto.score,1)}</b> (${r.workAuto.total} việc, ${r.workAuto.onTime} đúng hạn, ${r.workAuto.late} trễ, ${r.workAuto.overdue} quá hạn).`:'Chưa có công việc giao trong tháng: nhập điểm công việc.'}${r.employeeNote?`<div class="alert info" style="margin-top:6px">Phản hồi của nhân viên: ${esc(r.employeeNote)}</div>`:''}</div>`},
+      {key:'work',label:'Điểm công việc 0–100 (để trống: theo số liệu)',type:'number'},{key:'project',label:'Điểm kết quả dự án 0–100',type:'number'},
+      {key:'rating',label:'Đánh giá của quản lý',type:'select',options:[['1','1 sao: chưa đạt yêu cầu'],['2','2 sao: cần cố gắng'],['3','3 sao: đạt yêu cầu'],['4','4 sao: tốt'],['5','5 sao: xuất sắc']]},
+      {key:'note',label:'Nhận xét, lý do',type:'textarea',keepLines:true}],
+    onSave:async v=>{ await api('PUT',`/api/vp/kpi/${kpiMonth()}/${encodeURIComponent(id)}`,{workScore:v.work, clearWork:v.work==null, projectScore:v.project, rating:v.rating?+v.rating:null, note:v.note||''}); delete VP.kpi[kpiMonth()]; return {id}; }});
+};
+ACT['kpi-lock']=async l=>{ const m=kpiMonth(); const d=VP.kpi[m];
+  const miss=d&&d.rows? d.rows.filter(r=>r.missing.length).length : 0;
+  if(l==='1' && !await confirmBox(`Chốt KPI tháng ${m.slice(5)}/${m.slice(0,4)}? Điểm, xếp loại được lưu cố định để tính thưởng.${miss?` <b>${miss} người chưa chấm đủ</b> (phần thiếu tính 0 điểm).`:''}`,'Chốt')) return;
+  await api('POST',`/api/vp/kpi/${m}/chot`,{lock:l==='1'}); delete VP.kpi[m]; render(); toast(l==='1'?'Đã chốt KPI tháng':'Đã mở chốt'); };
+ACT['kpi-set']=async()=>{ const k=await api('GET','/api/vp/kpi-settings');
+  openForm({title:'Thiết lập KPI', value:{...k, grades:k.grades.map(g=>[g.name,g.min,g.bonus].join('; ')).join('\n')},
+    fields:[{key:'_h1',type:'html',html:'<div class="fld full"><b>Trọng số bốn nhóm (tổng 100)</b></div>'},{key:'wWork',label:'Hoàn thành công việc',type:'number',req:true},{key:'wProject',label:'Kết quả dự án',type:'number',req:true},
+      {key:'wAttendance',label:'Chuyên cần',type:'number',req:true},{key:'wManager',label:'Đánh giá của quản lý',type:'number',req:true},
+      {key:'_h2',type:'html',html:'<div class="fld full"><b>Chuyên cần: 100 điểm, trừ mỗi lần</b></div>'},{key:'penLate',label:'Đi muộn',type:'number'},{key:'graceMinutes',label:'Phút ân hạn (muộn không quá số phút này không trừ)',type:'number'},
+      {key:'penEarly',label:'Về sớm',type:'number'},{key:'penNoOut',label:'Quên điểm danh ra',type:'number'},{key:'penAbsent',label:'Mỗi ngày nghỉ không lý do',type:'number'},
+      {key:'grades',label:'Xếp loại: mỗi dòng "tên; điểm từ; thưởng (đồng)"',type:'textarea',rows:4,keepLines:true}],
+    onSave:async v=>{ const grades=String(v.grades||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0], min:N(p[1]), bonus:N(String(p[2]||'0').replace(/\./g,''))}));
+      if(N(v.wWork)+N(v.wProject)+N(v.wAttendance)+N(v.wManager)!==100) throw new Error('Tổng trọng số phải bằng 100.');
+      await api('PUT','/api/vp/kpi-settings',{wWork:N(v.wWork), wProject:N(v.wProject), wAttendance:N(v.wAttendance), wManager:N(v.wManager), penLate:N(v.penLate), penEarly:N(v.penEarly), penNoOut:N(v.penNoOut), penAbsent:N(v.penAbsent), graceMinutes:N(v.graceMinutes), grades});
+      VP.kpi={}; return {id:'kpi'}; }}); };
+function kpiTable(){ const m=kpiMonth(), d=VP.kpi[m]; if(!d||!d.rows) return null; const dep=S.f.kpid||'';
+  return {m, k:d.settings, rows:d.rows.filter(r=>!dep||r.departmentId===dep).slice().sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||b.total-a.total)}; }
+ACT['kpi-xlsx']=()=>{ const t=kpiTable(); if(!t) return;
+  const rows=t.rows.map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.work??'', r.project??'', r.attendance??'', r.rating?r.rating*20:'', r.total, r.grade||'', r.bonus||0, r.ratingNote||'']);
+  exportXlsx(`KPI_${t.m}.xlsx`, [{name:'KPI '+t.m, title:`BẢNG TỔNG HỢP KẾT QUẢ ĐÁNH GIÁ KPI THÁNG ${t.m.slice(5)}/${t.m.slice(0,4)}`, sub:`Trọng số: công việc ${t.k.wWork}%, kết quả dự án ${t.k.wProject}%, chuyên cần ${t.k.wAttendance}%, đánh giá quản lý ${t.k.wManager}%`,
+    head:['STT','Họ tên','Phòng ban','Công việc','Kết quả dự án','Chuyên cần','Đánh giá quản lý','Tổng điểm','Xếp loại','Thưởng (đồng)','Nhận xét'], rows, money:[9]}]); };
+ACT['kpi-pdf']=()=>{ const t=kpiTable(); if(!t) return;
+  const f=v=>v==null||v===''?'':fmtN(v,1);
+  const html=`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>KPI ${t.m}</title><style>
+  @page{size:A4 landscape; margin:12mm} body{font:12.5px/1.4 "Times New Roman",Times,serif; color:#000; margin:0}
+  .hd{display:grid; grid-template-columns:1fr 1.2fr; text-align:center; margin-bottom:10px} .hd b{display:block} .hd .u{display:inline-block; border-top:1px solid #000; width:40%; margin-top:2px}
+  h1{font-size:16px; text-align:center; margin:8px 0 2px} .sub{text-align:center; font-style:italic; margin-bottom:10px}
+  table{width:100%; border-collapse:collapse} th,td{border:1px solid #000; padding:3px 5px; vertical-align:top} th{background:#eee} td.r{text-align:right} td.c{text-align:center}
+  thead{display:table-header-group} tr{page-break-inside:avoid} .sign{display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; margin-top:16px; page-break-inside:avoid} .sign i{display:block} .sp{height:64px}
+  </style></head><body>${printHead()}<h1>BẢNG TỔNG HỢP KẾT QUẢ ĐÁNH GIÁ KPI THÁNG ${t.m.slice(5)}/${t.m.slice(0,4)}</h1>
+  <div class="sub">Trọng số: công việc ${t.k.wWork}%, kết quả dự án ${t.k.wProject}%, chuyên cần ${t.k.wAttendance}%, đánh giá quản lý ${t.k.wManager}%</div>
+  <table><thead><tr><th>STT</th><th>Họ tên</th><th>Phòng ban</th><th>Công việc</th><th>Kết quả dự án</th><th>Chuyên cần</th><th>Đánh giá quản lý</th><th>Tổng điểm</th><th>Xếp loại</th><th>Thưởng (đồng)</th></tr></thead>
+  <tbody>${t.rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.name)}</td><td>${esc(vpDeptName(r.departmentId))}</td><td class="r">${f(r.work)}</td><td class="r">${f(r.project)}</td><td class="r">${f(r.attendance)}</td><td class="r">${r.rating?f(r.rating*20):''}</td><td class="r"><b>${f(r.total)}</b></td><td class="c"><b>${esc(r.grade||'')}</b></td><td class="r">${r.bonus?fmtVND(r.bonus):''}</td></tr>`).join('')}</tbody></table>
+  <div class="sign"><div><b>NGƯỜI LẬP</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(S.user&&S.user.name||'')}</div><div><b>KẾ TOÁN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div>
+  <div><i>${printDate()}</i><b>${esc(BR.signReport)}</b><i>(Ký, ghi rõ họ tên, đóng dấu)</i><div class="sp"></div></div></div></body></html>`;
+  const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.title='In KPI';
+  document.body.appendChild(fr); const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  setTimeout(()=>{ try{ fr.contentWindow.focus(); fr.contentWindow.print(); }finally{ setTimeout(()=>fr.remove(), 60000); } }, 250); };
+
+/* ===== Bản 1.10: tra cứu dữ liệu e-work cũ (lưu trữ nguyên vẹn khi chuyển, chỉ quản trị) ===== */
+const EW_NAMES={LichHops:'Lịch họp',KetQuaLichHops:'Kết quả cuộc họp',PhongHops:'Phòng họp',ThongBaos:'Thông báo',QuanLyCongViecs:'Công việc',TaskAssignments:'Giao việc',TaskCapNhats:'Cập nhật công việc',TaskGiaHans:'Gia hạn công việc',TaskMoLais:'Mở lại công việc',TaskTangCas:'Tăng ca công việc',
+  BangKPIs:'Bảng KPI',DetailKPIs:'Chi tiết KPI',CauHinhThuongKPIs:'Thưởng KPI',BangLuongs:'Bảng lương',BangLuongThuongs:'Lương thưởng',BangLuongCoBans:'Hồ sơ, lương cơ bản',BCTongHopLuongs:'Tổng hợp lương',BCChamCongThangs:'Chấm công tháng',ChuyenLuongs:'Chuyển lương',
+  PhuCapLuongs:'Phụ cấp lương',LuongCBKhoanPCs:'Lương cơ bản, khoán phụ cấp',BieuThueTNCNs:'Biểu thuế TNCN',BieuGiamTrus:'Biểu giảm trừ',KhenThuongKyLuats:'Khen thưởng, kỷ luật',ThuongKhacs:'Thưởng khác',ThuongNghiPhepChuaDungs:'Thưởng phép chưa dùng',
+  QuanLyDeXuats:'Đề xuất',ChamCongs:'Chấm công',NgayNghis:'Ngày nghỉ',PhongBans:'Phòng ban',UserInfos:'Thông tin người dùng',QuanLyDuAns:'Dự án',DanhMucDuAns:'Danh mục dự án',QuanLyTaiLieus:'Tài liệu',VanBanDens:'Văn bản đến',VanBanDis:'Văn bản đi',
+  VanBanChinhSachs:'Văn bản chính sách',SoQuyBoPhans:'Sổ quỹ bộ phận',Contacts:'Liên hệ',Mesengers:'Tin nhắn',QuanLyBinhLuans:'Bình luận',LuanChuyenHistorys:'Lịch sử luân chuyển',TestCaseIssues:'Lỗi kiểm thử',HoSoPhapLys:'Hồ sơ pháp lý',DichVuTuVans:'Dịch vụ tư vấn',BaoHanhBaoTris:'Bảo hành, bảo trì'};
+const ewName=t=>EW_NAMES[t]||t;
+const EW_HIDE=/^(Ten)?(ThongTin|DonViHanhChinh|CoQuanHanhChinh|PhongBanXuLy|PhongBanNhap|PhongBanGiaoViec|DonViXuLy|DonViNhap|DonViGiaoViec)|^SearchNormalized$|^(Modified|Created)By$|RefTableName/;
+VP.ew=VP.ew||{};
+function ewCols(rows, all){
+  const ks=[]; rows.forEach(r=>Object.keys(r).forEach(k=>{ if(!ks.includes(k)) ks.push(k); }));
+  return ks.filter(k=>all || (!EW_HIDE.test(k) && !(ks.includes('Ten'+k) && k!=='Id') && rows.some(r=>r[k]!==null && r[k]!=='' && r[k]!==undefined)));
+}
+const ewVal=v=>{ if(v===null||v===undefined) return ''; const s=String(v); if(/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0,10).split('-').reverse().join('/')+(s.slice(11,16)!=='00:00'?' '+s.slice(11,16):''); return s.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(); };
+VIEWS['ework-cu']=()=>{
+  const tabs=vpFetch(VP.ew,'_tables','/api/vp/ework-archive');
+  const t=S.f.ewt||'', q=S.f.ewq||'', per=S.f.ewp||'';
+  let body='';
+  if(tabs===null) body='<div class="empty">Đang tải…</div>';
+  else if(tabs.error) body=emptyBox(esc(tabs.error));
+  else if(!tabs.length) body=emptyBox('Chưa có dữ liệu e-work lưu trữ. Chạy lại xuat-ework.ps1 bản mới rồi chuyển dữ liệu ở Bảng công → Thiết lập điểm danh.');
+  else if(!t){
+    const l=[...tabs].sort((a,b)=>(EW_NAMES[a.table]?0:1)-(EW_NAMES[b.table]?0:1)||ewName(a.table).localeCompare(ewName(b.table),'vi'));
+    body=`<p class="small muted" style="margin:0 0 8px">${tabs.length} bảng, ${fmtN(tabs.reduce((s,x)=>s+x.rows,0))} dòng chuyển nguyên vẹn từ e-work để tra cứu (chỉ đọc).</p>`
+      +table([{h:'Dữ liệu',f:x=>`<a href="javascript:void 0" data-act="ew-open" data-id="${esc(x.table)}"><b style="font-weight:600">${esc(ewName(x.table))}</b></a><div class="small muted">${esc(x.table)}</div>`},{h:'Số dòng',f:x=>fmtN(x.rows),r:true}], l, {nopage:true});
+  } else {
+    const key=t+'|'+q+'|'+per; const d=vpFetch(VP.ew, key, `/api/vp/ework-archive/${encodeURIComponent(t)}?take=500&q=${encodeURIComponent(q)}&period=${encodeURIComponent(per)}`);
+    const head=`<div class="toolbar"><button class="btn sm" data-act="ew-open" data-id="">← Danh sách bảng</button><input type="search" placeholder="Tìm trong mọi cột" value="${esc(q)}" id="ew_q" style="min-width:200px">
+      ${d&&d.periods&&d.periods.length?`<select id="ew_p"><option value="">Mọi kỳ</option>${d.periods.map(p=>`<option ${p===per?'selected':''}>${p}</option>`).join('')}</select>`:''}
+      <button class="btn sm" data-act="ew-xlsx">Excel</button></div>`;
+    if(d===null) body=head+'<div class="empty">Đang tải…</div>';
+    else if(d.error) body=head+emptyBox(esc(d.error));
+    else { const cols=ewCols(d.rows).slice(0,10); VP.ewRows=d.rows;
+      body=head+`<p class="small muted">${fmtN(d.total)} dòng${d.total>d.rows.length?`, hiện ${d.rows.length} dòng đầu (lọc thêm hoặc tải Excel để xem đủ)`:''}. Bấm một dòng để xem đủ các cột.</p>`
+        +table(cols.map(k=>({h:k, f:(r)=>esc(ewVal(r[k]).slice(0,120))})), d.rows.map((r,i)=>({...r,_i:i,id:i})), {rowAct:'ew-row'}); }
+  }
+  return `<div class="head"><div class="grow"><h1>Dữ liệu e-work cũ${t?': '+esc(ewName(t)):''}</h1><div class="sub">Tra cứu lịch sử từ e-work: công việc, KPI, bảng lương, lịch họp, thông báo…</div></div></div>`+body;
+};
+ACT['ew-open']=(id)=>{ S.f.ewt=id||''; S.f.ewq=''; S.f.ewp=''; render(); };
+ACT['ew-q']=()=>{ S.f.ewq=$('#ew_q').value.trim(); render(); };
+ACT['ew-p']=()=>{ S.f.ewp=$('#ew_p').value; render(); };
+ACT['ew-row']=(i)=>{ const r=(VP.ewRows||[])[+i]; if(!r) return; delete r._i;
+  openModal(`<div class="mform wide"><header><h3>${esc(ewName(S.f.ewt))}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">
+    ${table([{h:'Cột',k:'k'},{h:'Giá trị',f:x=>`<div style="white-space:pre-wrap">${esc(ewVal(x.v))}</div>`}], Object.keys(r).filter(k=>k!=='_i'&&k!=='id'&&r[k]!==null&&r[k]!=='').map(k=>({k,v:r[k]})), {nopage:true})}</div></div>`); };
+ACT['ew-xlsx']=async()=>{ const t=S.f.ewt; try{
+  const d=await api('GET',`/api/vp/ework-archive/${encodeURIComponent(t)}?take=50000&q=${encodeURIComponent(S.f.ewq||'')}&period=${encodeURIComponent(S.f.ewp||'')}`);
+  const cols=ewCols(d.rows, true); const ws=XLSX.utils.aoa_to_sheet([cols,...d.rows.map(r=>cols.map(k=>ewVal(r[k])))]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, t.slice(0,31)); XLSX.writeFile(wb, 'ework_'+t+(S.f.ewp?'_'+S.f.ewp:'')+'.xlsx');
+  }catch(e){ toast(errText(e),'err'); } };
+document.addEventListener('change', e=>{ if(e.target.id==='ew_q') ACT['ew-q'](); else if(e.target.id==='ew_p') ACT['ew-p'](); });

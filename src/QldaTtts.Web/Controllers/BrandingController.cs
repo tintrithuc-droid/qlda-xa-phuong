@@ -49,6 +49,8 @@ public class BrandingController : ApiControllerBase
         ("signAcc", "KẾ TOÁN", 120),
         // Lĩnh vực dự án của đơn vị: xd (đầu tư xây dựng, mặc định), cntt (CNTT, chuyển đổi số, đổi mới sáng tạo)
         ("field", "xd", 10),
+        // Bản 1.10: phân hệ không dùng (ẩn khỏi menu, phân quyền), mã phân hệ cách nhau dấu phẩy; dữ liệu giữ nguyên
+        ("hideMods", "", 400),
     };
 
     /// <summary>Tông màu được phép (trùng danh sách trong hộp thoại Giao diện) và màu nền thanh tiêu đề trình duyệt tương ứng.</summary>

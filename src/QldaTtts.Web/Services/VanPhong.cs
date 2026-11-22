@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
 
@@ -83,5 +83,47 @@ public static class VnTime
         };
         if (hol is not null) v = hol.Length > 10 ? Math.Max(0, v - 0.5m) : 0;
         return v;
+    }
+}
+
+/// <summary>Số liệu công tháng của từng người (bảng công, KPI chuyên cần, lương dùng chung một cách tính).</summary>
+public static class VpCalc
+{
+    public record Row(string EmployeeId, string Name, string? DepartmentId, decimal Standard, decimal Worked, int Late, int LateMinutes, int Early,
+        int Outside, int Online, int NoOut, decimal Leave, decimal Trip, decimal Overtime, decimal Absent);
+
+    public static async Task<(decimal standard, List<Row> rows)> Month(AppDbContext db, VpSettings s, List<Employee> emps, DateOnly from)
+    {
+        var to = from.AddMonths(1);
+        var ids = emps.Select(e => e.Id).ToHashSet();
+        var atts = (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync())
+            .Where(a => ids.Contains(a.EmployeeId)).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+        var reqs = (await db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.FromAt != null).ToListAsync())
+            .Where(r => r.FromAt < VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue)) && (r.ToAt ?? r.FromAt) >= VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue))).ToList();
+        decimal standard = 0; for (var d = from; d < to; d = d.AddDays(1)) standard += VnTime.WorkValue(d, s);
+        var today = DateOnly.FromDateTime(VnTime.Now);
+        // Chỉ tính vắng từ ngày hệ thống có dữ liệu điểm danh đầu tiên (tránh tính vắng cả tháng khi mới đưa vào dùng)
+        var first = await db.Attendances.AsNoTracking().OrderBy(a => a.Date).Select(a => (DateOnly?)a.Date).FirstOrDefaultAsync() ?? today.AddDays(1);
+        var rows = emps.Select(e =>
+        {
+            var xs = atts.TryGetValue(e.Id, out var l) ? l : new();
+            var mine = reqs.Where(r => r.EmployeeId == e.Id).ToList();
+            decimal Days(string type) => mine.Where(r => r.Type == type).Sum(r => r.Days ?? 0);
+            var worked = xs.Where(a => a.InAt != null || a.OutAt != null).Sum(a => Math.Max(0.5m, VnTime.WorkValue(a.Date, s) == 0 ? 1 : VnTime.WorkValue(a.Date, s)));
+            // Ngày làm việc đã qua không có điểm danh, không có đề xuất nghỉ/công tác/online được duyệt
+            var absent = 0m;
+            for (var d = from; d < to && d <= today; d = d.AddDays(1))
+            {
+                if (d < first || (e.StartDate is { } sd && d < sd)) continue;
+                var wv = VnTime.WorkValue(d, s); if (wv == 0 || xs.Any(a => a.Date == d)) continue;
+                var covered = mine.Any(r => r.FromAt is { } f && DateOnly.FromDateTime(VnTime.ToVn(f)) <= d && DateOnly.FromDateTime(VnTime.ToVn(r.ToAt ?? f)) >= d
+                    && (r.Type is "Nghỉ phép" or "Công tác" or "Làm việc online"));
+                if (!covered) absent += wv;
+            }
+            return new Row(e.Id, e.Name, e.DepartmentId, standard, worked, xs.Count(a => a.LateMinutes > 0), xs.Sum(a => a.LateMinutes), xs.Count(a => a.EarlyMinutes > 0),
+                xs.Count(a => a.InPlace == "Ngoài công ty"), xs.Count(a => a.InPlace == "Làm việc online"), xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today),
+                Days("Nghỉ phép"), Days("Công tác"), mine.Where(r => r.Type == "Tăng ca").Sum(r => r.Hours ?? 0), absent);
+        }).ToList();
+        return (standard, rows);
     }
 }

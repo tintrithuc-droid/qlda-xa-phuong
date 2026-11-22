@@ -40,6 +40,8 @@ public class BrandingController : ApiControllerBase
         ("bannerDeco", "1", 1),   // 1: họa tiết trống đồng và vạch màu đỏ, vàng; 0: banner trơn
         // Màu chủ đạo mặc định của đơn vị (người dùng chưa tự chọn màu thì dùng màu này)
         ("color", "navy", 20),
+        // Phong cách giao diện của đơn vị: gov (hành chính: quốc hiệu, trống đồng), tech (công nghệ: tối giản, hiện đại)
+        ("style", "gov", 10),
         // Mẫu in (báo cáo, phiếu trình, bảng đối soát)
         ("printNation", "1", 1),  // 1: in quốc hiệu, tiêu ngữ; 0: không in
         ("place", "…", 80),       // địa danh trước "ngày … tháng … năm …"
@@ -73,6 +75,7 @@ public class BrandingController : ApiControllerBase
         if (!Colors.ContainsKey((string)r["color"]!)) r["color"] = "navy";
         foreach (var f in Flags) if ((string)r[f]! != "0") r[f] = "1";
         if ((string)r["field"]! != "cntt") r["field"] = "xd";
+        if ((string)r["style"]! != "tech") r["style"] = "gov";
         return r;
     }
 
@@ -128,6 +131,7 @@ public class BrandingController : ApiControllerBase
                 v = v.Trim(); if (v.Length > max) v = v[..max];
                 if (Flags.Contains(k) && v != "0" && v != "1") continue;
                 if (k == "color" && !Colors.ContainsKey(v)) continue;
+                if (k == "style" && v != "gov" && v != "tech") continue;
                 o[k] = v;
             }
         await Upsert(Key, o.ToJsonString());

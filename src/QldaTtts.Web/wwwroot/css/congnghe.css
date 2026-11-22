@@ -1,0 +1,134 @@
+/* Bản 1.10: phong cách «Công nghệ» — tối giản, hiện đại cho doanh nghiệp công nghệ (Công ty Tri Thức).
+   Bật bằng data-style="tech" trên <html> (Giao diện → Phong cách, hoặc Quản trị → Thông tin đơn vị → Phong cách của đơn vị).
+   Chỉ đổi biến màu và chi tiết hiển thị; bố cục, chức năng giữ nguyên. Phong cách «Hành chính» (mặc định) không bị ảnh hưởng. */
+
+/* ===== Biến màu ===== */
+:root[data-style="tech"]{
+  --bg:#f6f7f9; --panel:#ffffff; --panel2:#f2f4f7; --ink:#0f1729; --muted:#596273; --line:#e4e7ec; --line2:#d3d8e0;
+  --nation:transparent;
+  --accent:#2a56e0; --accent-ink:#ffffff;
+  /* thanh bên than chì trung tính cho mọi tông màu; tông màu chỉ đổi màu nhấn */
+  --brand:#0c0f16; --brand-hi:#1b2030; --brand-ink:#a9b1c0; --gold:#8fb0ff;
+  --side-line:#1a1f2b;
+  --c2:#14b8a6; --c3:#f59e0b; --c4:#8b5cf6; --c5:#c5ccd8;
+  --r:12px; --r-sm:8px;
+  --sh-1:0 1px 2px rgba(15,23,41,.04);
+  --sh-2:0 8px 24px rgba(15,23,41,.08), 0 2px 6px rgba(15,23,41,.04);
+  --sh-3:0 24px 64px rgba(10,14,24,.24);
+}
+:root[data-style="tech"][data-color="teal"]  {--accent:#0e7268; --gold:#6fd6c9}
+:root[data-style="tech"][data-color="indigo"]{--accent:#4f46e5; --gold:#a5a0ff}
+:root[data-style="tech"][data-color="green"] {--accent:#157a3a; --gold:#7fd7a0}
+:root[data-style="tech"][data-color="earth"] {--accent:#c2410c; --gold:#ffb37f}
+:root[data-style="tech"][data-color="slate"] {--accent:#334155; --gold:#c3cad6}
+
+:root[data-style="tech"][data-mode="dark"]{
+  --bg:#0a0c11; --panel:#11141b; --panel2:#171b24; --ink:#e7eaf0; --muted:#97a1b2; --line:#232835; --line2:#2f3646;
+  --accent:#7d9bff; --accent-ink:#0a1433; --brand:#07090d; --brand-hi:#171b25; --brand-ink:#a2abbb; --gold:#7d9bff; --side-line:#151925;
+  --c2:#2dd4bf; --c3:#fbbf24; --c4:#a78bfa; --c5:#475066;
+}
+:root[data-style="tech"][data-mode="dark"][data-color="teal"]  {--accent:#4fd1c1; --accent-ink:#042420; --gold:#4fd1c1}
+:root[data-style="tech"][data-mode="dark"][data-color="indigo"]{--accent:#a5a0ff; --accent-ink:#15123d; --gold:#a5a0ff}
+:root[data-style="tech"][data-mode="dark"][data-color="green"] {--accent:#5fcf8a; --accent-ink:#062312; --gold:#5fcf8a}
+:root[data-style="tech"][data-mode="dark"][data-color="earth"] {--accent:#f6a56f; --accent-ink:#2a1206; --gold:#f6a56f}
+:root[data-style="tech"][data-mode="dark"][data-color="slate"] {--accent:#c3cad6; --accent-ink:#111827; --gold:#c3cad6}
+/* Thanh bên kiểu sáng vẫn theo biến chung */
+:root[data-style="tech"][data-side="light"]{--side-line:var(--line); --side-mark:var(--accent)}
+
+/* ===== Chữ ===== */
+:root[data-style="tech"] h1{font-size:1.5rem; font-weight:700; letter-spacing:-.028em}
+:root[data-style="tech"] h2{font-size:1rem; font-weight:600; letter-spacing:-.012em}
+:root[data-style="tech"] .eyebrow{text-transform:none; letter-spacing:0; font-size:12.5px; font-weight:500}
+
+/* ===== Khung ứng dụng ===== */
+:root[data-style="tech"] .app{border-top:0; }
+:root[data-style="tech"] .side{border-right:1px solid var(--side-line)}
+:root[data-style="tech"] .brand{padding:18px 16px 16px; gap:10px}
+:root[data-style="tech"] .brand .mark{border-radius:10px; box-shadow:none; background:var(--accent); color:#fff; padding:7px; width:36px; height:36px}
+:root[data-style="tech"][data-mode="dark"] .brand .mark{color:var(--accent-ink)}
+:root[data-style="tech"] .brand .mark.logo{background:#fff; padding:3px}
+:root[data-style="tech"] .brand span{text-transform:none; letter-spacing:0; font-size:11.5px; font-weight:500; color:var(--side-ink)}
+:root[data-style="tech"] .brand b{font-size:14px; font-weight:600}
+:root[data-style="tech"] .nav{padding:6px 10px 16px}
+:root[data-style="tech"] .nav .grp{font-size:11px; letter-spacing:.07em; opacity:.5; padding:16px 10px 6px; font-weight:600}
+:root[data-style="tech"] .nav .sub{font-size:11.5px; font-weight:500; opacity:.6; padding:8px 10px 3px}
+:root[data-style="tech"] .nav .sub::before{display:none}
+:root[data-style="tech"] .nav a{padding:7px 10px; border-radius:8px; font-size:13.5px; min-height:36px}
+:root[data-style="tech"] .nav a.on{box-shadow:none; background:var(--side-hi)}
+:root[data-style="tech"] .nav a.on svg{color:var(--side-mark); opacity:1}
+:root[data-style="tech"] .nav a .cnt{border-radius:6px; font-size:11px; padding:1px 6px; background:color-mix(in srgb, var(--red) 88%, #fff 0%)}
+:root[data-style="tech"] .side .foot{opacity:.55}
+:root[data-style="tech"] .top{min-height:56px; background:color-mix(in srgb, var(--panel) 92%, transparent)}
+:root[data-style="tech"] .top .title{font-size:14.5px}
+:root[data-style="tech"] .mode{border-radius:6px}
+:root[data-style="tech"] .avatar{border-radius:8px}
+
+/* Dấu hiệu thương hiệu: phong cách Công nghệ dùng biểu tượng hình học thay cho trống đồng (khi đơn vị chưa tải logo) */
+.bm-tech{display:none}
+:root[data-style="tech"] .bm-gov{display:none}
+:root[data-style="tech"] .bm-tech{display:block; width:100%; height:100%}
+.bm-gov,.bm-gov svg{display:block; width:100%; height:100%}
+
+/* ===== Thành phần ===== */
+:root[data-style="tech"] .card{box-shadow:none}
+:root[data-style="tech"] .kpi{padding:16px 18px}
+:root[data-style="tech"] .kpi .v{font-size:clamp(1.4rem, 1.15rem + .7vw, 1.85rem); font-weight:700; letter-spacing:-.03em; margin-top:8px}
+:root[data-style="tech"] .kpi.warn{background:var(--panel); border-color:color-mix(in srgb, var(--amber) 45%, var(--line))}
+:root[data-style="tech"] .kpi.bad{background:var(--panel); border-color:color-mix(in srgb, var(--red) 45%, var(--line))}
+:root[data-style="tech"] .kpi.warn .v{color:var(--amber)}
+:root[data-style="tech"] .kpi.bad .v{color:var(--red)}
+:root[data-style="tech"] .btn{border-radius:8px; font-weight:500; border-color:var(--line2)}
+:root[data-style="tech"] .btn:hover{border-color:var(--line2); background:var(--panel2)}
+:root[data-style="tech"] .btn.primary{box-shadow:none}
+:root[data-style="tech"] .btn.primary:hover{background:color-mix(in srgb, var(--accent) 86%, #000)}
+:root[data-style="tech"] .btn.ghost{border-color:transparent}
+:root[data-style="tech"] .tabs{gap:4px}
+:root[data-style="tech"] .tabs button{padding:10px 12px; font-size:13.5px}
+:root[data-style="tech"] .tabs button.on{color:var(--ink); border-bottom-color:var(--accent); font-weight:600}
+:root[data-style="tech"] .tw{box-shadow:none}
+:root[data-style="tech"] th{background:var(--panel); font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; font-weight:600; border-bottom-color:var(--line2)}
+:root[data-style="tech"] tfoot td{background:var(--panel2)}
+:root[data-style="tech"] .pill{border-radius:6px; font-weight:500; font-size:12px; padding:2px 8px}
+:root[data-style="tech"] .bar{height:6px}
+:root[data-style="tech"] .empty{border-radius:var(--r); background:var(--panel2); border-color:var(--line2)}
+:root[data-style="tech"] .alert{border-radius:8px}
+:root[data-style="tech"] .legend i{border-radius:3px}
+:root[data-style="tech"] .gseg{border-radius:8px}
+:root[data-style="tech"] .gseg button.on{color:var(--accent-ink)}
+:root[data-style="tech"] .mform{border-radius:14px}
+:root[data-style="tech"] .mform header h3{font-size:1.02rem; letter-spacing:-.01em}
+:root[data-style="tech"] .fld label{font-weight:500; color:var(--ink); font-size:12.5px}
+:root[data-style="tech"] .fld .chip.on{color:var(--accent-ink)}
+:root[data-style="tech"] .seg label{border-radius:8px}
+:root[data-style="tech"] .sw{border-radius:10px}
+:root[data-style="tech"] .toast{border-radius:10px}
+:root[data-style="tech"] .ov{background:rgba(8,11,18,.48)}
+
+/* ===== Trang đăng nhập, khởi tạo ===== */
+:root[data-style="tech"] .auth{border-top:0; grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+:root[data-style="tech"] .auth .art{border-right:0; background-color:var(--brand);
+  background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.07) 1px, transparent 0); background-size:22px 22px}
+:root[data-style="tech"] .auth .art.has-bg{background:var(--brand) var(--art-bg) center/cover no-repeat}
+:root[data-style="tech"] .drum-mark{display:none}
+:root[data-style="tech"] .art-head .seal{border-radius:12px; box-shadow:none; background:var(--accent); color:#fff; padding:9px; width:48px; height:48px}
+:root[data-style="tech"] .art-head .seal.logo{background:#fff; padding:4px}
+:root[data-style="tech"] .art-head .org1{text-transform:none; letter-spacing:0; font-size:14px}
+:root[data-style="tech"] .art-head .org2{text-transform:none; letter-spacing:0; font-size:13px; color:var(--brand-ink); font-weight:500}
+:root[data-style="tech"] .art-title h1{text-transform:none; font-size:clamp(1.9rem, 1.3rem + 1.8vw, 2.9rem); letter-spacing:-.035em; line-height:1.12; font-weight:700}
+:root[data-style="tech"] .art-title h1::after{width:44px; height:3px; background:var(--gold); box-shadow:none; margin-top:22px}
+:root[data-style="tech"] .art-title p{color:var(--brand-ink); font-size:15.5px}
+:root[data-style="tech"] .auth .box{background:var(--bg)}
+:root[data-style="tech"] .auth form{border-radius:14px; box-shadow:var(--sh-1); padding:32px}
+:root[data-style="tech"] .form-head h2{text-transform:none; letter-spacing:-.02em; color:var(--ink); font-size:1.4rem}
+:root[data-style="tech"] .form-head h2::after{display:none}
+:root[data-style="tech"] .auth form .btn.primary{min-height:44px; border-radius:8px}
+
+/* ===== Văn phòng ===== */
+:root[data-style="tech"] .vp-time{font-weight:700; letter-spacing:-.04em}
+:root[data-style="tech"] .vp-state > div{border-radius:10px; background:var(--panel2); border-color:transparent}
+:root[data-style="tech"] .vp-big{border-radius:10px}
+
+/* ===== Di động ===== */
+@media (max-width:820px){
+  :root[data-style="tech"] .app{grid-template-columns:1fr}
+}

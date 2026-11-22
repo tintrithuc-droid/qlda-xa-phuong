@@ -7,10 +7,6 @@ Set-WebConfigurationProperty -pspath $ah -filter 'system.webServer/proxy' -name 
 Set-WebConfigurationProperty -pspath $ah -filter 'system.webServer/proxy' -name preserveHostHeader -value True
 Set-WebConfigurationProperty -pspath $ah -filter 'system.webServer/proxy' -name reverseRewriteHostInResponseHeaders -value False
 Set-WebConfigurationProperty -pspath $ah -filter 'system.webServer/proxy' -name timeout -value '00:10:00'
-$sv = Get-WebConfigurationProperty -pspath $ah -filter 'system.webServer/rewrite/allowedServerVariables' -name collection
-if (-not ($sv | Where-Object name -eq 'HTTP_X_FORWARDED_PROTO')) {
-  Add-WebConfigurationProperty -pspath $ah -filter 'system.webServer/rewrite/allowedServerVariables' -name . -value @{ name = 'HTTP_X_FORWARDED_PROTO' }
-}
 $root = Join-Path $ThuMuc "iis"
 New-Item -ItemType Directory -Force $root | Out-Null
 @"
@@ -39,6 +35,13 @@ New-Item -ItemType Directory -Force $root | Out-Null
 "@ | Set-Content -Encoding UTF8 (Join-Path $root "web.config")
 if (-not (Get-Website -Name $TenMien -ErrorAction SilentlyContinue)) {
   New-Website -Name $TenMien -PhysicalPath $root -HostHeader $TenMien -Port 80 | Out-Null
+}
+# Cho phép biến chỉ trong phạm vi site này (khai báo cấp máy chủ sẽ trùng với site khác đã tự khai báo, IIS báo lỗi 500 cho site đó).
+# Kiểm tra cả cấp máy chủ lẫn cấp site, có rồi thì thôi.
+$svAll = @(Get-WebConfigurationProperty -pspath $ah -filter 'system.webServer/rewrite/allowedServerVariables' -name collection) +
+         @(Get-WebConfigurationProperty -pspath $ah -location $TenMien -filter 'system.webServer/rewrite/allowedServerVariables' -name collection)
+if (-not ($svAll | Where-Object name -eq 'HTTP_X_FORWARDED_PROTO')) {
+  Add-WebConfigurationProperty -pspath $ah -location $TenMien -filter 'system.webServer/rewrite/allowedServerVariables' -name . -value @{ name = 'HTTP_X_FORWARDED_PROTO' }
 }
 Start-Website -Name $TenMien
 # Dịch vụ chỉ nghe nội bộ, bật nhận X-Forwarded-*, đóng tường lửa cổng riêng

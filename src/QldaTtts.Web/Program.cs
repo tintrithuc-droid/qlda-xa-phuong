@@ -166,6 +166,9 @@ else using (var scope = app.Services.CreateScope())
     Upgrades.Run(db);
     GuideSeed.Run(db, scope.ServiceProvider.GetRequiredService<FileStore>(), Path.Combine(app.Environment.ContentRootPath, "hdsd"));
 
+    // Bản 1.10.2: lệnh thiết lập trên máy chủ (nạp e-work, thông tin đơn vị, khóa chép chấm công)
+    if (await ServerCli.RunAsync(db, args)) return;
+
     // Lệnh khẩn cấp khi quản trị duy nhất mất điện thoại: QldaTtts.Web.exe --reset-2fa <tên đăng nhập>
     var i = Array.IndexOf(args, "--reset-2fa");
     if (i >= 0)

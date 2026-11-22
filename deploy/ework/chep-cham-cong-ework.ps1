@@ -13,7 +13,9 @@ $ErrorActionPreference = "Stop"
 $me = $MyInvocation.MyCommand.Path
 if ($CaiLich) {
   $kf = Join-Path (Split-Path -Parent $me) "khoa-chep-cham-cong.txt"
-  Set-Content -Path $kf -Value $Khoa -Encoding ASCII
+  # -Khoa FILE: khóa đã có trong tệp (tạo bằng thiet-lap-may-chu.ps1 -TaoKhoaChep), không ghi đè
+  if ($Khoa -ne "FILE") { Set-Content -Path $kf -Value $Khoa -Encoding ASCII }
+  elseif (-not (Test-Path $kf)) { Write-Host "Chưa có tệp khóa $kf" -ForegroundColor Red; exit 1 }
   icacls $kf /inheritance:r /grant:r "*S-1-5-32-544:F" "*S-1-5-18:F" | Out-Null
   $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$me`" -Qlda $Qlda -Khoa FILE -May `"$May`" -Csdl `"$Csdl`""
   $act = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arg

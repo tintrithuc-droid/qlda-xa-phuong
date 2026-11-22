@@ -42,7 +42,8 @@ public static class EworkImport
     private static IEnumerable<JsonElement> Arr(JsonElement root, string k) => root.TryGetProperty(k, out var a) && a.ValueKind == JsonValueKind.Array ? a.EnumerateArray() : Enumerable.Empty<JsonElement>();
     private static string Norm(string? s) => (s ?? "").Trim().ToLowerInvariant();
 
-    public static async Task<Report> Run(AppDbContext db, JsonElement root, string by)
+    /// <param name="commonPassword">Bản 1.10.2: mật khẩu ban đầu chung do quản trị đặt (bắt đổi ở lần đăng nhập đầu); null thì cấp mật khẩu tạm ngẫu nhiên riêng từng người.</param>
+    public static async Task<Report> Run(AppDbContext db, JsonElement root, string by, string? commonPassword = null)
     {
         var rep = new Report(); var now = DateTime.UtcNow;
 
@@ -85,12 +86,12 @@ public static class EworkImport
                 if (!Passwords.ValidUsername(un) || users.Any(x => x.Username == un)) { rep.Warnings.Add($"Không tạo được tài khoản cho {name} (tên đăng nhập '{uname}')."); }
                 else
                 {
-                    var pw = TempPassword();
+                    var pw = commonPassword ?? TempPassword();
                     acc = new AppUser { Id = "u-" + Guid.NewGuid().ToString("N")[..12], Username = un, Name = name, Email = S(u, "Email"), Phone = S(u, "PhoneNumber"),
                         Unit = dept?.Name, GroupId = staffGroup?.Id, Active = true, MustChangePassword = true, CreatedAt = now, UpdatedAt = now, UpdatedBy = by };
                     acc.PasswordHash = Passwords.Hash(acc, pw);
                     db.Users.Add(acc); users.Add(acc);
-                    rep.NewAccounts.Add(new NewAccount(name, un, pw, dept?.Name));
+                    rep.NewAccounts.Add(new NewAccount(name, un, commonPassword is null ? pw : "(mật khẩu ban đầu chung)", dept?.Name));
                 }
             }
             else if (acc is not null) rep.LinkedAccounts.Add($"{name} → {acc.Username}");

@@ -172,7 +172,7 @@ public class AuthController : ApiControllerBase
     /// <summary>Phát phiếu tạm cho bước 2: "verify" nếu đã có khóa, "enroll" kèm khóa mới và mã QR nếu chưa thiết lập.</summary>
     private object MfaChallenge(AppUser u)
     {
-        if (u.TotpSecret is not null) { _tf.IssueTicket(HttpContext, u, null); return new { mfa = "verify", recoveryLeft = TwoFactor.RecoveryLeft(u) }; }
+        if (u.TotpSecret is not null) { _tf.IssueTicket(HttpContext, u, null); return new { mfa = "verify", issuer = _tf.Issuer, recoveryLeft = TwoFactor.RecoveryLeft(u) }; }
         var secret = TwoFactor.NewSecret();
         _tf.IssueTicket(HttpContext, u, secret);
         var uri = _tf.OtpAuthUri(u.Username, secret);

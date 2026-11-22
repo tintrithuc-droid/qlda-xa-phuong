@@ -61,6 +61,10 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   vs = await get(); ok(vs.holidays.length === 1 && vs.holidays[0] === '2026-12-31:c Tất niên', 'Bỏ ngày CN/T7 lỗi: ' + JSON.stringify(vs.holidays));
   const ts2 = await (await r.get(BASE + '/api/vp/timesheet?month=2026-10', { headers: H })).json();
   ok(ts2.standard === 24, 'Công chuẩn 10/2026 sau khi bỏ CN/T7: ' + ts2.standard);
+  // 1.10.8: màn hình nhập mã 2 lớp hiện đúng tên mục trong ứng dụng xác thực
+  const c2 = await b.newContext(), q2 = c2.request;
+  const li = await (await q2.post(BASE + '/api/auth/login', { headers: H, data: { username: 'admin', password: PW } })).json();
+  ok(li.mfa === 'verify' && li.issuer && li.issuer.length > 3, 'Đăng nhập không trả tên mục xác thực: ' + JSON.stringify(li));
   await b.close();
   if (errs.length) { console.log('LỖI:\n' + errs.join('\n')); process.exit(1); }
   console.log('v110i: ĐẠT');

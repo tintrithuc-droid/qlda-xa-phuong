@@ -292,7 +292,7 @@ function renderMfa(){
     <div class="form-head"><h2>${enroll?'Thiết lập xác thực 2 lớp':'Xác thực 2 lớp'}</h2><p class="muted small">${enroll
       ? 'Tài khoản quản trị phải dùng thêm mã xác thực trên điện thoại khi đăng nhập. Thực hiện 3 bước sau (chỉ làm một lần).'
       : rec ? 'Nhập một mã khôi phục đã lưu khi bật xác thực 2 lớp (dạng xxxxx-xxxxx). Mỗi mã chỉ dùng một lần.'
-      : 'Mở ứng dụng xác thực trên điện thoại (Google Authenticator, Microsoft Authenticator…) và nhập mã 6 số của mục <b>'+esc('QLDA Xa Phuong')+'</b>.'}</p></div>
+      : 'Mở ứng dụng xác thực trên điện thoại (Google Authenticator, Microsoft Authenticator…) và nhập mã 6 số của mục <b>'+esc(st.issuer||'QLDA Xa Phuong')+'</b>.'}</p></div>
     ${enroll?`<ol class="mfa-steps">
       <li><b>Cài ứng dụng xác thực</b> trên điện thoại: Google Authenticator hoặc Microsoft Authenticator (miễn phí trên CH Play, App Store).</li>
       <li><b>Quét mã QR</b> bằng ứng dụng (nút “+” → Quét mã QR).<div class="qr" role="img" aria-label="Mã QR thiết lập xác thực 2 lớp">${st.qrSvg}</div>

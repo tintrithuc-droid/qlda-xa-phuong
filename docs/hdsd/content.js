@@ -123,6 +123,7 @@ function common(k) {
   out.push(legend([[1, 'Nút chuyển giao diện sáng/tối']]));
   out.push({ p: 'Muốn chọn chi tiết hơn, nhấn nút bảng màu bên cạnh nút sáng/tối, hoặc nhấn vào tên tài khoản và chọn **Giao diện: màu sắc, cỡ chữ** (trên điện thoại: **Menu → Giao diện, màu sắc**). Hộp **Giao diện** gồm:' });
   out.push({ bullets: [
+    '**Phong cách**: Theo đơn vị (mặc định), **Hành chính** (quốc hiệu, trống đồng, vạch đỏ vàng) hoặc **Công nghệ** (tối giản, hiện đại, thanh bên màu than chì). Phong cách chỉ đổi cách hiển thị, dữ liệu và chức năng giữ nguyên.',
     '**Chế độ hiển thị**: Tự động theo máy, Sáng hoặc Tối.',
     '**Tông màu chủ đạo**: Xanh hành chính (mặc định), Xanh ngọc, Tím than, Xanh lá, Cam đất, Than chì; tông màu đổi màu thanh điều hướng, nút chính và biểu đồ.',
     '**Thanh điều hướng**: nền đậm theo tông màu hoặc nền sáng.',
@@ -754,7 +755,7 @@ S.admin = () => [
     'Thay logo: ở mục **Logo đơn vị**, nhấn **Chọn ảnh** (hoặc **Thay ảnh khác**) (5), chọn ảnh PNG, JPG hoặc WEBP tối đa 2 MB (nên dùng ảnh vuông, nền trong suốt). Logo hiện ngay ở khung xem trước (4), thanh chức năng và trang đăng nhập. Nhấn **Xóa ảnh** bên cạnh để dùng lại biểu tượng mặc định.',
     'Thay ảnh nền trang đăng nhập: ở mục **Ảnh nền trang đăng nhập**, nhấn **Chọn ảnh** (7), chọn ảnh ngang (trụ sở, công trình tiêu biểu) tối đa 5 MB. Phần mềm phủ một lớp màu chủ đạo lên ảnh để chữ trên banner luôn đọc rõ; khung xem trước (6) cho thấy ảnh sau khi phủ màu. Nhấn **Xóa ảnh** để dùng lại nền màu.',
     'Nhóm **Trang đăng nhập**: đổi tiêu đề, dòng hướng dẫn trong khung đăng nhập, dòng hướng dẫn khi quên mật khẩu; chọn có hay không họa tiết trống đồng và vạch màu đỏ, vàng trên banner.',
-    'Nhóm **Màu giao diện**: chọn tông màu chủ đạo của đơn vị. Người dùng để tông màu **Theo đơn vị** (mặc định) trong hộp thoại Giao diện sẽ dùng màu này; người đã tự chọn màu khác vẫn giữ lựa chọn riêng.',
+    'Nhóm **Màu giao diện**: chọn **Phong cách giao diện của đơn vị** (Hành chính hoặc Công nghệ) và tông màu chủ đạo của đơn vị. Người dùng để phong cách, tông màu **Theo đơn vị** (mặc định) trong hộp thoại Giao diện sẽ dùng lựa chọn này; người đã tự chọn màu khác vẫn giữ lựa chọn riêng.',
     'Nhóm **Báo cáo và mẫu in**: tên đơn vị trên báo cáo Excel, địa danh ghi trước ngày tháng (ví dụ «Cần Thơ, ngày … tháng … năm …»), có in quốc hiệu, tiêu ngữ hay không, chức danh người ký báo cáo, phiếu trình, bảng đối soát.',
     'Muốn trở về thông tin ban đầu, nhấn **Khôi phục mặc định** (3) và xác nhận; logo và ảnh nền được giữ nguyên.',
   ] },

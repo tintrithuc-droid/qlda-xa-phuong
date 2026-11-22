@@ -23,13 +23,14 @@ public static class EworkImport
         public int Holidays { get; set; }
         public int Meetings { get; set; }
         public int Notices { get; set; }
+        public int PayProfiles { get; set; }
         /// <summary>Số dòng lưu trữ theo từng bảng e-work.</summary>
         public Dictionary<string, int> Archive { get; set; } = new();
         public List<string> LinkedAccounts { get; set; } = new();
         /// <summary>Tài khoản mới tạo kèm mật khẩu tạm (chỉ trả về một lần cho quản trị, không lưu).</summary>
         public List<NewAccount> NewAccounts { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
-        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
+        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
     }
     public record NewAccount(string Name, string Username, string Password, string? Department);
 
@@ -240,6 +241,32 @@ public static class EworkImport
                 AuthorName = Cut(S(n, "TenNguoiNhap"), 200), CreatedByUserId = UserOf(S(n, "CreatedBy") ?? S(n, "NguoiNhap")), UpdatedAt = now, UpdatedBy = by
             });
             haveN.Add(id); rep.Notices++;
+        }
+        await db.SaveChangesAsync();
+
+        // ---- hồ sơ lương: lương cơ bản, phụ cấp, người phụ thuộc mới nhất theo ngày áp dụng (chỉ tạo khi QLDA chưa có)
+        var hsUser = Luu("BangLuongCoBans").Where(h => S(h, "Id") is not null && S(h, "UserId") is not null).GroupBy(h => S(h, "Id")!).ToDictionary(g => g.Key, g => S(g.First(), "UserId")!);
+        string? UserOfRef(JsonElement r) => S(r, "RefId") is { } rid && hsUser.TryGetValue(rid, out var u) ? u : null;
+        DateTime Applied(JsonElement r) => Dt(S(r, "NgayApDung")) ?? (Num(r, "NamApDung") is { } y && y > 1900 ? new DateTime((int)y, (int)Math.Clamp(Num(r, "ThangApDung") ?? 1, 1, 12), 1) : Dt(S(r, "CreatedDate")) ?? DateTime.MinValue);
+        var today0 = DateTime.Today.AddMonths(1);
+        var baseOf = Luu("RefBangLuongCoBans").Select(r => (u: UserOfRef(r), r)).Where(x => x.u is not null && Applied(x.r) <= today0)
+            .GroupBy(x => x.u!).ToDictionary(g => g.Key, g => g.OrderByDescending(x => Applied(x.r)).First().r);
+        var allowOf = Luu("RefPhuCaps").Select(r => (u: UserOfRef(r), r)).Where(x => x.u is not null && Applied(x.r) <= today0).GroupBy(x => x.u!)
+            .ToDictionary(g => g.Key, g => g.GroupBy(x => S(x.r, "TenPhuCap") ?? S(x.r, "PhuCap") ?? "Phụ cấp").Select(t => t.OrderByDescending(x => Applied(x.r)).First().r)
+                .Select(r => new { name = S(r, "TenPhuCap") ?? "Phụ cấp", amount = (decimal)(Num(r, "SoTien") ?? 0), exempt = (decimal)(Num(r, "SoTienTruThue") ?? 0) }).Where(a => a.amount > 0).ToList());
+        var depOf = Luu("RefGiamTruGiaCanhs").Select(r => (u: UserOfRef(r), r)).Where(x => x.u is not null && Norm(S(x.r, "TenGiamTru")).Contains("phụ thuộc")).GroupBy(x => x.u!)
+            .ToDictionary(g => g.Key, g => (int)(Num(g.OrderByDescending(x => Applied(x.r)).First().r, "SoLuong") ?? 0));
+        var haveP = (await db.PayProfiles.AsNoTracking().Select(x => x.EmployeeId).ToListAsync()).ToHashSet();
+        foreach (var (ew, e) in empByEw)
+        {
+            if (depOf.TryGetValue(ew, out var dn) && dn > 0 && e.Dependents == 0) { db.Attach(e); e.Dependents = dn; }
+            if (haveP.Contains(e.Id) || !baseOf.TryGetValue(ew, out var br) || (Num(br, "LuongCoBan") ?? 0) <= 0) continue;
+            db.PayProfiles.Add(new PayProfile
+            {
+                Id = "hl-" + Guid.NewGuid().ToString("N")[..20], EmployeeId = e.Id, BaseSalary = (decimal)(Num(br, "LuongCoBan") ?? 0),
+                Allowances = JsonSerializer.Serialize(allowOf.TryGetValue(ew, out var al) ? (object)al : Array.Empty<object>()), FromMonth = Applied(br).ToString("yyyy-MM"), UpdatedAt = now, UpdatedBy = by
+            });
+            haveP.Add(e.Id); rep.PayProfiles++;
         }
         await db.SaveChangesAsync();
 

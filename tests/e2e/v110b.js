@@ -29,7 +29,7 @@ function totp(secret) {
   const up = () => r.post(BASE + '/api/vp/import-ework', { headers: H, multipart: { file: { name: 'ework.json', mimeType: 'application/json', buffer: fx } } }).then(x => x.json());
   const imp = await up();
   ok(imp.meetings === 1 && imp.notices === 1, 'Chuyển lịch họp/thông báo sai: ' + JSON.stringify({ m: imp.meetings, n: imp.notices }));
-  ok(imp.archive && imp.archive.BangKPIs === 3 && imp.archive.LichHops === 1 && Object.keys(imp.archive).length === 8, 'Lưu trữ thiếu bảng: ' + JSON.stringify(imp.archive));
+  ok(imp.archive && imp.archive.BangKPIs === 3 && imp.archive.LichHops === 1 && Object.keys(imp.archive).length === 12, 'Lưu trữ thiếu bảng: ' + JSON.stringify(imp.archive));
   const acc = Object.fromEntries(imp.newAccounts.map(a => [a.username, a.password]));
   const emps = await (await r.get(BASE + '/api/vp/employees', { headers: H })).json();
   const ttb = emps.find(e => e.name === 'Trần Thị B'), nva = emps.find(e => e.name === 'Nguyễn Văn A');
@@ -92,9 +92,9 @@ function totp(secret) {
   ok(!rb.locked && rb.total === Math.round((90 * 70 + 100 * 30) / 100 * 10) / 10, 'Mở chốt không tính lại theo thiết lập mới: ' + rb.total + ' (chốt ' + frozen + ')');
   await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: kp.settings.wWork === 70 ? { ...kp.settings, wWork: 40, wProject: 20, wAttendance: 10, wManager: 30 } : kp.settings });
   const bk = await (await r.get(BASE + '/api/backup', { headers: H })).json();
-  ok(bk.data.vp_kpi.length >= 3 && bk.data.vp_ework.length === 10 && bk.data.vp_ework.every(x => x.tableName && x.data), 'Sao lưu thiếu KPI hoặc lưu trữ e-work');
+  ok(bk.data.vp_kpi.length >= 3 && bk.data.vp_ework.length === 16 && bk.data.vp_ework.every(x => x.tableName && x.data), 'Sao lưu thiếu KPI hoặc lưu trữ e-work');
   ok((await r.post(BASE + '/api/backup', { headers: H, data: bk })).ok(), 'Phục hồi có lưu trữ e-work lỗi');
-  const tabs2 = await (await r.get(BASE + '/api/vp/ework-archive', { headers: H })).json(); ok(tabs2.reduce((s, t) => s + t.rows, 0) === 10, 'Phục hồi làm trùng lưu trữ');
+  const tabs2 = await (await r.get(BASE + '/api/vp/ework-archive', { headers: H })).json(); ok(tabs2.reduce((s, t) => s + t.rows, 0) === 16, 'Phục hồi làm trùng lưu trữ');
 
   // ---- Giao diện KPI, lưu trữ
   await p.evaluate(() => { vpReset(); location.hash = 'kpi'; }); await p.waitForTimeout(500);

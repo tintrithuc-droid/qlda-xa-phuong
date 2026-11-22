@@ -43,7 +43,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
   // 2. Quản trị thiết lập các mục mới
   await p.evaluate(() => { S.tab.qt = 'org'; location.hash = 'quan-tri'; }); await p.waitForSelector('#br_loginTitle');
   const secs = await p.$$eval('#brform h3.br-sec', a => a.map(x => x.textContent));
-  check(secs.length === 6 && secs.includes('Lĩnh vực dự án') && secs.includes('Trang đăng nhập') && secs.includes('Báo cáo và mẫu in'), 'Thẻ Thông tin đơn vị chia 6 nhóm: ' + secs.join(', '));
+  check(secs.length === 7 && secs.includes('Phân hệ sử dụng') && secs.includes('Lĩnh vực dự án') && secs.includes('Trang đăng nhập') && secs.includes('Báo cáo và mẫu in'), 'Thẻ Thông tin đơn vị chia 7 nhóm: ' + secs.join(', '));
   await p.fill('#br_orgShort', 'Tin học Tri Thức'); await p.fill('#br_appName', 'Quản lý dự án tư vấn');
   await p.fill('#br_orgName', 'Công ty Cổ phần Tin học Tri Thức'); await p.fill('#br_unitName', 'Tư vấn giám sát');
   await p.fill('#br_loginTitle', 'Đăng nhập Tri Thức'); await p.fill('#br_loginHint', 'Dùng tài khoản công ty cấp.');

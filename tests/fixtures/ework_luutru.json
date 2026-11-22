@@ -248,6 +248,56 @@
     "Ngay": "2026-09-02T00:00:00",
     "MoTa": "Quốc khánh"
    }
+  ],
+  "BangLuongCoBans": [
+   {
+    "Id": "hs1",
+    "UserId": "u2",
+    "FullName": "Trần Thị B"
+   }
+  ],
+  "RefBangLuongCoBans": [
+   {
+    "Id": "r1",
+    "RefId": "hs1",
+    "RefTableName": "BangLuongCoBans",
+    "LuongCoBan": 8000000,
+    "NgayApDung": "2025-01-01T00:00:00"
+   },
+   {
+    "Id": "r2",
+    "RefId": "hs1",
+    "RefTableName": "BangLuongCoBans",
+    "LuongCoBan": 10000000,
+    "NgayApDung": "2026-06-01T00:00:00"
+   }
+  ],
+  "RefPhuCaps": [
+   {
+    "Id": "p1",
+    "RefId": "hs1",
+    "TenPhuCap": "Ăn trưa",
+    "SoTien": 730000,
+    "SoTienTruThue": 730000,
+    "NgayApDung": "2026-01-01T00:00:00"
+   },
+   {
+    "Id": "p2",
+    "RefId": "hs1",
+    "TenPhuCap": "Điện thoại",
+    "SoTien": 300000,
+    "SoTienTruThue": 0,
+    "NgayApDung": "2026-01-01T00:00:00"
+   }
+  ],
+  "RefGiamTruGiaCanhs": [
+   {
+    "Id": "g1",
+    "RefId": "hs1",
+    "TenGiamTru": "Giảm trừ người phụ thuộc",
+    "SoLuong": 1,
+    "NgayApDung": "2026-01-01T00:00:00"
+   }
   ]
  }
 }

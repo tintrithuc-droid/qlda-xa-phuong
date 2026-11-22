@@ -357,3 +357,126 @@ ACT['ew-xlsx']=async()=>{ const t=S.f.ewt; try{
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, t.slice(0,31)); XLSX.writeFile(wb, 'ework_'+t+(S.f.ewp?'_'+S.f.ewp:'')+'.xlsx');
   }catch(e){ toast(errText(e),'err'); } };
 document.addEventListener('change', e=>{ if(e.target.id==='ew_q') ACT['ew-q'](); else if(e.target.id==='ew_p') ACT['ew-p'](); });
+
+/* ===== Bản 1.10: lương tháng (tự tính từ hồ sơ lương, bảng công, tăng ca, KPI đã chốt, ứng lương; bảo hiểm, thuế TNCN theo thiết lập) ===== */
+VP.pay=VP.pay||{};
+const payMonth = () => S.f.plm || (()=>{ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-(new Date().getDate()<=10?1:0)); return d.getFullYear()+'-'+pad(d.getMonth()+1); })();
+const vnd = v => v? fmtVND(v) : '0';
+const payRow = id => { const d=VP.pay[payMonth()]; return d&&d.rows&&d.rows.find(r=>r.employeeId===id); };
+VIEWS['luong']=()=>{
+  if(!VP.st){ vpLoad(); return `<div class="head"><div class="grow"><h1>Lương</h1></div></div>`+vpWait(); }
+  const m=payMonth(); const d=vpFetch(VP.pay, m, '/api/vp/luong?month='+m); const dep=S.f.pld||'';
+  let body;
+  if(d===null) body='<div class="empty">Đang tải…</div>';
+  else if(d.error) body=emptyBox(esc(d.error));
+  else if(!d.all) body = d.rows.length? paySlipHTML(d.rows[0], m) + `<div class="toolbar" style="margin-top:10px"><button class="btn" data-act="pay-pdf" data-id="${esc(d.rows[0].employeeId)}">In, lưu PDF phiếu lương</button></div>`
+      : emptyBox('Phiếu lương tháng này chưa chốt. Kế toán chốt bảng lương xong bạn sẽ xem được ở đây.');
+  else {
+    const rows=d.rows.filter(r=>!dep||r.departmentId===dep).map(r=>({...r,id:r.employeeId}));
+    const noProf=rows.filter(r=>!r.hasProfile).length, sum=k=>rows.reduce((s,r)=>s+(r[k]||0),0);
+    body=`<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
+      <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Tổng thu nhập</div><b>${vnd(sum('gross'))}</b></div>
+      <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Thực lĩnh</div><b>${vnd(sum('net'))}</b></div>
+      <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Bảo hiểm (NLĐ + DN)</div><b>${vnd(sum('insurance')+sum('employerIns'))}</b></div>
+      <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Thuế TNCN</div><b>${vnd(sum('pit'))}</b></div>
+      <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Chi phí công ty</div><b>${vnd(sum('cost'))}</b></div></div>`
+    + (noProf?`<div class="alert info" style="margin-bottom:10px">${noProf} người chưa có hồ sơ lương (lương chính 0, không đưa vào khi chốt). Bấm <b>Hồ sơ lương</b> để nhập.</div>`:'')
+    + table([
+      {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
+      {h:'Công', r:1, f:r=>`${fmtN(r.paid,1)}/${fmtN(r.standard,1)}${r.absent?`<div class="small muted">vắng ${fmtN(r.absent,1)}</div>`:''}`},
+      {h:'Lương theo công', r:1, f:r=>vnd(r.timePay)}, {h:'Phụ cấp', r:1, f:r=>vnd(r.allowances)},
+      {h:'Tăng ca', r:1, f:r=>r.otPay?`${vnd(r.otPay)}<div class="small muted">${fmtN(r.otHours,1)} giờ</div>`:'0'},
+      {h:'Thưởng', r:1, f:r=>vnd(r.kpiBonus+r.bonus)+(r.kpiGrade?`<div class="small muted">KPI ${esc(r.kpiGrade)}</div>`:'')},
+      {h:'Bảo hiểm', r:1, f:r=>vnd(r.insurance)}, {h:'Thuế TNCN', r:1, f:r=>vnd(r.pit)},
+      {h:'Ứng, khấu trừ', r:1, f:r=>vnd(r.advance+r.deduction)},
+      {h:'Thực lĩnh', r:1, f:r=>`<b>${vnd(r.net)}</b>${r.locked?'':''}`}],
+      rows, {empty:'Chưa có nhân sự.', nopage:true, rowAct:'pay-row'});
+  }
+  const ed=d&&d.canEdit, locked=d&&d.all&&d.rows.some(r=>r.locked);
+  return `<div class="head"><div class="grow"><h1>${d&&!d.all?'Phiếu lương':'Bảng lương'} tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${d&&d.all?(locked?pill('Đã chốt','ok'):pill('Đang tính, chưa chốt','warn')):'Của bạn'}</p></div>
+    <div class="toolbar">${ed?`<button class="btn" data-act="pay-profiles">Hồ sơ lương</button><button class="btn" data-act="pay-set">Thiết lập</button><button class="btn ${locked?'':'primary'}" data-act="pay-lock" data-id="${locked?'0':'1'}">${locked?'Mở chốt':'Chốt bảng lương'}</button>`:''}</div></div>
+  <div class="toolbar" style="margin:4px 0 10px"><input type="month" data-f="plm" value="${esc(m)}" aria-label="Tháng">${d&&d.all?`<select data-f="pld" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
+    <span style="flex:1"></span><button class="btn sm ghost" data-act="pay-pdf" data-id="">In phiếu lương (PDF)</button><button class="btn sm ghost" data-act="pay-xlsx">Xuất Excel bảng lương</button>`:''}</div>${body}`;
+};
+function paySlipHTML(r, m){
+  const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="small muted">${c}</td></tr>`;
+  return `<div class="card" style="max-width:640px"><h2 style="margin-top:0">${esc(r.name)}</h2><p class="small muted" style="margin-top:-6px">${esc(vpDeptName(r.departmentId))}${r.position?', '+esc(r.position):''} · Tháng ${m.slice(5)}/${m.slice(0,4)}</p>
+  <table class="tbl" style="width:100%"><tbody>
+  ${L('Lương chính', vnd(r.baseSalary))}${L('Ngày công hưởng lương', fmtN(r.paid,1)+' / '+fmtN(r.standard,1), r.absent?`vắng không lý do ${fmtN(r.absent,1)}`:'')}
+  ${L('<b>1. Lương theo ngày công</b>', vnd(r.timePay))}
+  ${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;Phụ cấp: '+esc(a.label), vnd(a.amount), esc(a.note||''))).join('')}
+  ${L('<b>2. Phụ cấp</b>', vnd(r.allowances))}${L('<b>3. Tăng ca</b>', vnd(r.otPay), r.otHours?fmtN(r.otHours,1)+' giờ':'')}
+  ${L('<b>4. Thưởng KPI</b>', vnd(r.kpiBonus), r.kpiGrade?'xếp loại '+esc(r.kpiGrade):'')}${L('<b>5. Thưởng, bổ sung khác</b>', vnd(r.bonus), esc(r.note||''))}
+  ${L('<b>TỔNG THU NHẬP (1+2+3+4+5)</b>', '<b>'+vnd(r.gross)+'</b>')}
+  ${L('BHXH, BHYT, BHTN người lao động', vnd(r.insurance), r.insBase?`trên mức ${vnd(r.insBase)}`:'')}
+  ${L('Thu nhập tính thuế', vnd(r.assessable), r.dependents?`${r.dependents} người phụ thuộc`:'')}${L('Thuế TNCN', vnd(r.pit))}
+  ${L('Ứng lương', vnd(r.advance))}${L('Khấu trừ khác', vnd(r.deduction))}
+  ${L('<b>THỰC LĨNH</b>', '<b style="font-size:1.15em">'+vnd(r.net)+'</b>')}</tbody></table></div>`;
+}
+ACT['pay-row']=id=>{ const r=payRow(id), d=VP.pay[payMonth()]; if(!r) return;
+  const edit=d.canEdit && !r.locked;
+  openModal(`<div class="mform wide"><header><h3>Phiếu lương</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">${paySlipHTML(r, payMonth())}
+    <div class="toolbar" style="margin-top:10px">${edit?`<button class="btn" data-act="pay-adj" data-id="${esc(id)}">Thưởng, khấu trừ khác</button>`:''}<button class="btn ghost" data-act="pay-pdf" data-id="${esc(id)}">In, lưu PDF</button></div></div></div>`); };
+ACT['pay-adj']=id=>{ const r=payRow(id); if(!r) return; closeModal();
+  openForm({title:'Điều chỉnh lương: '+r.name, narrow:true, value:{bonus:r.bonus||'', deduction:r.deduction||'', note:r.note||''},
+    fields:[{key:'bonus',label:'Thưởng, bổ sung khác (đồng, tính thuế)',type:'money'},{key:'deduction',label:'Khấu trừ khác (đồng)',type:'money'},{key:'note',label:'Ghi chú (in trên phiếu)',type:'text'}],
+    onSave:async v=>{ await api('PUT',`/api/vp/luong/${payMonth()}/${encodeURIComponent(id)}`,{bonus:N(v.bonus), deduction:N(v.deduction), note:v.note||''}); delete VP.pay[payMonth()]; return {id}; }}); };
+ACT['pay-lock']=async l=>{ const m=payMonth(); const d=VP.pay[m]; const miss=d&&d.rows? d.rows.filter(r=>!r.hasProfile).length : 0;
+  if(l==='1' && !await confirmBox(`Chốt bảng lương tháng ${m.slice(5)}/${m.slice(0,4)}? Số liệu được lưu cố định, người lao động xem được phiếu lương của mình.${miss?` <b>${miss} người chưa có hồ sơ lương</b> sẽ không có phiếu.`:''}`,'Chốt')) return;
+  await api('POST',`/api/vp/luong/${m}/chot`,{lock:l==='1'}); delete VP.pay[m]; render(); toast(l==='1'?'Đã chốt bảng lương':'Đã mở chốt'); };
+const payAllowText = l => (l||[]).map(a=>[a.name, a.amount, a.exempt||0].join('; ')).join('\n');
+const payAllowParse = t => String(t||'').split('\n').map(x=>x.split(';').map(y=>y.trim())).filter(p=>p[0]).map(p=>({name:p[0], amount:N(String(p[1]||'0').replace(/\./g,'')), exempt:N(String(p[2]||'0').replace(/\./g,''))}));
+ACT['pay-profiles']=async()=>{ const l=await api('GET','/api/vp/luong-ho-so'); const by=Object.fromEntries(l.map(p=>[p.employeeId,p]));
+  const emps=VP.emps.filter(e=>e.status!=='Nghỉ việc');
+  openModal(`<div class="mform wide"><header><h3>Hồ sơ lương</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">
+    <p class="small muted" style="margin-top:0">Bấm một người để nhập lương chính, lương đóng bảo hiểm, phụ cấp cố định, số người phụ thuộc.</p>
+    ${table([{h:'Họ tên',f:e=>`<b style="font-weight:600">${esc(e.name)}</b><div class="small muted">${esc(vpDeptName(e.departmentId))}</div>`},
+      {h:'Lương chính',r:1,f:e=>by[e.id]?vnd(by[e.id].baseSalary):'<span class="muted">chưa có</span>'},{h:'Đóng BH',r:1,f:e=>by[e.id]?(by[e.id].noInsurance?'Không':vnd(by[e.id].insuranceSalary??by[e.id].baseSalary)):''},
+      {h:'Phụ cấp',r:1,f:e=>by[e.id]?vnd(by[e.id].allowances.reduce((s,a)=>s+a.amount,0)):''},{h:'Người phụ thuộc',r:1,f:e=>e.dependents||0}], emps, {nopage:true, rowAct:'pay-prof'})}</div></div>`);
+  VP._prof=by; };
+ACT['pay-prof']=id=>{ const e=VP.emps.find(x=>x.id===id), p=(VP._prof||{})[id]||{}; if(!e) return; closeModal();
+  openForm({title:'Hồ sơ lương: '+e.name, narrow:true, value:{base:p.baseSalary||'', ins:p.insuranceSalary??'', allow:payAllowText(p.allowances), dep:e.dependents||0, noIns:p.noInsurance?'1':'0', flat:p.flatTax?'1':'0', from:p.fromMonth||''},
+    fields:[{key:'base',label:'Lương chính (đồng/tháng)',type:'money',req:true},{key:'ins',label:'Lương đóng bảo hiểm (trống = bằng lương chính)',type:'money'},
+      {key:'allow',label:'Phụ cấp cố định: mỗi dòng "tên; số tiền; phần không tính thuế"',type:'textarea',rows:4,keepLines:true,ph:'Ăn trưa; 730000; 730000'},
+      {key:'dep',label:'Số người phụ thuộc (giảm trừ gia cảnh)',type:'number'},{key:'noIns',label:'Đóng bảo hiểm',type:'select',req:true,options:[['0','Có đóng bảo hiểm'],['1','Không đóng (thử việc, cộng tác viên)']]},
+      {key:'flat',label:'Cách tính thuế TNCN',type:'select',req:true,options:[['0','Biểu lũy tiến, có giảm trừ gia cảnh'],['1','Khấu trừ 10% (hợp đồng dưới 3 tháng, cộng tác viên)']]},{key:'from',label:'Áp dụng từ tháng (ghi chú)',type:'text',ph:'2026-12'}],
+    onSave:async v=>{ await api('PUT',`/api/vp/luong-ho-so/${encodeURIComponent(id)}`,{baseSalary:N(v.base), insuranceSalary:v.ins===''||v.ins==null?null:N(v.ins), allowances:payAllowParse(v.allow), noInsurance:v.noIns==='1', flatTax:v.flat==='1', fromMonth:v.from||null, dependents:N(v.dep)});
+      e.dependents=N(v.dep); VP.pay={}; return {id}; }}); };
+ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
+  openForm({title:'Thiết lập lương', value:{...s, taxText:s.taxTables.map(t=>t.from+' | '+t.brackets.map(b=>`${b.upTo/1e6||0}:${b.rate}`).join(' ')).join('\n')},
+    fields:[{key:'_h1',type:'html',html:'<div class="fld full"><b>Bảo hiểm người lao động đóng (%)</b></div>'},{key:'empBhxh',label:'BHXH',type:'number'},{key:'empBhyt',label:'BHYT',type:'number'},{key:'empBhtn',label:'BHTN',type:'number'},
+      {key:'_h2',type:'html',html:'<div class="fld full"><b>Doanh nghiệp đóng (%)</b></div>'},{key:'coBhxh',label:'BHXH (gồm TNLĐ-BNN)',type:'number'},{key:'coBhyt',label:'BHYT',type:'number'},{key:'coBhtn',label:'BHTN',type:'number'},{key:'coKpcd',label:'Kinh phí công đoàn',type:'number'},
+      {key:'baseWage',label:'Lương cơ sở (trần BHXH, BHYT = 20 lần)',type:'number'},{key:'regionMinWage',label:'Lương tối thiểu vùng (trần BHTN = 20 lần)',type:'number'},
+      {key:'personalDeduction',label:'Giảm trừ bản thân (đồng/tháng)',type:'number'},{key:'dependentDeduction',label:'Giảm trừ mỗi người phụ thuộc',type:'number'},
+      {key:'otRate',label:'Hệ số tăng ca (%)',type:'number'},{key:'payDay',label:'Ngày trả lương (in trên phiếu)',type:'text'},
+      {key:'taxText',label:'Biểu thuế TNCN theo tháng: mỗi dòng "ngày hiệu lực | đến (triệu):thuế suất …", bậc cuối ghi 0',type:'textarea',rows:3,keepLines:true}],
+    onSave:async v=>{ const taxTables=String(v.taxText||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2).map(p=>({from:p[0].trim(), brackets:p[1].trim().split(/\s+/).map(x=>x.split(':')).map(([u,r])=>({upTo:N(u)*1e6, rate:N(r)}))}));
+      const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate'].forEach(k=>b[k]=N(v[k])); b.payDay=v.payDay||''; b.taxTables=taxTables;
+      await api('PUT','/api/vp/luong-settings', b); VP.pay={}; return {id:'luong'}; }}); };
+ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||'';
+  const rows=d.rows.filter(r=>!dep||r.departmentId===dep).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'))
+    .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost]);
+  exportXlsx(`Bang_luong_${m}.xlsx`, [{name:'Luong '+m, title:`BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}`, sub:`Ngày công chuẩn ${fmtN(d.rows[0]?.standard||0,1)}`,
+    head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty'],
+    rows, money:[3,6,7,9,10,11,12,13,14,15,17,18,19,20,21,22,23]}]); };
+ACT['pay-pdf']=id=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const s=d.settings||{};
+  const list=d.rows.filter(r=>id? r.employeeId===id : r.hasProfile||r.locked);
+  const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="n">${c}</td></tr>`;
+  const one=r=>`<div class="slip">${printHead()}<h1>PHIẾU LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}</h1>
+    <p>Họ tên: <b>${esc(r.name)}</b> &nbsp;·&nbsp; Phòng ban: ${esc(vpDeptName(r.departmentId))}${r.position?' &nbsp;·&nbsp; Chức vụ: '+esc(r.position):''}</p>
+    <table><tbody>${L('Lương chính',vnd(r.baseSalary))}${L('Ngày công hưởng lương / công chuẩn',fmtN(r.paid,1)+' / '+fmtN(r.standard,1))}
+    ${L('<b>1. Lương theo ngày công</b>',vnd(r.timePay))}${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;'+esc(a.label),vnd(a.amount))).join('')}${L('<b>2. Phụ cấp</b>',vnd(r.allowances))}
+    ${L('<b>3. Tăng ca</b>',vnd(r.otPay),r.otHours?fmtN(r.otHours,1)+' giờ':'')}${L('<b>4. Thưởng KPI</b>',vnd(r.kpiBonus),r.kpiGrade?'Xếp loại '+esc(r.kpiGrade):'')}${L('<b>5. Thưởng, bổ sung khác</b>',vnd(r.bonus),esc(r.note||''))}
+    ${L('<b>TỔNG THU NHẬP</b>','<b>'+vnd(r.gross)+'</b>')}${L(`BHXH (${fmtN(s.empBhxh??8,1)}%), BHYT (${fmtN(s.empBhyt??1.5,1)}%), BHTN (${fmtN(s.empBhtn??1,1)}%)`,vnd(r.insurance))}${L('Thu nhập tính thuế',vnd(r.assessable),r.dependents?r.dependents+' người phụ thuộc':'')}${L('Thuế TNCN',vnd(r.pit))}
+    ${L('Ứng lương',vnd(r.advance))}${L('Khấu trừ khác',vnd(r.deduction))}${L('<b>THỰC LĨNH</b>','<b>'+vnd(r.net)+'</b>')}</tbody></table>
+    <p class="n">${esc(s.payDay||'')}${r.locked?'':' · Bản tạm tính, chưa chốt'}</p>
+    <div class="sign"><div><b>NGƯỜI NHẬN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div>${esc(r.name)}</div><div><b>KẾ TOÁN</b><i>(Ký, ghi rõ họ tên)</i><div class="sp"></div></div></div></div>`;
+  const html=`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Phieu luong ${m}</title><style>
+  @page{size:A5; margin:10mm} body{font:12.5px/1.4 "Times New Roman",Times,serif; color:#000; margin:0}
+  .hd{display:grid; grid-template-columns:1fr 1.2fr; text-align:center; margin-bottom:8px; font-size:11px} .hd b{display:block} .hd .u{display:inline-block; border-top:1px solid #000; width:40%; margin-top:2px}
+  h1{font-size:15px; text-align:center; margin:6px 0} table{width:100%; border-collapse:collapse} td{border:1px solid #000; padding:3px 5px} td.r{text-align:right; white-space:nowrap} td.n,.n{font-size:11px; font-style:italic}
+  .slip{page-break-after:always} .slip:last-child{page-break-after:auto} .sign{display:grid; grid-template-columns:1fr 1fr; text-align:center; margin-top:10px} .sign i{display:block} .sp{height:48px}
+  </style></head><body>${list.map(one).join('')||'<p>Không có phiếu lương.</p>'}</body></html>`;
+  const fr=document.createElement('iframe'); fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.title='In phiếu lương';
+  document.body.appendChild(fr); const doc=fr.contentDocument; doc.open(); doc.write(html); doc.close();
+  setTimeout(()=>{ try{ fr.contentWindow.focus(); fr.contentWindow.print(); }finally{ setTimeout(()=>fr.remove(), 60000); } }, 250); };

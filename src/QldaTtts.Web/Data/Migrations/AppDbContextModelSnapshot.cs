@@ -1747,6 +1747,51 @@ namespace QldaTtts.Web.Data.Migrations
                     b.ToTable("PaymentPlans");
                 });
 
+            modelBuilder.Entity("QldaTtts.Web.Data.PayProfile", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Allowances")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("BaseSalary")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("FlatTax")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FromMonth")
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<decimal?>("InsuranceSalary")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<bool>("NoInsurance")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("PayProfiles");
+                });
+
             modelBuilder.Entity("QldaTtts.Web.Data.Payment", b =>
                 {
                     b.Property<string>("Id")
@@ -1812,6 +1857,60 @@ namespace QldaTtts.Web.Data.Migrations
                     b.HasIndex("ContractId");
 
                     b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("QldaTtts.Web.Data.Payslip", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal>("Bonus")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<string>("Data")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Deduction")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<string>("EmployeeId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Month")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<decimal?>("Net")
+                        .HasColumnType("decimal(18,0)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Month", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("Payslips");
                 });
 
             modelBuilder.Entity("QldaTtts.Web.Data.Project", b =>

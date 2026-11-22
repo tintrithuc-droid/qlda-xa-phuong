@@ -206,3 +206,36 @@ public class EworkRow : EntityBase
     [MaxLength(7)] public string? Period { get; set; }
     public string Data { get; set; } = "";
 }
+
+/// <summary>Hồ sơ lương hiện hành của một người: lương chính, lương đóng bảo hiểm, các khoản phụ cấp cố định.</summary>
+[Table("PayProfiles")]
+public class PayProfile : EntityBase
+{
+    [MaxLength(64)] public string EmployeeId { get; set; } = "";
+    [Column(TypeName = "decimal(18,0)")] public decimal BaseSalary { get; set; }
+    /// <summary>Lương đóng bảo hiểm; trống = bằng lương chính.</summary>
+    [Column(TypeName = "decimal(18,0)")] public decimal? InsuranceSalary { get; set; }
+    /// <summary>Phụ cấp cố định: JSON [{name, amount, exempt}] (exempt = phần không tính thuế TNCN).</summary>
+    public string? Allowances { get; set; }
+    /// <summary>Không đóng bảo hiểm (thử việc, cộng tác viên…).</summary>
+    public bool NoInsurance { get; set; }
+    /// <summary>Khấu trừ thuế 10% (cộng tác viên, hợp đồng dưới 3 tháng) thay cho biểu lũy tiến.</summary>
+    public bool FlatTax { get; set; }
+    [MaxLength(7)] public string? FromMonth { get; set; }
+}
+
+/// <summary>Phiếu lương một người một tháng: điều chỉnh tay (thưởng, khấu trừ) và số liệu cố định khi chốt.</summary>
+[Table("Payslips")]
+public class Payslip : EntityBase
+{
+    [MaxLength(64)] public string EmployeeId { get; set; } = "";
+    [MaxLength(7)] public string Month { get; set; } = "";
+    [Column(TypeName = "decimal(18,0)")] public decimal Bonus { get; set; }
+    [Column(TypeName = "decimal(18,0)")] public decimal Deduction { get; set; }
+    [MaxLength(500)] public string? Note { get; set; }
+    /// <summary>Toàn bộ các dòng phiếu lương (JSON) lưu cố định khi chốt.</summary>
+    public string? Data { get; set; }
+    [Column(TypeName = "decimal(18,0)")] public decimal? Net { get; set; }
+    public DateTime? LockedAt { get; set; }
+    [MaxLength(200)] public string? LockedBy { get; set; }
+}

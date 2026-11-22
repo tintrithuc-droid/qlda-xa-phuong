@@ -158,6 +158,13 @@ public static class ServerCli
             Log("Đối chiếu lương với e-work (dòng lệnh trên máy chủ)", "Lương", $"Tháng {month}: {khop} khớp, {lech} lệch, {thieu} không có");
             await db.SaveChangesAsync();
             Console.WriteLine($"Đối chiếu lương tháng {month}: {ew.Count} người trên e-work, {khop} khớp, {lech} có lệch, {thieu} không có trên QLDA. Chi tiết: {outCsv} (có số tiền lương: chỉ giao Kế toán, xem xong xóa).");
+            // chẩn đoán (không có dữ liệu cá nhân): thiết lập thứ Bảy, công chuẩn, ngày nghỉ trong tháng
+            var vsd = VpSettings.Load(db); var m0 = DateOnly.Parse(month + "-01");
+            var offs = Enumerable.Range(0, m0.AddMonths(1).DayNumber - m0.DayNumber).Select(k => m0.AddDays(k)).Select(d => (d, i: VnTime.Day(d, vsd))).Where(x => x.i.Value < 1 && x.d.DayOfWeek != DayOfWeek.Sunday).Select(x => $"{x.d:dd/MM} {x.i.Kind}");
+            var stdD = Enumerable.Range(0, m0.AddMonths(1).DayNumber - m0.DayNumber).Sum(k => VnTime.Day(m0.AddDays(k), vsd).Value);
+            var lockedN = await db.Payslips.CountAsync(x => x.Month == month && x.LockedAt != null);
+            if (lockedN > 0) Console.WriteLine($"Lưu ý: bảng lương tháng {month} đã chốt {lockedN} phiếu, đối chiếu dùng số liệu lúc chốt. Muốn tính theo thiết lập mới: Mở chốt rồi chạy lại.");
+            Console.WriteLine($"Thiết lập thứ Bảy: {vsd.Saturday}{(vsd.Saturday == "cach-tuan" ? " (mốc " + vsd.SaturdayAnchor + ")" : "")}; công chuẩn tháng theo lịch: {stdD:0.#}; ngày nghỉ, nửa ngày (trừ Chủ nhật): {string.Join(", ", offs)}");
             return true;
         }
         return false;

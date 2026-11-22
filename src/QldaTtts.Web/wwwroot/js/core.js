@@ -99,8 +99,8 @@ const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA 
   reportOrg:'Ban QLDA đầu tư xây dựng xã/phường …', ownerDefault:'UBND xã/phường …', support:'Hỗ trợ: quản trị hệ thống của đơn vị',
   loginTitle:'Đăng nhập hệ thống', loginHint:'Sử dụng tài khoản do quản trị hệ thống cấp.', forgotText:'Quên mật khẩu: liên hệ quản trị hệ thống để đặt lại.', bannerDeco:'1',
   color:'navy', printNation:'1', place:'…', signReport:'THỦ TRƯỞNG ĐƠN VỊ', signApprove:'LÃNH ĐẠO BAN QUẢN LÝ DỰ ÁN', signTech:'CÁN BỘ KỸ THUẬT', signAcc:'KẾ TOÁN',
-  logo:null, loginBg:null, field:'xd', hideMods:'', style:'gov', sideBg:'blue'};
-let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy', style:lsGet('qlda-brstyle')||'gov', sideBg:lsGet('qlda-brside')||'blue'};
+  logo:null, loginBg:null, field:'xd', hideMods:'', style:'gov', sideBg:'peach'};
+let BR = {...BR_DEF, color:lsGet('qlda-brcolor')||'navy', style:lsGet('qlda-brstyle')||'gov', sideBg:lsGet('qlda-brside')||'peach'};
 /* Lĩnh vực dự án của đơn vị (Quản trị hệ thống → Thông tin đơn vị): 'xd' đầu tư xây dựng (mặc định, các xã/phường),
    'cntt' dự án CNTT, chuyển đổi số, đổi mới sáng tạo: đổi tên chức năng, nhãn theo nghề và ẩn chức năng chỉ dùng cho xây dựng. Dữ liệu giữ nguyên. */
 const isIT=()=>BR.field==='cntt';
@@ -1057,7 +1057,7 @@ const UI_OPTS = {
   style:  {label:'Phong cách', def:'unit', list:[['unit','Theo đơn vị'],['gov','Hành chính'],['tech','Công nghệ']]},
   mode:   {label:'Chế độ hiển thị', def:'auto', list:[['auto','Tự động theo máy'],['light','Sáng'],['dark','Tối']]},
   color:  {label:'Tông màu chủ đạo', def:'unit', list:[['unit','Theo đơn vị'],['navy','Xanh hành chính','#1f5fbf','#0d2a57'],['teal','Xanh ngọc','#0b7a72','#0a3431'],['indigo','Tím than','#4338ca','#1e1b4b'],['green','Xanh lá','#15803d','#0f2f1c'],['earth','Cam đất','#b4490c','#2e1608'],['slate','Than chì','#334155','#111827']]},
-  sidebg: {label:'Màu nền menu và trang đăng nhập (phong cách Công nghệ)', def:'unit', list:[['unit','Theo đơn vị'],['blue','Xanh Tri Thức','#2149a3','#133a8a'],['night','Xanh đêm','#1d2e58','#0d1b3d'],['teal','Xanh ngọc','#175358','#0c3b3f'],['slate','Xám đậm','#323d4f','#1f2937'],['peach','Cam nhạt','#f8d6b8','#fdebdc'],['charcoal','Than đen','#1b2030','#0c0f16']]},
+  sidebg: {label:'Màu nền menu và trang đăng nhập (phong cách Công nghệ)', def:'unit', list:[['unit','Theo đơn vị'],['peach','Cam nhạt','#f8d6b8','#fdebdc'],['blue','Xanh Tri Thức','#2149a3','#133a8a'],['night','Xanh đêm','#1d2e58','#0d1b3d'],['teal','Xanh ngọc','#175358','#0c3b3f'],['slate','Xám đậm','#323d4f','#1f2937']]},
   side:   {label:'Thanh điều hướng', def:'dark', list:[['dark','Nền đậm theo tông màu'],['light','Nền sáng']]},
   size:   {label:'Cỡ chữ', def:'md', list:[['sm','Nhỏ'],['md','Vừa'],['lg','Lớn'],['xl','Rất lớn']]},
   density:{label:'Mật độ hiển thị', def:'comfy', list:[['comfy','Thoáng'],['compact','Gọn (nhiều dòng hơn)']]}
@@ -1070,7 +1070,7 @@ const UI = {
     if(o && !o.v && r.color==='navy') r.color='unit'; r.v=2; return r; },
   apply(p){
     this.p=this.clean(p); const r=document.documentElement, dark=this.p.mode==='dark' || (this.p.mode==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-    r.dataset.mode=dark?'dark':'light'; r.dataset.color=this.p.color==='unit'?(BR.color||'navy'):this.p.color; r.dataset.style=this.p.style==='unit'?(BR.style||'gov'):this.p.style; r.dataset.sidebg=this.p.sidebg==='unit'?(BR.sideBg||'blue'):this.p.sidebg; r.dataset.side=this.p.side; r.dataset.size=this.p.size; r.dataset.density=this.p.density;
+    r.dataset.mode=dark?'dark':'light'; r.dataset.color=this.p.color==='unit'?(BR.color||'navy'):this.p.color; r.dataset.style=this.p.style==='unit'?(BR.style||'gov'):this.p.style; r.dataset.sidebg=this.p.sidebg==='unit'?(BR.sideBg||'peach'):this.p.sidebg; r.dataset.side=this.p.side; r.dataset.size=this.p.size; r.dataset.density=this.p.density;
     if(this.p.mode==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',this.p.mode);
     const mc=document.querySelector('meta[name=theme-color]'); if(mc) setTimeout(()=>{ mc.content=getComputedStyle(r).getPropertyValue('--brand').trim()||'#0d2a57'; },0);
   },
@@ -1101,7 +1101,7 @@ function appearanceHTML(){
   const seg=(k)=>`<fieldset class="ap-group"><legend>${esc(UI_OPTS[k].label)}</legend><div class="seg" role="radiogroup">${UI_OPTS[k].list.map(([v,l])=>`<label class="${p[k]===v?'on':''}"><input type="radio" name="ap_${k}" value="${v}" data-ap="${k}" ${p[k]===v?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div></fieldset>`;
   const swk=(k,cur)=>{ const L=UI_OPTS[k].list, uc=L.find(x=>x[0]===cur)||L[1];
     return `<fieldset class="ap-group"><legend>${esc(UI_OPTS[k].label)}</legend><div class="swatches" role="radiogroup">${L.map(x=>x[0]==='unit'?['unit','Theo đơn vị ('+uc[1].toLowerCase()+')',uc[2],uc[3]]:x).map(([v,l,a,b])=>`<label class="sw ${p[k]===v?'on':''}"><input type="radio" name="ap_${k}" value="${v}" data-ap="${k}" ${p[k]===v?'checked':''}><span class="chip" style="--a:${a};--b:${b}" aria-hidden="true"><i></i></span><span>${esc(l)}</span></label>`).join('')}</div></fieldset>`; };
-  const sw=swk('color',BR.color), sbg=document.documentElement.dataset.style==='tech'?swk('sidebg',BR.sideBg||'blue'):'';
+  const sw=swk('color',BR.color), sbg=document.documentElement.dataset.style==='tech'?swk('sidebg',BR.sideBg||'peach'):'';
   return `<div class="mform narrow ap" role="dialog" aria-modal="true" aria-labelledby="ap_t"><header><h3 id="ap_t">Giao diện</h3><button class="icon-btn" data-close aria-label="Đóng">×</button></header>
     <div class="ap-body">${seg('style')}${seg('mode')}${sw}${sbg}${seg('side')}${seg('size')}${seg('density')}
     <p class="small muted" style="margin:0">Chọn là áp dụng ngay. Tùy chọn được lưu theo tài khoản của bạn, đăng nhập trên máy khác vẫn giữ nguyên.</p></div>

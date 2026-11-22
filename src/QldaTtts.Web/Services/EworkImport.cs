@@ -27,13 +27,14 @@ public static class EworkImport
         public int HrRecords { get; set; }
         public int Projects { get; set; }
         public int Tasks { get; set; }
+        public int Groups { get; set; }
         /// <summary>Số dòng lưu trữ theo từng bảng e-work.</summary>
         public Dictionary<string, int> Archive { get; set; } = new();
         public List<string> LinkedAccounts { get; set; } = new();
         /// <summary>Tài khoản mới tạo kèm mật khẩu tạm (chỉ trả về một lần cho quản trị, không lưu).</summary>
         public List<NewAccount> NewAccounts { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
-        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {Projects} dự án, {Tasks} nhiệm vụ và công việc, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
+        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {Projects} dự án, {Tasks} nhiệm vụ và công việc, {Groups} nhóm vai trò mới, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
     }
     public record NewAccount(string Name, string Username, string Password, string? Department);
 
@@ -63,8 +64,8 @@ public static class EworkImport
 
         // ---- nhân sự, tài khoản
         var users = await db.Users.ToListAsync();
-        var groups = await db.Groups.AsNoTracking().ToListAsync();
-        var staffGroup = groups.FirstOrDefault(g => !g.Admin && Regex.IsMatch(g.Name, "nhân viên", RegexOptions.IgnoreCase));
+        // Bản 1.10.4: bộ vai trò doanh nghiệp (Nhân viên, Trưởng phòng, Kế toán, Ban giám đốc); tài khoản mới hoặc chưa có nhóm nhận nhóm theo vai trò e-work
+        rep.Groups = CompanyRoles.Ensure(db, by);
         var emps = await db.Employees.ToListAsync();
         var hoso = Arr(root, "hoso").GroupBy(h => S(h, "UserId") ?? "").ToDictionary(g => g.Key, g => g.OrderByDescending(h => S(h, "CreatedDate")).First());
         var empByEw = new Dictionary<string, Employee>();
@@ -91,13 +92,18 @@ public static class EworkImport
                 {
                     var pw = commonPassword ?? TempPassword();
                     acc = new AppUser { Id = "u-" + Guid.NewGuid().ToString("N")[..12], Username = un, Name = name, Email = S(u, "Email"), Phone = S(u, "PhoneNumber"),
-                        Unit = dept?.Name, GroupId = staffGroup?.Id, Active = true, MustChangePassword = true, CreatedAt = now, UpdatedAt = now, UpdatedBy = by };
+                        Unit = dept?.Name, GroupId = CompanyRoles.GroupFor(role), Active = true, MustChangePassword = true, CreatedAt = now, UpdatedAt = now, UpdatedBy = by };
                     acc.PasswordHash = Passwords.Hash(acc, pw);
                     db.Users.Add(acc); users.Add(acc);
                     rep.NewAccounts.Add(new NewAccount(name, un, commonPassword is null ? pw : "(mật khẩu ban đầu chung)", dept?.Name));
                 }
             }
-            else if (acc is not null) rep.LinkedAccounts.Add($"{name} → {acc.Username}");
+            else if (acc is not null)
+            {
+                rep.LinkedAccounts.Add($"{name} → {acc.Username}");
+                if (acc.GroupId is null) { acc.GroupId = CompanyRoles.GroupFor(role); acc.UpdatedAt = now; }
+            }
+            if (Regex.IsMatch(role, "ADMIN|QUANTRI", RegexOptions.IgnoreCase)) rep.Warnings.Add($"{name} là quản trị trên e-work: tài khoản nhận nhóm {CompanyRoles.NameOf(CompanyRoles.GroupFor(role))}, quản trị chính tự gán quyền quản trị nếu cần.");
             if (acc is not null && emps.Any(x => x.UserId == acc.Id && x.EworkId != ew)) acc = null; // tài khoản đã gắn hồ sơ khác
             if (e is null)
             {
@@ -504,6 +510,9 @@ public static class EworkImport
     private static string MapType(string? t)
     {
         var n = Norm(t);
+        if (n.Contains("không lương") || n.Contains("khong luong") || n.Contains("ngoài phép")) return "Nghỉ không lương";
+        if (n.Contains("ốm") || n.Contains("thai sản") || n.Contains("bhxh")) return "Nghỉ ốm, thai sản (BHXH)";
+        if (n.Contains("việc riêng") || n.Contains("hiếu hỷ") || n.Contains("hiếu hỉ") || n.Contains("kết hôn")) return "Nghỉ việc riêng có lương";
         if (n.Contains("nghỉ phép") || n.Contains("nghi phep")) return "Nghỉ phép";
         if (n.Contains("online")) return "Làm việc online";
         if (n.Contains("tăng ca")) return "Tăng ca";

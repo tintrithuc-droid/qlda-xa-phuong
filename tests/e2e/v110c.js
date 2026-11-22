@@ -45,11 +45,12 @@ function totp(secret) {
   ok(bb.paid === bb.standard && bb.standard >= 20, 'Ngày công hưởng lương sai: ' + bb.paid + '/' + bb.standard);
   ok(bb.timePay === 10000000 && bb.allowances === 1030000 && bb.kpiBonus === 1000000 && bb.kpiGrade === 'A' && bb.gross === 12030000, 'Thu nhập ttb sai: ' + JSON.stringify(bb));
   ok(bb.insurance === 1050000 && bb.taxable === 11300000 && bb.assessable === 0 && bb.pit === 0 && bb.net === 10980000 && bb.employerIns === 2350000, 'Khấu trừ ttb sai: ' + JSON.stringify({ i: bb.insurance, t: bb.taxable, a: bb.assessable, p: bb.pit, n: bb.net, e: bb.employerIns }));
-  ok(a.bhxh === 3744000 && a.bhyt === 702000 && a.bhtn === 600000, 'Trần bảo hiểm sai: ' + JSON.stringify({ x: a.bhxh, y: a.bhyt, t: a.bhtn }));
-  ok(a.gross === 61000000 && a.assessable === 40454000 && a.pit === 4590800 && a.net === 50863200, 'Thuế TNCN biểu 5 bậc sai: ' + JSON.stringify({ g: a.gross, a: a.assessable, p: a.pit, n: a.net }));
+  // Trần đóng BHXH, BHYT = 20 × lương cơ sở 2.530.000 (từ 01/7/2026)
+  ok(a.bhxh === 4048000 && a.bhyt === 759000 && a.bhtn === 600000, 'Trần bảo hiểm sai: ' + JSON.stringify({ x: a.bhxh, y: a.bhyt, t: a.bhtn }));
+  ok(a.gross === 61000000 && a.assessable === 40093000 && a.pit === 4518600 && a.net === 50574400, 'Thuế TNCN biểu 5 bậc sai: ' + JSON.stringify({ g: a.gross, a: a.assessable, p: a.pit, n: a.net }));
   const st = d.settings; await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...st, taxTables: [st.taxTables[0]] } });
   d = await (await r.get(BASE + `/api/vp/luong?month=${M}`, { headers: H })).json();
-  ok(d.rows.find(x => x.employeeId === nva.id).pit === 6863500, 'Thuế TNCN biểu 7 bậc sai: ' + d.rows.find(x => x.employeeId === nva.id).pit);
+  ok(d.rows.find(x => x.employeeId === nva.id).pit === 6773250, 'Thuế TNCN biểu 7 bậc sai: ' + d.rows.find(x => x.employeeId === nva.id).pit);
   await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: st });
   // Nhân viên chưa thấy phiếu khi chưa chốt; không xem được hồ sơ lương
   const ctx2 = await b.newContext(); const q2 = ctx2.request;

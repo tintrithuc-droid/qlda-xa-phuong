@@ -22,7 +22,7 @@ public class VanPhongController : ApiControllerBase
 
     public static readonly string[] RequestTypes =
     {
-        "Nghỉ phép", "Làm việc online", "Tăng ca", "Công tác", "Đi muộn, về sớm", "Quên điểm danh", "Xăng xe", "Tạm ứng", "Ứng lương",
+        "Nghỉ phép", "Nghỉ việc riêng có lương", "Nghỉ không lương", "Nghỉ ốm, thai sản (BHXH)", "Làm việc online", "Tăng ca", "Công tác", "Đi muộn, về sớm", "Quên điểm danh", "Xăng xe", "Tạm ứng", "Ứng lương",
         "Thanh toán", "Giải chi", "Kiểm tra thanh toán", "Gia hạn công việc", "Mở lại công việc", "Làm việc", "Khác"
     };
 

@@ -102,7 +102,7 @@ setInterval(()=>{ const c=document.getElementById('vp_clock'); if(c){ const n=ne
 
 /* ---------------------------------------------------------------- Đề xuất */
 const VP_REQ_FIELDS = {
-  'Nghỉ phép':['range','days','reason'], 'Làm việc online':['range','days','reason'], 'Công tác':['range','days','place','reason'],
+  'Nghỉ phép':['range','days','reason'], 'Nghỉ việc riêng có lương':['range','days','reason'], 'Nghỉ không lương':['range','days','reason'], 'Nghỉ ốm, thai sản (BHXH)':['range','days','reason'], 'Làm việc online':['range','days','reason'], 'Công tác':['range','days','place','reason'],
   'Tăng ca':['day','times','hours','reason'], 'Đi muộn, về sớm':['day','times','reason'], 'Quên điểm danh':['day','times','reason'],
   'Xăng xe':['day','place','km','reason'], 'Tạm ứng':['title','amount','reason'], 'Ứng lương':['amount','reason'], 'Thanh toán':['title','amount','reason'],
   'Giải chi':['title','amount','reason'], 'Kiểm tra thanh toán':['title','amount','reason'], 'Gia hạn công việc':['title','due','reason'],
@@ -148,6 +148,8 @@ ACT['vp-req-form']=(type, el, ev, rec)=>{
   if(fs.includes('amount')) F.push({key:'amount',label:'Số tiền (đồng)',type:'money',req:true});
   F.push({key:'reason',label:'Lý do',type:'textarea',req:fs.includes('reason'),full:true});
   if(type==='Nghỉ phép') F.unshift({key:'_i',type:'html',html:`<div class="fld full small muted">Phép năm ${VP.st.leave.year} còn <b>${fmtN(VP.st.leave.left,1)}</b> ngày.</div>`});
+  if(type==='Nghỉ việc riêng có lương') F.unshift({key:'_i',type:'html',html:`<div class="fld full small muted">Theo Điều 115 Bộ luật Lao động: bản thân kết hôn 3 ngày; con đẻ, con nuôi kết hôn 1 ngày; cha, mẹ (cả bên vợ/chồng), vợ hoặc chồng, con chết 3 ngày. Hưởng nguyên lương, không trừ phép năm.</div>`});
+  if(type==='Nghỉ ốm, thai sản (BHXH)') F.unshift({key:'_i',type:'html',html:`<div class="fld full small muted">Những ngày này cơ quan BHXH trả trợ cấp theo hồ sơ, công ty không trả lương; không trừ phép năm, không tính vắng không lý do.</div>`});
   openForm({title:(r.id?'Sửa đề xuất: ':'Đề xuất ')+type.toLowerCase(), fields:F, value:{...r, fd, ft:ft||undefined, td, tt:tt||undefined}, submit: r.id?'Lưu':'Gửi đề xuất',
     onSave:async v=>{
       const tm=x=>!x||/^\d{1,2}:\d{2}$/.test(x); if(!tm(v.ft)||!tm(v.tt)){ throw new Error('Giờ ghi dạng 08:00.'); }

@@ -23,6 +23,11 @@ public class DataController : ApiControllerBase
         ["capitals"] = "von", ["settlements"] = "quyet-toan", ["clearances"] = "gpmb", ["diaries"] = "nhat-ky", ["payplans"] = "thanh-toan",
     };
 
+    /// <summary>Phân hệ có dữ liệu dự án; nhóm có ít nhất một phân hệ được xem thì nhận dữ liệu dự án trong phạm vi.</summary>
+    public static readonly string[] ProjectModules = { "tong-quan", "du-an", "von", "gpmb", "mo-hinh", "goi-thau", "tien-do", "nhat-ky", "khoi-luong", "nghiem-thu", "thanh-toan", "quyet-toan", "bao-cao" };
+    /// <summary>Tập dữ liệu dùng chung mọi nhóm đều nhận.</summary>
+    static readonly HashSet<string> Shared = new() { "catalogs", "groups", "guides" };
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -44,7 +49,9 @@ public class DataController : ApiControllerBase
         };
         // Phân hệ nhóm không được xem (vốn, quyết toán, giải phóng mặt bằng, nhật ký, kế hoạch thanh toán) thì máy chủ không gửi dữ liệu,
         // để tài khoản người ngoài (nhà thầu, khách hàng) không đọc được qua trình duyệt. Các tập dữ liệu dùng chung để tính tiến độ vẫn gửi.
-        bool Hidden(string col) => Private.TryGetValue(col, out var mod) && !Uc.Can(mod);
+        // Bản 1.10.4: nhóm không được xem phân hệ dự án nào (nhân viên văn phòng) thì không nhận dữ liệu dự án, gói thầu, hợp đồng, đơn vị
+        var noProj = !ProjectModules.Any(m => Uc.Can(m));
+        bool Hidden(string col) => (noProj && !Shared.Contains(col)) || (Private.TryGetValue(col, out var mod) && !Uc.Can(mod));
         var result = new Dictionary<string, object>();
         foreach (var def in Collections.All)
         {

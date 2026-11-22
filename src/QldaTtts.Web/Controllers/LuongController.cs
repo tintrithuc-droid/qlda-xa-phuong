@@ -14,12 +14,15 @@ public class PaySettings
     public decimal EmpBhxh { get; set; } = 8; public decimal EmpBhyt { get; set; } = 1.5m; public decimal EmpBhtn { get; set; } = 1;
     /// <summary>Doanh nghiệp đóng: BHXH (gồm ốm đau, thai sản, TNLĐ-BNN), BHYT, BHTN, kinh phí công đoàn (%).</summary>
     public decimal CoBhxh { get; set; } = 17.5m; public decimal CoBhyt { get; set; } = 3; public decimal CoBhtn { get; set; } = 1; public decimal CoKpcd { get; set; } = 2;
-    /// <summary>Lương cơ sở (trần BHXH, BHYT = 20 lần) và lương tối thiểu vùng (trần BHTN = 20 lần).</summary>
-    public decimal BaseWage { get; set; } = 2340000; public decimal RegionMinWage { get; set; } = 4960000;
+    /// <summary>Lương cơ sở (trần BHXH, BHYT = 20 lần; 2.530.000 đồng từ 01/7/2026) và lương tối thiểu vùng (trần BHTN = 20 lần; vùng I 5.310.000 đồng
+    /// từ 01/01/2026 theo Nghị định 293/2025/NĐ-CP; vùng II 4.730.000, vùng III 4.140.000, vùng IV 3.700.000).</summary>
+    public decimal BaseWage { get; set; } = 2530000; public decimal RegionMinWage { get; set; } = 5310000;
     /// <summary>Giảm trừ gia cảnh bản thân, mỗi người phụ thuộc (đồng/tháng).</summary>
     public decimal PersonalDeduction { get; set; } = 15500000; public decimal DependentDeduction { get; set; } = 6200000;
     /// <summary>Hệ số tăng ca (%), áp cho giờ tăng ca trong đề xuất đã duyệt.</summary>
     public decimal OtRate { get; set; } = 150;
+    /// <summary>Bản 1.10.4 (Điều 98 BLLĐ 2019): làm thêm vào ngày nghỉ hằng tuần ít nhất 200%, ngày lễ, tết, nghỉ có hưởng lương ít nhất 300% (chưa kể lương ngày lễ).</summary>
+    public decimal OtRestRate { get; set; } = 200; public decimal OtHolidayRate { get; set; } = 300;
     /// <summary>Ngày trả lương ghi trên phiếu (ví dụ "05 tháng sau").</summary>
     public string PayDay { get; set; } = "Ngày 05 tháng sau";
     /// <summary>Bản 1.10.4: người lao động tự xác nhận lương từ ngày ConfirmFrom đến hết ngày ConfirmTo của tháng sau; quá hạn coi như đồng ý.</summary>
@@ -63,7 +66,11 @@ public class PaySettings
     {
         var s = db.Settings.AsNoTracking().FirstOrDefault(x => x.Key == Key)?.Value;
         if (string.IsNullOrEmpty(s)) return new PaySettings();
-        try { return JsonSerializer.Deserialize<PaySettings>(s, Opts) ?? new PaySettings(); } catch { return new PaySettings(); }
+        PaySettings p; try { p = JsonSerializer.Deserialize<PaySettings>(s, Opts) ?? new PaySettings(); } catch { return new PaySettings(); }
+        // mức cũ của thiết lập mặc định trước 2026: tự lên mức hiện hành (đơn vị đã tự nhập mức khác thì giữ)
+        if (p.BaseWage == 2340000) p.BaseWage = 2530000;
+        if (p.RegionMinWage == 4960000) p.RegionMinWage = 5310000;
+        return p;
     }
     public void Save(AppDbContext db, string by)
     {
@@ -115,6 +122,7 @@ public class LuongController : ApiControllerBase
         // Bản 1.10.4: phép năm, công tác phí, xăng xe, tạm ứng
         public decimal LeaveDays { get; set; } public decimal LeaveOver { get; set; } public decimal LeaveTotal { get; set; } public decimal LeaveUsedYear { get; set; }
         public decimal UnusedLeave { get; set; } public decimal UnusedLeavePay { get; set; }
+        public decimal UnpaidDays { get; set; } public decimal PrivateLeave { get; set; }
         public decimal TripDays { get; set; } public decimal TripPay { get; set; } public decimal FuelPay { get; set; } public decimal TempAdvance { get; set; }
         public List<PayItem> Items { get; set; } = new();
         public decimal Advance { get; set; } public decimal Deduction { get; set; } public decimal Net { get; set; } public decimal EmployerIns { get; set; } public decimal Cost { get; set; }
@@ -152,6 +160,13 @@ public class LuongController : ApiControllerBase
         return null;
     }
 
+    /// <summary>Bản 1.10.4: tính bảng lương ngoài giao diện (đối chiếu với e-work trên máy chủ).</summary>
+    public static async Task<List<Slip>> ComputeFor(AppDbContext db, string month)
+    {
+        var c = new LuongController(db, null!); var from = DateOnly.Parse(month + "-01");
+        return await c.Compute(month, await c.Staff(from));
+    }
+
     private async Task<List<Slip>> Compute(string month, List<Employee> emps)
     {
         var from = DateOnly.Parse(month + "-01"); var to = from.AddMonths(1);
@@ -164,6 +179,10 @@ public class LuongController : ApiControllerBase
         var f = VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue)); var t = VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue));
         var monthReqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && (r.Type == "Ứng lương" || r.Type == "Tạm ứng" || r.Type == "Xăng xe")).ToListAsync())
             .Where(r => (r.FromAt ?? r.CreatedAt) >= f && (r.FromAt ?? r.CreatedAt) < t).ToList();
+        // tăng ca theo loại ngày (ngày thường, ngày nghỉ hằng tuần, ngày lễ)
+        var otReqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Tăng ca" && r.FromAt != null && r.FromAt >= f && r.FromAt < t).ToListAsync())
+            .GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+        decimal OtFactor(Request r) { var k = VnTime.Day(DateOnly.FromDateTime(VnTime.ToVn(r.FromAt!.Value)), vs).Kind; return (k == "holiday" ? ps.OtHolidayRate : k == "off" ? ps.OtRestRate : ps.OtRate) / 100; }
         var adv = monthReqs.Where(r => r.Type == "Ứng lương").GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount ?? 0));
         // Phép năm đã nghỉ trong năm trước tháng này (để biết tháng này còn phép hay đã vượt)
         var y0 = VnTime.ToUtc(new DateTime(from.Year, 1, 1));
@@ -183,7 +202,9 @@ public class LuongController : ApiControllerBase
             s.LeaveTotal = VnTime.LeaveEntitlement(e, vs, from.Year); s.LeaveDays = st.Leave;
             var before = leaveBefore.TryGetValue(e.Id, out var lb) ? lb : 0; s.LeaveUsedYear = before + st.Leave;
             s.LeaveOver = ps.LeaveOverDeduct ? Math.Min(st.Leave, Math.Max(0, s.LeaveUsedYear - s.LeaveTotal)) : 0;
-            s.Paid = Math.Max(0, standard - s.Absent - s.LeaveOver); s.OtHours = st.Overtime;
+            // Nghỉ việc riêng có lương (Điều 115) hưởng lương, không trừ phép; nghỉ không lương, nghỉ ốm/thai sản (BHXH chi trả) không tính lương công ty
+            s.UnpaidDays = st.Unpaid; s.PrivateLeave = st.PrivateLeave;
+            s.Paid = Math.Max(0, standard - s.Absent - s.LeaveOver - st.Unpaid); s.OtHours = st.Overtime;
             s.BaseSalary = p?.BaseSalary ?? 0;
             s.TimePay = standard > 0 ? Math.Round(s.BaseSalary * s.Paid / standard, 0) : 0;
             var daily = standard > 0 ? s.BaseSalary / standard : 0;
@@ -203,7 +224,9 @@ public class LuongController : ApiControllerBase
             foreach (var a in al) { s.AllowanceLines.Add(new Line("pc", a.Name, a.Amount, a.Exempt > 0 ? $"không tính thuế {a.Exempt:#,0}" : null)); exempt += Math.Min(a.Amount, a.Exempt); }
             s.Allowances = al.Sum(a => a.Amount);
             var hourly = standard > 0 ? s.BaseSalary / standard / 8 : 0;
-            s.OtPay = Math.Round(hourly * s.OtHours * ps.OtRate / 100, 0);
+            var ots = otReqs.TryGetValue(e.Id, out var ol) ? ol : new();
+            var otH = ots.Sum(r => r.Hours ?? 0);
+            s.OtPay = Math.Round(hourly * (ots.Sum(r => (r.Hours ?? 0) * OtFactor(r)) + Math.Max(0, s.OtHours - otH) * ps.OtRate / 100), 0);
             var otPremium = Math.Max(0, s.OtPay - Math.Round(hourly * s.OtHours, 0)); // phần trả cao hơn giờ bình thường không chịu thuế
             if (kpi.TryGetValue(e.Id, out var k))
             {

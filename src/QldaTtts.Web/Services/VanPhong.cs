@@ -133,7 +133,10 @@ public static class VnTime
 public static class VpCalc
 {
     public record Row(string EmployeeId, string Name, string? DepartmentId, decimal Standard, decimal Worked, int Late, int LateMinutes, int Early,
-        int Outside, int Online, int NoOut, decimal Leave, decimal Trip, decimal Overtime, decimal Absent);
+        int Outside, int Online, int NoOut, decimal Leave, decimal Trip, decimal Overtime, decimal Absent, decimal PrivateLeave = 0, decimal Unpaid = 0);
+
+    /// <summary>Bản 1.10.4: các loại nghỉ có đề xuất được duyệt (không tính vắng không lý do).</summary>
+    public static readonly string[] LeaveTypes = { "Nghỉ phép", "Nghỉ việc riêng có lương", "Nghỉ không lương", "Nghỉ ốm, thai sản (BHXH)" };
 
     public static async Task<(decimal standard, List<Row> rows)> Month(AppDbContext db, VpSettings s, List<Employee> emps, DateOnly from)
     {
@@ -160,12 +163,13 @@ public static class VpCalc
                 if (d < first || (e.StartDate is { } sd && d < sd)) continue;
                 var wv = VnTime.WorkValue(d, s); if (wv == 0 || xs.Any(a => a.Date == d)) continue;
                 var covered = mine.Any(r => r.FromAt is { } f && DateOnly.FromDateTime(VnTime.ToVn(f)) <= d && DateOnly.FromDateTime(VnTime.ToVn(r.ToAt ?? f)) >= d
-                    && (r.Type is "Nghỉ phép" or "Công tác" or "Làm việc online"));
+                    && (LeaveTypes.Contains(r.Type) || r.Type is "Công tác" or "Làm việc online"));
                 if (!covered) absent += wv;
             }
             return new Row(e.Id, e.Name, e.DepartmentId, standard, worked, xs.Count(a => a.LateMinutes > 0), xs.Sum(a => a.LateMinutes), xs.Count(a => a.EarlyMinutes > 0),
                 xs.Count(a => a.InPlace == "Ngoài công ty"), xs.Count(a => a.InPlace == "Làm việc online"), xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today),
-                Days("Nghỉ phép"), Days("Công tác"), mine.Where(r => r.Type == "Tăng ca").Sum(r => r.Hours ?? 0), absent);
+                Days("Nghỉ phép"), Days("Công tác"), mine.Where(r => r.Type == "Tăng ca").Sum(r => r.Hours ?? 0), absent,
+                Days("Nghỉ việc riêng có lương"), Days("Nghỉ không lương") + Days("Nghỉ ốm, thai sản (BHXH)"));
         }).ToList();
         return (standard, rows);
     }

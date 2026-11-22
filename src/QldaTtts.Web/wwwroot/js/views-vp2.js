@@ -450,6 +450,8 @@ function payExtraLines(r, L){ let h='';
   if(r.tripPay) h+=L('<b>7. Công tác phí</b>', vnd(r.tripPay), fmtN(r.tripDays,1)+' ngày, không tính thuế');
   if(r.fuelPay) h+=L('<b>8. Xăng xe</b>', vnd(r.fuelPay), 'không tính thuế');
   if(r.leaveTotal!=null && (r.leaveDays||r.leaveOver)) h+=L('Phép năm', '', `tháng này nghỉ ${fmtN(r.leaveDays||0,1)} ngày, cả năm ${fmtN(r.leaveUsedYear||0,1)}/${fmtN(r.leaveTotal,1)}${r.leaveOver?`, <b>vượt ${fmtN(r.leaveOver,1)} ngày trừ lương</b>`:''}`);
+  if(r.privateLeave) h+=L('Nghỉ việc riêng có lương', '', fmtN(r.privateLeave,1)+' ngày, hưởng nguyên lương');
+  if(r.unpaidDays) h+=L('Nghỉ không lương, nghỉ ốm/thai sản (BHXH chi trả)', '', fmtN(r.unpaidDays,1)+' ngày, không tính lương công ty');
   return h; }
 function paySlipHTML(r, m){
   const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="small muted">${c}</td></tr>`;
@@ -502,7 +504,7 @@ ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
       {key:'_h2',type:'html',html:'<div class="fld full"><b>Doanh nghiệp đóng (%)</b></div>'},{key:'coBhxh',label:'BHXH (gồm TNLĐ-BNN)',type:'number'},{key:'coBhyt',label:'BHYT',type:'number'},{key:'coBhtn',label:'BHTN',type:'number'},{key:'coKpcd',label:'Kinh phí công đoàn',type:'number'},
       {key:'baseWage',label:'Lương cơ sở (trần BHXH, BHYT = 20 lần)',type:'number'},{key:'regionMinWage',label:'Lương tối thiểu vùng (trần BHTN = 20 lần)',type:'number'},
       {key:'personalDeduction',label:'Giảm trừ bản thân (đồng/tháng)',type:'number'},{key:'dependentDeduction',label:'Giảm trừ mỗi người phụ thuộc',type:'number'},
-      {key:'otRate',label:'Hệ số tăng ca (%)',type:'number'},{key:'payDay',label:'Ngày trả lương (in trên phiếu)',type:'text'},
+      {key:'otRate',label:'Tăng ca ngày thường (%, tối thiểu 150)',type:'number'},{key:'otRestRate',label:'Tăng ca ngày nghỉ hằng tuần (%, tối thiểu 200)',type:'number'},{key:'otHolidayRate',label:'Tăng ca ngày lễ, tết (%, tối thiểu 300)',type:'number'},{key:'payDay',label:'Ngày trả lương (in trên phiếu)',type:'text'},
       {key:'confirmFrom',label:'Nhân viên xác nhận lương từ ngày (tháng sau)',type:'number'},{key:'confirmTo',label:'đến hết ngày',type:'number'},
       {key:'_h3',type:'html',html:'<div class="fld full"><b>Công tác phí, phép năm, đề xuất</b></div>'},
       {key:'tripOn',label:'Công tác phí',type:'select',options:[['0','Không tính'],['1','Tính theo ngày công tác được duyệt']]},{key:'tripRate',label:'Mức công tác phí (đồng/ngày)',type:'money'},
@@ -515,7 +517,7 @@ ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
       {key:'transferNote',label:'Nội dung chuyển khoản',type:'text'},{key:'transferAscii',label:'Tên người hưởng',type:'select',options:[['0','Giữ nguyên có dấu (như mẫu MB Bank)'],['1','Viết hoa không dấu']]},{key:'transferSheet',label:'Tên trang tính',type:'text'},
       {key:'taxText',label:'Biểu thuế TNCN theo tháng: mỗi dòng "ngày hiệu lực | đến (triệu):thuế suất …", bậc cuối ghi 0',type:'textarea',rows:3,keepLines:true}],
     onSave:async v=>{ ['tripOn','leaveOverDeduct','payUnusedLeave','fuelToPayroll','advanceToPayroll','transferAscii'].forEach(k=>s[k]=v[k]==='1'); s.payAccount=v.payAccount||''; s.payBank=v.payBank||''; s.transferNote=v.transferNote||'THANH TOAN LUONG T{thang}.{nam}'; s.transferSheet=v.transferSheet||'Chuyển lương'; s.tripRate=N(v.tripRate); const taxTables=String(v.taxText||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2).map(p=>({from:p[0].trim(), brackets:p[1].trim().split(/\s+/).map(x=>x.split(':')).map(([u,r])=>({upTo:N(u)*1e6, rate:N(r)}))}));
-      const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate','confirmFrom','confirmTo'].forEach(k=>b[k]=N(v[k])); b.payDay=v.payDay||''; b.taxTables=taxTables;
+      const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate','otRestRate','otHolidayRate','confirmFrom','confirmTo'].forEach(k=>b[k]=N(v[k])); b.payDay=v.payDay||''; b.taxTables=taxTables;
       await api('PUT','/api/vp/luong-settings', b); VP.pay={}; return {id:'luong'}; }}); };
 ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||'';
   const rows=d.rows.filter(r=>!dep||r.departmentId===dep).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'))

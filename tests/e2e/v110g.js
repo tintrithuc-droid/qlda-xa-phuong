@@ -86,6 +86,21 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
     const fe = (await J(r.get(BASE + '/api/vp/employees', { headers: H }))).find(x => x.id === e.id);
     ok((await r.put(BASE + `/api/vp/employees/${e.id}`, { headers: H, data: { ...fe, bankAccount: acc, bankName: bank } })).ok(), 'Lưu tài khoản ngân hàng lỗi');
   }
+  // 6b) Theo luật: nghỉ việc riêng có lương (Điều 115) không trừ lương, không trừ phép; nghỉ không lương trừ công; tăng ca chủ nhật 200% (Điều 98)
+  const sun = (() => { for (let d = 1; d <= 28; d++) { const x = PM + '-' + String(d).padStart(2, '0'); if (new Date(x + 'T00:00:00Z').getUTCDay() === 0) return x; } })();
+  const before = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  for (const [id, data] of [['dx-e2e2', { type: 'Nghỉ việc riêng có lương', fromAt: PM + '-14T08:00:00+07:00', toAt: PM + '-14T17:30:00+07:00', days: 1, reason: 'Kết hôn' }],
+    ['dx-e2e3', { type: 'Nghỉ không lương', fromAt: PM + '-15T08:00:00+07:00', toAt: PM + '-15T17:30:00+07:00', days: 1, reason: 'Việc riêng' }],
+    ['dx-e2e4', { type: 'Tăng ca', fromAt: sun + 'T08:00:00+07:00', toAt: sun + 'T10:00:00+07:00', hours: 2, reason: 'Triển khai' }]]) {
+    ok((await qb.put(BASE + '/api/vp/requests/' + id, { headers: H, data })).ok(), 'Gửi đề xuất ' + data.type + ' lỗi');
+    ok((await qa.post(BASE + `/api/vp/requests/${id}/decide`, { headers: H, data: { action: 'approve' } })).ok(), 'Duyệt ' + data.type + ' lỗi');
+  }
+  const after = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  const hourly = 20000000 / after.standard / 8;
+  ok(after.privateLeave === 1 && after.unpaidDays === 1 && after.paid === before.paid - 1 && after.leaveDays === before.leaveDays, 'Nghỉ việc riêng / không lương tính sai: ' + JSON.stringify({ b: before.paid, a: after.paid, pl: after.privateLeave, u: after.unpaidDays, l: after.leaveDays }));
+  ok(after.otHours === 2 && after.otPay === Math.round(hourly * 2 * 2), 'Tăng ca chủ nhật chưa tính 200%: ' + JSON.stringify({ h: after.otHours, p: after.otPay, e: Math.round(hourly * 4) }));
+  const ps0 = await J(r.get(BASE + '/api/vp/luong-settings', { headers: H }));
+  ok(ps0.baseWage === 2530000 && ps0.regionMinWage === 5310000 && ps0.otRestRate === 200 && ps0.otHolidayRate === 300, 'Mức lương cơ sở / vùng / tăng ca mặc định chưa đúng 2026: ' + JSON.stringify(ps0));
   ok((await r.post(BASE + `/api/vp/luong/${PM}/chot`, { headers: H, data: { lock: true } })).ok(), 'Chốt lương lỗi');
   let pay = await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }));
   const slipB = pay.rows.find(x => x.employeeId === ttb.id);
@@ -143,6 +158,12 @@ print('|'.join(str(c.value) for r in ws.iter_rows(max_row=6) for c in r if c.val
   // Giám đốc hủy duyệt thì kế toán mở chốt được
   ok((await qg.post(BASE + `/api/vp/luong/${PM}/duyet`, { headers: H, data: { approve: false } })).ok(), 'Hủy duyệt chi lỗi');
   ok((await r.post(BASE + `/api/vp/luong/${PM}/chot`, { headers: H, data: { lock: false } })).ok(), 'Mở chốt sau hủy duyệt lỗi');
+
+  // 9) Đối chiếu lương với bảng lương e-work (dòng lệnh trên máy chủ, ghi CSV)
+  const dc = cli(['--doi-chieu-luong', PM, '--ra', path.join(tmp, 'dc.csv')]);
+  const dcsv = fs.existsSync(path.join(tmp, 'dc.csv')) ? fs.readFileSync(path.join(tmp, 'dc.csv'), 'utf8') : '';
+  ok(dc.code === 0 && dc.out.includes('1 người trên e-work, 0 khớp, 1 có lệch') && dcsv.includes('Trần Thị B') && dcsv.includes('Lương cơ bản'), 'Đối chiếu lương e-work lỗi: ' + dc.out + dcsv.slice(0, 200));
+  ok(cli(['--doi-chieu-luong', '2020-01']).code === 1, 'Đối chiếu tháng không có dữ liệu vẫn chạy');
 
   await b.close();
   if (errs.length) { console.log('v110g: LỖI\n- ' + errs.join('\n- ')); process.exit(1); }

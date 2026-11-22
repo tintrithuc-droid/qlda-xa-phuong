@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -15,6 +15,7 @@ namespace QldaTtts.Web.Services;
 ///        Biến môi trường QLDA_MAT_KHAU_CHUNG: mật khẩu ban đầu chung cho tài khoản mới (bắt đổi ở lần đăng nhập đầu); không có thì cấp mật khẩu tạm riêng
 ///   --thong-tin-don-vi &lt;tệp json&gt;                       gộp các mục Thông tin đơn vị (appName, bannerTitle…) vào cài đặt hiện có
 ///   --tao-khoa-chep &lt;tệp khóa&gt; [--tu-ngay yyyy-MM-dd]   tạo khóa chép chấm công sang e-work, ghi thẳng ra tệp (không in ra màn hình)
+///   --doi-chieu-luong &lt;yyyy-MM&gt; [--ra &lt;tệp csv&gt;]        bản 1.10.4: đối chiếu bảng lương QLDA tính với bảng lương e-work đã chuyển (BangLuongs), ghi tệp CSV; màn hình chỉ in số người lệch
 /// </summary>
 public static class ServerCli
 {
@@ -118,6 +119,49 @@ public static class ServerCli
             Console.WriteLine($"Đã tạo khóa chép chấm công (từ ngày {s.SyncFrom}), lưu tại {Path.GetFullPath(file!)}. Khóa cũ (nếu có) hết hiệu lực.");
             return true;
         }
+        if (args.Contains("--doi-chieu-luong"))
+        {
+            var month = Arg("--doi-chieu-luong");
+            if (month is null || !System.Text.RegularExpressions.Regex.IsMatch(month, @"^\d{4}-\d{2}$")) { Fail("Cần tháng dạng yyyy-MM: --doi-chieu-luong 2026-10"); return true; }
+            var outCsv = Arg("--ra") ?? Path.Combine(AppContext.BaseDirectory, $"doi_chieu_luong_{month}.csv");
+            var (y, m) = (int.Parse(month[..4]), int.Parse(month[5..]));
+            var ew = (await db.EworkArchive.AsNoTracking().Where(r => r.TableName == "BangLuongs").ToListAsync())
+                .Select(r => JsonNode.Parse(r.Data) as JsonObject).Where(o => o is not null && (int?)Num(o!, "Nam") == y && (int?)Num(o!, "Thang") == m).ToList();
+            if (ew.Count == 0) { Fail($"Không có bảng lương e-work tháng {month} trong dữ liệu đã chuyển."); return true; }
+            var emps = await db.Employees.AsNoTracking().Where(e => e.EworkId != null).ToListAsync();
+            var slips = await LuongController.ComputeFor(db, month);
+            var cols = new (string Name, string Ew, Func<LuongController.Slip, decimal> Q)[]
+            {
+                ("Lương cơ bản", "LuongCoBan", s => s.BaseSalary), ("Công chuẩn", "NgayCongChuan", s => s.Standard), ("Công hưởng lương", "NgayCongThucTe", s => s.Paid),
+                ("Phụ cấp", "TongPhuCap", s => s.Allowances), ("Tăng ca", "TienTangCa", s => s.OtPay), ("Công tác phí", "CongTacPhi", s => s.TripPay),
+                ("Thưởng", "Thuong", s => s.KpiBonus + s.Bonus), ("BHXH người lao động", "BHXH_NLD", s => s.Bhxh), ("BHYT người lao động", "BHYT_NLD", s => s.Bhyt),
+                ("BHTN người lao động", "BHTN_NLD", s => s.Bhtn), ("Thuế TNCN", "ThueTNCN", s => s.Pit), ("Tạm ứng", "TamUng", s => s.Advance), ("Thực lĩnh", "LuongThucNhan", s => s.Net)
+            };
+            string C(string? v) => "\"" + (v ?? "").Replace("\"", "\"\"") + "\"";
+            var sb = new StringBuilder("Họ tên,Mục," + "e-work,QLDA,Chênh lệch\r\n");
+            int lech = 0, khop = 0, thieu = 0;
+            foreach (var o in ew)
+            {
+                var uid = o!["UserId"]?.ToString(); var name = o["FullName"]?.ToString() ?? uid;
+                var e = emps.FirstOrDefault(x => x.EworkId == uid); var sl = e is null ? null : slips.FirstOrDefault(x => x.EmployeeId == e.Id);
+                if (sl is null) { thieu++; sb.Append($"{C(name)},{C("Không có trên QLDA")},,,\r\n"); continue; }
+                var any = false;
+                foreach (var (cn, ek, q) in cols)
+                {
+                    var a = (decimal)(Num(o, ek) ?? 0); var b = q(sl);
+                    var diff = b - a; var tol = cn.StartsWith("Công") ? 0.01m : 1000m; // lệch dưới 1.000 đồng do làm tròn bỏ qua
+                    if (Math.Abs(diff) > tol) { any = true; sb.Append($"{C(name)},{C(cn)},{a:0.##},{b:0.##},{diff:0.##}\r\n"); }
+                }
+                if (any) lech++; else { khop++; sb.Append($"{C(name)},{C("Khớp")},,,\r\n"); }
+            }
+            await File.WriteAllTextAsync(outCsv, sb.ToString(), new UTF8Encoding(true));
+            Log("Đối chiếu lương với e-work (dòng lệnh trên máy chủ)", "Lương", $"Tháng {month}: {khop} khớp, {lech} lệch, {thieu} không có");
+            await db.SaveChangesAsync();
+            Console.WriteLine($"Đối chiếu lương tháng {month}: {ew.Count} người trên e-work, {khop} khớp, {lech} có lệch, {thieu} không có trên QLDA. Chi tiết: {outCsv} (có số tiền lương: chỉ giao Kế toán, xem xong xóa).");
+            return true;
+        }
         return false;
     }
+
+    private static double? Num(JsonObject o, string k) => o[k] is JsonValue v && double.TryParse(v.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
 }

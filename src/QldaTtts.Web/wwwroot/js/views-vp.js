@@ -115,11 +115,14 @@ function vpRange(r){ const f=r.fromAt?parseTs(r.fromAt):null, t=r.toAt?parseTs(r
 const vpIso = (date, time) => date ? `${date}T${(time||'00:00').padStart(5,'0')}:00+07:00` : null;
 const vpSplit = s => { if(!s) return ['','']; const d=parseTs(s); return [isoLocal(d), pad(d.getHours())+':'+pad(d.getMinutes())]; };
 /* Số ngày làm việc giữa hai mốc (bỏ Chủ nhật; thứ Bảy theo thiết lập), làm tròn nửa ngày */
+/* Bản 1.10.4: công của một ngày thứ Bảy theo thiết lập (cach-tuan: tuần làm cả ngày, tuần nghỉ, tính từ mốc thứ Bảy đi làm) */
+function vpSatValue(st, day){ if(st.saturday==='ca-ngay') return 1; if(st.saturday==='sang') return .5;
+  if(st.saturday==='cach-tuan'){ const a=Date.parse((st.saturdayAnchor||'2026-10-10')+'T00:00:00Z'), w=Math.floor((Date.parse(day+'T00:00:00Z')-a)/(7*864e5)); return ((w%2)+2)%2===0?1:0; } return 0; }
 function vpWorkDays(f, t){ if(!f||!t) return null; const st=VP.st.settings, am=st.morningEnd||'12:30';
   /* f, t dạng 2026-12-01T08:00:00+07:00 (giờ Việt Nam): đọc thẳng ngày, giờ để không lệch theo múi giờ của máy */
   const fd=f.slice(0,10), ft=f.slice(11,16), td=t.slice(0,10), tt=t.slice(11,16); let n=0;
   for(let x=new Date(fd+'T00:00:00Z'); x.toISOString().slice(0,10)<=td; x.setUTCDate(x.getUTCDate()+1)){
-    const day=x.toISOString().slice(0,10), dow=x.getUTCDay(); let v=dow===0?0:dow===6?(st.saturday==='ca-ngay'?1:st.saturday==='sang'?.5:0):1;
+    const day=x.toISOString().slice(0,10), dow=x.getUTCDay(); let v=dow===0?0:dow===6?vpSatValue(st, day):1;
     const wk=(st.workdays||[]).find(h=>h.startsWith(day)), hol=(st.holidays||[]).find(h=>h.startsWith(day));
     if(wk) v=/^.{10}:s/.test(wk)?.5:1; else if(hol) v=/^.{10}:[sc]/.test(hol)?Math.max(0,v-.5):0; if(!v) continue;
     if(day===fd && ft>=am) v=Math.min(v,.5);
@@ -208,7 +211,7 @@ VIEWS['diem-danh']=()=>{
   if(t==='bang'){
     const ts=vpFetch(VP.ts, m, '/api/vp/timesheet?month='+m); const dep=S.f.ddp||'';
     const rows=ts&&ts.rows? ts.rows.filter(r=>!dep||r.departmentId===dep) : [];
-    body= !ts? '<div class="empty">Đang tải…</div>' : ts.error? emptyBox(esc(ts.error)) : `<p class="small muted">Công chuẩn tháng ${m.slice(5)}/${m.slice(0,4)}: <b>${fmtN(ts.standard,1)}</b> ngày (đã trừ Chủ nhật${VP.st.settings.saturday==='khong'?', thứ Bảy':''} và ngày nghỉ lễ). Nghỉ không lý do: ngày làm việc đã qua không có điểm danh và không có đề xuất nghỉ phép, công tác, làm việc online được duyệt.</p>`+table([
+    body= !ts? '<div class="empty">Đang tải…</div>' : ts.error? emptyBox(esc(ts.error)) : `<p class="small muted">Công chuẩn tháng ${m.slice(5)}/${m.slice(0,4)}: <b>${fmtN(ts.standard,1)}</b> ngày (đã trừ Chủ nhật${VP.st.settings.saturday==='khong'?', thứ Bảy':VP.st.settings.saturday==='cach-tuan'?', thứ Bảy nghỉ (cách tuần)':''} và ngày nghỉ lễ). Nghỉ không lý do: ngày làm việc đã qua không có điểm danh và không có đề xuất nghỉ phép, công tác, làm việc online được duyệt.</p>`+table([
       {h:'Họ tên', f:r=>`<a href="#" data-act="vp-ts-emp" data-id="${esc(r.employeeId)}">${esc(r.name)}</a><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
       {h:'Ngày công', r:1, f:r=>`<b>${fmtN(r.worked,1)}</b>/${fmtN(r.standard,1)}`},
       {h:'Đi muộn', r:1, f:r=>r.late? `${r.late} lần<div class="small muted">${r.lateMinutes} phút</div>`:'—'},
@@ -252,7 +255,8 @@ function vpSettingsHTML(){
   const s=VP.set;
   return `<div class="grid g2" style="margin-top:12px"><div class="card"><h2 style="margin-top:0">Giờ làm việc</h2>
     <div class="fgrid">${[['checkIn','Giờ vào (đi muộn tính từ giờ này)'],['checkOut','Giờ ra (về sớm tính trước giờ này)'],['morningStart','Ca sáng từ'],['morningEnd','Ca sáng đến'],['afternoonStart','Ca chiều từ'],['afternoonEnd','Ca chiều đến']].map(([k,l])=>`<div class="fld"><label for="vs_${k}">${l}</label><input id="vs_${k}" value="${esc(s[k]||'')}" placeholder="08:00"></div>`).join('')}
-    <div class="fld"><label for="vs_saturday">Thứ Bảy</label><select id="vs_saturday">${opts([['khong','Nghỉ'],['sang','Làm buổi sáng'],['ca-ngay','Làm cả ngày']], s.saturday)}</select></div>
+    <div class="fld"><label for="vs_saturday">Thứ Bảy</label><select id="vs_saturday">${opts([['khong','Nghỉ'],['sang','Làm buổi sáng'],['ca-ngay','Làm cả ngày'],['cach-tuan','Làm cả ngày, cách tuần (tuần làm, tuần nghỉ)']], s.saturday)}</select></div>
+    <div class="fld"><label for="vs_saturdayAnchor">Một thứ Bảy có đi làm (mốc cách tuần)</label><input id="vs_saturdayAnchor" type="date" value="${esc(s.saturdayAnchor||'')}"></div>
     <div class="fld"><label for="vs_leavePerYear">Ngày phép năm</label><input id="vs_leavePerYear" type="number" value="${esc(s.leavePerYear)}"></div>
     <div class="fld full"><label><input type="checkbox" id="vs_allowOutside" ${s.allowOutside?'checked':''}> Cho điểm danh khi ở ngoài công ty (ghi rõ "Ngoài công ty" để trưởng phòng xem)</label></div></div>
     <p class="small muted">Giờ vào riêng từng phòng thiết lập ở Nhân sự → Phòng ban.</p></div>
@@ -284,7 +288,7 @@ ACT['vp-legal']=async()=>{
   ta.value=[...cur,...add].sort().join('\n'); toast(add.length? `Đã điền ${add.length} ngày năm ${y}. Xem lại rồi bấm Lưu thiết lập.` : `Các ngày lễ năm ${y} đã có đủ.`);
 };
 ACT['vp-set-save']=async()=>{
-  const s={...VP.set}; ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd','saturday'].forEach(k=>s[k]=$('#vs_'+k).value.trim());
+  const s={...VP.set}; ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd','saturday','saturdayAnchor'].forEach(k=>s[k]=$('#vs_'+k).value.trim());
   for(const k of ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd']) if(!/^\d{2}:\d{2}$/.test(s[k])){ toast('Giờ ghi dạng 08:00 (hai chữ số).','err'); return; }
   s.leavePerYear=N($('#vs_leavePerYear').value); s.allowOutside=$('#vs_allowOutside').checked;
   const bad=[]; s.places=$('#vs_places').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split(';').map(x=>x.trim()); const o={name:p[0], lat:parseFloat(p[1]), lng:parseFloat(p[2]), radius:parseInt(p[3])||500}; if(!o.name||isNaN(o.lat)||isNaN(o.lng)) bad.push(l); return o; });

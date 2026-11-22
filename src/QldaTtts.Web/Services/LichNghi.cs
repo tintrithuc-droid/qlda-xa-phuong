@@ -29,7 +29,7 @@ public static class LichNghi
         list = list.OrderBy(x => x.d).ToList();
 
         // Nghỉ bù (Điều 112 khoản 3): lễ trùng ngày nghỉ hằng tuần thì nghỉ bù vào ngày làm việc kế tiếp
-        bool Weekly(DateOnly d) => d.DayOfWeek == DayOfWeek.Sunday || (d.DayOfWeek == DayOfWeek.Saturday && s.Saturday != "ca-ngay");
+        bool Weekly(DateOnly d) => d.DayOfWeek == DayOfWeek.Sunday || (d.DayOfWeek == DayOfWeek.Saturday && s.SaturdayValue(d) < 1);
         var taken = list.Select(x => x.d).ToHashSet();
         var comp = new List<(DateOnly d, string n)>();
         foreach (var (d, n) in list.Where(x => Weekly(x.d)))

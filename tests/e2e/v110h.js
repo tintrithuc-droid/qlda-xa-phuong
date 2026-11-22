@@ -41,10 +41,14 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   fx.users.push({ ...base, Id: 'u6', UserName: 'giamdoc', Email: 'gd@tt.vn', FullName: 'Đỗ Giám Đốc', RoleName: 'GIAMDOC', PhongBan: 'pb-kd' });
   fx.users.push({ ...base, Id: 'u7', UserName: 'qtew', Email: 'qt@tt.vn', FullName: 'Quản Trị Cũ', RoleName: 'ADMIN', PhongBan: 'pb-kd' });
   fx.luutru.QuanLyCongViecs = [];
+  // thứ Bảy nghỉ luân phiên kiểu e-work: ghi từng ngày (03/10, 17/10, 31/10, 14/11, 28/11, 12/12, 26/12)
+  for (const d of ['2026-10-03', '2026-10-17', '2026-10-31', '2026-11-14', '2026-11-28', '2026-12-12', '2026-12-26']) fx.ngaynghi.push({ Ngay: d + 'T00:00:00', MoTa: 'Nghỉ thứ 7' });
   const FX = path.join(tmp, 'ew.json'); fs.writeFileSync(FX, JSON.stringify(fx));
   const c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: 'TriThuc2026' });
   ok(c.code === 0 && /4 nhóm vai trò mới/.test(c.out), 'Nạp e-work / tạo nhóm vai trò lỗi: ' + c.out.slice(-600));
   ok(/Quản Trị Cũ là quản trị trên e-work: tài khoản nhận nhóm Nhân viên/.test(c.out), 'Thiếu cảnh báo tài khoản quản trị e-work');
+  ok(/Thứ Bảy làm cách tuần/.test(c.out), 'Không nhận ra thứ Bảy cách tuần khi nạp');
+  { const vs0 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs0.saturday === 'cach-tuan' && vs0.saturdayAnchor === '2027-01-02', 'Thiết lập thứ Bảy sau khi nạp: ' + vs0.saturday + ' ' + vs0.saturdayAnchor); }
   const all = await J(r.get(BASE + '/api/data', { headers: H }));
   const grp = id => all.groups.find(g => g.id === id); const usr = u => all.users.find(x => x.username === u);
   ok(['g-nv', 'g-tp', 'g-ketoan', 'g-bgd'].every(grp), 'Thiếu nhóm vai trò: ' + all.groups.map(g => g.id).join(','));
@@ -145,6 +149,21 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
     ok((k.rows || []).length >= 4, 'Giám đốc không xem KPI toàn công ty');
     ok((await q.put(BASE + '/api/data/projects/da-test', { headers: H, data: { name: 'Dự án phần mềm A', code: 'PM-A' } })).ok(), 'Giám đốc không sửa được dự án');
     ok((await q.post(BASE + '/api/users', { headers: H, data: { username: 'thu1', name: 'Thử', password: 'Thu2026abcd' } })).status() === 403, 'Giám đốc vào được Quản trị người dùng');
+  }
+  // 8) Thứ Bảy làm cả ngày, cách tuần (Tri Thức): tháng 10/2026 làm 10/10, 24/10 → công chuẩn 24
+  {
+    const vs = await J(r.get(BASE + '/api/vp/settings', { headers: H }));
+    const bad = await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: [], saturday: 'cach-tuan', saturdayAnchor: '2026-10-11' } });
+    ok(bad.status() === 400, 'Mốc cách tuần không phải thứ Bảy vẫn lưu được');
+    ok((await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: [], saturday: 'cach-tuan', saturdayAnchor: '2026-10-10' } })).ok(), 'Lưu thứ Bảy cách tuần lỗi');
+    const ts = await J(r.get(BASE + '/api/vp/timesheet?month=2026-10', { headers: H }));
+    ok(ts.standard === 24, 'Công chuẩn 10/2026 thứ Bảy cách tuần: ' + ts.standard);
+    const ts11 = await J(r.get(BASE + '/api/vp/timesheet?month=2026-11', { headers: H }));
+    ok(ts11.standard === 23, 'Công chuẩn 11/2026 thứ Bảy cách tuần (làm 07/11, 21/11; chưa tính lễ 24/11): ' + ts11.standard);
+    // kiểu e-work: thứ Bảy làm cả ngày, thứ Bảy nghỉ ghi trong ngày nghỉ → vẫn 24, thứ Bảy nghỉ là nghỉ tuần (không phải lễ)
+    ok((await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, saturday: 'ca-ngay', holidays: ['2026-10-03 Nghỉ thứ 7', '2026-10-17', '2026-10-31 Nghỉ thứ 7'] } })).ok(), 'Lưu kiểu e-work lỗi');
+    const ts2 = await J(r.get(BASE + '/api/vp/timesheet?month=2026-10', { headers: H }));
+    ok(ts2.standard === 24, 'Công chuẩn kiểu e-work: ' + ts2.standard);
   }
   await b.close();
   if (errs.length) { console.log('LỖI:\n' + errs.join('\n')); process.exit(1); }

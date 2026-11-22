@@ -210,6 +210,14 @@ public static class EworkImport
             if (i0 < 0) { s.Holidays.Add(key); rep.Holidays++; }
             else if (s.Holidays[i0].Length <= 12 && !string.IsNullOrEmpty(name)) s.Holidays[i0] = s.Holidays[i0] + " " + name; // 1.10.4: bổ sung tên ngày nghỉ cho bản nạp trước
         }
+        // Bản 1.10.4: e-work ghi từng thứ Bảy nghỉ (tuần làm, tuần nghỉ) vào ngày nghỉ: nhận ra lịch cách tuần, đặt thứ Bảy "cach-tuan" với mốc là một thứ Bảy đi làm
+        var satOff = s.Holidays.Select(VnTime.ParseDay).Where(x => x is not null && x.Date.DayOfWeek == DayOfWeek.Saturday && x.Half is null && VnTime.WeekendNote(x.Name))
+            .Select(x => x!.Date).OrderBy(x => x).ToList();
+        if (s.Saturday == "khong" && satOff.Count >= 6 && satOff.Zip(satOff.Skip(1)).Count(p => p.Second.DayNumber - p.First.DayNumber == 14) >= (satOff.Count - 1) * 0.8)
+        {
+            s.Saturday = "cach-tuan"; s.SaturdayAnchor = satOff[^1].AddDays(7).ToString("yyyy-MM-dd");
+            rep.Warnings.Add($"Thứ Bảy làm cách tuần (nhận từ {satOff.Count} thứ Bảy nghỉ trên e-work), mốc thứ Bảy đi làm {satOff[^1].AddDays(7):dd/MM/yyyy}. Kiểm tra ở Bảng công → Thiết lập điểm danh.");
+        }
         VpSettings.Save(db, s, by);
         await Save(db, rep);
 

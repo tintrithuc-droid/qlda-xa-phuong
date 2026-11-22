@@ -72,7 +72,7 @@ public class VanPhongController : ApiControllerBase
             payConfirm = me is null ? null : await LuongController.PendingConfirm(Db, me.Id),
             payFeedback = Uc.Can("luong", true) ? await Db.Payslips.CountAsync(x => x.FeedbackStatus == "Chờ xử lý") : 0,
             me = me is null ? null : Public(me), today = today.ToString("yyyy-MM-dd"), now = VnTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), attendance = att,
-            settings = new { s.CheckIn, s.CheckOut, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.AllowOutside,
+            settings = new { s.CheckIn, s.CheckOut, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.SaturdayAnchor, s.AllowOutside,
                 places = s.Places.Select(p => new { p.Name, p.Lat, p.Lng, p.Radius }), s.Holidays, s.Workdays, ipCount = s.Ips.Count, syncOn = s.SyncKeyHash != null, s.SyncFrom },
             leave = new { year, total = me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year), used, left = (me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year)) - used },
             perms = new { hr = Uc.Can("nhan-su"), hrEdit = Uc.Can("nhan-su", true), att = Uc.Can("diem-danh"), attEdit = Uc.Can("diem-danh", true),
@@ -388,6 +388,9 @@ public class VanPhongController : ApiControllerBase
         v.SyncKeyHash = old.SyncKeyHash;
         v.Ips = v.Ips.Select(x => x.Trim()).Where(x => x.Length > 0).Distinct().ToList();
         v.Holidays = Days(v.Holidays); v.Workdays = Days(v.Workdays);
+        if (v.Saturday is not ("khong" or "sang" or "ca-ngay" or "cach-tuan")) v.Saturday = "khong";
+        if (v.Saturday == "cach-tuan" && !(DateOnly.TryParse(v.SaturdayAnchor, out var sa) && sa.DayOfWeek == DayOfWeek.Saturday))
+            return Error(400, "Thứ Bảy làm cách tuần: chọn ngày mốc là một thứ Bảy có đi làm.");
         v.GreetWork = string.IsNullOrWhiteSpace(v.GreetWork) ? new VpSettings().GreetWork : v.GreetWork.Trim()[..Math.Min(300, v.GreetWork.Trim().Length)];
         v.GreetOff = string.IsNullOrWhiteSpace(v.GreetOff) ? new VpSettings().GreetOff : v.GreetOff.Trim()[..Math.Min(300, v.GreetOff.Trim().Length)];
         VpSettings.Save(Db, v, Uc.User.Username);

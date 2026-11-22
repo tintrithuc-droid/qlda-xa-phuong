@@ -19,8 +19,18 @@ public class VpSettings
     public string AfternoonEnd { get; set; } = "17:30";
     public decimal HoursPerDay { get; set; } = 8;
     public decimal LeavePerYear { get; set; } = 12;
-    /// <summary>Làm việc thứ Bảy: "khong", "sang" (buổi sáng), "ca-ngay".</summary>
+    /// <summary>Làm việc thứ Bảy: "khong", "sang" (buổi sáng), "ca-ngay", "cach-tuan" (tuần làm cả ngày, tuần nghỉ, luân phiên).</summary>
     public string Saturday { get; set; } = "khong";
+    /// <summary>Bản 1.10.4: một thứ Bảy có đi làm (yyyy-MM-dd) làm mốc cho chế độ "cach-tuan"; các thứ Bảy cách mốc số chẵn tuần là ngày làm.</summary>
+    public string SaturdayAnchor { get; set; } = "2026-10-10";
+    /// <summary>Số công của một ngày thứ Bảy theo thiết lập (chưa xét lễ, làm bù).</summary>
+    public decimal SaturdayValue(DateOnly d) => Saturday switch
+    {
+        "ca-ngay" => 1,
+        "sang" => 0.5m,
+        "cach-tuan" => DateOnly.TryParse(SaturdayAnchor, out var a) && ((d.DayNumber - a.DayNumber) / 7) % 2 == 0 ? 1 : 0,
+        _ => 0
+    };
     /// <summary>Cho phép điểm danh ngoài công ty (ghi nhận "Ngoài công ty" để trưởng phòng xem).</summary>
     public bool AllowOutside { get; set; } = true;
     /// <summary>Ngày nghỉ lễ, tết (yyyy-MM-dd), nửa ngày ghi thêm ":s" (sáng) hoặc ":c" (chiều).</summary>
@@ -108,6 +118,9 @@ public static class VnTime
 
     /// <summary>Loại ngày: "work" (làm cả ngày), "half" (làm nửa ngày), "off" (nghỉ cuối tuần), "holiday" (nghỉ lễ, nghỉ theo lịch công ty).</summary>
     public record DayInfo(decimal Value, string Kind, string? Name);
+    /// <summary>Ghi chú ngày nghỉ là nghỉ cuối tuần (để trống, "nghỉ thứ 7", "thứ Bảy", "cuối tuần").</summary>
+    public static bool WeekendNote(string? name) => string.IsNullOrWhiteSpace(name)
+        || System.Text.RegularExpressions.Regex.IsMatch(name, @"th[ứu]\s*(7|b[ảa]y)|cu[ốo]i\s*tu[ầa]n|saturday|weekend", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     public static DayInfo Day(DateOnly d, VpSettings s)
     {
         var key = d.ToString("yyyy-MM-dd");
@@ -116,10 +129,12 @@ public static class VnTime
         decimal v = d.DayOfWeek switch
         {
             DayOfWeek.Sunday => 0,
-            DayOfWeek.Saturday => s.Saturday == "ca-ngay" ? 1 : s.Saturday == "sang" ? 0.5m : 0,
+            DayOfWeek.Saturday => s.SaturdayValue(d),
             _ => 1
         };
         var hol = s.Holidays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        // Bản 1.10.4: thứ Bảy nghỉ luân phiên ghi trong danh sách ngày nghỉ (e-work ghi từng ngày) là nghỉ hằng tuần, không phải ngày lễ (tăng ca 200%, không 300%)
+        if (hol is not null && d.DayOfWeek == DayOfWeek.Saturday && hol.Half is null && WeekendNote(hol.Name)) return new DayInfo(0, "off", hol.Name);
         if (hol is not null)
         {
             if (hol.Half is null || v == 0) return new DayInfo(0, "holiday", hol.Name ?? "Nghỉ lễ");

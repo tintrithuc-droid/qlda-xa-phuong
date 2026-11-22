@@ -64,11 +64,16 @@ public class VanPhongController : ApiControllerBase
             used = (await Db.Requests.AsNoTracking().Where(r => r.EmployeeId == me.Id && r.Type == "Nghỉ phép" && r.Status == "Đã duyệt" && r.FromAt != null).ToListAsync())
                 .Where(r => VnTime.ToVn(r.FromAt!.Value).Year == year).Sum(r => r.Days ?? 0);
         var pending = await PendingForMe();
+        var di = VnTime.Day(today, s);
+        var greet = di.Value > 0 ? s.GreetWork : (di.Kind == "holiday" && di.Name is { } hn ? hn + ". " : "") + s.GreetOff;
         return Ok(new
         {
+            day = new { value = di.Value, kind = di.Kind, name = di.Name, greeting = greet },
+            payConfirm = me is null ? null : await LuongController.PendingConfirm(Db, me.Id),
+            payFeedback = Uc.Can("luong", true) ? await Db.Payslips.CountAsync(x => x.FeedbackStatus == "Chờ xử lý") : 0,
             me = me is null ? null : Public(me), today = today.ToString("yyyy-MM-dd"), now = VnTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), attendance = att,
             settings = new { s.CheckIn, s.CheckOut, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.AllowOutside,
-                places = s.Places.Select(p => new { p.Name, p.Lat, p.Lng, p.Radius }), s.Holidays, ipCount = s.Ips.Count, syncOn = s.SyncKeyHash != null, s.SyncFrom },
+                places = s.Places.Select(p => new { p.Name, p.Lat, p.Lng, p.Radius }), s.Holidays, s.Workdays, ipCount = s.Ips.Count, syncOn = s.SyncKeyHash != null, s.SyncFrom },
             leave = new { year, total = s.LeavePerYear, used, left = s.LeavePerYear - used },
             perms = new { hr = Uc.Can("nhan-su"), hrEdit = Uc.Can("nhan-su", true), att = Uc.Can("diem-danh"), attEdit = Uc.Can("diem-danh", true),
                 req = Uc.Can("de-xuat"), approve = CanApproveAll || depts.Count > 0, admin = Uc.IsAdmin, managed = depts },
@@ -140,20 +145,80 @@ public class VanPhongController : ApiControllerBase
             // Tự cập nhật thông tin liên hệ của chính mình
             if (x is null || x.UserId != Uc.User.Id) return Denied();
             x.Phone = e.Phone; x.Email = e.Email; x.Address = e.Address; x.BankAccount = e.BankAccount; x.BankName = e.BankName;
+            x.CurrentAddress = e.CurrentAddress; x.EmergencyName = e.EmergencyName; x.EmergencyPhone = e.EmergencyPhone; x.EmergencyRelation = e.EmergencyRelation; x.Marital = e.Marital;
         }
         else
         {
             if (x is null) { x = new Employee { Id = id }; Db.Employees.Add(x); }
             if (!string.IsNullOrEmpty(e.UserId) && await Db.Employees.AnyAsync(o => o.UserId == e.UserId && o.Id != id)) return Error(409, "Tài khoản này đã gắn với hồ sơ nhân sự khác.");
             var keepEw = x.EworkId;
+            // Bản 1.10.4: đổi phòng ban, chức vụ thì tự ghi một dòng quá trình công tác
+            var isNew = Db.Entry(x).State == EntityState.Added;
+            var oldDept = x.DepartmentId; var oldPos = x.Position;
             e.Id = id; e.EworkId = keepEw ?? e.EworkId;
             Db.Entry(x).CurrentValues.SetValues(e);
+            if (!isNew && (oldDept != e.DepartmentId || (oldPos ?? "") != (e.Position ?? "")))
+            {
+                var names = await Db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name);
+                string D(string? d) => d is not null && names.TryGetValue(d, out var n) ? n : "—";
+                var parts = new List<string>();
+                if (oldDept != e.DepartmentId) parts.Add($"Phòng ban: {D(oldDept)} → {D(e.DepartmentId)}");
+                if ((oldPos ?? "") != (e.Position ?? "")) parts.Add($"Chức vụ: {(string.IsNullOrEmpty(oldPos) ? "—" : oldPos)} → {(string.IsNullOrEmpty(e.Position) ? "—" : e.Position)}");
+                Db.EmployeeRecords.Add(new EmployeeRecord { Id = NewId("hs"), EmployeeId = id, Kind = "cong-tac", Title = string.Join("; ", parts), Org = D(e.DepartmentId), FromDate = DateOnly.FromDateTime(VnTime.Now), UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username });
+            }
             x.Name = e.Name.Trim();
         }
         x.UpdatedAt = DateTime.UtcNow; x.UpdatedBy = Uc.User.Username;
         Uc.Log("Cập nhật hồ sơ nhân sự", "Nhân sự", x.Name, "employees", x.Id);
         await Db.SaveChangesAsync();
         return Ok(x);
+    }
+
+    // ------------------------------------------------------------------ bản 1.10.4: các mục hồ sơ nhân sự
+    public static readonly string[] RecordKinds = { "bang-cap", "khen-thuong", "ky-luat", "cong-tac", "hop-dong", "giay-to" };
+
+    private async Task<(Employee? e, bool view, bool edit)> RecordAccess(string id)
+    {
+        var e = await Db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        var edit = Uc.Can("nhan-su", true);
+        return (e, e is not null && (edit || Uc.Can("nhan-su") || e.UserId == Uc.User!.Id), e is not null && edit);
+    }
+
+    [HttpGet("employees/{id}/records")]
+    public async Task<IActionResult> Records(string id)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var (e, view, _) = await RecordAccess(id); if (e is null) return NotFound(); if (!view) return Denied();
+        // Người xem toàn bộ nhân sự (không có quyền sửa) không thấy giấy tờ riêng; chính người đó và người quản lý nhân sự thấy đủ
+        var all = Uc.Can("nhan-su", true) || e.UserId == Uc.User.Id;
+        var l = await Db.EmployeeRecords.AsNoTracking().Where(r => r.EmployeeId == id && (all || (r.Kind != "giay-to" && r.Kind != "ky-luat"))).ToListAsync();
+        return Ok(l.OrderBy(r => Array.IndexOf(RecordKinds, r.Kind)).ThenByDescending(r => r.FromDate));
+    }
+
+    [HttpPut("employees/{id}/records/{rid}")]
+    public async Task<IActionResult> PutRecord(string id, string rid, [FromBody] EmployeeRecord r)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var (e, _, edit) = await RecordAccess(id); if (e is null) return NotFound(); if (!edit) return Denied();
+        if (!ValidId(rid) || !RecordKinds.Contains(r.Kind) || string.IsNullOrWhiteSpace(r.Title)) return Error(400, "Chọn loại và nhập tên mục.");
+        var x = await Db.EmployeeRecords.FirstOrDefaultAsync(o => o.Id == rid);
+        if (x is not null && x.EmployeeId != id) return Error(400, "Dữ liệu không hợp lệ.");
+        if (x is null) { x = new EmployeeRecord { Id = rid, EmployeeId = id }; Db.EmployeeRecords.Add(x); }
+        x.Kind = r.Kind; x.Title = r.Title.Trim(); x.Org = r.Org?.Trim(); x.Number = r.Number?.Trim(); x.FromDate = r.FromDate; x.ToDate = r.ToDate;
+        x.Amount = r.Amount; x.Note = r.Note?.Trim(); x.FileId = r.FileId; x.FileName = r.FileName;
+        x.UpdatedAt = DateTime.UtcNow; x.UpdatedBy = Uc.User.Username;
+        Uc.Log("Cập nhật hồ sơ nhân sự", "Nhân sự", $"{e.Name}: {x.Title}", "employees", e.Id);
+        await Db.SaveChangesAsync(); return Ok(x);
+    }
+
+    [HttpDelete("employees/{id}/records/{rid}")]
+    public async Task<IActionResult> DeleteRecord(string id, string rid)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var (e, _, edit) = await RecordAccess(id); if (e is null) return NotFound(); if (!edit) return Denied();
+        var x = await Db.EmployeeRecords.FirstOrDefaultAsync(o => o.Id == rid && o.EmployeeId == id); if (x is null) return NotFound();
+        Db.EmployeeRecords.Remove(x); Uc.Log("Xóa mục hồ sơ nhân sự", "Nhân sự", $"{e.Name}: {x.Title}", "employees", e.Id);
+        await Db.SaveChangesAsync(); return Ok(new { ok = true });
     }
 
     [HttpDelete("employees/{id}")]
@@ -211,7 +276,11 @@ public class VanPhongController : ApiControllerBase
             if (a is null) { a = new Attendance { Id = NewId("cc"), EmployeeId = me.Id, Date = today }; Db.Attendances.Add(a); }
             a.InAt = DateTime.UtcNow; a.InPlace = place; a.InLat = r.Lat; a.InLng = r.Lng; a.InIp = ip; a.Site = site; a.Note = r.Note;
             var allow = VnTime.Hm(dept?.CheckinTime, s.CheckIn);
-            a.LateMinutes = Math.Max(0, (int)Math.Floor((now.TimeOfDay - allow).TotalMinutes));
+            // Bản 1.10.4: ngày nghỉ (cuối tuần, lễ) đi làm thì không tính đi muộn; nghỉ sáng thì giờ vào là đầu ca chiều
+            var dv = VnTime.Day(today, s);
+            if (dv.Kind == "half" && s.Holidays.Select(VnTime.ParseDay).Any(x => x is not null && x.Date == today && x.Half == "s")) allow = VnTime.Hm(s.AfternoonStart, "13:30");
+            a.LateMinutes = dv.Value == 0 ? 0 : Math.Max(0, (int)Math.Floor((now.TimeOfDay - allow).TotalMinutes));
+            if (dv.Value == 0 && string.IsNullOrEmpty(a.Note)) a.Note = "Đi làm ngày nghỉ" + (dv.Name is { } nn ? " (" + nn + ")" : "");
         }
         else if (r.Kind == "out")
         {
@@ -219,7 +288,10 @@ public class VanPhongController : ApiControllerBase
             a.OutAt = DateTime.UtcNow; a.OutPlace = place; a.OutLat = r.Lat; a.OutLng = r.Lng; a.OutIp = ip;
             if (!string.IsNullOrWhiteSpace(r.Note)) a.Note = string.IsNullOrEmpty(a.Note) ? r.Note : a.Note + "; " + r.Note;
             var end = VnTime.Hm(null, s.CheckOut);
-            a.EarlyMinutes = Math.Max(0, (int)Math.Floor((end - now.TimeOfDay).TotalMinutes));
+            var dv = VnTime.Day(today, s);
+            // Làm nửa ngày (thứ Bảy buổi sáng, nghỉ chiều): giờ ra là hết ca sáng
+            if (dv.Kind == "half" && (today.DayOfWeek == DayOfWeek.Saturday || s.Holidays.Select(VnTime.ParseDay).Any(x => x is not null && x.Date == today && x.Half == "c"))) end = VnTime.Hm(s.MorningEnd, "12:00");
+            a.EarlyMinutes = dv.Value == 0 ? 0 : Math.Max(0, (int)Math.Floor((end - now.TimeOfDay).TotalMinutes));
         }
         else return Error(400, "Dữ liệu không hợp lệ.");
         a.UpdatedAt = DateTime.UtcNow; a.UpdatedBy = Uc.User.Username;
@@ -298,11 +370,27 @@ public class VanPhongController : ApiControllerBase
         var old = VpSettings.Load(Db);
         v.SyncKeyHash = old.SyncKeyHash;
         v.Ips = v.Ips.Select(x => x.Trim()).Where(x => x.Length > 0).Distinct().ToList();
-        v.Holidays = v.Holidays.Distinct().OrderBy(x => x).ToList();
+        v.Holidays = Days(v.Holidays); v.Workdays = Days(v.Workdays);
+        v.GreetWork = string.IsNullOrWhiteSpace(v.GreetWork) ? new VpSettings().GreetWork : v.GreetWork.Trim()[..Math.Min(300, v.GreetWork.Trim().Length)];
+        v.GreetOff = string.IsNullOrWhiteSpace(v.GreetOff) ? new VpSettings().GreetOff : v.GreetOff.Trim()[..Math.Min(300, v.GreetOff.Trim().Length)];
         VpSettings.Save(Db, v, Uc.User.Username);
         Uc.Log("Cập nhật thiết lập điểm danh", "Điểm danh", $"{v.Places.Count} địa điểm, {v.Ips.Count} IP, giờ vào {v.CheckIn}");
         await Db.SaveChangesAsync();
         return Ok(new { ok = true });
+    }
+
+    /// <summary>Chuẩn hóa danh sách ngày: bỏ dòng sai, mỗi ngày một dòng (dòng sau ghi đè), sắp theo ngày.</summary>
+    private static List<string> Days(List<string>? l) => (l ?? new()).Select(VnTime.ParseDay).Where(x => x is not null).GroupBy(x => x!.Date).Select(g => g.Last()!)
+        .OrderBy(x => x.Date).Select(x => x.Date.ToString("yyyy-MM-dd") + (x.Half is null ? "" : ":" + x.Half) + (x.Name is null ? "" : " " + x.Name[..Math.Min(100, x.Name.Length)])).ToList();
+
+    /// <summary>Bản 1.10.4: gợi ý ngày nghỉ lễ, tết theo luật (kèm nghỉ bù) cho một năm; quản trị xem lại rồi lưu.</summary>
+    [HttpGet("holidays/legal")]
+    public async Task<IActionResult> LegalHolidays([FromQuery] int year)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.Can("diem-danh", true)) return Denied();
+        if (year < 2000 || year > 2100) return Error(400, "Năm không hợp lệ.");
+        return Ok(LichNghi.Legal(year, VpSettings.Load(Db)));
     }
 
     // ------------------------------------------------------------------ đề xuất

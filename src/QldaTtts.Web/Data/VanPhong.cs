@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace QldaTtts.Web.Data;
@@ -52,6 +52,37 @@ public class Employee : EntityBase
     public int Dependents { get; set; }
     public string? Note { get; set; }
     /// <summary>Mã tài khoản bên e-work (AspNetUsers.Id) để chuyển dữ liệu và chép chấm công ngược lại.</summary>
+    [MaxLength(64)] public string? EworkId { get; set; }
+    // ---- bản 1.10.4: lý lịch đầy đủ
+    public DateOnly? EndDate { get; set; }
+    [MaxLength(100)] public string? Education { get; set; }
+    [MaxLength(200)] public string? Major { get; set; }
+    [MaxLength(300)] public string? Hometown { get; set; }
+    [MaxLength(500)] public string? CurrentAddress { get; set; }
+    [MaxLength(50)] public string? Ethnicity { get; set; }
+    [MaxLength(50)] public string? Nationality { get; set; }
+    [MaxLength(30)] public string? Marital { get; set; }
+    [MaxLength(200)] public string? EmergencyName { get; set; }
+    [MaxLength(50)] public string? EmergencyPhone { get; set; }
+    [MaxLength(50)] public string? EmergencyRelation { get; set; }
+}
+
+/// <summary>Bản 1.10.4: các mục của hồ sơ nhân sự: bằng cấp, chứng chỉ (bang-cap), khen thưởng (khen-thuong), kỷ luật (ky-luat),
+/// quá trình công tác (cong-tac), hợp đồng lao động (hop-dong), giấy tờ khác (giay-to). Mỗi mục có thể đính một tệp.</summary>
+[Table("EmployeeRecords")]
+public class EmployeeRecord : EntityBase
+{
+    [MaxLength(64)] public string EmployeeId { get; set; } = "";
+    [MaxLength(32)] public string Kind { get; set; } = "";
+    [MaxLength(300)] public string Title { get; set; } = "";
+    [MaxLength(300)] public string? Org { get; set; }
+    [MaxLength(100)] public string? Number { get; set; }
+    public DateOnly? FromDate { get; set; }
+    public DateOnly? ToDate { get; set; }
+    [Column(TypeName = "decimal(18,0)")] public decimal? Amount { get; set; }
+    [MaxLength(2000)] public string? Note { get; set; }
+    [MaxLength(64)] public string? FileId { get; set; }
+    [MaxLength(300)] public string? FileName { get; set; }
     [MaxLength(64)] public string? EworkId { get; set; }
 }
 
@@ -238,4 +269,13 @@ public class Payslip : EntityBase
     [Column(TypeName = "decimal(18,0)")] public decimal? Net { get; set; }
     public DateTime? LockedAt { get; set; }
     [MaxLength(200)] public string? LockedBy { get; set; }
+    /// <summary>Bản 1.10.4: người lao động tự xác nhận phiếu lương (từ ngày 1 đến ngày 3 tháng sau theo thiết lập), có thể kèm kiến nghị.</summary>
+    public DateTime? ConfirmedAt { get; set; }
+    [MaxLength(2000)] public string? Feedback { get; set; }
+    public DateTime? FeedbackAt { get; set; }
+    /// <summary>"Chờ xử lý" hoặc "Đã trả lời".</summary>
+    [MaxLength(32)] public string? FeedbackStatus { get; set; }
+    [MaxLength(2000)] public string? Reply { get; set; }
+    public DateTime? RepliedAt { get; set; }
+    [MaxLength(200)] public string? RepliedBy { get; set; }
 }

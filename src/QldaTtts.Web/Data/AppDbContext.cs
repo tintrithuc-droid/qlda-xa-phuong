@@ -50,6 +50,7 @@ public class AppDbContext : DbContext
     public DbSet<KpiSheet> KpiSheets => Set<KpiSheet>();
     public DbSet<PayProfile> PayProfiles => Set<PayProfile>();
     public DbSet<Payslip> Payslips => Set<Payslip>();
+    public DbSet<EmployeeRecord> EmployeeRecords => Set<EmployeeRecord>();
     public DbSet<EworkRow> EworkArchive => Set<EworkRow>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
@@ -111,6 +112,7 @@ public class AppDbContext : DbContext
         b.Entity<KpiSheet>().HasIndex(x => new { x.Month, x.EmployeeId }).IsUnique();
         b.Entity<PayProfile>().HasIndex(x => x.EmployeeId).IsUnique();
         b.Entity<Payslip>().HasIndex(x => new { x.Month, x.EmployeeId }).IsUnique();
+        b.Entity<EmployeeRecord>().HasIndex(x => x.EmployeeId);
         b.Entity<EworkRow>().HasIndex(x => new { x.TableName, x.RowKey });
         b.Entity<EworkRow>().HasIndex(x => x.EworkUserId);
     }

@@ -41,7 +41,7 @@ VIEWS['van-phong']=()=>{
   let box;
   if(!me) box=`<div class="alert">Tài khoản của bạn chưa gắn với hồ sơ nhân sự nên chưa điểm danh được. Liên hệ người quản lý nhân sự để được gắn.</div>`;
   else if(!me.attendance) box=`<div class="alert info">Hồ sơ của bạn được thiết lập không cần điểm danh.</div>`;
-  else box=`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div>
+  else box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div>
     <div class="vp-state">
       <div><span class="eyebrow">Giờ vào</span><b>${a&&a.inAt? vpHM(a.inAt) : '—'}</b>${a&&a.inAt? vpPlacePill(a.inPlace)+(a.lateMinutes>0?' '+pill('Muộn '+a.lateMinutes+' phút','bad'):''):''}${a&&a.site?`<div class="small muted">${esc(a.site)}</div>`:''}</div>
       <div><span class="eyebrow">Giờ ra</span><b>${a&&a.outAt? vpHM(a.outAt) : '—'}</b>${a&&a.outAt? vpPlacePill(a.outPlace)+(a.earlyMinutes>0?' '+pill('Sớm '+a.earlyMinutes+' phút','warn'):''):''}</div>
@@ -53,7 +53,7 @@ VIEWS['van-phong']=()=>{
   const late=rows.filter(x=>x.lateMinutes>0);
   return `<div class="head"><div class="grow"><h1>Điểm danh</h1><p>${me? esc(me.name)+(me.departmentId?' · '+esc(vpDeptName(me.departmentId)):'') : esc(S.user.name)}</p></div>
     <div class="toolbar"><button class="btn" data-act="vp-req-new">+ Tạo đề xuất</button></div></div>
-  <div class="grid g2 vp-top"><div class="card">${box}</div>
+  ${vpPayAlert(st)}<div class="grid g2 vp-top"><div class="card">${box}</div>
     <div class="card"><h2 style="margin-top:0">Tháng ${m.slice(5)}/${m.slice(0,4)}</h2>
       <div class="grid g3 kpis"><div class="kpi"><div class="eyebrow">Ngày có điểm danh</div><div class="v">${rows.length}</div></div>
       <div class="kpi ${late.length?'warn':''}"><div class="eyebrow">Đi muộn</div><div class="v">${late.length}</div><div class="s">${late.reduce((s,x)=>s+x.lateMinutes,0)} phút</div></div>
@@ -67,6 +67,18 @@ VIEWS['van-phong']=()=>{
       {h:'Nơi điểm danh', f:x=>vpPlacePill(x.inPlace)+(x.site?`<div class="small muted">${esc(x.site)}</div>`:'')},
       {h:'Ghi chú', f:x=>esc(x.note||'')+(x.source==='e-work'?' <span class="small muted">(e-work)</span>':'')}], rows, {empty:'Chưa có điểm danh trong tháng.', pk:'vpme'})}</div>`;
 };
+/* Bản 1.10.4: lời chúc theo lịch làm việc, nhắc xác nhận lương trong hạn */
+function vpGreet(st){
+  const d=st.day||{}; const off=!(d.value>0);
+  let h=`<div class="alert ${off?'info':'ok'} vp-greet" style="margin-bottom:10px"><b>${esc(d.greeting||'')}</b>${off?'<div class="small">Nếu hôm nay anh chị đi làm, vẫn điểm danh bình thường (không tính đi muộn).</div>':d.kind==='half'?`<div class="small">Hôm nay làm nửa ngày${d.name?' ('+esc(d.name)+')':''}.</div>`:d.name?`<div class="small">${esc(d.name)}</div>`:''}</div>`;
+  return h;
+}
+function vpPayAlert(st){
+  const p=st.payConfirm; let h='';
+  if(p) h+=`<div class="alert warn" style="margin-top:12px">Bảng lương tháng ${esc(p.month.slice(5))}/${esc(p.month.slice(0,4))} đã có. Anh chị xem và <b>xác nhận trước hết ngày ${fmtDate(p.to)}</b>${p.feedbackStatus==='Đã trả lời'?' (kiến nghị đã được trả lời)':p.feedbackStatus==='Chờ xử lý'?' (kiến nghị đang chờ trả lời)':''}. <a href="#luong" data-act="pay-goto" data-id="${esc(p.month)}">Xem và xác nhận</a></div>`;
+  if(st.payFeedback>0) h+=`<div class="alert warn" style="margin-top:12px">Có <b>${st.payFeedback}</b> kiến nghị lương chờ trả lời. <a href="#luong">Mở bảng lương</a></div>`;
+  return h;
+}
 function vpReqMini(reqs){
   if(reqs===null) return '';
   const list=(Array.isArray(reqs)?reqs:[]).slice(0,5);
@@ -108,7 +120,8 @@ function vpWorkDays(f, t){ if(!f||!t) return null; const st=VP.st.settings, am=s
   const fd=f.slice(0,10), ft=f.slice(11,16), td=t.slice(0,10), tt=t.slice(11,16); let n=0;
   for(let x=new Date(fd+'T00:00:00Z'); x.toISOString().slice(0,10)<=td; x.setUTCDate(x.getUTCDate()+1)){
     const day=x.toISOString().slice(0,10), dow=x.getUTCDay(); let v=dow===0?0:dow===6?(st.saturday==='ca-ngay'?1:st.saturday==='sang'?.5:0):1;
-    if((st.holidays||[]).some(h=>h.startsWith(day))) v=0; if(!v) continue;
+    const wk=(st.workdays||[]).find(h=>h.startsWith(day)), hol=(st.holidays||[]).find(h=>h.startsWith(day));
+    if(wk) v=/^.{10}:s/.test(wk)?.5:1; else if(hol) v=/^.{10}:[sc]/.test(hol)?Math.max(0,v-.5):0; if(!v) continue;
     if(day===fd && ft>=am) v=Math.min(v,.5);
     if(day===td && tt<=am) v=Math.min(v,.5);
     n+=v; }
@@ -245,7 +258,16 @@ function vpSettingsHTML(){
     <textarea id="vs_places" rows="5" style="width:100%">${esc((s.places||[]).map(p=>[p.name,p.lat,p.lng,p.radius].join('; ')).join('\n'))}</textarea>
     <h3>Địa chỉ IP mạng công ty</h3><p class="small muted" style="margin-top:0">Mỗi dòng một IP. Điểm danh từ mạng này tính là trong công ty. IP của bạn lúc này: <b>${esc(VP.st.ip||'')}</b></p>
     <textarea id="vs_ips" rows="4" style="width:100%">${esc((s.ips||[]).join('\n'))}</textarea></div>
-  <div class="card"><h2 style="margin-top:0">Ngày nghỉ lễ, tết</h2><p class="small muted" style="margin-top:0">Mỗi dòng một ngày dạng 2026-09-02; nghỉ nửa ngày ghi thêm :s (sáng) hoặc :c (chiều).</p><textarea id="vs_holidays" rows="6" style="width:100%">${esc((s.holidays||[]).join('\n'))}</textarea></div>
+  <div class="card"><h2 style="margin-top:0">Lịch nghỉ, lịch làm việc</h2>
+    <h3 style="margin:0 0 4px">Ngày nghỉ lễ, tết, nghỉ theo lịch công ty</h3><p class="small muted" style="margin-top:0">Mỗi dòng một ngày, dạng <b>2026-09-02 Quốc khánh</b>; nghỉ nửa ngày ghi thêm :s (nghỉ sáng) hoặc :c (nghỉ chiều), ví dụ 2026-12-31:c Tất niên.</p>
+    <div class="toolbar"><select id="vs_legalYear" aria-label="Năm">${[0,1].map(i=>{const y=new Date().getFullYear()+i; return `<option>${y}</option>`;}).join('')}</select><button class="btn sm" data-act="vp-legal">Điền ngày lễ theo luật</button></div>
+    <textarea id="vs_holidays" rows="8" style="width:100%">${esc((s.holidays||[]).join('\n'))}</textarea>
+    <p class="small muted">Gợi ý theo Bộ luật Lao động 2019 (Điều 112) và Ngày Văn hóa Việt Nam 24/11, kèm ngày nghỉ bù khi lễ trùng ngày nghỉ hằng tuần. Năm nào Chính phủ hoán đổi ngày nghỉ thì sửa lại theo thông báo trước khi lưu.</p>
+    <h3 style="margin:12px 0 4px">Ngày đi làm bù</h3><p class="small muted" style="margin-top:0">Ngày làm việc dù là thứ Bảy, Chủ nhật hoặc ngày nghỉ, dạng <b>2026-05-09 Làm bù 30/4</b>; làm nửa ngày ghi 2026-05-09:s.</p>
+    <textarea id="vs_workdays" rows="3" style="width:100%">${esc((s.workdays||[]).join('\n'))}</textarea>
+    <h3 style="margin:12px 0 4px">Lời chúc trên màn hình điểm danh</h3>
+    <div class="fgrid"><div class="fld full"><label for="vs_greetWork">Ngày làm việc</label><input id="vs_greetWork" value="${esc(s.greetWork||'')}"></div>
+    <div class="fld full"><label for="vs_greetOff">Ngày nghỉ (ngày lễ tự thêm tên lễ ở đầu)</label><input id="vs_greetOff" value="${esc(s.greetOff||'')}"></div></div></div>
   <div class="card"><h2 style="margin-top:0">Chuyển tiếp với e-work</h2>
     ${VP.st.perms.admin?`<p class="small">1. Chuyển dữ liệu: chạy <b>xuat-ework.ps1</b> trên máy chủ e-work, rồi chọn tệp <b>ework_xuat.json</b> tại đây (chạy lại được, không sinh trùng).</p>
     <div class="toolbar"><input type="file" id="vs_ew" accept=".json"><button class="btn sm" data-act="vp-ew-import">Chuyển dữ liệu từ e-work</button><a class="btn sm" href="#ework-cu">Tra cứu dữ liệu e-work cũ</a></div>
@@ -253,6 +275,12 @@ function vpSettingsHTML(){
     <div class="toolbar"><button class="btn sm" data-act="vp-sync-key">${s.syncKeyHash?'Tạo lại khóa':'Tạo khóa chép chấm công'}</button></div>`:'<p class="small muted">Dành cho quản trị hệ thống.</p>'}</div></div>
   <div class="toolbar" style="margin-top:12px"><button class="btn primary" data-act="vp-set-save">Lưu thiết lập</button></div>`;
 }
+ACT['vp-legal']=async()=>{
+  const y=$('#vs_legalYear').value; let l; try{ l=await api('GET','/api/vp/holidays/legal?year='+y); }catch(e){ toast(errText(e),'err'); return; }
+  const ta=$('#vs_holidays'), cur=ta.value.split('\n').map(x=>x.trim()).filter(Boolean), have=new Set(cur.map(x=>x.slice(0,10)));
+  const add=l.filter(x=>!have.has(x.date)).map(x=>x.date+' '+x.name);
+  ta.value=[...cur,...add].sort().join('\n'); toast(add.length? `Đã điền ${add.length} ngày năm ${y}. Xem lại rồi bấm Lưu thiết lập.` : `Các ngày lễ năm ${y} đã có đủ.`);
+};
 ACT['vp-set-save']=async()=>{
   const s={...VP.set}; ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd','saturday'].forEach(k=>s[k]=$('#vs_'+k).value.trim());
   for(const k of ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd']) if(!/^\d{2}:\d{2}$/.test(s[k])){ toast('Giờ ghi dạng 08:00 (hai chữ số).','err'); return; }
@@ -260,7 +288,9 @@ ACT['vp-set-save']=async()=>{
   const bad=[]; s.places=$('#vs_places').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split(';').map(x=>x.trim()); const o={name:p[0], lat:parseFloat(p[1]), lng:parseFloat(p[2]), radius:parseInt(p[3])||500}; if(!o.name||isNaN(o.lat)||isNaN(o.lng)) bad.push(l); return o; });
   if(bad.length){ toast('Dòng nơi điểm danh chưa đúng: '+bad[0],'err'); return; }
   s.ips=$('#vs_ips').value.split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);
-  s.holidays=$('#vs_holidays').value.split('\n').map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}(:[sc])?$/.test(x));
+  const dayRe=/^\d{4}-\d{2}-\d{2}(:[sc])?(\s+.*)?$/, lines=id=>$(id).value.split('\n').map(x=>x.trim()).filter(Boolean);
+  const badD=[...lines('#vs_holidays'),...lines('#vs_workdays')].filter(x=>!dayRe.test(x)); if(badD.length){ toast('Dòng ngày chưa đúng dạng 2026-09-02: '+badD[0],'err'); return; }
+  s.holidays=lines('#vs_holidays'); s.workdays=lines('#vs_workdays'); s.greetWork=$('#vs_greetWork').value.trim(); s.greetOff=$('#vs_greetOff').value.trim();
   delete s.syncKeyHash;
   await api('PUT','/api/vp/settings', s); VP.set=null; VP.ts={}; vpLoad(true); toast('Đã lưu thiết lập điểm danh');
 };
@@ -302,7 +332,7 @@ VIEWS['nhan-su']=()=>{
     + table([{h:'Họ tên', f:e=>`<b style="font-weight:600">${esc(e.name)}</b>${e.code?` <span class="small muted">${esc(e.code)}</span>`:''}<div class="small muted">${esc(e.position||'')}</div>`},
       {h:'Phòng ban', f:e=>esc(vpDeptName(e.departmentId))}, {h:'Liên hệ', f:e=>[e.phone,e.email].filter(Boolean).map(esc).join('<br>')},
       {h:'Tài khoản', f:e=>acc(e.userId)}, {h:'Điểm danh', f:e=>e.attendance?'Có':'Không'}, {h:'Trạng thái', f:e=>pill(e.status, e.status==='Đang làm việc'?'ok':'')}],
-      rows, {empty:'Chưa có hồ sơ nhân sự.', pk:'ns', rowAct: ed||VP.st.perms.hr? 'vp-emp' : null});
+      rows, {empty:'Chưa có hồ sơ nhân sự.', pk:'ns', rowAct: ed||VP.st.perms.hr? 'vp-prof' : null});
   } else {
     body=`<div class="toolbar" style="margin:10px 0">${ed?`<button class="btn primary" data-act="vp-dept" data-id="">+ Thêm phòng ban</button>`:''}</div>`+table([
       {h:'Mã', k:'code'}, {h:'Phòng ban', f:d=>`<b style="font-weight:600">${esc(d.name)}</b>`},
@@ -320,7 +350,12 @@ ACT['vp-emp']=id=>{
     {key:'position',label:'Chức vụ, vị trí',suggest:()=>VP.emps.map(x=>x.position)},{key:'userId',label:'Tài khoản đăng nhập',type:'select',options:()=>D('users').filter(u=>!used.has(u.id)).map(u=>[u.id,u.name+' ('+u.username+')'])},
     {key:'status',label:'Trạng thái',type:'select',req:true,options:['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc']},{key:'attendance',label:'Điểm danh',type:'select',req:true,options:[['true','Có điểm danh'],['false','Không điểm danh']]},
     {key:'phone',label:'Điện thoại'},{key:'email',label:'Thư điện tử'},{key:'birthday',label:'Ngày sinh',type:'date'},{key:'gender',label:'Giới tính',type:'select',options:['Nam','Nữ']},
-    {key:'startDate',label:'Ngày vào làm',type:'date'},{key:'address',label:'Địa chỉ',full:true},
+    {key:'startDate',label:'Ngày vào làm',type:'date'},{key:'endDate',label:'Ngày nghỉ việc',type:'date'},
+    {key:'education',label:'Trình độ',suggest:['Trung cấp','Cao đẳng','Đại học','Thạc sĩ','Tiến sĩ']},{key:'major',label:'Chuyên ngành đào tạo'},
+    {key:'ethnicity',label:'Dân tộc',suggest:['Kinh']},{key:'nationality',label:'Quốc tịch',suggest:['Việt Nam']},{key:'marital',label:'Tình trạng hôn nhân',type:'select',options:['Độc thân','Đã kết hôn','Khác']},
+    {key:'hometown',label:'Quê quán'},{key:'address',label:'Địa chỉ thường trú',full:true},{key:'currentAddress',label:'Chỗ ở hiện nay',full:true},
+    {key:'_h0',type:'html',html:'<div class="fld full"><h3 style="margin:8px 0 0">Liên hệ khi khẩn cấp</h3></div>'},
+    {key:'emergencyName',label:'Họ tên người thân'},{key:'emergencyRelation',label:'Quan hệ',suggest:['Vợ','Chồng','Bố','Mẹ','Anh','Chị','Em','Con']},{key:'emergencyPhone',label:'Điện thoại'},
     {key:'_h',type:'html',html:'<div class="fld full"><h3 style="margin:8px 0 0">Thông tin riêng</h3><span class="small muted">Chỉ người quản lý nhân sự và chính người đó xem được.</span></div>'},
     {key:'idNumber',label:'Số CCCD'},{key:'idDate',label:'Ngày cấp',type:'date'},{key:'idPlace',label:'Nơi cấp'},{key:'taxCode',label:'Mã số thuế cá nhân'},{key:'insuranceNo',label:'Số sổ BHXH'},
     {key:'dependents',label:'Số người phụ thuộc',type:'number'},{key:'bankAccount',label:'Số tài khoản ngân hàng'},{key:'bankName',label:'Ngân hàng'},
@@ -328,9 +363,43 @@ ACT['vp-emp']=id=>{
     {key:'contractStart',label:'Hợp đồng từ ngày',type:'date'},{key:'contractEnd',label:'Hợp đồng đến ngày',type:'date'},{key:'note',label:'Ghi chú',type:'textarea'}];
   if(!ed){ openModal(`<div class="mform wide"><header><h3>${esc(e.name)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div class="fgrid" style="padding:16px">${F.filter(f=>f.type!=='html'&&e[f.key]!=null&&e[f.key]!=='').map(f=>`<div class="fld"><label>${esc(f.label)}</label><div>${esc(f.key==='departmentId'?vpDeptName(e[f.key]):f.key==='userId'?((D('users').find(u=>u.id===e.userId)||{}).username||''):f.type==='date'?fmtDate(e[f.key]):String(e[f.key]))}</div></div>`).join('')}</div></div>`); return; }
   openForm({title: id?'Hồ sơ nhân sự':'Thêm nhân sự', wide:true, fields:F, value:{...e, attendance:String(e.attendance!==false)},
-    onSave:async v=>{ const o={...e, ...v, attendance: v.attendance==='true', dependents: N(v.dependents)}; delete o._h; ['birthday','idDate','startDate','contractStart','contractEnd'].forEach(k=>{ if(!o[k]) o[k]=null; }); if(!o.userId) o.userId=null; if(!o.departmentId) o.departmentId=null;
+    onSave:async v=>{ const o={...e, ...v, attendance: v.attendance==='true', dependents: N(v.dependents)}; delete o._h; delete o._h0; ['birthday','idDate','startDate','endDate','contractStart','contractEnd'].forEach(k=>{ if(!o[k]) o[k]=null; }); if(!o.userId) o.userId=null; if(!o.departmentId) o.departmentId=null;
       const r=await api('PUT','/api/vp/employees/'+encodeURIComponent(id||uid('ns')), o); await vpLoad(true); return r; }});
 };
+/* Bản 1.10.4: hồ sơ nhân sự đầy đủ: lý lịch, bằng cấp, khen thưởng, kỷ luật, quá trình công tác, hợp đồng, giấy tờ (mỗi mục đính được tệp) */
+const VP_REC = [['bang-cap','Bằng cấp, chứng chỉ','Tên văn bằng, chứng chỉ','Nơi cấp','Số hiệu','Ngày cấp'],['hop-dong','Hợp đồng lao động','Loại hợp đồng','Bên ký','Số hợp đồng','Từ ngày'],
+  ['cong-tac','Quá trình công tác','Nội dung (bổ nhiệm, điều chuyển, tăng lương…)','Phòng ban, đơn vị','Số quyết định','Từ ngày'],['khen-thuong','Khen thưởng','Nội dung khen thưởng','Hình thức','Số quyết định','Ngày'],
+  ['ky-luat','Kỷ luật','Nội dung vi phạm','Hình thức kỷ luật','Số quyết định','Ngày'],['giay-to','Giấy tờ khác (CCCD, sơ yếu lý lịch, giấy khám sức khỏe…)','Tên giấy tờ','Nơi cấp','Số','Ngày cấp']];
+const vpUser = id => D('users').find(u=>u.id===id);
+ACT['vp-prof']=async id=>{
+  const e=vpEmp(id); if(!e) return; const ed=VP.st.perms.hrEdit;
+  let recs=[]; try{ recs=await api('GET','/api/vp/employees/'+encodeURIComponent(id)+'/records'); }catch(x){ toast(errText(x),'err'); }
+  VP._recs={id, list:recs}; const u=vpUser(e.userId);
+  const I=(l,v)=>v!=null&&v!==''?`<div class="fld"><label>${l}</label><div>${esc(String(v))}</div></div>`:'';
+  const grp=VP_REC.map(([k,label,t1,t2,t3,t4])=>{ const l=recs.filter(r=>r.kind===k); if(!l.length && !ed) return '';
+    return `<h3 style="margin:14px 0 6px">${label} ${ed?`<button class="btn sm ghost" data-act="vp-rec" data-id="${k}|">+ Thêm</button>`:''}</h3>${l.length? table([{h:t1,f:r=>`<b style="font-weight:600">${esc(r.title)}</b>${r.note?`<div class="small muted" style="white-space:pre-wrap">${esc(r.note)}</div>`:''}`},{h:t2,f:r=>esc(r.org||'')},{h:t3,f:r=>esc(r.number||'')},
+      {h:t4,f:r=>(r.fromDate?fmtDate(r.fromDate):'')+(r.toDate?' – '+fmtDate(r.toDate):'')},...(k==='khen-thuong'||k==='ky-luat'?[{h:'Số tiền',r:1,f:r=>r.amount?vnd(r.amount):''}]:[]),
+      {h:'Tệp',f:r=>r.fileId?`<a href="/api/files/${esc(r.fileId)}" target="_blank" rel="noopener">${esc(r.fileName||'Xem tệp')}</a>`:''}], l, {nopage:true, rowAct: ed?'vp-rec-edit':null}) : '<p class="small muted" style="margin:0">Chưa có.</p>'}`; }).join('');
+  openModal(`<div class="mform wide"><header><h3>${esc(e.name)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">
+    <div class="alert info" style="margin-bottom:10px">Tài khoản đăng nhập: ${u?`<b>${esc(u.username)}</b>`:'<b>chưa gắn</b>'}. Hồ sơ này là thông tin người lao động; tên đăng nhập, mật khẩu, quyền quản lý ở <b>Quản trị hệ thống → Người dùng</b>.</div>
+    <div class="fgrid">${I('Phòng ban',vpDeptName(e.departmentId))}${I('Chức vụ',e.position)}${I('Mã nhân viên',e.code)}${I('Trạng thái',e.status)}${I('Điện thoại',e.phone)}${I('Thư điện tử',e.email)}
+      ${I('Ngày sinh',e.birthday&&fmtDate(e.birthday))}${I('Giới tính',e.gender)}${I('Ngày vào làm',e.startDate&&fmtDate(e.startDate))}${I('Ngày nghỉ việc',e.endDate&&fmtDate(e.endDate))}
+      ${I('Trình độ',e.education)}${I('Chuyên ngành',e.major)}${I('Quê quán',e.hometown)}${I('Chỗ ở hiện nay',e.currentAddress)}${I('Người liên hệ khẩn cấp',[e.emergencyName,e.emergencyRelation,e.emergencyPhone].filter(Boolean).join(', '))}
+      ${I('Hợp đồng',[e.contractType,e.contractNo,e.contractStart&&('từ '+fmtDate(e.contractStart)),e.contractEnd&&('đến '+fmtDate(e.contractEnd))].filter(Boolean).join(', '))}</div>
+    ${ed?`<div class="toolbar" style="margin-top:8px"><button class="btn" data-act="vp-emp" data-id="${esc(id)}">Sửa thông tin</button></div>`:''}${grp}</div></div>`);
+};
+ACT['vp-rec-edit']=rid=>{ const r=(VP._recs.list||[]).find(x=>x.id===rid); if(r) ACT['vp-rec'](r.kind+'|'+rid); };
+ACT['vp-rec']=key=>{ const [kind,rid]=key.split('|'); const eid=VP._recs.id; const r=(VP._recs.list||[]).find(x=>x.id===rid)||{kind}; const d=VP_REC.find(x=>x[0]===kind); closeModal();
+  const F=[{key:'title',label:d[2],req:true,full:true},{key:'org',label:d[3]},{key:'number',label:d[4]},{key:'fromDate',label:d[5],type:'date'},{key:'toDate',label:'Đến ngày (nếu có)',type:'date'},
+    ...(kind==='khen-thuong'||kind==='ky-luat'?[{key:'amount',label:'Số tiền (đồng)',type:'money'}]:[]),{key:'note',label:'Ghi chú',type:'textarea',keepLines:true},
+    {key:'file',label:r.fileId?'Thay tệp đính kèm ('+(r.fileName||'đã có')+')':'Tệp đính kèm (ảnh, PDF)',type:'files'}];
+  openForm({title:d[1].split(' (')[0]+': '+(vpEmp(eid)||{}).name, narrow:true, fields:F, value:{...r},
+    onSave:async v=>{ const o={...r, ...v, kind, fromDate:v.fromDate||null, toDate:v.toDate||null, amount:v.amount==null||v.amount===''?null:N(v.amount)}; delete o.file;
+      if(v.file&&v.file[0]){ const up=await uploadFile(v.file[0]); o.fileId=up.id; o.fileName=v.file[0].name; }
+      const x=await api('PUT',`/api/vp/employees/${encodeURIComponent(eid)}/records/${encodeURIComponent(rid||uid('hs'))}`, o); setTimeout(()=>ACT['vp-prof'](eid),50); return x; }});
+  if(rid) setTimeout(()=>{ const b=document.querySelector('.mform footer, .mform .actions'); if(b && !b.querySelector('[data-act="vp-rec-del"]')) b.insertAdjacentHTML('afterbegin',`<button type="button" class="btn ghost danger" data-act="vp-rec-del" data-id="${esc(rid)}">Xóa</button>`); },0);
+};
+ACT['vp-rec-del']=async rid=>{ const eid=VP._recs.id; if(!await confirmBox('Xóa mục này khỏi hồ sơ?')) return; await api('DELETE',`/api/vp/employees/${encodeURIComponent(eid)}/records/${encodeURIComponent(rid)}`); closeModal(); toast('Đã xóa'); ACT['vp-prof'](eid); };
 ACT['vp-dept']=id=>{ const d=vpDept(id)||{order:VP.depts.length+1};
   openForm({title: id?'Sửa phòng ban':'Thêm phòng ban', narrow:true, value:d, fields:[{key:'name',label:'Tên phòng ban',req:true},{key:'code',label:'Mã'},
     {key:'managerUserId',label:'Trưởng phòng (duyệt đề xuất, xem bảng công của phòng)',type:'select',options:()=>D('users').filter(u=>u.active!==false).map(u=>[u.id,u.name+' ('+u.username+')'])},

@@ -25,6 +25,11 @@ public class VpSettings
     public bool AllowOutside { get; set; } = true;
     /// <summary>Ngày nghỉ lễ, tết (yyyy-MM-dd), nửa ngày ghi thêm ":s" (sáng) hoặc ":c" (chiều).</summary>
     public List<string> Holidays { get; set; } = new();
+    /// <summary>Bản 1.10.4: ngày đi làm bù (làm việc dù là cuối tuần hoặc ngày nghỉ), dạng yyyy-MM-dd, làm nửa ngày ghi thêm ":s"; có thể kèm ghi chú sau dấu cách.</summary>
+    public List<string> Workdays { get; set; } = new();
+    /// <summary>Lời chúc trên màn hình điểm danh: ngày làm việc, ngày nghỉ (ngày lễ thêm tên lễ ở đầu).</summary>
+    public string GreetWork { get; set; } = "Chúc ngày làm việc mới vui vẻ, thành công!";
+    public string GreetOff { get; set; } = "Hôm nay là ngày nghỉ. Chúc anh chị ngày nghỉ vui vẻ!";
     /// <summary>Băm SHA-256 của khóa chép chấm công sang e-work.</summary>
     public string? SyncKeyHash { get; set; }
     /// <summary>Ngày bắt đầu chép chấm công sang e-work (lượt điểm danh trên QLDA từ ngày này).</summary>
@@ -72,17 +77,37 @@ public static class VnTime
     }
 
     /// <summary>Ngày làm việc trong tháng: 1 = cả ngày, 0.5 = nửa ngày (thứ Bảy buổi sáng, lễ nửa ngày), 0 = nghỉ.</summary>
-    public static decimal WorkValue(DateOnly d, VpSettings s)
+    public static decimal WorkValue(DateOnly d, VpSettings s) => Day(d, s).Value;
+
+    /// <summary>Một dòng ngày trong thiết lập: "2026-09-02", "2026-09-02:s", "2026-09-02 Quốc khánh", "2026-09-02:c Nghỉ chiều".</summary>
+    public record DayLine(DateOnly Date, string? Half, string? Name);
+    public static DayLine? ParseDay(string? line)
     {
-        var hol = s.Holidays.FirstOrDefault(h => h.StartsWith(d.ToString("yyyy-MM-dd")));
+        var m = System.Text.RegularExpressions.Regex.Match(line ?? "", @"^\s*(\d{4}-\d{2}-\d{2})(?::([sc]))?(?:\s+(.*))?$");
+        if (!m.Success || !DateOnly.TryParseExact(m.Groups[1].Value, "yyyy-MM-dd", out var d)) return null;
+        return new DayLine(d, m.Groups[2].Success ? m.Groups[2].Value : null, m.Groups[3].Success && m.Groups[3].Value.Trim().Length > 0 ? m.Groups[3].Value.Trim() : null);
+    }
+
+    /// <summary>Loại ngày: "work" (làm cả ngày), "half" (làm nửa ngày), "off" (nghỉ cuối tuần), "holiday" (nghỉ lễ, nghỉ theo lịch công ty).</summary>
+    public record DayInfo(decimal Value, string Kind, string? Name);
+    public static DayInfo Day(DateOnly d, VpSettings s)
+    {
+        var key = d.ToString("yyyy-MM-dd");
+        var wk = s.Workdays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        if (wk is not null) return new DayInfo(wk.Half is null ? 1 : 0.5m, wk.Half is null ? "work" : "half", wk.Name ?? "Ngày làm bù");
         decimal v = d.DayOfWeek switch
         {
             DayOfWeek.Sunday => 0,
             DayOfWeek.Saturday => s.Saturday == "ca-ngay" ? 1 : s.Saturday == "sang" ? 0.5m : 0,
             _ => 1
         };
-        if (hol is not null) v = hol.Length > 10 ? Math.Max(0, v - 0.5m) : 0;
-        return v;
+        var hol = s.Holidays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        if (hol is not null)
+        {
+            if (hol.Half is null || v == 0) return new DayInfo(0, "holiday", hol.Name ?? "Nghỉ lễ");
+            return new DayInfo(Math.Max(0, v - 0.5m), v - 0.5m > 0 ? "half" : "holiday", hol.Name ?? "Nghỉ nửa ngày");
+        }
+        return new DayInfo(v, v == 1 ? "work" : v > 0 ? "half" : "off", null);
     }
 }
 

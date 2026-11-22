@@ -369,7 +369,7 @@ VIEWS['luong']=()=>{
   let body;
   if(d===null) body='<div class="empty">Đang tải…</div>';
   else if(d.error) body=emptyBox(esc(d.error));
-  else if(!d.all) body = d.rows.length? paySlipHTML(d.rows[0], m) + `<div class="toolbar" style="margin-top:10px"><button class="btn" data-act="pay-pdf" data-id="${esc(d.rows[0].employeeId)}">In, lưu PDF phiếu lương</button></div>`
+  else if(!d.all) body = d.rows.length? paySlipHTML(d.rows[0], m) + payConfirmHTML(d.rows[0], m) + `<div class="toolbar" style="margin-top:10px"><button class="btn" data-act="pay-pdf" data-id="${esc(d.rows[0].employeeId)}">In, lưu PDF phiếu lương</button></div>`
       : emptyBox('Phiếu lương tháng này chưa chốt. Kế toán chốt bảng lương xong bạn sẽ xem được ở đây.');
   else {
     const rows=d.rows.filter(r=>!dep||r.departmentId===dep).map(r=>({...r,id:r.employeeId}));
@@ -389,7 +389,8 @@ VIEWS['luong']=()=>{
       {h:'Thưởng', r:1, f:r=>vnd(r.kpiBonus+r.bonus)+(r.kpiGrade?`<div class="small muted">KPI ${esc(r.kpiGrade)}</div>`:'')},
       {h:'Bảo hiểm', r:1, f:r=>vnd(r.insurance)}, {h:'Thuế TNCN', r:1, f:r=>vnd(r.pit)},
       {h:'Ứng, khấu trừ', r:1, f:r=>vnd(r.advance+r.deduction)},
-      {h:'Thực lĩnh', r:1, f:r=>`<b>${vnd(r.net)}</b>${r.locked?'':''}`}],
+      {h:'Thực lĩnh', r:1, f:r=>`<b>${vnd(r.net)}</b>`},
+      {h:'Xác nhận', f:r=>payStatePill(r)}],
       rows, {empty:'Chưa có nhân sự.', nopage:true, rowAct:'pay-row'});
   }
   const ed=d&&d.canEdit, locked=d&&d.all&&d.rows.some(r=>r.locked);
@@ -398,6 +399,27 @@ VIEWS['luong']=()=>{
   <div class="toolbar" style="margin:4px 0 10px"><input type="month" data-f="plm" value="${esc(m)}" aria-label="Tháng">${d&&d.all?`<select data-f="pld" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
     <span style="flex:1"></span><button class="btn sm ghost" data-act="pay-pdf" data-id="">In phiếu lương (PDF)</button><button class="btn sm ghost" data-act="pay-xlsx">Xuất Excel bảng lương</button>`:''}</div>${body}`;
 };
+/* Bản 1.10.4: người lao động tự xác nhận lương trong hạn (mặc định ngày 1 đến 3 tháng sau), có thể gửi kiến nghị */
+function payStatePill(r){ if(!r.locked||!r.confirmState) return '<span class="small muted">—</span>';
+  const k={ 'Đã xác nhận':'ok', 'Có kiến nghị':'bad', 'Đã trả lời kiến nghị':'info', 'Chưa xác nhận':'warn', 'Chưa đến hạn':'', 'Quá hạn, coi như đồng ý':'' }[r.confirmState];
+  return pill(r.confirmState, k||'')+(r.confirmedAt?`<div class="small muted">${fmtDate(String(r.confirmedAt).slice(0,10))}</div>`:''); }
+function payFeedbackHTML(r){ if(!r.feedback) return '';
+  return `<div class="card" style="max-width:640px;margin-top:10px"><h3 style="margin-top:0">Kiến nghị</h3><div style="white-space:pre-wrap">${esc(r.feedback)}</div>
+    ${r.reply?`<h3>Trả lời${r.repliedBy?' của '+esc(r.repliedBy):''}</h3><div style="white-space:pre-wrap">${esc(r.reply)}</div>`:'<p class="small muted">Đang chờ người quản lý lương trả lời.</p>'}</div>`; }
+function payConfirmHTML(r, m){ if(!r.locked) return '';
+  let h=payFeedbackHTML(r);
+  if(r.confirmedAt) return h+`<div class="alert ok" style="max-width:640px;margin-top:10px">Bạn đã xác nhận lương tháng này ngày ${fmtDate(String(r.confirmedAt).slice(0,10))}.</div>`;
+  if(r.confirmOpen) return h+`<div class="card" style="max-width:640px;margin-top:10px"><h3 style="margin-top:0">Xác nhận lương</h3><p class="small muted" style="margin-top:0">Hạn xác nhận: từ ${fmtDate(r.confirmFrom)} đến hết ${fmtDate(r.confirmTo)}. Quá hạn không xác nhận thì coi như đồng ý.</p>
+    <div class="fld full"><label for="pc_fb">Kiến nghị (nếu có)</label><textarea id="pc_fb" rows="3" style="width:100%" placeholder="Ví dụ: ngày 12 tôi đi công tác nhưng đang tính vắng"></textarea></div>
+    <div class="toolbar"><button class="btn primary" data-act="pay-confirm" data-id="1">Đồng ý, xác nhận lương</button><button class="btn" data-act="pay-confirm" data-id="0">Gửi kiến nghị</button></div></div>`;
+  return h+`<p class="small muted" style="margin-top:10px">${esc(r.confirmState||'')}${r.confirmFrom?` · hạn xác nhận ${fmtDate(r.confirmFrom)} đến ${fmtDate(r.confirmTo)}`:''}</p>`; }
+ACT['pay-goto']=m=>{ S.f.plm=m; if(location.hash!=='#luong') location.hash='#luong'; else render(); };
+ACT['pay-confirm']=async a=>{ const fb=($('#pc_fb')||{}).value||''; if(a==='0'&&!fb.trim()){ toast('Ghi nội dung kiến nghị.','err'); return; }
+  if(a==='1'&&!await confirmBox(fb.trim()?'Xác nhận đồng ý bảng lương và gửi kèm ghi chú?':'Xác nhận bạn đồng ý với phiếu lương tháng này?','Xác nhận')) return;
+  const m=payMonth(); await api('POST',`/api/vp/luong/${m}/xac-nhan`,{agree:a==='1', feedback:fb.trim()||null}); delete VP.pay[m]; VP.st=null; vpLoad(true); render(); toast(a==='1'?'Đã xác nhận lương':'Đã gửi kiến nghị'); };
+ACT['pay-reply']=id=>{ const r=payRow(id); if(!r) return; closeModal();
+  openForm({title:'Trả lời kiến nghị: '+r.name, narrow:true, value:{reply:r.reply||''}, fields:[{key:'_k',type:'html',html:`<div class="fld full"><div class="small muted">Kiến nghị</div><div style="white-space:pre-wrap">${esc(r.feedback||'')}</div></div>`},{key:'reply',label:'Nội dung trả lời',type:'textarea',rows:4,req:true,keepLines:true}],
+    onSave:async v=>{ await api('POST',`/api/vp/luong/${payMonth()}/${encodeURIComponent(id)}/tra-loi`,{reply:v.reply}); delete VP.pay[payMonth()]; VP.st=null; vpLoad(true); return {id}; }}); };
 function paySlipHTML(r, m){
   const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="small muted">${c}</td></tr>`;
   return `<div class="card" style="max-width:640px"><h2 style="margin-top:0">${esc(r.name)}</h2><p class="small muted" style="margin-top:-6px">${esc(vpDeptName(r.departmentId))}${r.position?', '+esc(r.position):''} · Tháng ${m.slice(5)}/${m.slice(0,4)}</p>
@@ -415,8 +437,8 @@ function paySlipHTML(r, m){
 }
 ACT['pay-row']=id=>{ const r=payRow(id), d=VP.pay[payMonth()]; if(!r) return;
   const edit=d.canEdit && !r.locked;
-  openModal(`<div class="mform wide"><header><h3>Phiếu lương</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">${paySlipHTML(r, payMonth())}
-    <div class="toolbar" style="margin-top:10px">${edit?`<button class="btn" data-act="pay-adj" data-id="${esc(id)}">Thưởng, khấu trừ khác</button>`:''}<button class="btn ghost" data-act="pay-pdf" data-id="${esc(id)}">In, lưu PDF</button></div></div></div>`); };
+  openModal(`<div class="mform wide"><header><h3>Phiếu lương</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px">${paySlipHTML(r, payMonth())}${payFeedbackHTML(r)}${r.locked?`<p class="small" style="margin-top:8px">Xác nhận: ${payStatePill(r)}</p>`:''}
+    <div class="toolbar" style="margin-top:10px">${d.canEdit&&r.feedback?`<button class="btn primary" data-act="pay-reply" data-id="${esc(id)}">${r.reply?'Sửa trả lời':'Trả lời kiến nghị'}</button>`:''}${edit?`<button class="btn" data-act="pay-adj" data-id="${esc(id)}">Thưởng, khấu trừ khác</button>`:''}<button class="btn ghost" data-act="pay-pdf" data-id="${esc(id)}">In, lưu PDF</button></div></div></div>`); };
 ACT['pay-adj']=id=>{ const r=payRow(id); if(!r) return; closeModal();
   openForm({title:'Điều chỉnh lương: '+r.name, narrow:true, value:{bonus:r.bonus||'', deduction:r.deduction||'', note:r.note||''},
     fields:[{key:'bonus',label:'Thưởng, bổ sung khác (đồng, tính thuế)',type:'money'},{key:'deduction',label:'Khấu trừ khác (đồng)',type:'money'},{key:'note',label:'Ghi chú (in trên phiếu)',type:'text'}],
@@ -449,15 +471,16 @@ ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
       {key:'baseWage',label:'Lương cơ sở (trần BHXH, BHYT = 20 lần)',type:'number'},{key:'regionMinWage',label:'Lương tối thiểu vùng (trần BHTN = 20 lần)',type:'number'},
       {key:'personalDeduction',label:'Giảm trừ bản thân (đồng/tháng)',type:'number'},{key:'dependentDeduction',label:'Giảm trừ mỗi người phụ thuộc',type:'number'},
       {key:'otRate',label:'Hệ số tăng ca (%)',type:'number'},{key:'payDay',label:'Ngày trả lương (in trên phiếu)',type:'text'},
+      {key:'confirmFrom',label:'Nhân viên xác nhận lương từ ngày (tháng sau)',type:'number'},{key:'confirmTo',label:'đến hết ngày',type:'number'},
       {key:'taxText',label:'Biểu thuế TNCN theo tháng: mỗi dòng "ngày hiệu lực | đến (triệu):thuế suất …", bậc cuối ghi 0',type:'textarea',rows:3,keepLines:true}],
     onSave:async v=>{ const taxTables=String(v.taxText||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2).map(p=>({from:p[0].trim(), brackets:p[1].trim().split(/\s+/).map(x=>x.split(':')).map(([u,r])=>({upTo:N(u)*1e6, rate:N(r)}))}));
-      const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate'].forEach(k=>b[k]=N(v[k])); b.payDay=v.payDay||''; b.taxTables=taxTables;
+      const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate','confirmFrom','confirmTo'].forEach(k=>b[k]=N(v[k])); b.payDay=v.payDay||''; b.taxTables=taxTables;
       await api('PUT','/api/vp/luong-settings', b); VP.pay={}; return {id:'luong'}; }}); };
 ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||'';
   const rows=d.rows.filter(r=>!dep||r.departmentId===dep).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'))
-    .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost]);
+    .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost, r.confirmState||'', r.feedback||'']);
   exportXlsx(`Bang_luong_${m}.xlsx`, [{name:'Luong '+m, title:`BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}`, sub:`Ngày công chuẩn ${fmtN(d.rows[0]?.standard||0,1)}`,
-    head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty'],
+    head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty','Xác nhận','Kiến nghị'],
     rows, money:[3,6,7,9,10,11,12,13,14,15,17,18,19,20,21,22,23]}]); };
 ACT['pay-pdf']=id=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const s=d.settings||{};
   const list=d.rows.filter(r=>id? r.employeeId===id : r.hasProfile||r.locked);

@@ -44,12 +44,12 @@ public class BackupService
     public static IEnumerable<(string Name, IQueryable<EntityBase> Query)> VpTables(AppDbContext db) => new (string, IQueryable<EntityBase>)[]
     {
         ("vp_departments", db.Departments), ("vp_employees", db.Employees), ("vp_attendances", db.Attendances), ("vp_requests", db.Requests),
-        ("vp_meetings", db.Meetings), ("vp_notices", db.Notices), ("vp_noticereads", db.NoticeReads), ("vp_kpi", db.KpiSheets), ("vp_payprofiles", db.PayProfiles), ("vp_payslips", db.Payslips), ("vp_ework", db.EworkArchive)
+        ("vp_meetings", db.Meetings), ("vp_notices", db.Notices), ("vp_noticereads", db.NoticeReads), ("vp_kpi", db.KpiSheets), ("vp_payprofiles", db.PayProfiles), ("vp_payslips", db.Payslips), ("vp_hoso", db.EmployeeRecords), ("vp_ework", db.EworkArchive)
     };
     public static readonly Dictionary<string, Type> VpTypes = new()
     {
         ["vp_departments"] = typeof(Department), ["vp_employees"] = typeof(Employee), ["vp_attendances"] = typeof(Attendance), ["vp_requests"] = typeof(Request),
-        ["vp_meetings"] = typeof(Meeting), ["vp_notices"] = typeof(Notice), ["vp_noticereads"] = typeof(NoticeRead), ["vp_kpi"] = typeof(KpiSheet), ["vp_payprofiles"] = typeof(PayProfile), ["vp_payslips"] = typeof(Payslip), ["vp_ework"] = typeof(EworkRow)
+        ["vp_meetings"] = typeof(Meeting), ["vp_notices"] = typeof(Notice), ["vp_noticereads"] = typeof(NoticeRead), ["vp_kpi"] = typeof(KpiSheet), ["vp_payprofiles"] = typeof(PayProfile), ["vp_payslips"] = typeof(Payslip), ["vp_hoso"] = typeof(EmployeeRecord), ["vp_ework"] = typeof(EworkRow)
     };
 
     public record BackupInfo(string Name, long Size, DateTime CreatedAt);

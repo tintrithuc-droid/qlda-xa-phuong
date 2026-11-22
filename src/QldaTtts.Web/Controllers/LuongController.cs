@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +22,17 @@ public class PaySettings
     public decimal OtRate { get; set; } = 150;
     /// <summary>Ngày trả lương ghi trên phiếu (ví dụ "05 tháng sau").</summary>
     public string PayDay { get; set; } = "Ngày 05 tháng sau";
+    /// <summary>Bản 1.10.4: người lao động tự xác nhận lương từ ngày ConfirmFrom đến hết ngày ConfirmTo của tháng sau; quá hạn coi như đồng ý.</summary>
+    public int ConfirmFrom { get; set; } = 1; public int ConfirmTo { get; set; } = 3;
+    /// <summary>Hạn xác nhận lương của tháng: từ ngày ConfirmFrom tháng sau; nếu chốt muộn hơn thì mở từ ngày chốt và kéo dài đủ số ngày.</summary>
+    public (DateOnly from, DateOnly to) ConfirmWindow(string month, DateTime? lockedAtUtc)
+    {
+        var next = DateOnly.Parse(month + "-01").AddMonths(1);
+        int f = Math.Clamp(ConfirmFrom, 1, 28), t = Math.Clamp(ConfirmTo, f, 28);
+        var from = next.AddDays(f - 1); var to = next.AddDays(t - 1);
+        if (lockedAtUtc is { } l && DateOnly.FromDateTime(VnTime.ToVn(l)) is var ld && ld > from) { from = ld; if (ld.AddDays(t - f) > to) to = ld.AddDays(t - f); }
+        return (from, to);
+    }
     public class Bracket { public decimal UpTo { get; set; } public decimal Rate { get; set; } }
     public class TaxTable { public string From { get; set; } = ""; public List<Bracket> Brackets { get; set; } = new(); }
     /// <summary>Biểu thuế lũy tiến từng phần theo tháng; chọn biểu có ngày hiệu lực gần nhất trước tháng tính lương. UpTo = 0 là bậc cuối.</summary>
@@ -89,6 +100,34 @@ public class LuongController : ApiControllerBase
         public decimal Advance { get; set; } public decimal Deduction { get; set; } public decimal Net { get; set; } public decimal EmployerIns { get; set; } public decimal Cost { get; set; }
         public List<Line> AllowanceLines { get; set; } = new(); public string? Note { get; set; }
         public bool HasProfile { get; set; } public bool Locked { get; set; } public DateTime? LockedAt { get; set; }
+        // Bản 1.10.4: xác nhận lương (lấy từ phiếu lương mỗi lần xem, không thuộc số liệu chốt)
+        public DateTime? ConfirmedAt { get; set; } public string? Feedback { get; set; } public DateTime? FeedbackAt { get; set; } public string? FeedbackStatus { get; set; }
+        public string? Reply { get; set; } public DateTime? RepliedAt { get; set; } public string? RepliedBy { get; set; }
+        public string? ConfirmFrom { get; set; } public string? ConfirmTo { get; set; } public bool ConfirmOpen { get; set; } public string? ConfirmState { get; set; }
+    }
+
+
+    /// <summary>Trạng thái xác nhận: Đã xác nhận / Có kiến nghị / Đã trả lời kiến nghị / Chưa đến hạn / Chưa xác nhận / Quá hạn, coi như đồng ý.</summary>
+    private static void Confirm(Slip s, Payslip sl, PaySettings ps, string month)
+    {
+        var (f, t) = ps.ConfirmWindow(month, sl.LockedAt); var today = DateOnly.FromDateTime(VnTime.Now);
+        s.ConfirmedAt = sl.ConfirmedAt; s.Feedback = sl.Feedback; s.FeedbackAt = sl.FeedbackAt; s.FeedbackStatus = sl.FeedbackStatus; s.Reply = sl.Reply; s.RepliedAt = sl.RepliedAt; s.RepliedBy = sl.RepliedBy;
+        s.ConfirmFrom = f.ToString("yyyy-MM-dd"); s.ConfirmTo = t.ToString("yyyy-MM-dd"); s.ConfirmOpen = today >= f && today <= t && sl.ConfirmedAt is null;
+        s.ConfirmState = sl.ConfirmedAt is not null ? "Đã xác nhận" : sl.FeedbackStatus == "Chờ xử lý" ? "Có kiến nghị" : sl.FeedbackStatus == "Đã trả lời" ? "Đã trả lời kiến nghị"
+            : today < f ? "Chưa đến hạn" : today <= t ? "Chưa xác nhận" : "Quá hạn, coi như đồng ý";
+    }
+
+    /// <summary>Phiếu lương đã chốt đang trong hạn xác nhận mà người này chưa xác nhận (để nhắc trên màn hình điểm danh).</summary>
+    public static async Task<object?> PendingConfirm(AppDbContext db, string employeeId)
+    {
+        var ps = PaySettings.Load(db); var today = DateOnly.FromDateTime(VnTime.Now);
+        var list = await db.Payslips.AsNoTracking().Where(x => x.EmployeeId == employeeId && x.LockedAt != null && x.ConfirmedAt == null).OrderByDescending(x => x.Month).Take(3).ToListAsync();
+        foreach (var sl in list)
+        {
+            var (f, t) = ps.ConfirmWindow(sl.Month, sl.LockedAt);
+            if (today >= f && today <= t) return new { month = sl.Month, to = t.ToString("yyyy-MM-dd"), feedbackStatus = sl.FeedbackStatus, reply = sl.Reply };
+        }
+        return null;
     }
 
     private async Task<List<Slip>> Compute(string month, List<Employee> emps)
@@ -108,7 +147,7 @@ public class LuongController : ApiControllerBase
         {
             if (slips.TryGetValue(e.Id, out var sl) && sl.LockedAt != null && sl.Data is { } d)
             {
-                var fixedSlip = JsonSerializer.Deserialize<Slip>(d, Opts)!; fixedSlip.Locked = true; fixedSlip.LockedAt = sl.LockedAt; res.Add(fixedSlip); continue;
+                var fixedSlip = JsonSerializer.Deserialize<Slip>(d, Opts)!; fixedSlip.Locked = true; fixedSlip.LockedAt = sl.LockedAt; Confirm(fixedSlip, sl, ps, month); res.Add(fixedSlip); continue;
             }
             profiles.TryGetValue(e.Id, out var p); var st = stats.First(x => x.EmployeeId == e.Id);
             var s = new Slip { EmployeeId = e.Id, Name = e.Name, DepartmentId = e.DepartmentId, Position = e.Position, Standard = standard, HasProfile = p is not null, Dependents = e.Dependents };
@@ -196,11 +235,57 @@ public class LuongController : ApiControllerBase
             {
                 var sl = slips.FirstOrDefault(x => x.EmployeeId == s.EmployeeId);
                 if (sl is null) { sl = new Payslip { Id = "pl-" + Guid.NewGuid().ToString("N")[..20], Month = month, EmployeeId = s.EmployeeId }; Db.Payslips.Add(sl); }
-                sl.Data = JsonSerializer.Serialize(s, Opts); sl.Net = s.Net; sl.LockedAt = DateTime.UtcNow; sl.LockedBy = Uc.User.Name; n++;
+                sl.Data = JsonSerializer.Serialize(s, Opts); sl.Net = s.Net; sl.LockedAt = DateTime.UtcNow; sl.LockedBy = Uc.User.Name; sl.ConfirmedAt = null; n++;
             }
         else foreach (var sl in slips.Where(x => x.LockedAt != null)) { sl.LockedAt = null; sl.LockedBy = null; sl.Data = null; sl.Net = null; n++; }
         Uc.Log(b.Lock ? "Chốt bảng lương" : "Mở chốt bảng lương", "Lương", $"Tháng {month}: {n} người");
         await Db.SaveChangesAsync(); return Ok(new { ok = true, n });
+    }
+
+    public record ConfirmBody(bool Agree, string? Feedback);
+
+    /// <summary>Bản 1.10.4: người lao động xác nhận phiếu lương của mình trong hạn; không đồng ý thì gửi kiến nghị (bắt buộc ghi nội dung).</summary>
+    [HttpPost("luong/{month}/xac-nhan")]
+    public async Task<IActionResult> ConfirmMine(string month, [FromBody] ConfirmBody b)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!DateOnly.TryParse(month + "-01", out _)) return Error(400, "Tháng không hợp lệ.");
+        var me = await Db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == Uc.User.Id);
+        if (me is null) return Error(400, "Tài khoản chưa gắn với hồ sơ nhân sự.");
+        var sl = await Db.Payslips.FirstOrDefaultAsync(x => x.Month == month && x.EmployeeId == me.Id);
+        if (sl?.LockedAt is null) return Error(409, "Bảng lương tháng này chưa chốt.");
+        if (sl.ConfirmedAt is not null) return Error(409, "Bạn đã xác nhận lương tháng này.");
+        var (f, t) = PaySettings.Load(Db).ConfirmWindow(month, sl.LockedAt); var today = DateOnly.FromDateTime(VnTime.Now);
+        if (today < f || today > t) return Error(409, $"Chỉ xác nhận lương từ {f:dd/MM} đến hết {t:dd/MM/yyyy}.");
+        var fb = b.Feedback?.Trim();
+        if (!b.Agree && string.IsNullOrEmpty(fb)) return Error(400, "Ghi nội dung kiến nghị.");
+        if (!string.IsNullOrEmpty(fb))
+        {
+            var all = string.IsNullOrEmpty(sl.Feedback) ? fb : sl.Feedback + "\n---\n" + fb;
+            sl.Feedback = all.Length <= 2000 ? all : all[^2000..];
+            sl.FeedbackAt = DateTime.UtcNow; sl.FeedbackStatus = "Chờ xử lý"; sl.Reply = null; sl.RepliedAt = null; sl.RepliedBy = null;
+        }
+        if (b.Agree) sl.ConfirmedAt = DateTime.UtcNow;
+        sl.UpdatedAt = DateTime.UtcNow; sl.UpdatedBy = Uc.User.Username;
+        Uc.Log(b.Agree ? "Xác nhận lương" : "Gửi kiến nghị lương", "Lương", $"{me.Name} tháng {month}" + (string.IsNullOrEmpty(fb) ? "" : " (có kiến nghị)"));
+        await Db.SaveChangesAsync(); return Ok(new { ok = true });
+    }
+
+    public record ReplyBody(string Reply);
+
+    /// <summary>Người quản lý lương trả lời kiến nghị; người lao động xem trả lời rồi xác nhận (nếu còn hạn).</summary>
+    [HttpPost("luong/{month}/{employeeId}/tra-loi")]
+    public async Task<IActionResult> ReplyFeedback(string month, string employeeId, [FromBody] ReplyBody b)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        if (!Uc.Can("luong", true)) return Denied("Chỉ người quản lý lương được trả lời kiến nghị.");
+        if (string.IsNullOrWhiteSpace(b.Reply)) return Error(400, "Ghi nội dung trả lời.");
+        var sl = await Db.Payslips.FirstOrDefaultAsync(x => x.Month == month && x.EmployeeId == employeeId);
+        if (sl?.Feedback is null) return Error(404, "Không có kiến nghị.");
+        var r = b.Reply.Trim(); sl.Reply = r.Length > 2000 ? r[..2000] : r; sl.RepliedAt = DateTime.UtcNow; sl.RepliedBy = Uc.User.Name; sl.FeedbackStatus = "Đã trả lời";
+        sl.UpdatedAt = DateTime.UtcNow; sl.UpdatedBy = Uc.User.Username;
+        Uc.Log("Trả lời kiến nghị lương", "Lương", $"{employeeId} tháng {month}");
+        await Db.SaveChangesAsync(); return Ok(new { ok = true });
     }
 
     [HttpGet("luong-ho-so")]

@@ -32,6 +32,10 @@ public class FilesController : ApiControllerBase
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         var sf = await Db.Files.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
         if (sf is null) return Error(404, "Tệp không còn tồn tại.");
+        // Bản 1.10.4: tệp đính kèm hồ sơ nhân sự (bằng cấp, CCCD, hợp đồng): chỉ người quản lý nhân sự và chính người đó
+        var hrOwner = await Db.EmployeeRecords.AsNoTracking().Where(r => r.FileId == id).Select(r => r.EmployeeId).FirstOrDefaultAsync();
+        if (hrOwner is not null && sf.UploadedBy != Uc.User.Username && !Uc.Can("nhan-su", true)
+            && !await Db.Employees.AsNoTracking().AnyAsync(e => e.Id == hrOwner && e.UserId == Uc.User.Id)) return Denied("Tệp thuộc hồ sơ nhân sự riêng.");
         var guideIds = await Db.Attachments.AsNoTracking().Where(a => a.FileId == id && a.Collection == "guides").Select(a => a.RecordId).ToListAsync();
         if (guideIds.Count > 0)
         {

@@ -24,13 +24,14 @@ public static class EworkImport
         public int Meetings { get; set; }
         public int Notices { get; set; }
         public int PayProfiles { get; set; }
+        public int HrRecords { get; set; }
         /// <summary>Số dòng lưu trữ theo từng bảng e-work.</summary>
         public Dictionary<string, int> Archive { get; set; } = new();
         public List<string> LinkedAccounts { get; set; } = new();
         /// <summary>Tài khoản mới tạo kèm mật khẩu tạm (chỉ trả về một lần cho quản trị, không lưu).</summary>
         public List<NewAccount> NewAccounts { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
-        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
+        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
     }
     public record NewAccount(string Name, string Username, string Password, string? Department);
 
@@ -113,6 +114,7 @@ public static class EworkImport
                 }
             }
             e.EworkId = ew; e.UserId ??= acc?.Id; e.UpdatedAt = now; e.UpdatedBy = by;
+            if (h.ValueKind == JsonValueKind.Object && e.EndDate is null && Date(S(h, "NgayNghiViec")) is { } nd) e.EndDate = nd; // 1.10.4
             empByEw[ew] = e;
             // Trưởng phòng theo vai trò e-work
             if (dept is not null && dept.ManagerUserId is null && acc is not null && Regex.IsMatch(role, "LANHDAO", RegexOptions.IgnoreCase)) dept.ManagerUserId = acc.Id;
@@ -194,8 +196,11 @@ public static class EworkImport
         {
             if (Date(S(n, "Ngay")) is not { } d) continue;
             var half = Num(n, "Buoi") is { } b && b > 0 && b < 1;
-            var key = d.ToString("yyyy-MM-dd") + (half ? ":s" : "");
-            if (!s.Holidays.Any(h => h.StartsWith(d.ToString("yyyy-MM-dd")))) { s.Holidays.Add(key); rep.Holidays++; }
+            var name = Cut(Plain(S(n, "MoTa")).Replace("\n", " "), 100);
+            var key = d.ToString("yyyy-MM-dd") + (half ? ":s" : "") + (string.IsNullOrEmpty(name) ? "" : " " + name);
+            var i0 = s.Holidays.FindIndex(h => h.StartsWith(d.ToString("yyyy-MM-dd")));
+            if (i0 < 0) { s.Holidays.Add(key); rep.Holidays++; }
+            else if (s.Holidays[i0].Length <= 12 && !string.IsNullOrEmpty(name)) s.Holidays[i0] = s.Holidays[i0] + " " + name; // 1.10.4: bổ sung tên ngày nghỉ cho bản nạp trước
         }
         VpSettings.Save(db, s, by);
         await Save(db, rep);
@@ -272,6 +277,42 @@ public static class EworkImport
             });
             haveP.Add(e.Id); rep.PayProfiles++;
         }
+        await Save(db, rep);
+
+        // ---- bản 1.10.4: mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật, người liên hệ); khóa theo mã e-work, đã có thì giữ bản trên QLDA
+        var haveR = (await db.EmployeeRecords.AsNoTracking().Where(r => r.EworkId != null).Select(r => r.EworkId!).ToListAsync()).ToHashSet();
+        void AddRec(string? ewId, string? ewUser, string kind, string? title, Action<EmployeeRecord> fill)
+        {
+            if (ewId is null || ewUser is null || !empByEw.TryGetValue(ewUser, out var emp) || string.IsNullOrWhiteSpace(title)) return;
+            var key = Cut(kind + ":" + ewId, 64)!; if (haveR.Contains(key)) return;
+            var r = new EmployeeRecord { Id = "hs-" + Guid.NewGuid().ToString("N")[..20], EmployeeId = emp.Id, Kind = kind, Title = Cut(title.Trim(), 300)!, EworkId = key, UpdatedAt = now, UpdatedBy = by };
+            fill(r); db.EmployeeRecords.Add(r); haveR.Add(key); rep.HrRecords++;
+        }
+        foreach (var b in Luu("RefBangCaps"))
+            AddRec(S(b, "Id"), UserOfRef(b), "bang-cap", S(b, "TenVanBang") ?? S(b, "NganhDaoTao"), r =>
+            {
+                r.Org = Cut(S(b, "DonViCapBang"), 300); r.Number = Cut(S(b, "SoHieuBang"), 100);
+                if (Num(b, "NamTotNghiep") is { } y && y > 1900 && y < 2200) r.FromDate = new DateOnly((int)y, 1, 1);
+                r.Note = Cut(string.Join("; ", new[] { S(b, "NganhDaoTao") is { Length: > 0 } ng ? "Ngành: " + ng : null, Num(b, "NamTotNghiep") is { } yy ? "Năm tốt nghiệp " + (int)yy : null }.Where(x => x is not null)), 2000);
+            });
+        foreach (var k in Luu("KhenThuongKyLuats"))
+        {
+            var loai = Norm(S(k, "TenLoaiThuongPhat") ?? S(k, "LoaiThuongPhat"));
+            var kind = Regex.IsMatch(loai, "kỷ luật|ky luat|phạt|phat|khiển trách") ? "ky-luat" : "khen-thuong";
+            AddRec(S(k, "Id"), S(k, "UserId"), kind, Plain(S(k, "LyDo")) is { Length: > 0 } ld ? ld.Split('\n')[0] : S(k, "TenLoaiThuongPhat") ?? "Khen thưởng", r =>
+            {
+                r.Org = Cut(S(k, "TenLoaiThuongPhat"), 300); r.Amount = Num(k, "SoTien") is { } st ? (decimal)st : null; r.Note = Cut(Plain(S(k, "LyDo")), 2000);
+                if (Num(k, "Nam") is { } y && y > 1900 && y < 2200) r.FromDate = new DateOnly((int)y, (int)Math.Clamp(Num(k, "Thang") ?? 1, 1, 12), 1);
+                else if (Dt(S(k, "CreatedDate")) is { } cd) r.FromDate = DateOnly.FromDateTime(cd);
+            });
+        }
+        foreach (var c in Luu("RefNguoiLienHes"))
+            if (UserOfRef(c) is { } cu && empByEw.TryGetValue(cu, out var ce) && string.IsNullOrEmpty(ce.EmergencyName) && S(c, "HoVaTen") is { Length: > 0 } hn)
+            {
+                ce.EmergencyName = Cut(hn, 200); ce.EmergencyPhone = Cut(S(c, "DienThoai"), 50); ce.EmergencyRelation = Cut(S(c, "TenChucVu") ?? S(c, "ChucVu"), 50);
+                if (db.Entry(ce).State == EntityState.Detached) db.Attach(ce);
+                db.Entry(ce).Property(x => x.EmergencyName).IsModified = true; db.Entry(ce).Property(x => x.EmergencyPhone).IsModified = true; db.Entry(ce).Property(x => x.EmergencyRelation).IsModified = true;
+            }
         await Save(db, rep);
 
         // ---- lưu trữ nguyên vẹn mọi bảng nghiệp vụ e-work (thay theo từng bảng, chạy lại không trùng)

@@ -68,6 +68,9 @@ const MODULES = [
   {key:'nghiem-thu', label:'Nghiệm thu, bàn giao, bảo hành', icon:'stamp', grp:'Nghiệp vụ'},
   {key:'thanh-toan', label:'Quản lý thanh toán', icon:'coin', grp:'Nghiệp vụ'},
   {key:'quyet-toan', label:'Quyết toán dự án', icon:'seal', grp:'Nghiệp vụ'},
+  {key:'nhan-su', label:'Nhân sự', icon:'user', grp:'Văn phòng'},
+  {key:'diem-danh', label:'Bảng công, chấm công', icon:'cal', grp:'Văn phòng'},
+  {key:'de-xuat', label:'Đề xuất', icon:'doc', grp:'Văn phòng'},
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
@@ -83,7 +86,7 @@ const NAV_TV = ['tv-thanh-toan','Nghiệm thu, thanh toán tư vấn','coin'];
 const PH_ROUTE = {cb:{'goi-thau':'cb-goi-thau', 'thanh-toan':'cb-thanh-toan', 'khoi-luong':'cb-thanh-toan'}, dt:{}};
 const phRoute = (mod, ph) => (PH_ROUTE[ph]||{})[mod] || mod;
 const routePh = r => String(r||S.route).startsWith('cb-') ? 'cb' : 'dt';
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -198,7 +201,7 @@ const Store = {
     if(S.user) UI.load(S.user);
     onData();
   },
-  clear(){ COLS.forEach(c=>{ this.data[c]=[]; }); },
+  clear(){ COLS.forEach(c=>{ this.data[c]=[]; }); if(typeof vpReset==='function') vpReset(); },
   signedOut(){ if(S.user){ S.user=null; this.clear(); toast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.','err'); onData(); } },
   allReady(){ return this.mode!=='loading'; },
   setLocal(col,o){ const a=this.data[col]; const i=a.findIndex(x=>x.id===o.id); if(i>=0) a[i]=o; else a.push(o); onData(); this.soon(); return o; },
@@ -239,6 +242,8 @@ function can(mod, lvl='view'){
   mod=ROUTE_PERM[mod]||mod;
   if(isIT() && IT_HIDE.has(mod)) return false;
   if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
+  /* Bản 1.9: mọi tài khoản tự điểm danh, gửi đề xuất; bảng công (trưởng phòng xem phòng mình) do máy chủ lọc phạm vi */
+  if(lvl==='view' && (mod==='van-phong'||mod==='de-xuat'||mod==='diem-danh')) return !!S.user;
   if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(mod==='quan-tri') return false; // Quản trị hệ thống: chỉ nhóm toàn quyền

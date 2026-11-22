@@ -40,6 +40,10 @@ public class AppDbContext : DbContext
     public DbSet<AppSetting> Settings => Set<AppSetting>();
     public DbSet<ApprovalLog> ApprovalLogs => Set<ApprovalLog>();
     public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<Attendance> Attendances => Set<Attendance>();
+    public DbSet<Request> Requests => Set<Request>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -89,6 +93,11 @@ public class AppDbContext : DbContext
         b.Entity<Attachment>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Attachment>().HasIndex(x => x.FileId);
         b.Entity<ApprovalLog>().HasIndex(x => new { x.Collection, x.RecordId });
+        b.Entity<Employee>().HasIndex(x => x.UserId);
+        b.Entity<Attendance>().HasIndex(x => new { x.EmployeeId, x.Date }).IsUnique();
+        b.Entity<Attendance>().HasIndex(x => x.Date);
+        b.Entity<Request>().HasIndex(x => x.EmployeeId);
+        b.Entity<Request>().HasIndex(x => x.Status);
     }
 }
 

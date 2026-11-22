@@ -19,7 +19,7 @@ function render(){
   if(!S.user) return S.mfaStep ? ($('#mfa')? undefined : renderMfa()) : renderLogin();
   if(S.user.mustChangePassword) return $('#pwfirst')? undefined : renderPwFirst();
   if(!$('#app')) buildShell();
-  let r=(location.hash||'').slice(1)||'tong-quan';
+  let r=(location.hash||'').slice(1)||(innerWidth<820?'van-phong':'tong-quan');
   if(!VIEWS[r]) r='tong-quan';
   if(!can(r)) r = MODULES.find(m=>can(m.key))?.key || 'hien-truong';
   if(S.pid && !pidOk(S.pid)) S.pid='';
@@ -74,7 +74,12 @@ function renderNav(){
   const al=alerts(); const cnt={}; al.forEach(a=>{ const r=alertRoute(a); cnt[r]=(cnt[r]||0)+1; });
   let html='', grp='';
   const link=(r,l,i,t)=>`<a href="#${r}" title="${esc(t||l)}" class="${S.route===r?'on':''}">${ic(i)}<span>${esc(l)}</span>${cnt[r]?`<span class="cnt">${cnt[r]}</span>`:''}</a>`;
-  MODULES.filter(m=>can(m.key)).forEach(m=>{
+  /* Bản 1.9: nhóm Văn phòng (điểm danh, đề xuất cho mọi người; bảng công cho người có quyền, trưởng phòng; nhân sự theo quyền) */
+  if(typeof VP!=='undefined'){ if(!VP.st && !VP.loading && !VP.err) setTimeout(()=>vpLoad(),0);
+    const pend=VP.st? VP.st.pending : 0;
+    html+=`<div class="grp">Văn phòng</div>`+link('van-phong','Điểm danh','check')+`<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>`
+      +(vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : ''); grp='Văn phòng'; }
+  MODULES.filter(m=>can(m.key) && m.grp!=='Văn phòng').forEach(m=>{
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;
       if(grp==='Nghiệp vụ'){ const cb=NAV_CB.filter(([r])=>can(r)); if(cb.length) html+=`<div class="sub">${esc(PHASES.cb)}</div>`+cb.map(([r,l,i])=>link(r,l,i,PHASES.cb+': '+l)).join('')+`<div class="sub">${esc(PHASES.dt)}</div>`; } }
     html+=`<a href="#${m.key}" class="${S.route===m.key?'on':''}">${ic(m.icon)}<span>${esc(m.label)}</span>${cnt[m.key]?`<span class="cnt">${cnt[m.key]}</span>`:''}</a>`;
@@ -89,17 +94,17 @@ function renderNav(){
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':'Danh mục chức năng';
+  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':S.route==='van-phong'?'Điểm danh':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
-    <select id="gpid" data-f="__pid" aria-label="Lọc theo dự án">${opts(projOpts(), S.pid, 'Tất cả dự án')}</select>
+    ${['van-phong','de-xuat','diem-danh','nhan-su'].includes(S.route)?'':`<select id="gpid" data-f="__pid" aria-label="Lọc theo dự án">${opts(projOpts(), S.pid, 'Tất cả dự án')}</select>`}
     ${themeBtn()}${wfBell()}
     <span class="mode ${Store.mode==='server'?'shared':''}" title="${Store.mode==='server'?'Dữ liệu lưu tập trung trên máy chủ, mọi người dùng cùng thấy':'Mất kết nối máy chủ: thay đổi chưa được lưu'}">${Store.mode==='server'?'Đã kết nối máy chủ':'Mất kết nối máy chủ'}</span>
     <div class="who"><button class="btn ghost sm" data-act="account" title="Tài khoản"><span class="avatar">${esc(initials(S.user.name))}</span><span class="nm" style="text-align:left;line-height:1.2">${esc(S.user.name)}<br><span class="small muted">${esc(g?g.name:'')}</span></span></button></div>`;
 }
 function renderTabbar(){
-  const items=[['tong-quan','dash','Tổng quan'],['du-an','proj','Dự án'],['hien-truong','phone','Hiện trường'],['nhat-ky','book','Nhật ký']].filter(x=>can(x[0]));
+  const items=[['van-phong','check','Điểm danh'],['tong-quan','dash','Tổng quan'],['du-an','proj','Dự án'],['de-xuat','doc','Đề xuất']].filter(x=>can(x[0]));
   $('#tabbar').innerHTML = items.map(([k,i,l])=>`<a href="#${k}" class="${S.route===k?'on':''}">${ic(i)}<span>${l}</span></a>`).join('') + `<a href="#" data-act="menu">${ic('menu')}<span>Menu</span></a>`;
   $('#tabbar').style.gridTemplateColumns=`repeat(${items.length+1},1fr)`;
 }

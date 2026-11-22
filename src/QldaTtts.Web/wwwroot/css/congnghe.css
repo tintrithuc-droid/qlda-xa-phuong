@@ -41,6 +41,15 @@
 :root[data-style="tech"][data-mode="dark"][data-sidebg="night"] {--brand:#081229; --brand-hi:#16243f; --brand-ink:#b0bcd4; --side-line:#121e38}
 :root[data-style="tech"][data-mode="dark"][data-sidebg="teal"]  {--brand:#072729; --brand-hi:#10393c; --brand-ink:#b3d3d3; --side-line:#0e3336}
 :root[data-style="tech"][data-mode="dark"][data-sidebg="slate"] {--brand:#111827; --brand-hi:#232c3b; --brand-ink:#c3cad6; --side-line:#1d2533}
+/* Cam nhạt: nền sáng nên chữ chuyển sang nâu sẫm */
+:root[data-style="tech"][data-sidebg="peach"]{--brand:#fdebdc; --brand-hi:#f8d6b8; --brand-ink:#6b4426; --side-line:#f3d2b4; --gold:#c2410c;
+  --side-strong:#2b1708; --side-mark:#c2410c}
+:root[data-style="tech"][data-sidebg="peach"] :is(.art-head .org1, .art-title h1, .nav a.on, .nav a:hover){color:#2b1708}
+:root[data-style="tech"][data-sidebg="peach"] .auth .art{background-image:radial-gradient(circle at 1px 1px, rgba(120,60,20,.12) 1px, transparent 0)}
+:root[data-style="tech"][data-sidebg="peach"] .auth .art.has-bg{background:var(--brand) var(--art-bg) center/cover no-repeat}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="peach"]{--brand:#2a170b; --brand-hi:#422612; --brand-ink:#e9cdb6; --side-line:#3a2110; --gold:#f6a56f; --side-strong:#ffffff; --side-mark:#f6a56f}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="peach"] :is(.art-head .org1, .art-title h1, .nav a.on, .nav a:hover){color:#fff}
+:root[data-style="tech"][data-mode="dark"][data-sidebg="peach"] .auth .art{background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.07) 1px, transparent 0)}
 /* Nền xanh: ô biểu tượng nền trắng cho rõ */
 :root[data-style="tech"][data-sidebg="blue"] :is(.brand .mark, .art-head .seal):not(.logo){background:#fff; color:#133a8a}
 :root[data-style="tech"][data-mode="dark"][data-sidebg="blue"] :is(.brand .mark, .art-head .seal):not(.logo){color:#0c2664}

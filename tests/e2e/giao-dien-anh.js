@@ -65,6 +65,16 @@ function totp(secret) {
     const lm = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'vi-VN' }); const lq = await lm.newPage();
     await lq.goto(BASE + '/'); await lq.waitForSelector('#login', { timeout: 15000 }); await lq.waitForTimeout(500); await lq.screenshot({ path: `${OUT}/m-${sd}-dt-dang-nhap.png` }); await lm.close();
   }
+  // Hộp Giao diện: người dùng tự chọn màu nền menu, không ảnh hưởng đơn vị
+  if (STYLE === 'tech') {
+    await p.evaluate(() => ACT.appearance()); await p.waitForTimeout(400);
+    const lab = await p.$('input[data-ap="sidebg"][value="peach"]'); if (!lab) errs.push('Hộp Giao diện thiếu mục Màu nền menu');
+    else { await p.click('label:has(input[data-ap="sidebg"][value="peach"])'); await p.waitForTimeout(400);
+      await p.screenshot({ path: `${OUT}/26-hop-giao-dien-mau-nen.png` });
+      if (await p.evaluate(() => document.documentElement.dataset.sidebg) !== 'peach') errs.push('Người dùng chọn Cam nhạt nhưng menu không đổi');
+      await p.click('label:has(input[data-ap="sidebg"][value="unit"])'); await p.waitForTimeout(300); }
+    await p.keyboard.press('Escape');
+  }
   // Đăng xuất → trang đăng nhập
   await p.evaluate(() => { localStorage.clear(); }); await ctx.clearCookies(); await p.goto(BASE + '/'); await p.waitForSelector('#login', { timeout: 15000 }); await p.waitForTimeout(500); await p.screenshot({ path: `${OUT}/00-dang-nhap.png` });
   // Trang đăng nhập trên điện thoại 360px và 390px: không được tràn ngang

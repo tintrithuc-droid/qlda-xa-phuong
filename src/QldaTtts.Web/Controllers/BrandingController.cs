@@ -42,7 +42,7 @@ public class BrandingController : ApiControllerBase
         ("color", "navy", 20),
         // Phong cách giao diện của đơn vị: gov (hành chính: quốc hiệu, trống đồng), tech (công nghệ: tối giản, hiện đại)
         ("style", "gov", 10),
-        // Màu nền thanh menu và banner trang đăng nhập (phong cách Công nghệ): blue, night, teal, slate, charcoal
+        // Màu nền thanh menu và banner trang đăng nhập (phong cách Công nghệ): blue, night, teal, slate, charcoal, peach
         ("sideBg", "blue", 12),
         // Mẫu in (báo cáo, phiếu trình, bảng đối soát)
         ("printNation", "1", 1),  // 1: in quốc hiệu, tiêu ngữ; 0: không in
@@ -60,7 +60,7 @@ public class BrandingController : ApiControllerBase
     /// <summary>Tông màu được phép (trùng danh sách trong hộp thoại Giao diện) và màu nền thanh tiêu đề trình duyệt tương ứng.</summary>
     public static readonly Dictionary<string, string> Colors = new()
     { ["navy"] = "#0d2a57", ["teal"] = "#0a3431", ["indigo"] = "#1e1b4b", ["green"] = "#0f2f1c", ["earth"] = "#2e1608", ["slate"] = "#111827" };
-    public static readonly HashSet<string> SideBgs = new() { "blue", "night", "teal", "slate", "charcoal" };
+    public static readonly HashSet<string> SideBgs = new() { "blue", "night", "teal", "slate", "charcoal", "peach" };
     private static readonly HashSet<string> Flags = new() { "bannerDeco", "printNation" };
 
     private readonly FileStore _store;

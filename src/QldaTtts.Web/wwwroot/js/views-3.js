@@ -594,7 +594,7 @@ const BR_SECS=[
     ['bannerDeco','Họa tiết trống đồng và vạch màu đỏ, vàng trên banner',BR_YN],
     ['loginTitle','Tiêu đề khung đăng nhập'],['loginHint','Dòng hướng dẫn dưới tiêu đề'],['forgotText','Dòng hướng dẫn khi quên mật khẩu','area']]],
   ['Màu giao diện', 'Áp dụng cho mọi người dùng để phong cách và tông màu «Theo đơn vị» trong hộp thoại Giao diện (mặc định). Người đã tự chọn màu khác vẫn giữ lựa chọn của mình.',
-    [['style','Phong cách giao diện của đơn vị',[['gov','Hành chính'],['tech','Công nghệ (hiện đại)']]],['sideBg','Màu nền menu và trang đăng nhập (phong cách Công nghệ)',[['blue','Xanh Tri Thức'],['night','Xanh đêm'],['teal','Xanh ngọc'],['slate','Xám đậm'],['charcoal','Than đen']]],['color','Tông màu chủ đạo của đơn vị',()=>UI_OPTS.color.list.filter(x=>x[0]!=='unit').map(x=>[x[0],x[1]])]]],
+    [['style','Phong cách giao diện của đơn vị',[['gov','Hành chính'],['tech','Công nghệ (hiện đại)']]],['sideBg','Màu nền menu và trang đăng nhập (phong cách Công nghệ)',[['blue','Xanh Tri Thức'],['night','Xanh đêm'],['teal','Xanh ngọc'],['slate','Xám đậm'],['peach','Cam nhạt'],['charcoal','Than đen']]],['color','Tông màu chủ đạo của đơn vị',()=>UI_OPTS.color.list.filter(x=>x[0]!=='unit').map(x=>[x[0],x[1]])]]],
   ['Báo cáo và mẫu in', 'Dùng cho báo cáo xuất Excel, in PDF, phiếu trình, bảng đối soát hợp đồng.', [['reportOrg','Tên đơn vị trên báo cáo xuất Excel'],['place','Địa danh ghi trước ngày tháng (ví dụ: Cần Thơ)'],
     ['printNation','In quốc hiệu, tiêu ngữ ở đầu mẫu in',BR_YN],['signReport','Chức danh ký báo cáo'],['signApprove','Chức danh lãnh đạo ký phiếu trình, bảng đối soát'],
     ['signTech','Chức danh ký bảng đối soát, cột thứ nhất'],['signAcc','Chức danh ký bảng đối soát, cột thứ hai']]],

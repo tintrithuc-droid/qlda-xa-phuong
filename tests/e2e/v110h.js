@@ -159,7 +159,17 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
     const ts = await J(r.get(BASE + '/api/vp/timesheet?month=2026-10', { headers: H }));
     ok(ts.standard === 24, 'Công chuẩn 10/2026 thứ Bảy cách tuần: ' + ts.standard);
     const ts11 = await J(r.get(BASE + '/api/vp/timesheet?month=2026-11', { headers: H }));
-    ok(ts11.standard === 23, 'Công chuẩn 11/2026 thứ Bảy cách tuần (làm 07/11, 21/11; chưa tính lễ 24/11): ' + ts11.standard);
+    ok(ts11.standard === 22, 'Công chuẩn 11/2026 thứ Bảy cách tuần (làm 07/11, 21/11; lễ 24/11 tự áp dụng): ' + ts11.standard);
+    ok((await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: [], saturday: 'cach-tuan', saturdayAnchor: '2026-10-10', autoLegal: false } })).ok(), 'Tắt tự áp dụng lễ lỗi');
+    const ts11b = await J(r.get(BASE + '/api/vp/timesheet?month=2026-11', { headers: H }));
+    ok(ts11b.standard === 23, 'Tắt tự áp dụng lễ, công chuẩn 11/2026: ' + ts11b.standard);
+    ok((await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: [], saturday: 'cach-tuan', saturdayAnchor: '2026-10-10', autoLegal: true, workdays: ['2026-11-24 Đi làm hoán đổi'] } })).ok(), 'Lưu ngày đi làm lỗi');
+    const ts11c = await J(r.get(BASE + '/api/vp/timesheet?month=2026-11', { headers: H }));
+    ok(ts11c.standard === 23, 'Đi làm hoán đổi ngày lễ, công chuẩn 11/2026: ' + ts11c.standard);
+    const ts9 = await J(r.get(BASE + '/api/vp/timesheet?month=2027-09', { headers: H }));
+    ok(ts9.standard > 0, 'Công chuẩn 09/2027 lỗi');
+    const st = await J(r.get(BASE + '/api/vp/state', { headers: H }));
+    ok((st.settings.holidays || []).some(h => h.startsWith(new Date().getFullYear() + '-09-02')), 'Màn hình đề xuất chưa nhận ngày lễ tự áp dụng');
     // kiểu e-work: thứ Bảy làm cả ngày, thứ Bảy nghỉ ghi trong ngày nghỉ → vẫn 24, thứ Bảy nghỉ là nghỉ tuần (không phải lễ)
     ok((await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, saturday: 'ca-ngay', holidays: ['2026-10-03 Nghỉ thứ 7', '2026-10-17', '2026-10-31 Nghỉ thứ 7'] } })).ok(), 'Lưu kiểu e-work lỗi');
     const ts2 = await J(r.get(BASE + '/api/vp/timesheet?month=2026-10', { headers: H }));

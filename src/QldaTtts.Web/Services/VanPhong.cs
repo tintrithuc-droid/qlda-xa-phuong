@@ -37,6 +37,21 @@ public class VpSettings
     public List<string> Holidays { get; set; } = new();
     /// <summary>Bản 1.10.4: ngày đi làm bù (làm việc dù là cuối tuần hoặc ngày nghỉ), dạng yyyy-MM-dd, làm nửa ngày ghi thêm ":s"; có thể kèm ghi chú sau dấu cách.</summary>
     public List<string> Workdays { get; set; } = new();
+    /// <summary>Bản 1.10.7: tự áp dụng ngày lễ, tết theo luật (Điều 112 BLLĐ 2019, kèm nghỉ bù) cho mọi năm, không cần nhập; danh sách Holidays chỉ còn ngày phát sinh.
+    /// Ngày Chính phủ hoán đổi: ghi ngày nghỉ thay vào Holidays và ngày đi làm vào Workdays (Workdays luôn được ưu tiên).</summary>
+    public bool AutoLegal { get; set; } = true;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<DateOnly, string>> LegalCache = new();
+    /// <summary>Ngày lễ theo luật của một năm (theo thiết lập thứ Bảy hiện tại, để tính nghỉ bù).</summary>
+    public Dictionary<DateOnly, string> LegalOf(int year) => LegalCache.GetOrAdd($"{year}|{Saturday}|{SaturdayAnchor}",
+        _ => LichNghi.Legal(year, this).GroupBy(x => DateOnly.Parse(x.Date)).ToDictionary(g => g.Key, g => g.First().Name));
+    /// <summary>Ngày nghỉ hiệu lực (phát sinh + theo luật nếu bật) của các năm cho trước, cùng dạng chuỗi với Holidays.</summary>
+    public List<string> EffectiveHolidays(IEnumerable<int> years)
+    {
+        var have = Holidays.Select(h => h.Length >= 10 ? h[..10] : h).ToHashSet();
+        var extra = AutoLegal ? years.SelectMany(y => LegalOf(y)).Where(kv => !have.Contains(kv.Key.ToString("yyyy-MM-dd")))
+            .Select(kv => kv.Key.ToString("yyyy-MM-dd") + " " + kv.Value) : Enumerable.Empty<string>();
+        return Holidays.Concat(extra).OrderBy(x => x).ToList();
+    }
     /// <summary>Lời chúc trên màn hình điểm danh: ngày làm việc, ngày nghỉ (ngày lễ thêm tên lễ ở đầu).</summary>
     public string GreetWork { get; set; } = "Chúc ngày làm việc mới vui vẻ, thành công!";
     public string GreetOff { get; set; } = "Hôm nay là ngày nghỉ. Chúc anh chị ngày nghỉ vui vẻ!";
@@ -120,7 +135,7 @@ public static class VnTime
     public record DayInfo(decimal Value, string Kind, string? Name);
     /// <summary>Ghi chú ngày nghỉ là nghỉ cuối tuần (để trống, "nghỉ thứ 7", "thứ Bảy", "cuối tuần").</summary>
     public static bool WeekendNote(string? name) => string.IsNullOrWhiteSpace(name)
-        || System.Text.RegularExpressions.Regex.IsMatch(name, @"th[ứu]\s*(7|b[ảa]y)|cu[ốo]i\s*tu[ầa]n|saturday|weekend", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        || System.Text.RegularExpressions.Regex.IsMatch(name, @"th[ứu]\s*(7|b[ảa]y)|cu[ốo]i\s*tu[ầa]n|saturday|weekend|phi[êe]n|ch[ủu]\s*nh[ậa]t", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     public static DayInfo Day(DateOnly d, VpSettings s)
     {
         var key = d.ToString("yyyy-MM-dd");
@@ -133,6 +148,7 @@ public static class VnTime
             _ => 1
         };
         var hol = s.Holidays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        if (hol is null && s.AutoLegal && s.LegalOf(d.Year).TryGetValue(d, out var lname)) return new DayInfo(0, "holiday", lname);
         // Bản 1.10.4: thứ Bảy nghỉ luân phiên ghi trong danh sách ngày nghỉ (e-work ghi từng ngày) là nghỉ hằng tuần, không phải ngày lễ (tăng ca 200%, không 300%)
         if (hol is not null && d.DayOfWeek == DayOfWeek.Saturday && hol.Half is null && WeekendNote(hol.Name)) return new DayInfo(0, "off", hol.Name);
         if (hol is not null)

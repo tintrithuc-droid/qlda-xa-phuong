@@ -265,12 +265,7 @@ function vpSettingsHTML(){
     <h3>Địa chỉ IP mạng công ty</h3><p class="small muted" style="margin-top:0">Mỗi dòng một IP. Điểm danh từ mạng này tính là trong công ty. IP của bạn lúc này: <b>${esc(VP.st.ip||'')}</b></p>
     <textarea id="vs_ips" rows="4" style="width:100%">${esc((s.ips||[]).join('\n'))}</textarea></div>
   <div class="card"><h2 style="margin-top:0">Lịch nghỉ, lịch làm việc</h2>
-    <h3 style="margin:0 0 4px">Ngày nghỉ lễ, tết, nghỉ theo lịch công ty</h3><p class="small muted" style="margin-top:0">Mỗi dòng một ngày, dạng <b>2026-09-02 Quốc khánh</b>; nghỉ nửa ngày ghi thêm :s (nghỉ sáng) hoặc :c (nghỉ chiều), ví dụ 2026-12-31:c Tất niên.</p>
-    <div class="toolbar"><select id="vs_legalYear" aria-label="Năm">${[0,1].map(i=>{const y=new Date().getFullYear()+i; return `<option>${y}</option>`;}).join('')}</select><button class="btn sm" data-act="vp-legal">Điền ngày lễ theo luật</button></div>
-    <textarea id="vs_holidays" rows="8" style="width:100%">${esc((s.holidays||[]).join('\n'))}</textarea>
-    <p class="small muted">Gợi ý theo Bộ luật Lao động 2019 (Điều 112) và Ngày Văn hóa Việt Nam 24/11, kèm ngày nghỉ bù khi lễ trùng ngày nghỉ hằng tuần. Năm nào Chính phủ hoán đổi ngày nghỉ thì sửa lại theo thông báo trước khi lưu.</p>
-    <h3 style="margin:12px 0 4px">Ngày đi làm bù</h3><p class="small muted" style="margin-top:0">Ngày làm việc dù là thứ Bảy, Chủ nhật hoặc ngày nghỉ, dạng <b>2026-05-09 Làm bù 30/4</b>; làm nửa ngày ghi 2026-05-09:s.</p>
-    <textarea id="vs_workdays" rows="3" style="width:100%">${esc((s.workdays||[]).join('\n'))}</textarea>
+    ${vpDaysHTML(s)}
     <h3 style="margin:12px 0 4px">Lời chúc trên màn hình điểm danh</h3>
     <div class="fgrid"><div class="fld full"><label for="vs_greetWork">Ngày làm việc</label><input id="vs_greetWork" value="${esc(s.greetWork||'')}"></div>
     <div class="fld full"><label for="vs_greetOff">Ngày nghỉ (ngày lễ tự thêm tên lễ ở đầu)</label><input id="vs_greetOff" value="${esc(s.greetOff||'')}"></div></div></div>
@@ -281,12 +276,55 @@ function vpSettingsHTML(){
     <div class="toolbar"><button class="btn sm" data-act="vp-sync-key">${s.syncKeyHash?'Tạo lại khóa':'Tạo khóa chép chấm công'}</button></div>`:'<p class="small muted">Dành cho quản trị hệ thống.</p>'}</div></div>
   <div class="toolbar" style="margin-top:12px"><button class="btn primary" data-act="vp-set-save">Lưu thiết lập</button></div>`;
 }
-ACT['vp-legal']=async()=>{
-  const y=$('#vs_legalYear').value; let l; try{ l=await api('GET','/api/vp/holidays/legal?year='+y); }catch(e){ toast(errText(e),'err'); return; }
-  const ta=$('#vs_holidays'), cur=ta.value.split('\n').map(x=>x.trim()).filter(Boolean), have=new Set(cur.map(x=>x.slice(0,10)));
-  const add=l.filter(x=>!have.has(x.date)).map(x=>x.date+' '+x.name);
-  ta.value=[...cur,...add].sort().join('\n'); toast(add.length? `Đã điền ${add.length} ngày năm ${y}. Xem lại rồi bấm Lưu thiết lập.` : `Các ngày lễ năm ${y} đã có đủ.`);
+/* Bản 1.10.7: lịch nghỉ. Ngày lễ theo luật tự áp dụng; ngày phát sinh chọn ngày, chọn loại, chọn nội dung. Lưu về Holidays/Workdays như cũ. */
+const VP_WEEKEND=/^$|thứ\s*(7|bảy)|cuối\s*tuần|phiên|chủ\s*nhật/i;
+const VP_DAY_KINDS=[['off','Nghỉ cả ngày'],['off-s','Nghỉ buổi sáng'],['off-c','Nghỉ buổi chiều'],['work','Đi làm cả ngày'],['work-s','Đi làm buổi sáng']];
+const VP_DAY_TEXT={off:['Nghỉ theo lịch công ty','Nghỉ thư giãn','Nghỉ bù ngày lễ','Nghỉ hoán đổi theo thông báo của Chính phủ','Du lịch, nghỉ mát công ty','Nghỉ Tết (thêm ngoài quy định)','Nghỉ thứ Bảy luân phiên'],
+  half:['Tất niên','Liên hoan, sinh hoạt công ty','Họp tổng kết','Nghỉ theo lịch công ty'],
+  work:['Đi làm bù','Đi làm hoán đổi theo thông báo của Chính phủ','Thứ Bảy đi làm','Trực, làm việc theo kế hoạch công ty']};
+const vpDayText=k=>VP_DAY_TEXT[k.startsWith('work')?'work':k==='off'?'off':'half'];
+function vpDaysFrom(s){ const p=(x,w)=>{ const m=String(x).match(/^(\d{4}-\d{2}-\d{2})(?::([sc]))?\s*(.*)$/); if(!m) return null;
+    return {date:m[1], kind:w?(m[2]==='s'?'work-s':'work'):(m[2]==='s'?'off-s':m[2]==='c'?'off-c':'off'), name:m[3]||''}; };
+  return [...(s.holidays||[]).map(x=>p(x,false)),...(s.workdays||[]).map(x=>p(x,true))].filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); }
+function vpDaysTo(days){ const f=d=>d.date+({'off-s':':s','off-c':':c','work-s':':s'}[d.kind]||'')+(d.name?' '+d.name:'');
+  return {holidays:days.filter(d=>d.kind.startsWith('off')).map(f), workdays:days.filter(d=>d.kind.startsWith('work')).map(f)}; }
+function vpDaysHTML(s){
+  if(VP.daysOf!==s){ VP.daysOf=s; VP.days=vpDaysFrom(s); VP.dayYear=VP.dayYear||String(new Date().getFullYear()); }
+  const y=VP.dayYear, years=[...new Set([new Date().getFullYear()-1,new Date().getFullYear(),new Date().getFullYear()+1,...VP.days.map(d=>+d.date.slice(0,4))])].sort();
+  VP.legal=VP.legal||{}; if(!VP.legal[y]){ VP.legal[y]='…'; api('GET','/api/vp/holidays/legal?year='+y).then(l=>{ VP.legal[y]=l; onData(); }).catch(()=>{ VP.legal[y]=[]; }); }
+  const legal=Array.isArray(VP.legal[y])?VP.legal[y]:[], mine=VP.days.filter(d=>d.date.startsWith(y)), has=new Set(mine.map(d=>d.date));
+  const dow=d=>['CN','T2','T3','T4','T5','T6','T7'][new Date(d+'T00:00:00Z').getUTCDay()];
+  const kindName=k=>(VP_DAY_KINDS.find(x=>x[0]===k)||[,k])[1];
+  const sat=mine.filter(d=>d.kind==='off'&&(dow(d.date)==='CN'||(dow(d.date)==='T7'&&VP_WEEKEND.test(d.name.trim()))));
+  const rows=[...(s.autoLegal!==false?legal.filter(l=>!has.has(l.date)).map(l=>({date:l.date,kind:'off',name:l.name,legal:true})):[]),...mine.filter(d=>!sat.includes(d))].sort((a,b)=>a.date.localeCompare(b.date));
+  const kinds=opts(VP_DAY_KINDS,'off'), texts=opts([...vpDayText('off'),['__khac','Khác (ghi rõ)']]);
+  return `<h3 style="margin:0 0 4px">Ngày nghỉ lễ, tết theo luật</h3>
+    <label class="small"><input type="checkbox" id="vs_autoLegal" ${s.autoLegal!==false?'checked':''}> Tự áp dụng các ngày nghỉ lễ, tết theo Bộ luật Lao động 2019 (Điều 112) và Ngày Văn hóa Việt Nam 24/11, kèm ngày nghỉ bù khi lễ trùng ngày nghỉ hằng tuần. Không cần nhập, sang năm mới tự có.</label>
+    <h3 style="margin:12px 0 4px">Ngày nghỉ, ngày đi làm phát sinh</h3>
+    <p class="small muted" style="margin-top:0">Chọn ngày, chọn loại, chọn nội dung rồi bấm Thêm. Năm Chính phủ hoán đổi ngày nghỉ: thêm ngày nghỉ thay và ngày "Đi làm cả ngày" tương ứng.</p>
+    <div class="fgrid"><div class="fld"><label for="vd_date">Ngày</label><input id="vd_date" type="date" value="${esc(TODAY)}"></div>
+      <div class="fld"><label for="vd_kind">Loại</label><select id="vd_kind">${kinds}</select></div>
+      <div class="fld"><label for="vd_text">Nội dung</label><select id="vd_text">${texts}</select></div>
+      <div class="fld" id="vd_otherBox" hidden><label for="vd_other">Ghi rõ nội dung</label><input id="vd_other" maxlength="120"></div></div>
+    <div class="toolbar"><button class="btn sm primary" data-act="vp-day-add">Thêm và lưu</button></div>
+    <div class="toolbar" style="margin-top:10px"><label for="vs_dayYear" class="small">Năm</label><select id="vs_dayYear" data-act-change="vp-day-year">${years.map(v=>`<option ${String(v)===y?'selected':''}>${v}</option>`).join('')}</select>
+      <span class="small muted">${VP.legal[y]==='…'?'Đang tải ngày lễ…':''}</span></div>
+    ${rows.length?`<table class="tbl"><thead><tr><th>Ngày</th><th>Loại</th><th>Nội dung</th><th></th></tr></thead><tbody>${rows.map(d=>`<tr><td>${dow(d.date)}, ${fmtDate(d.date)}</td><td>${esc(kindName(d.kind))}</td><td>${esc(d.name)} ${d.legal?pill('Theo luật','ok'):''}</td>
+      <td>${d.legal?'':`<button class="btn sm" data-act="vp-day-del" data-id="${esc(d.date+'|'+d.kind)}" aria-label="Xóa">Xóa</button>`}</td></tr>`).join('')}</tbody></table>`:'<p class="small muted">Chưa có ngày nào trong năm này.</p>'}
+    ${sat.length?`<p class="small muted">Có thêm ${sat.length} ngày Chủ nhật, thứ Bảy nghỉ luân phiên chép từ e-work. Phần mềm đã tự tính các ngày này theo mục Thứ Bảy, không cần giữ. <button class="btn sm" data-act="vp-day-sat-clear" data-id="${esc(y)}">Bỏ các ngày này</button></p>`:''}`;
+}
+document.addEventListener('change', e=>{ const t=e.target;
+  if(t.id==='vd_kind'){ $('#vd_text').innerHTML=opts([...vpDayText(t.value),['__khac','Khác (ghi rõ)']]); $('#vd_otherBox').hidden=true; }
+  else if(t.id==='vd_text'){ $('#vd_otherBox').hidden=t.value!=='__khac'; if(t.value==='__khac') $('#vd_other').focus(); }
+  else if(t.id==='vs_dayYear'){ VP.dayYear=t.value; onData(); } });
+ACT['vp-day-add']=async()=>{
+  const date=$('#vd_date').value, kind=$('#vd_kind').value, name=($('#vd_text').value==='__khac'?$('#vd_other').value:$('#vd_text').value).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ toast('Chọn ngày.','err'); return; } if(!name){ toast('Ghi rõ nội dung.','err'); return; }
+  const isWork=kind.startsWith('work'); VP.days=VP.days.filter(d=>!(d.date===date && d.kind.startsWith('work')===isWork)); VP.days.push({date,kind,name});
+  VP.days.sort((a,b)=>a.date.localeCompare(b.date)); VP.dayYear=date.slice(0,4); await ACT['vp-set-save']();
 };
+ACT['vp-day-del']=async id=>{ const [date,kind]=id.split('|'); VP.days=VP.days.filter(d=>!(d.date===date&&d.kind===kind)); await ACT['vp-set-save'](); };
+ACT['vp-day-sat-clear']=async y=>{ VP.days=VP.days.filter(d=>!(d.date.startsWith(y)&&d.kind==='off'&&(new Date(d.date+'T00:00:00Z').getUTCDay()===0||(new Date(d.date+'T00:00:00Z').getUTCDay()===6&&VP_WEEKEND.test(d.name.trim()))))); await ACT['vp-set-save'](); };
 ACT['vp-set-save']=async()=>{
   const s={...VP.set}; ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd','saturday','saturdayAnchor'].forEach(k=>s[k]=$('#vs_'+k).value.trim());
   for(const k of ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd']) if(!/^\d{2}:\d{2}$/.test(s[k])){ toast('Giờ ghi dạng 08:00 (hai chữ số).','err'); return; }
@@ -294,11 +332,9 @@ ACT['vp-set-save']=async()=>{
   const bad=[]; s.places=$('#vs_places').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split(';').map(x=>x.trim()); const o={name:p[0], lat:parseFloat(p[1]), lng:parseFloat(p[2]), radius:parseInt(p[3])||500}; if(!o.name||isNaN(o.lat)||isNaN(o.lng)) bad.push(l); return o; });
   if(bad.length){ toast('Dòng nơi điểm danh chưa đúng: '+bad[0],'err'); return; }
   s.ips=$('#vs_ips').value.split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);
-  const dayRe=/^\d{4}-\d{2}-\d{2}(:[sc])?(\s+.*)?$/, lines=id=>$(id).value.split('\n').map(x=>x.trim()).filter(Boolean);
-  const badD=[...lines('#vs_holidays'),...lines('#vs_workdays')].filter(x=>!dayRe.test(x)); if(badD.length){ toast('Dòng ngày chưa đúng dạng 2026-09-02: '+badD[0],'err'); return; }
-  s.holidays=lines('#vs_holidays'); s.workdays=lines('#vs_workdays'); s.greetWork=$('#vs_greetWork').value.trim(); s.greetOff=$('#vs_greetOff').value.trim();
+  Object.assign(s, vpDaysTo(VP.days||vpDaysFrom(s))); s.autoLegal=$('#vs_autoLegal')?$('#vs_autoLegal').checked:true; s.greetWork=$('#vs_greetWork').value.trim(); s.greetOff=$('#vs_greetOff').value.trim();
   delete s.syncKeyHash;
-  await api('PUT','/api/vp/settings', s); VP.set=null; VP.ts={}; vpLoad(true); toast('Đã lưu thiết lập điểm danh');
+  await api('PUT','/api/vp/settings', s); VP.set=null; VP.ts={}; VP.legal={}; vpLoad(true); toast('Đã lưu thiết lập điểm danh');
 };
 ACT['vp-ew-import']=async(id,el)=>{
   const f=($('#vs_ew').files||[])[0]; if(!f){ toast('Chọn tệp ework_xuat.json','err'); return; }

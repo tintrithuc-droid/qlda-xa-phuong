@@ -78,6 +78,7 @@ function renderNav(){
   if(typeof VP!=='undefined'){ if(!VP.st && !VP.loading && !VP.err) setTimeout(()=>vpLoad(),0);
     const pend=VP.st? VP.st.pending : 0;
     html+=`<div class="grp">Văn phòng</div>`+link('van-phong','Điểm danh','check')+`<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>`
+      +link('lich-hop','Lịch công tác','cal')+`<a href="#thong-bao" class="${S.route==='thong-bao'?'on':''}">${ic('bell')}<span>Thông báo</span>${VP.ib&&VP.ib.unread?`<span class="cnt">${VP.ib.unread}</span>`:''}</a>`
       +(vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : ''); grp='Văn phòng'; }
   MODULES.filter(m=>can(m.key) && m.grp!=='Văn phòng').forEach(m=>{
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;

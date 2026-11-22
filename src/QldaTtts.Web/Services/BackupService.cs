@@ -34,9 +34,23 @@ public class BackupService
         data["files"] = await db.Files.AsNoTracking().ToListAsync();
         data["attachments"] = await db.Attachments.AsNoTracking().ToListAsync();
         data["settings"] = await db.Settings.AsNoTracking().ToListAsync();
+        // Bản 1.10: phân hệ Văn phòng (không nằm trong Collections vì có thông tin riêng của nhân sự, không nạp chung xuống trình duyệt)
+        foreach (var (name, q) in VpTables(db)) data[name] = await q.AsNoTracking().Cast<object>().ToListAsync();
         var payload = new { app = "qlda-ttts", version = 3, exportedAt = DateTime.UtcNow, data, passwords = users.ToDictionary(u => u.Id, u => u.PasswordHash) };
         return JsonSerializer.SerializeToUtf8Bytes(payload, JsonConfig.Options);
     }
+
+    /// <summary>Các bảng phân hệ Văn phòng có trong sao lưu (tên khóa trong tệp, bảng).</summary>
+    public static IEnumerable<(string Name, IQueryable<EntityBase> Query)> VpTables(AppDbContext db) => new (string, IQueryable<EntityBase>)[]
+    {
+        ("vp_departments", db.Departments), ("vp_employees", db.Employees), ("vp_attendances", db.Attendances), ("vp_requests", db.Requests),
+        ("vp_meetings", db.Meetings), ("vp_notices", db.Notices), ("vp_noticereads", db.NoticeReads)
+    };
+    public static readonly Dictionary<string, Type> VpTypes = new()
+    {
+        ["vp_departments"] = typeof(Department), ["vp_employees"] = typeof(Employee), ["vp_attendances"] = typeof(Attendance), ["vp_requests"] = typeof(Request),
+        ["vp_meetings"] = typeof(Meeting), ["vp_notices"] = typeof(Notice), ["vp_noticereads"] = typeof(NoticeRead)
+    };
 
     public record BackupInfo(string Name, long Size, DateTime CreatedAt);
 

@@ -71,6 +71,8 @@ const MODULES = [
   {key:'nhan-su', label:'Nhân sự', icon:'user', grp:'Văn phòng'},
   {key:'diem-danh', label:'Bảng công, chấm công', icon:'cal', grp:'Văn phòng'},
   {key:'de-xuat', label:'Đề xuất', icon:'doc', grp:'Văn phòng'},
+  {key:'lich-hop', label:'Lịch công tác, lịch họp', icon:'cal', grp:'Văn phòng'},
+  {key:'thong-bao', label:'Thông báo nội bộ', icon:'bell', grp:'Văn phòng'},
   {key:'bao-cao', label:'Báo cáo, thống kê', icon:'chart', grp:'Khai thác'},
   {key:'quan-tri', label:'Quản trị hệ thống', icon:'gear', grp:'Khai thác'}
 ];
@@ -86,7 +88,7 @@ const NAV_TV = ['tv-thanh-toan','Nghiệm thu, thanh toán tư vấn','coin'];
 const PH_ROUTE = {cb:{'goi-thau':'cb-goi-thau', 'thanh-toan':'cb-thanh-toan', 'khoi-luong':'cb-thanh-toan'}, dt:{}};
 const phRoute = (mod, ph) => (PH_ROUTE[ph]||{})[mod] || mod;
 const routePh = r => String(r||S.route).startsWith('cb-') ? 'cb' : 'dt';
-const APP_VERSION = '1.9';
+const APP_VERSION = '1.10';
 /* Thông tin đơn vị và nhận diện giao diện: quản trị hệ thống cập nhật tại Quản trị hệ thống → Thông tin đơn vị, giao diện */
 const BR_DEF = {appName:'Quản lý dự án, nhiệm vụ', orgShort:'Ban QLDA xã/phường …', orgName:'Ủy ban nhân dân xã/phường …', unitName:'Ban Quản lý dự án đầu tư xây dựng',
   bannerTitle:'Phần mềm quản lý dự án đầu tư xây dựng', bannerText:'Theo dõi dự án, gói thầu, hợp đồng, tiến độ, khối lượng và thanh toán trên một hệ thống thống nhất.',
@@ -245,7 +247,7 @@ function can(mod, lvl='view'){
   if(isIT() && IT_HIDE.has(mod)) return false;
   if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   /* Bản 1.9: mọi tài khoản tự điểm danh, gửi đề xuất; bảng công (trưởng phòng xem phòng mình) do máy chủ lọc phạm vi */
-  if(lvl==='view' && (mod==='van-phong'||mod==='de-xuat'||mod==='diem-danh')) return !!S.user;
+  if(lvl==='view' && (mod==='van-phong'||mod==='de-xuat'||mod==='diem-danh'||mod==='lich-hop'||mod==='thong-bao')) return !!S.user;
   if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(mod==='quan-tri') return false; // Quản trị hệ thống: chỉ nhóm toàn quyền
@@ -646,6 +648,7 @@ function fieldHTML(f, v, rec={}){
     case 'money': input=`<input id="${id}" type="number" step="1" min="0" value="${esc(val)}" data-money><span class="hint" id="${id}_h">${val!==''?fmtVND(val)+' đồng':''}</span>`; break;
     case 'number': case 'percent': input=`<input id="${id}" type="number" step="any" ${f.type==='percent'?'min="0" max="100"':''} value="${esc(val)}">`; break;
     case 'date': input=`<input id="${id}" type="date" value="${esc(val)}">`; break;
+    case 'time': input=`<input id="${id}" type="time" value="${esc(val)}">`; break;
     case 'password': input=`<input id="${id}" type="password" autocomplete="new-password" value="">`; break;
     case 'checks': { const list=typeof f.options==='function'?f.options():f.options; const cur=Array.isArray(val)?val:[]; input=`<div class="checks" id="${id}">${list.map(o=>{const [ov,ol]=Array.isArray(o)?o:[o,o]; return `<label><input type="checkbox" value="${esc(ov)}" ${cur.includes(ov)?'checked':''}> ${esc(ol)}</label>`;}).join('')}</div>`; break; }
     case 'files': input=`<input id="${id}" type="file" ${f.multiple?'multiple':''} accept="${esc(f.accept||'')}">${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break;
@@ -706,6 +709,7 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
       if(f.type==='checks') v[f.key]=$$('input:checked',el).map(i=>i.value);
       else if(f.type==='files') v[f.key]=[...el.files];
       else if(f.type==='password') v[f.key]=el.value;
+      else if(f.keepLines) v[f.key]=el.value.replace(/[ \t]+\n/g,'\n').trim(); /* Bản 1.10: giữ xuống dòng (nội dung thông báo, kết luận cuộc họp) */
       else if(f.type==='works'){ const r=worksRead(el); if(r.err){ err.textContent=r.err; return; } v[f.key]=r.text; }
       else if(['money','number','percent'].includes(f.type)) v[f.key]= el.value===''? null : Number(el.value);
       else { v[f.key]=el.value.replace(/\s+/g,' ').trim(); if(f.suggest && v[f.key]){ const hit=fieldSuggest(f).find(o=>normKey(o)===normKey(v[f.key])); if(hit) v[f.key]=hit; } }

@@ -30,7 +30,7 @@ function totp(secret) {
   await p.request.post(BASE + '/api/vp/import-ework', { headers: H, multipart: { file: { name: 'ework.json', mimeType: 'application/json', buffer: fs.readFileSync(path.join(__dirname, '../fixtures/ework_mau.json')) } } });
   await setStyle();
   const shots = [['02-tong-quan', 'tong-quan'], ['03-du-an', 'du-an'], ['04-goi-thau', 'goi-thau'], ['05-tien-do', 'tien-do'], ['06-thanh-toan', 'thanh-toan'], ['07-bao-cao', 'bao-cao'],
-    ['08-diem-danh', 'van-phong'], ['09-bang-cong', 'diem-danh'], ['10-de-xuat', 'de-xuat'], ['11-nhan-su', 'nhan-su'], ['12-quan-tri', 'quan-tri']];
+    ['08-diem-danh', 'van-phong'], ['09-bang-cong', 'diem-danh'], ['10-de-xuat', 'de-xuat'], ['11-nhan-su', 'nhan-su'], ['12-quan-tri', 'quan-tri'], ['17-lich-hop', 'lich-hop'], ['18-thong-bao', 'thong-bao']];
   for (const [n, r] of shots) { await p.evaluate(r => { try { vpReset && vpReset(); } catch {} location.hash = r; }, r); await p.waitForTimeout(900); await p.screenshot({ path: `${OUT}/${n}.png` }); }
   // Biểu mẫu thêm dự án
   await p.evaluate(() => location.hash = 'du-an'); await p.waitForTimeout(600);

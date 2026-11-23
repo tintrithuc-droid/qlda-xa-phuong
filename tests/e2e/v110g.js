@@ -109,6 +109,14 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   ok((await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, otByApproval: false } })).ok(), 'Lưu tùy chọn tăng ca lỗi');
   const after2 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
   ok(after2.otHours === 2 && after2.otPay === Math.round(hourly * 2 * 2), 'Tăng ca chủ nhật chưa tính 200%: ' + JSON.stringify({ h: after2.otHours, p: after2.otPay, e: Math.round(hourly * 4) }));
+  // 1.10.11: đơn giá giờ tăng ca tính trên lương chính + phụ cấp (như e-work); tùy chọn chỉ lương chính
+  await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [{ name: 'Phụ cấp trách nhiệm', amount: 2000000, exempt: 0 }], noInsurance: false, flatTax: false } });
+  const a3 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  ok(a3.otPay === Math.round(22000000 / a3.standard / 8 * 2 * 2), 'Tăng ca chưa tính trên lương gồm phụ cấp: ' + JSON.stringify({ p: a3.otPay, e: Math.round(22000000 / a3.standard / 8 * 4) }));
+  await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, otByApproval: false, otWithAllowances: false } });
+  const a4 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  ok(a4.otPay === Math.round(20000000 / a4.standard / 8 * 2 * 2), 'Tùy chọn tăng ca chỉ trên lương chính sai: ' + a4.otPay);
+  await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [], noInsurance: false, flatTax: false } });
   await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, otByApproval: true } });
   const ps0 = await J(r.get(BASE + '/api/vp/luong-settings', { headers: H }));
   ok(ps0.baseWage === 2530000 && ps0.regionMinWage === 5310000 && ps0.otRestRate === 200 && ps0.otHolidayRate === 300, 'Mức lương cơ sở / vùng / tăng ca mặc định chưa đúng 2026: ' + JSON.stringify(ps0));

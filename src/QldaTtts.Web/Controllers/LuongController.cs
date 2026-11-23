@@ -29,6 +29,8 @@ public class PaySettings
     public decimal OtMaxUrgent { get; set; } = 4;
     /// <summary>true: phiếu tăng ca duyệt trong tháng nào tính vào lương tháng đó (anh Trí 23/11); false: theo ngày tăng ca (như e-work).</summary>
     public bool OtByApproval { get; set; } = true;
+    /// <summary>Bản 1.10.11: đơn giá giờ tăng ca = (lương chính + phụ cấp) ÷ công chuẩn ÷ 8 (như e-work, theo tiền lương thực trả - Điều 98 BLLĐ); false: chỉ lương chính.</summary>
+    public bool OtWithAllowances { get; set; } = true;
     /// <summary>Ngày trả lương ghi trên phiếu (ví dụ "05 tháng sau").</summary>
     public string PayDay { get; set; } = "Ngày 05 tháng sau";
     /// <summary>Bản 1.10.4: người lao động tự xác nhận lương từ ngày ConfirmFrom đến hết ngày ConfirmTo của tháng sau; quá hạn coi như đồng ý.</summary>
@@ -237,6 +239,7 @@ public class LuongController : ApiControllerBase
             foreach (var a in al) { s.AllowanceLines.Add(new Line("pc", a.Name, a.Amount, a.Exempt > 0 ? $"không tính thuế {a.Exempt:#,0}" : null)); exempt += Math.Min(a.Amount, a.Exempt); }
             s.Allowances = al.Sum(a => a.Amount);
             var hourly = standard > 0 ? s.BaseSalary / standard / 8 : 0;
+            if (ps.OtWithAllowances && standard > 0) hourly = (s.BaseSalary + s.Allowances) / standard / 8;
             var ots = otReqs.TryGetValue(e.Id, out var ol) ? ol : new();
             var otH = ots.Sum(r => r.Hours ?? 0);
             string OtKind(Request r) => VnTime.Day(DateOnly.FromDateTime(VnTime.ToVn(r.FromAt!.Value)), vs).Kind;

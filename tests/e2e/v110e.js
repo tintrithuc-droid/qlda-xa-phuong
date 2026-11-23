@@ -80,6 +80,12 @@ const thisMonth = () => vnToday().slice(0, 7);
   await q2.post(BASE + '/api/auth/login', { headers: H, data: { username: 'ttb', password: 'Nhanvien2026' } });
   let st = await (await q2.get(BASE + '/api/vp/state', { headers: H })).json();
   ok(st.day && st.day.kind === 'holiday' && st.day.greeting.startsWith('Ngày hội công ty. ') && st.day.greeting.includes('ngày nghỉ vui vẻ'), 'Lời chúc ngày nghỉ sai: ' + JSON.stringify(st.day));
+  // 1.10.9: ngày nghỉ không mở điểm danh (như e-work), trừ khi có đề xuất tăng ca được duyệt
+  ok(st.day.canCheck === false, 'Ngày nghỉ vẫn mở điểm danh');
+  ok((await q2.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } })).status() === 400, 'Ngày nghỉ không có tăng ca vẫn điểm danh được');
+  await q2.put(BASE + '/api/vp/requests/dx-ot-hol', { headers: H, data: { type: 'Tăng ca', fromAt: T + 'T08:00:00+07:00', toAt: T + 'T12:00:00+07:00', hours: 4, reason: 'Trực' } });
+  ok((await r.post(BASE + '/api/vp/requests/dx-ot-hol/decide', { headers: H, data: { action: 'approve' } })).ok(), 'Duyệt tăng ca ngày nghỉ lỗi');
+  st = await (await q2.get(BASE + '/api/vp/state', { headers: H })).json(); ok(st.day.canCheck === true, 'Có tăng ca được duyệt mà chưa mở điểm danh');
   const ck = await (await q2.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } })).json();
   ok(ck.lateMinutes === 0 && String(ck.note || '').includes('Đi làm ngày nghỉ'), 'Điểm danh ngày nghỉ vẫn tính muộn: ' + JSON.stringify(ck));
   await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: vs.holidays.filter(h => !h.startsWith(T)), workdays: [T + ' Làm bù'], greetWork: '' } });

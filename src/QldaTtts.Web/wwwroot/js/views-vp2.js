@@ -398,7 +398,7 @@ VIEWS['luong']=()=>{
       <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Chi phí công ty</div><b>${vnd(sum('cost'))}</b></div></div>`
     + (noProf?`<div class="alert info" style="margin-bottom:10px">${noProf} người chưa có hồ sơ lương (lương chính 0, không đưa vào khi chốt). Bấm <b>Hồ sơ lương</b> để nhập.</div>`:'')
     + table([
-      {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
+      {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>${r.noAttendance?pill('Không chấm công','info'):''}`},
       {h:'Công', r:1, f:r=>`${fmtN(r.paid,1)}/${fmtN(r.standard,1)}${r.absent?`<div class="small muted">vắng ${fmtN(r.absent,1)}</div>`:''}`},
       {h:'Lương theo công', r:1, f:r=>vnd(r.timePay)}, {h:'Phụ cấp', r:1, f:r=>vnd(r.allowances)},
       {h:'Tăng ca', r:1, f:r=>r.otPay?`${vnd(r.otPay)}<div class="small muted">${fmtN(r.otHours,1)} giờ</div>`:'0'},
@@ -419,7 +419,7 @@ VIEWS['luong']=()=>{
 };
 /* Bản 1.10.4: người lao động tự xác nhận lương trong hạn (mặc định ngày 1 đến 3 tháng sau), có thể gửi kiến nghị */
 function payStatePill(r){ if(!r.locked||!r.confirmState) return '<span class="small muted">—</span>';
-  const k={ 'Đã xác nhận':'ok', 'Có kiến nghị':'bad', 'Đã trả lời kiến nghị':'info', 'Chưa xác nhận':'warn', 'Chưa đến hạn':'', 'Quá hạn, coi như đồng ý':'' }[r.confirmState];
+  const k={ 'Đã xác nhận':'ok', 'Có kiến nghị':'bad', 'Đã trả lời kiến nghị':'info', 'Chưa xác nhận':'warn', 'Chưa đến hạn':'', 'Quá hạn, coi như đồng ý':'', 'Không cần xác nhận (không chấm công)':'ok' }[r.confirmState];
   return pill(r.confirmState, k||'')+(r.confirmedAt?`<div class="small muted">${fmtDate(String(r.confirmedAt).slice(0,10))}</div>`:''); }
 function payFeedbackHTML(r){ if(!r.feedback) return '';
   return `<div class="card" style="max-width:640px;margin-top:10px"><h3 style="margin-top:0">Kiến nghị</h3><div style="white-space:pre-wrap">${esc(r.feedback)}</div>
@@ -457,7 +457,7 @@ function paySlipHTML(r, m){
   const L=(a,b,c='')=>`<tr><td>${a}</td><td class="r">${b}</td><td class="small muted">${c}</td></tr>`;
   return `<div class="card" style="max-width:640px"><h2 style="margin-top:0">${esc(r.name)}</h2><p class="small muted" style="margin-top:-6px">${esc(vpDeptName(r.departmentId))}${r.position?', '+esc(r.position):''} · Tháng ${m.slice(5)}/${m.slice(0,4)}</p>
   <table class="tbl" style="width:100%"><tbody>
-  ${L('Lương chính', vnd(r.baseSalary))}${L('Ngày công hưởng lương', fmtN(r.paid,1)+' / '+fmtN(r.standard,1), r.absent?`vắng không lý do ${fmtN(r.absent,1)}`:'')}
+  ${L('Lương chính', vnd(r.baseSalary))}${L('Ngày công hưởng lương', fmtN(r.paid,1)+' / '+fmtN(r.standard,1), r.noAttendance?'không chấm công: hưởng nguyên lương chính':r.absent?`vắng không lý do ${fmtN(r.absent,1)}`:'')}
   ${L('<b>1. Lương theo ngày công</b>', vnd(r.timePay))}
   ${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;Phụ cấp: '+esc(a.label), vnd(a.amount), esc(a.note||''))).join('')}
   ${L('<b>2. Phụ cấp</b>', vnd(r.allowances))}${L('<b>3. Tăng ca</b>', vnd(r.otPay), r.otHours?fmtN(r.otHours,1)+' giờ':'')}
@@ -526,7 +526,7 @@ ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; c
     head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty','Nghỉ vượt phép (ngày)','Tiền phép chưa nghỉ','Công tác phí','Xăng xe','Tạm ứng trừ lương','Xác nhận','Kiến nghị'],
     rows, money:[3,6,7,9,10,11,12,13,14,15,17,18,19,20,21,22,23,25,26,27,28]}]); };
 ACT['pay-approve']=async a=>{ const m=payMonth(), d=VP.pay[m]; const rows=(d&&d.rows||[]).filter(r=>r.locked);
-  const un=rows.filter(r=>!r.confirmedAt && r.confirmState!=='Quá hạn, coi như đồng ý').length, fb=rows.filter(r=>r.feedbackStatus==='Chờ xử lý').length;
+  const un=rows.filter(r=>!r.confirmedAt && !r.noAttendance && r.confirmState!=='Quá hạn, coi như đồng ý').length, fb=rows.filter(r=>r.feedbackStatus==='Chờ xử lý').length;
   if(a==='1' && !await confirmBox(`Duyệt chi lương tháng ${m.slice(5)}/${m.slice(0,4)}: ${rows.length} người, thực lĩnh ${vnd(rows.reduce((s,r)=>s+(r.net||0),0))} đồng?${fb?` <b>Còn ${fb} kiến nghị chưa trả lời.</b>`:''}${un?` <b>${un} người chưa xác nhận</b> (còn trong hạn).`:''} Sau khi duyệt mới xuất được danh sách chuyển khoản; muốn sửa bảng lương phải hủy duyệt.`,'Duyệt chi')) return;
   try{ const r=await api('POST',`/api/vp/luong/${m}/duyet`,{approve:a==='1'}); delete VP.pay[m]; render(); toast(a==='1'?'Đã duyệt chi lương '+r.n+' người':'Đã hủy duyệt chi'); }catch(ex){ toast(errText(ex),'err'); } };
 const payAscii = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toUpperCase().replace(/\s+/g,' ').trim();

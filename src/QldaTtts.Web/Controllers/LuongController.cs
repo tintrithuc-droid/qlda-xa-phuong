@@ -133,6 +133,8 @@ public class LuongController : ApiControllerBase
         public string? Reply { get; set; } public DateTime? RepliedAt { get; set; } public string? RepliedBy { get; set; }
         public string? ConfirmFrom { get; set; } public string? ConfirmTo { get; set; } public bool ConfirmOpen { get; set; } public string? ConfirmState { get; set; }
         public DateTime? ApprovedAt { get; set; } public string? ApprovedBy { get; set; }
+        /// <summary>Bản 1.10.9: nhân sự không chấm công (hồ sơ để "Không điểm danh"): hưởng nguyên lương chính, không theo ngày công, không cần tự xác nhận lương.</summary>
+        public bool NoAttendance { get; set; }
     }
 
 
@@ -145,6 +147,7 @@ public class LuongController : ApiControllerBase
         s.ConfirmFrom = f.ToString("yyyy-MM-dd"); s.ConfirmTo = t.ToString("yyyy-MM-dd"); s.ConfirmOpen = today >= f && today <= t && sl.ConfirmedAt is null;
         s.ConfirmState = sl.ConfirmedAt is not null ? "Đã xác nhận" : sl.FeedbackStatus == "Chờ xử lý" ? "Có kiến nghị" : sl.FeedbackStatus == "Đã trả lời" ? "Đã trả lời kiến nghị"
             : today < f ? "Chưa đến hạn" : today <= t ? "Chưa xác nhận" : "Quá hạn, coi như đồng ý";
+        if (s.NoAttendance && sl.FeedbackStatus is null) { s.ConfirmOpen = false; s.ConfirmState = "Không cần xác nhận (không chấm công)"; }
     }
 
     /// <summary>Phiếu lương đã chốt đang trong hạn xác nhận mà người này chưa xác nhận (để nhắc trên màn hình điểm danh).</summary>
@@ -205,6 +208,7 @@ public class LuongController : ApiControllerBase
             // Nghỉ việc riêng có lương (Điều 115) hưởng lương, không trừ phép; nghỉ không lương, nghỉ ốm/thai sản (BHXH chi trả) không tính lương công ty
             s.UnpaidDays = st.Unpaid; s.PrivateLeave = st.PrivateLeave;
             s.Paid = Math.Max(0, standard - s.Absent - s.LeaveOver - st.Unpaid); s.OtHours = st.Overtime;
+            if (!e.Attendance) { s.NoAttendance = true; s.LeaveOver = 0; s.UnpaidDays = 0; s.Paid = standard; }
             s.BaseSalary = p?.BaseSalary ?? 0;
             s.TimePay = standard > 0 ? Math.Round(s.BaseSalary * s.Paid / standard, 0) : 0;
             var daily = standard > 0 ? s.BaseSalary / standard : 0;
@@ -312,7 +316,7 @@ public class LuongController : ApiControllerBase
             {
                 var sl = slips.FirstOrDefault(x => x.EmployeeId == s.EmployeeId);
                 if (sl is null) { sl = new Payslip { Id = "pl-" + Guid.NewGuid().ToString("N")[..20], Month = month, EmployeeId = s.EmployeeId }; Db.Payslips.Add(sl); }
-                sl.Data = JsonSerializer.Serialize(s, Opts); sl.Net = s.Net; sl.LockedAt = DateTime.UtcNow; sl.LockedBy = Uc.User.Name; sl.ConfirmedAt = null; n++;
+                sl.Data = JsonSerializer.Serialize(s, Opts); sl.Net = s.Net; sl.LockedAt = DateTime.UtcNow; sl.LockedBy = Uc.User.Name; sl.ConfirmedAt = s.NoAttendance ? DateTime.UtcNow : null; n++;
             }
         else foreach (var sl in slips.Where(x => x.LockedAt != null)) { sl.LockedAt = null; sl.LockedBy = null; sl.Data = null; sl.Net = null; n++; }
         Uc.Log(b.Lock ? "Chốt bảng lương" : "Mở chốt bảng lương", "Lương", $"Tháng {month}: {n} người");

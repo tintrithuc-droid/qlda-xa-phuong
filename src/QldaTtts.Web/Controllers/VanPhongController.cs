@@ -50,6 +50,14 @@ public class VanPhongController : ApiControllerBase
 
     // ------------------------------------------------------------------ trạng thái chung
 
+    /// <summary>Bản 1.10.9: có đề xuất "Tăng ca" (hoặc "Công tác") được duyệt phủ ngày này thì được điểm danh dù là ngày nghỉ (như e-work: ngày nghỉ không mở điểm danh).</summary>
+    private async Task<bool> WorkAllowedOnOff(string empId, DateOnly day)
+    {
+        var f = VnTime.ToUtc(day.ToDateTime(TimeOnly.MinValue)); var t = VnTime.ToUtc(day.AddDays(1).ToDateTime(TimeOnly.MinValue));
+        return await Db.Requests.AsNoTracking().AnyAsync(r => r.EmployeeId == empId && r.Status == "Đã duyệt" && (r.Type == "Tăng ca" || r.Type == "Công tác")
+            && r.FromAt != null && r.FromAt < t && (r.ToAt ?? r.FromAt) >= f);
+    }
+
     [HttpGet("state")]
     public async Task<IActionResult> State()
     {
@@ -68,7 +76,7 @@ public class VanPhongController : ApiControllerBase
         var greet = di.Value > 0 ? s.GreetWork : (di.Kind == "holiday" && di.Name is { } hn ? hn + ". " : "") + s.GreetOff;
         return Ok(new
         {
-            day = new { value = di.Value, kind = di.Kind, name = di.Name, greeting = greet },
+            day = new { value = di.Value, kind = di.Kind, name = di.Name, greeting = greet, canCheck = di.Value > 0 || att?.InAt != null || (me is not null && await WorkAllowedOnOff(me.Id, today)) },
             payConfirm = me is null ? null : await LuongController.PendingConfirm(Db, me.Id),
             payFeedback = Uc.Can("luong", true) ? await Db.Payslips.CountAsync(x => x.FeedbackStatus == "Chờ xử lý") : 0,
             me = me is null ? null : Public(me), today = today.ToString("yyyy-MM-dd"), now = VnTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), attendance = att,
@@ -264,6 +272,9 @@ public class VanPhongController : ApiControllerBase
         var s = VpSettings.Load(Db);
         var now = VnTime.Now; var today = DateOnly.FromDateTime(now);
         var online = r.Mode == "online" || r.Mode == "congtac";
+        var dOff = VnTime.Day(today, s);
+        if (dOff.Value == 0 && !await Db.Attendances.AnyAsync(a => a.EmployeeId == me.Id && a.Date == today && a.InAt != null) && !await WorkAllowedOnOff(me.Id, today))
+            return Error(400, $"Hôm nay là ngày nghỉ{(dOff.Name is { } dn ? " (" + dn + ")" : "")}, không cần điểm danh. Được giao đi làm thì gửi đề xuất Tăng ca, duyệt xong sẽ điểm danh được.");
         // Nơi điểm danh: theo IP mạng công ty hoặc khoảng cách tới địa điểm đã khai báo
         string place; string? site = null;
         var ip = Uc.Ip; var ipOk = s.Ips.Any(x => !string.IsNullOrWhiteSpace(x) && (ip == x.Trim() || ip.EndsWith(":" + x.Trim())));

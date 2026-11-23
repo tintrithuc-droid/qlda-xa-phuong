@@ -48,6 +48,8 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   ok(c.code === 0 && /4 nhóm vai trò mới/.test(c.out), 'Nạp e-work / tạo nhóm vai trò lỗi: ' + c.out.slice(-600));
   ok(/Quản Trị Cũ là quản trị trên e-work: tài khoản nhận nhóm Nhân viên/.test(c.out), 'Thiếu cảnh báo tài khoản quản trị e-work');
   ok(/Thứ Bảy làm cách tuần/.test(c.out), 'Không nhận ra thứ Bảy cách tuần khi nạp');
+  { const _vs = await (await r.get(BASE + '/api/vp/settings', { headers: H })).json(); const _td = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, workdays: [...(_vs.workdays || []), _td + ' Ngày kiểm thử'] } }); } // hôm nay luôn là ngày làm việc (ngày nghỉ không mở điểm danh)
   { const vs0 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs0.saturday === 'cach-tuan' && vs0.saturdayAnchor === '2027-01-02', 'Thiết lập thứ Bảy sau khi nạp: ' + vs0.saturday + ' ' + vs0.saturdayAnchor); }
   const all = await J(r.get(BASE + '/api/data', { headers: H }));
   const grp = id => all.groups.find(g => g.id === id); const usr = u => all.users.find(x => x.username === u);
@@ -152,7 +154,7 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   }
   // 8) Thứ Bảy làm cả ngày, cách tuần (Tri Thức): tháng 10/2026 làm 10/10, 24/10 → công chuẩn 24
   {
-    const vs = await J(r.get(BASE + '/api/vp/settings', { headers: H }));
+    const vs = await J(r.get(BASE + '/api/vp/settings', { headers: H })); vs.workdays = [];
     const bad = await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: [], saturday: 'cach-tuan', saturdayAnchor: '2026-10-11' } });
     ok(bad.status() === 400, 'Mốc cách tuần không phải thứ Bảy vẫn lưu được');
     ok((await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: [], saturday: 'cach-tuan', saturdayAnchor: '2026-10-10' } })).ok(), 'Lưu thứ Bảy cách tuần lỗi');

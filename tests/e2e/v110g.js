@@ -56,6 +56,8 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
     await q.post(BASE + '/api/auth/login', { headers: H, data: { username: u, password: 'Nhanvien2026' } }); return cx; };
   const cA = await login('nva'), cB = await login('ttb'); const qa = cA.request, qb = cB.request;
 
+  { const _vs = await (await r.get(BASE + '/api/vp/settings', { headers: H })).json(); const _td = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, workdays: [...(_vs.workdays || []), _td + ' Ngày kiểm thử'] } }); } // hôm nay luôn là ngày làm việc (ngày nghỉ không mở điểm danh)
   // 2) Điểm danh hôm nay
   const ck = await qb.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } });
   ok(ck.ok(), 'Điểm danh vào lỗi: ' + await ck.text());

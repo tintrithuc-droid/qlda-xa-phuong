@@ -31,6 +31,8 @@ function totp(secret) {
   ok(imp.departments === 2 && imp.employees === 3 && imp.newAccounts.length === 2 && imp.attendances === 2 && imp.requests === 2, 'Số liệu nhập e-work sai');
   const imp2 = await (await r.post(BASE + '/api/vp/import-ework', { headers: H, multipart: { file: { name: 'ework.json', mimeType: 'application/json', buffer: fs.readFileSync(path.join(__dirname, '../fixtures/ework_mau.json')) } } })).json();
   ok(imp2.employees === 0 && imp2.attendances === 0 && imp2.requests === 0 && imp2.newAccounts.length === 0, 'Nhập lần 2 bị trùng');
+  { const _vs = await (await r.get(BASE + '/api/vp/settings', { headers: H })).json(); const _td = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, workdays: [...(_vs.workdays || []), _td + ' Ngày kiểm thử'] } }); } // hôm nay luôn là ngày làm việc (ngày nghỉ không mở điểm danh)
   const st0 = await (await r.get(BASE + '/api/vp/state', { headers: H })).json();
   ok(st0.settings.places.length === 1 && st0.settings.holidays.includes('2026-09-02 Quốc khánh') && st0.settings.holidays.includes('2026-12-31:s Cuối năm'), 'Thiết lập nơi điểm danh, ngày nghỉ chưa nạp');
   // Gắn hồ sơ cho quản trị để điểm danh

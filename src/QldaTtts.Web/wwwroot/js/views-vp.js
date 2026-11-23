@@ -41,6 +41,7 @@ VIEWS['van-phong']=()=>{
   let box;
   if(!me) box=`<div class="alert">Tài khoản của bạn chưa gắn với hồ sơ nhân sự nên chưa điểm danh được. Liên hệ người quản lý nhân sự để được gắn.</div>`;
   else if(!me.attendance) box=`<div class="alert info">Hồ sơ của bạn được thiết lập không cần điểm danh.</div>`;
+  else if(st.day && st.day.canCheck===false) box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div><div class="toolbar" style="justify-content:center"><button class="btn" data-act="vp-req-new">Gửi đề xuất tăng ca</button></div>`;
   else box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div>
     <div class="vp-state">
       <div><span class="eyebrow">Giờ vào</span><b>${a&&a.inAt? vpHM(a.inAt) : '—'}</b>${a&&a.inAt? vpPlacePill(a.inPlace)+(a.lateMinutes>0?' '+pill('Muộn '+a.lateMinutes+' phút','bad'):''):''}${a&&a.site?`<div class="small muted">${esc(a.site)}</div>`:''}</div>
@@ -70,7 +71,7 @@ VIEWS['van-phong']=()=>{
 /* Bản 1.10.4: lời chúc theo lịch làm việc, nhắc xác nhận lương trong hạn */
 function vpGreet(st){
   const d=st.day||{}; const off=!(d.value>0);
-  let h=`<div class="alert ${off?'info':'ok'} vp-greet" style="margin-bottom:10px"><b>${esc(d.greeting||'')}</b>${off?'<div class="small">Nếu hôm nay anh chị đi làm, vẫn điểm danh bình thường (không tính đi muộn).</div>':d.kind==='half'?`<div class="small">Hôm nay làm nửa ngày${d.name?' ('+esc(d.name)+')':''}.</div>`:d.name?`<div class="small">${esc(d.name)}</div>`:''}</div>`;
+  let h=`<div class="alert ${off?'info':'ok'} vp-greet" style="margin-bottom:10px"><b>${esc(d.greeting||'')}</b>${off?(d.canCheck?'<div class="small">Hôm nay anh chị có đề xuất tăng ca, công tác được duyệt: điểm danh bình thường (không tính đi muộn).</div>':'<div class="small">Không cần điểm danh. Nếu được giao đi làm, gửi đề xuất Tăng ca; duyệt xong nút điểm danh sẽ hiện.</div>'):d.kind==='half'?`<div class="small">Hôm nay làm nửa ngày${d.name?' ('+esc(d.name)+')':''}.</div>`:d.name?`<div class="small">${esc(d.name)}</div>`:''}</div>`;
   return h;
 }
 function vpPayAlert(st){
@@ -373,7 +374,7 @@ VIEWS['nhan-su']=()=>{
     body=`<div class="toolbar" style="margin:10px 0"><select data-f="nsd" aria-label="Phòng ban">${opts(VP.depts.map(d=>[d.id,d.name]), dep, 'Tất cả phòng ban')}</select><select data-f="nss" aria-label="Trạng thái">${opts(['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc'], stt, 'Mọi trạng thái')}</select><input type="search" data-f="nsq" value="${esc(q)}" placeholder="Tìm họ tên, điện thoại…" aria-label="Tìm nhân sự">${ed?`<button class="btn primary" data-act="vp-emp" data-id="">+ Thêm nhân sự</button>`:''}</div>`
     + table([{h:'Họ tên', f:e=>`<b style="font-weight:600">${esc(e.name)}</b>${e.code?` <span class="small muted">${esc(e.code)}</span>`:''}<div class="small muted">${esc(e.position||'')}</div>`},
       {h:'Phòng ban', f:e=>esc(vpDeptName(e.departmentId))}, {h:'Liên hệ', f:e=>[e.phone,e.email].filter(Boolean).map(esc).join('<br>')},
-      {h:'Tài khoản', f:e=>acc(e.userId)}, {h:'Điểm danh', f:e=>e.attendance?'Có':'Không'}, {h:'Trạng thái', f:e=>pill(e.status, e.status==='Đang làm việc'?'ok':'')}],
+      {h:'Tài khoản', f:e=>acc(e.userId)}, {h:'Chấm công', f:e=>e.attendance?'Có':pill('Không chấm công','info')}, {h:'Trạng thái', f:e=>pill(e.status, e.status==='Đang làm việc'?'ok':'')}],
       rows, {empty:'Chưa có hồ sơ nhân sự.', pk:'ns', rowAct: ed||VP.st.perms.hr? 'vp-prof' : null});
   } else {
     body=`<div class="toolbar" style="margin:10px 0">${ed?`<button class="btn primary" data-act="vp-dept" data-id="">+ Thêm phòng ban</button>`:''}</div>`+table([
@@ -390,7 +391,7 @@ ACT['vp-emp']=id=>{
   const used=new Set(VP.emps.filter(x=>x.id!==id && x.userId).map(x=>x.userId));
   const F=[{key:'name',label:'Họ tên',req:true},{key:'code',label:'Mã nhân viên'},{key:'departmentId',label:'Phòng ban',type:'select',options:()=>VP.depts.map(d=>[d.id,d.name])},
     {key:'position',label:'Chức vụ, vị trí',suggest:()=>VP.emps.map(x=>x.position)},{key:'userId',label:'Tài khoản đăng nhập',type:'select',options:()=>D('users').filter(u=>!used.has(u.id)).map(u=>[u.id,u.name+' ('+u.username+')'])},
-    {key:'status',label:'Trạng thái',type:'select',req:true,options:['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc']},{key:'attendance',label:'Điểm danh',type:'select',req:true,options:[['true','Có điểm danh'],['false','Không điểm danh']]},
+    {key:'status',label:'Trạng thái',type:'select',req:true,options:['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc']},{key:'attendance',label:'Chấm công',type:'select',req:true,options:[['true','Có điểm danh, lương theo ngày công'],['false','Không chấm công: hưởng nguyên lương chính, không cần xác nhận lương']]},
     {key:'phone',label:'Điện thoại'},{key:'email',label:'Thư điện tử'},{key:'birthday',label:'Ngày sinh',type:'date'},{key:'gender',label:'Giới tính',type:'select',options:['Nam','Nữ']},
     {key:'startDate',label:'Ngày vào làm',type:'date'},{key:'endDate',label:'Ngày nghỉ việc',type:'date'},
     {key:'education',label:'Trình độ',suggest:['Trung cấp','Cao đẳng','Đại học','Thạc sĩ','Tiến sĩ']},{key:'major',label:'Chuyên ngành đào tạo'},

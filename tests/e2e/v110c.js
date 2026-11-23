@@ -61,8 +61,16 @@ function totp(secret) {
   ok(!mine.all && mine.rows.length === 0, 'Nhân viên thấy phiếu lương chưa chốt');
   p._x = true; ok((await q2.get(BASE + '/api/vp/luong-ho-so', { headers: H })).status() === 403, 'Nhân viên xem được hồ sơ lương');
   ok((await q2.put(BASE + `/api/vp/luong/${M}/${ttb.id}`, { headers: H, data: { bonus: 99, deduction: 0 } })).status() === 403, 'Nhân viên tự sửa lương được'); p._x = false;
+  // 1.10.9: nhân sự không chấm công: hưởng nguyên lương chính, không cần tự xác nhận
+  ok((await r.put(BASE + `/api/vp/employees/${nva.id}`, { headers: H, data: { ...nva, attendance: false } })).ok(), 'Đặt không chấm công lỗi');
+  d = await (await r.get(BASE + `/api/vp/luong?month=${M}`, { headers: H })).json();
+  const na = d.rows.find(x => x.employeeId === nva.id);
+  ok(na.noAttendance && na.paid === na.standard && na.timePay === 60000000 && na.absent === 0, 'Không chấm công chưa hưởng nguyên lương chính: ' + JSON.stringify({ n: na.noAttendance, p: na.paid, s: na.standard, t: na.timePay }));
   // Chốt
   const lk = await (await r.post(BASE + `/api/vp/luong/${M}/chot`, { headers: H, data: { lock: true } })).json(); ok(lk.n === 2, 'Chốt bảng lương sai số người: ' + lk.n);
+  { const d2 = await (await r.get(BASE + `/api/vp/luong?month=${M}`, { headers: H })).json(); const n2 = d2.rows.find(x => x.employeeId === nva.id), t2 = d2.rows.find(x => x.employeeId === ttb.id);
+    ok(n2.confirmedAt && n2.confirmState === 'Không cần xác nhận (không chấm công)' && !n2.confirmOpen, 'Không chấm công vẫn phải xác nhận: ' + JSON.stringify({ c: n2.confirmedAt, s: n2.confirmState }));
+    ok(!t2.confirmedAt && !t2.noAttendance, 'Người có chấm công bị tự xác nhận'); }
   p._x = true; ok((await r.put(BASE + `/api/vp/luong/${M}/${nva.id}`, { headers: H, data: { bonus: 0, deduction: 0 } })).status() === 409, 'Đã chốt vẫn điều chỉnh được'); p._x = false;
   await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [], noInsurance: false, flatTax: false } });
   mine = await (await q2.get(BASE + `/api/vp/luong?month=${M}`, { headers: H })).json();

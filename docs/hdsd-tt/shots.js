@@ -64,6 +64,8 @@ const VIEW = { width: 1366, height: 820 };
   const ttb = E('Trần Thị B');
   const PM = prevMonth(), M = thisMonth(), D0 = today();
 
+  { const _vs = await (await r.get(BASE + '/api/vp/settings', { headers: H })).json(); const _td = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, workdays: [...(_vs.workdays || []), _td + ' Ngày kiểm thử'] } }); } // hôm nay luôn là ngày làm việc (ngày nghỉ không mở điểm danh)
   // điểm danh, đề xuất
   await nv.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } });
   await gd.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } });

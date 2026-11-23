@@ -52,7 +52,7 @@ public static class ServerCli
             }
             Log("Chuyển dữ liệu từ e-work (dòng lệnh trên máy chủ)", "Văn phòng", rep.Summary);
             await db.SaveChangesAsync();
-            if (rep.NewAccounts.Count > 0 || rep.LinkedAccounts.Count > 0)
+            if (rep.NewAccounts.Count > 0) // 1.10.11: chỉ ghi tệp khi có tài khoản mới (chạy lại không sinh tệp)
             {
                 var sb = new StringBuilder("Họ tên,Tên đăng nhập,Mật khẩu ban đầu,Phòng ban\r\n");
                 string C(string? s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";

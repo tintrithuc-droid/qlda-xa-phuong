@@ -75,7 +75,7 @@ function cli(args, extraEnv = {}) {
   // Nạp lại không sinh trùng, không đổi mật khẩu đã đổi
   c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk2.csv')]);
   const csv2 = fs.existsSync(path.join(tmp, 'tk2.csv')) ? fs.readFileSync(path.join(tmp, 'tk2.csv'), 'utf8') : '';
-  ok(c.code === 0 && csv2.includes('tài khoản đã có') && !csv2.includes('mật khẩu ban đầu chung') && c.out.includes('0 tài khoản mới'), 'Nạp lại sinh tài khoản mới: ' + c.out);
+  ok(c.code === 0 && csv2 === '' && c.out.includes('0 tài khoản mới'), 'Nạp lại sinh tài khoản mới hoặc vẫn ghi tệp tài khoản: ' + c.out); // 1.10.11: không có tài khoản mới thì không ghi tệp
   const ctx3 = await b.newContext();
   ok((await ctx3.request.post(BASE + '/api/auth/login', { headers: H, data: { username: 'ttb', password: 'Rieng2026x' } })).ok(), 'Nạp lại làm mất mật khẩu đã đổi');
 

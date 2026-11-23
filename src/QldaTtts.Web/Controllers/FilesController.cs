@@ -33,7 +33,7 @@ public class FilesController : ApiControllerBase
         var sf = await Db.Files.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
         if (sf is null) return Error(404, "Tệp không còn tồn tại.");
         // Bản 1.10.4: tệp đính kèm hồ sơ nhân sự (bằng cấp, CCCD, hợp đồng): chỉ người quản lý nhân sự và chính người đó
-        // Bản 1.10.11: tệp hồ sơ nhân sự (một tệp cũ trên mục, hoặc nhiều tệp ở Attachments "ho-so-ns"): người quản lý nhân sự, chính người đó;
+        // Bản 1.10.12: tệp hồ sơ nhân sự (một tệp cũ trên mục, hoặc nhiều tệp ở Attachments "ho-so-ns"): người quản lý nhân sự, chính người đó;
         // người xem nhân sự chỉ xem được tệp bằng cấp, hợp đồng, công tác, khen thưởng (không xem kỷ luật, giấy tờ riêng)
         var hrOwner = await HoSoNhanSuController.OwnerOfFile(Db, id);
         if (hrOwner is not null && sf.UploadedBy != Uc.User.Username && !Uc.Can("nhan-su", true)
@@ -43,7 +43,7 @@ public class FilesController : ApiControllerBase
                 .Concat(Db.Attachments.AsNoTracking().Where(a => a.FileId == id && a.Collection == HoSoNhanSuController.Col).Select(a => a.Kind ?? "")).ToListAsync();
             if (!Uc.Can("nhan-su") || kinds.Any(k => k is "ky-luat" or "giay-to" or "")) return Denied("Tệp thuộc hồ sơ nhân sự riêng.");
         }
-        // Bản 1.10.11: tệp của đề xuất (nghỉ phép, thanh toán…) chỉ người gửi, trưởng phòng, người xem mọi đề xuất
+        // Bản 1.10.12: tệp của đề xuất (nghỉ phép, thanh toán…) chỉ người gửi, trưởng phòng, người xem mọi đề xuất
         var reqIds = await Db.Attachments.AsNoTracking().Where(a => a.FileId == id && a.Collection == "vp-de-xuat").Select(a => a.RecordId).ToListAsync();
         if (reqIds.Count > 0 && sf.UploadedBy != Uc.User.Username && await VpTepController.Visible(Db, Uc, "vp-de-xuat", reqIds) is { } vis && vis.Count == 0)
             return Denied("Tệp thuộc đề xuất của người khác.");

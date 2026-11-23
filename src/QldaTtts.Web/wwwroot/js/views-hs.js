@@ -1,4 +1,4 @@
-/* Bản 1.10.11: Hồ sơ nhân sự làm lại (góp ý anh Trí 23/11/2026: mục bằng cấp đính kèm không logic, không biết thao tác, không thấy tệp).
+/* Bản 1.10.12: Hồ sơ nhân sự làm lại (góp ý anh Trí 23/11/2026: mục bằng cấp đính kèm không logic, không biết thao tác, không thấy tệp).
    Hồ sơ là MỘT TRANG riêng (không phải hộp thoại chồng hộp thoại), chia thẻ theo loại mục; mỗi mục là một thẻ có sẵn nút
    Xem, Tải về, Gỡ tệp, Đính kèm thêm, Sửa, Xóa. Thêm mục mới chọn tệp ngay trong cùng biểu mẫu (một bước).
    Người lao động mở "Hồ sơ của tôi" để xem hồ sơ của mình và tự thêm bằng cấp, giấy tờ. */
@@ -131,7 +131,7 @@ ACT['hs-fdel']=async fid=>{ const eid=S.sel.hs; const f=((HS.data[eid]||{}).reco
   if(!await confirmBox(`Gỡ tệp <b>${esc(f.name)}</b> khỏi hồ sơ? (Quản trị khôi phục được trong 30 ngày.)`,'Gỡ tệp')) return;
   try{ await api('DELETE',`/api/vp/ho-so/${encodeURIComponent(eid)}/tep/${encodeURIComponent(fid)}`); toast('Đã gỡ tệp'); HS.sum=null; hsLoad(eid, true); }catch(e){ toast(errText(e),'err'); } };
 
-/* Bản 1.10.11: tệp đính kèm lịch họp, thông báo, đề xuất (chủ yếu chuyển từ e-work cũ) */
+/* Bản 1.10.12: tệp đính kèm lịch họp, thông báo, đề xuất (chủ yếu chuyển từ e-work cũ) */
 const VPT = { cnt:{} };
 async function vptCount(col){ if(VPT.cnt[col]) return VPT.cnt[col]; VPT.cnt[col]={}; try{ VPT.cnt[col]=await api('GET','/api/vp/tep/'+col+'/dem'); }catch{} if(['de-xuat'].includes(S.route)) render(); return VPT.cnt[col]; }
 function vptFilesHtml(l){ return l.length? `<ul class="hs-files">${l.map(f=>hsFileRow(f,false)).join('')}</ul>` : ''; }

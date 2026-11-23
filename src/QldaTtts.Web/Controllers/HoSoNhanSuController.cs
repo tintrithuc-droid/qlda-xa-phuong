@@ -7,7 +7,7 @@ using QldaTtts.Web.Services;
 namespace QldaTtts.Web.Controllers;
 
 /// <summary>
-/// Bản 1.10.11: hồ sơ nhân sự làm lại theo góp ý anh Trí (23/11/2026): mỗi mục (bằng cấp, hợp đồng, giấy tờ…) đính được nhiều tệp,
+/// Bản 1.10.12: hồ sơ nhân sự làm lại theo góp ý anh Trí (23/11/2026): mỗi mục (bằng cấp, hợp đồng, giấy tờ…) đính được nhiều tệp,
 /// xem, tải, xóa từng tệp ngay trên hồ sơ. Tệp lưu ở bảng Attachments với Collection = "ho-so-ns", RecordId = mã mục hồ sơ,
 /// KHÔNG gửi kèm /api/data (thông tin riêng), chỉ trả qua các API dưới đây.
 /// Quyền: người quản lý nhân sự (nhan-su: sửa) làm mọi việc; người xem nhân sự (nhan-su: xem) xem, trừ kỷ luật và giấy tờ riêng;

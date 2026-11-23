@@ -226,7 +226,7 @@ public class KpiController : ApiControllerBase
         return Ok(new { month, settings = k, canEdit = edit, rows });
     }
 
-    /// <summary>Bản 1.10.11: true khi chốt KPI: phần chưa có điểm tính 0 (như trước). Khi xem tạm tính, chỉ tính trên các phần đã có điểm
+    /// <summary>Bản 1.10.12: true khi chốt KPI: phần chưa có điểm tính 0 (như trước). Khi xem tạm tính, chỉ tính trên các phần đã có điểm
     /// (giữa tháng chưa chấm dự án, chưa đánh giá thì không còn ra loại D cho mọi người).</summary>
     private bool _strict;
     private static decimal Total(KpiSettings k, decimal? work, decimal? project, decimal? att, decimal? mgr, bool strict = true)

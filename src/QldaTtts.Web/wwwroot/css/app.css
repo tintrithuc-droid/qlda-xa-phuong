@@ -753,7 +753,7 @@ select:not([multiple]):not([size]):disabled{opacity:.6}
   .auth .cap-img{max-width:100%; height:auto}
 }
 
-/* Bản 1.10.11: hồ sơ nhân sự (trang riêng, thẻ theo mục, tệp có nút Xem / Tải về / Gỡ) */
+/* Bản 1.10.12: hồ sơ nhân sự (trang riêng, thẻ theo mục, tệp có nút Xem / Tải về / Gỡ) */
 .hs-tabs .cnt{display:inline-block; min-width:20px; padding:0 6px; margin-left:4px; border-radius:9px; background:var(--accent); color:#fff; font-size:11px; font-weight:600; text-align:center}
 .hs-tabs .cnt.zero{background:var(--panel2); color:var(--muted)}
 .hs-sums{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-top:12px}

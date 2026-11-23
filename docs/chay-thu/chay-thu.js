@@ -1,4 +1,4 @@
-// Bản 1.10.11: CHẠY THỬ THỦ CÔNG THEO VAI TRÒ (bắt buộc trước khi xin cài, cùng với kiểm thử tự động).
+// Bản 1.10.12: CHẠY THỬ THỦ CÔNG THEO VAI TRÒ (bắt buộc trước khi xin cài, cùng với kiểm thử tự động).
 // Đóng vai 5 người dùng (Nhân viên, Trưởng phòng, Kế toán, Giám đốc, Quản trị), mở MỌI mục trong menu của từng người,
 // chụp ảnh từng màn hình, ghi lại lỗi trang, lỗi API, màn hình trống. Người chạy XEM TỪNG ẢNH rồi ghi nhận xét vào báo cáo.
 // Dữ liệu mẫu kiểu e-work (không phải dữ liệu thật), có tệp đính kèm bằng cấp, CCCD, lịch họp, thông báo, đề xuất.

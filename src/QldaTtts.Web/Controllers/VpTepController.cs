@@ -7,7 +7,7 @@ using QldaTtts.Web.Services;
 namespace QldaTtts.Web.Controllers;
 
 /// <summary>
-/// Bản 1.10.11: tệp đính kèm của lịch họp, thông báo, đề xuất ở phân hệ Văn phòng (chủ yếu tệp chuyển từ e-work cũ).
+/// Bản 1.10.12: tệp đính kèm của lịch họp, thông báo, đề xuất ở phân hệ Văn phòng (chủ yếu tệp chuyển từ e-work cũ).
 /// Lưu ở Attachments với Collection "vp-lich-hop", "vp-thong-bao", "vp-de-xuat"; không gửi kèm /api/data.
 /// Lịch họp, thông báo: mọi tài khoản xem được (như nội dung). Đề xuất: người gửi, người xem mọi đề xuất (de-xuat), trưởng phòng của người gửi.
 /// </summary>

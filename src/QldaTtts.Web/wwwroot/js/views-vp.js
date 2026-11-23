@@ -420,7 +420,7 @@ const VP_REC = [['bang-cap','Bằng cấp, chứng chỉ','Tên văn bằng, ch�
   ['cong-tac','Quá trình công tác','Nội dung (bổ nhiệm, điều chuyển, tăng lương…)','Phòng ban, đơn vị','Số quyết định','Từ ngày'],['khen-thuong','Khen thưởng','Nội dung khen thưởng','Hình thức','Số quyết định','Ngày'],
   ['ky-luat','Kỷ luật','Nội dung vi phạm','Hình thức kỷ luật','Số quyết định','Ngày'],['giay-to','Giấy tờ khác (CCCD, sơ yếu lý lịch, giấy khám sức khỏe…)','Tên giấy tờ','Nơi cấp','Số','Ngày cấp']];
 const vpUser = id => D('users').find(u=>u.id===id);
-/* Bản 1.10.11: hồ sơ (vp-prof) là trang riêng, xem views-hs.js */
+/* Bản 1.10.12: hồ sơ (vp-prof) là trang riêng, xem views-hs.js */
 ACT['vp-dept']=id=>{ const d=vpDept(id)||{order:VP.depts.length+1};
   openForm({title: id?'Sửa phòng ban':'Thêm phòng ban', narrow:true, value:d, fields:[{key:'name',label:'Tên phòng ban',req:true},{key:'code',label:'Mã'},
     {key:'managerUserId',label:'Trưởng phòng (duyệt đề xuất, xem bảng công của phòng)',type:'select',options:()=>D('users').filter(u=>u.active!==false).map(u=>[u.id,u.name+' ('+u.username+')'])},

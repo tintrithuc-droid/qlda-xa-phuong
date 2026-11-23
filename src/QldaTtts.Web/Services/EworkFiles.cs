@@ -7,7 +7,7 @@ using QldaTtts.Web.Data;
 namespace QldaTtts.Web.Services;
 
 /// <summary>
-/// Bản 1.10.11: chép TỆP ĐÍNH KÈM của e-work cũ sang QLDA (lần nạp 22/11 chỉ chép chữ, bỏ sót tệp: anh Trí không thấy bằng cấp).
+/// Bản 1.10.12: chép TỆP ĐÍNH KÈM của e-work cũ sang QLDA (lần nạp 22/11 chỉ chép chữ, bỏ sót tệp: anh Trí không thấy bằng cấp).
 /// Đọc cột DinhKem (và MatTruocCCCD, MatSauCCCD) trong ework_xuat.json, cùng bảng LogFileUploaders (UrlFile gắn RefId, RefTableName),
 /// tìm tệp thật trong thư mục site e-work trên máy chủ, chép vào kho tệp QLDA và gắn vào đúng bản ghi đã nạp:
 ///   bằng cấp, khen thưởng, kỷ luật, CCCD -> hồ sơ nhân sự (Attachments "ho-so-ns", không gửi kèm /api/data);

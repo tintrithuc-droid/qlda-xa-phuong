@@ -16,7 +16,7 @@ namespace QldaTtts.Web.Services;
 ///   --thong-tin-don-vi &lt;tệp json&gt;                       gộp các mục Thông tin đơn vị (appName, bannerTitle…) vào cài đặt hiện có
 ///   --tao-khoa-chep &lt;tệp khóa&gt; [--tu-ngay yyyy-MM-dd]   tạo khóa chép chấm công sang e-work, ghi thẳng ra tệp (không in ra màn hình)
 ///   --doi-chieu-luong &lt;yyyy-MM&gt; [--ra &lt;tệp csv&gt;]        bản 1.10.4: đối chiếu bảng lương QLDA tính với bảng lương e-work đã chuyển (BangLuongs), ghi tệp CSV; màn hình chỉ in số người lệch
-///   --nhap-tep-ework &lt;tệp json&gt; --thu-muc &lt;thư mục site e-work&gt; [--thu]   bản 1.10.11: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp…); --thu: chỉ đếm, không chép
+///   --nhap-tep-ework &lt;tệp json&gt; --thu-muc &lt;thư mục site e-work&gt; [--thu]   bản 1.10.12: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp…); --thu: chỉ đếm, không chép
 /// </summary>
 public static class ServerCli
 {
@@ -32,7 +32,7 @@ public static class ServerCli
             Target = target.Length > 500 ? target[..500] : target
         });
 
-        // Bản 1.10.11: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp, thông báo, đề xuất, công việc); chạy sau --nhap-ework, chạy lại không trùng
+        // Bản 1.10.12: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp, thông báo, đề xuất, công việc); chạy sau --nhap-ework, chạy lại không trùng
         if (args.Contains("--nhap-tep-ework"))
         {
             var file = Arg("--nhap-tep-ework"); var dirs = Arg("--thu-muc");

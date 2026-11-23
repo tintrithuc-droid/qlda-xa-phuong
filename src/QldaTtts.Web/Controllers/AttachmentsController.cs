@@ -144,7 +144,7 @@ public class AttachmentsController : ApiControllerBase
         used.UnionWith((await Db.LegalDocuments.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
         used.UnionWith((await Db.ModelFiles.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
         used.UnionWith((await Db.Payments.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
-        used.UnionWith((await Db.EmployeeRecords.AsNoTracking().Select(x => x.FileId).ToListAsync()).OfType<string>()); // bản 1.10.11: tệp cũ của hồ sơ nhân sự
+        used.UnionWith((await Db.EmployeeRecords.AsNoTracking().Select(x => x.FileId).ToListAsync()).OfType<string>()); // bản 1.10.12: tệp cũ của hồ sơ nhân sự
         foreach (var d in await Db.Diaries.AsNoTracking().ToListAsync()) used.UnionWith(d.Photos.Select(p => p.AssetId).OfType<string>());
         used.UnionWith((await Db.Settings.AsNoTracking().Where(s => s.Key == BrandingController.LogoKey).Select(s => s.Value).ToListAsync()).OfType<string>());
         var cutoff = DateTime.UtcNow.AddDays(-1);

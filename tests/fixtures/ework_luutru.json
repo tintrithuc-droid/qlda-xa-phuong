@@ -149,6 +149,17 @@
    "TenTrangThaiXuLy": "Chờ duyệt",
    "CreatedBy": "ttb",
    "CreatedDate": "2026-01-01T09:00:00"
+  },
+  {
+   "Id": "dx-tc1",
+   "TenDeXuat": "Đề xuất tăng ca",
+   "JsonDeXuat": "{\"ThoiGianBatDau\":\"2025-10-10T18:00:00\",\"SoGio\":4}",
+   "LyDo": "Đăng ký trước",
+   "TenTrangThaiXuLy": "Phê duyệt",
+   "TenNguoiDuyet": "Nguyễn Văn A",
+   "CreatedBy": "u2",
+   "CreatedDate": "2025-10-09T09:00:00",
+   "NgayHoanThanh": "2025-10-09T10:00:00"
   }
  ],
  "luutru": {
@@ -297,6 +308,47 @@
     "TenGiamTru": "Giảm trừ người phụ thuộc",
     "SoLuong": 1,
     "NgayApDung": "2026-01-01T00:00:00"
+   }
+  ],
+  "TaskTangCas": [
+   {
+    "Id": "tc1",
+    "CreatedBy": "u2",
+    "NgayTangCa": "2025-10-11T00:00:00",
+    "ThoiGianBatDau": "2025-10-11T08:00:00",
+    "ThoiGianKetThuc": "2025-10-11T11:00:00",
+    "SoGio": 3,
+    "NoiDung": "<p>Triển khai hệ thống</p>",
+    "LoaiTangCa": "l1",
+    "TenLoaiTangCa": "Tăng ca bình thường",
+    "RefTenTrangThaiXuLy": "Phê duyệt",
+    "NguoiDuyet": "u1",
+    "CreatedDate": "2025-10-12T09:00:00",
+    "ModifiedDate": "2025-11-02T09:00:00"
+   },
+   {
+    "Id": "tc2",
+    "CreatedBy": "u2",
+    "NgayTangCa": "2025-10-14T00:00:00",
+    "ThoiGianBatDau": "1900-01-01T18:00:00",
+    "ThoiGianKetThuc": "1900-01-01T20:00:00",
+    "SoGio": 2,
+    "NoiDung": "Sửa lỗi gấp",
+    "LoaiTangCa": "l2",
+    "TenLoaiTangCa": "Tăng ca theo yêu cầu (gấp)",
+    "RefTenTrangThaiXuLy": "Được duyệt",
+    "NguoiDuyet": "u1",
+    "CreatedDate": "2025-10-15T09:00:00",
+    "NgayDuyet": "2025-10-20T09:00:00"
+   },
+   {
+    "Id": "tc3",
+    "CreatedBy": "u2",
+    "NgayTangCa": "2026-01-05T00:00:00",
+    "SoGio": 1,
+    "NoiDung": "Cũ",
+    "RefTenTrangThaiXuLy": "Trình duyệt",
+    "CreatedDate": "2026-01-05T20:00:00"
    }
   ]
  }

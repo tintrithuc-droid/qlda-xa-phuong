@@ -29,7 +29,7 @@ function totp(secret) {
   const up = () => r.post(BASE + '/api/vp/import-ework', { headers: H, multipart: { file: { name: 'ework.json', mimeType: 'application/json', buffer: fx } } }).then(x => x.json());
   const imp = await up();
   ok(imp.meetings === 1 && imp.notices === 1, 'Chuyển lịch họp/thông báo sai: ' + JSON.stringify({ m: imp.meetings, n: imp.notices }));
-  ok(imp.archive && imp.archive.BangKPIs === 3 && imp.archive.LichHops === 1 && Object.keys(imp.archive).length === 12, 'Lưu trữ thiếu bảng: ' + JSON.stringify(imp.archive));
+  ok(imp.archive && imp.archive.BangKPIs === 3 && imp.archive.LichHops === 1 && Object.keys(imp.archive).length === 13, 'Lưu trữ thiếu bảng: ' + JSON.stringify(imp.archive));
   const acc = Object.fromEntries(imp.newAccounts.map(a => [a.username, a.password]));
   const emps = await (await r.get(BASE + '/api/vp/employees', { headers: H })).json();
   const ttb = emps.find(e => e.name === 'Trần Thị B'), nva = emps.find(e => e.name === 'Nguyễn Văn A');
@@ -38,9 +38,17 @@ function totp(secret) {
   ok(mt.length === 1 && m.title === 'Họp giao ban tháng 10' && /Rà soát tiến độ dự án A/.test(m.content) && !/<p>/.test(m.content), 'Nội dung lịch họp chuyển sai: ' + JSON.stringify(m));
   ok(/Thống nhất kế hoạch/.test(m.conclusion || '') && /trước 15\/10/.test(m.conclusion || ''), 'Mất kết luận cuộc họp: ' + m.conclusion);
   ok(m.place === 'Phòng họp lớn' && m.chair === 'Nguyễn Văn A' && (m.attendeeIds || '').split(',').includes(ttb.id) && m.startAt.startsWith('2026-10-05T01:00'), 'Thông tin lịch họp sai: ' + JSON.stringify(m));
+  // 1.10.10: phiếu xác nhận tăng ca e-work (TaskTangCas) thành phiếu "Tăng ca" tính lương; đề xuất tăng ca trước khi làm chỉ là đăng ký
+  ok(imp.otSlips === 3, 'Số phiếu tăng ca chuyển sai: ' + imp.otSlips);
+  const rq = await (await r.get(BASE + '/api/vp/requests', { headers: H })).json();
+  const ot = rq.filter(x => x.type === 'Tăng ca' && x.fromAt && x.fromAt.startsWith('2025-10')).sort((a, b) => a.fromAt.localeCompare(b.fromAt));
+  ok(ot.length === 2 && ot[0].hours === 3 && ot[0].fromAt.startsWith('2025-10-11T01:00') && ot[0].status === 'Đã duyệt' && ot[0].title.includes('bình thường') && (ot[0].decidedAt || '').startsWith('2025-11-02') && ot[0].approverName === 'Nguyễn Văn A' && ot[0].reason === 'Triển khai hệ thống', 'Phiếu tăng ca 1 chuyển sai: ' + JSON.stringify(ot[0]));
+  ok(ot[1].hours === 2 && ot[1].fromAt.startsWith('2025-10-14T11:00') && ot[1].title.includes('gấp') && (ot[1].decidedAt || '').startsWith('2025-10-20'), 'Phiếu tăng ca 2 (giờ không kèm ngày) chuyển sai: ' + JSON.stringify(ot[1]));
+  ok(rq.some(x => x.type === 'Tăng ca' && x.hours === 1 && x.status === 'Đã hủy'), 'Phiếu tăng ca chờ duyệt quá 30 ngày chưa hủy');
+  ok(rq.some(x => x.type === 'Đăng ký tăng ca (e-work)' && x.reason === 'Đăng ký trước') && !rq.some(x => x.type === 'Tăng ca' && x.reason === 'Đăng ký trước'), 'Đề xuất tăng ca trước khi làm vẫn tính là tăng ca');
   // Chạy lại: không trùng, lưu trữ thay theo bảng
   const imp2 = await up();
-  ok(imp2.meetings === 0 && imp2.notices === 0 && imp2.archive.BangKPIs === 3, 'Chạy lại sinh trùng: ' + JSON.stringify({ m: imp2.meetings, n: imp2.notices }));
+  ok(imp2.meetings === 0 && imp2.otSlips === 0 && imp2.notices === 0 && imp2.archive.BangKPIs === 3, 'Chạy lại sinh trùng: ' + JSON.stringify({ m: imp2.meetings, n: imp2.notices }));
   const tabs = await (await r.get(BASE + '/api/vp/ework-archive', { headers: H })).json();
   ok(tabs.find(t => t.table === 'BangKPIs')?.rows === 3, 'Lưu trữ bị nhân đôi sau khi chạy lại: ' + JSON.stringify(tabs));
   const k10 = await (await r.get(BASE + '/api/vp/ework-archive/BangKPIs?period=2026-10', { headers: H })).json();
@@ -92,9 +100,9 @@ function totp(secret) {
   ok(!rb.locked && rb.total === Math.round((90 * 70 + 100 * 30) / 100 * 10) / 10, 'Mở chốt không tính lại theo thiết lập mới: ' + rb.total + ' (chốt ' + frozen + ')');
   await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: kp.settings.wWork === 70 ? { ...kp.settings, wWork: 40, wProject: 20, wAttendance: 10, wManager: 30 } : kp.settings });
   const bk = await (await r.get(BASE + '/api/backup', { headers: H })).json();
-  ok(bk.data.vp_kpi.length >= 3 && bk.data.vp_ework.length === 16 && bk.data.vp_ework.every(x => x.tableName && x.data), 'Sao lưu thiếu KPI hoặc lưu trữ e-work');
+  ok(bk.data.vp_kpi.length >= 3 && bk.data.vp_ework.length === 19 && bk.data.vp_ework.every(x => x.tableName && x.data), 'Sao lưu thiếu KPI hoặc lưu trữ e-work');
   ok((await r.post(BASE + '/api/backup', { headers: H, data: bk })).ok(), 'Phục hồi có lưu trữ e-work lỗi');
-  const tabs2 = await (await r.get(BASE + '/api/vp/ework-archive', { headers: H })).json(); ok(tabs2.reduce((s, t) => s + t.rows, 0) === 16, 'Phục hồi làm trùng lưu trữ');
+  const tabs2 = await (await r.get(BASE + '/api/vp/ework-archive', { headers: H })).json(); ok(tabs2.reduce((s, t) => s + t.rows, 0) === 19, 'Phục hồi làm trùng lưu trữ');
 
   // ---- Giao diện KPI, lưu trữ
   await p.evaluate(() => { vpReset(); location.hash = 'kpi'; }); await p.waitForTimeout(500);

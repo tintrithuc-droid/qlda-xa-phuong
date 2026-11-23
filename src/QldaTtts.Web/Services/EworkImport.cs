@@ -28,13 +28,15 @@ public static class EworkImport
         public int Projects { get; set; }
         public int Tasks { get; set; }
         public int Groups { get; set; }
+        /// <summary>Bản 1.10.10: phiếu xác nhận tăng ca e-work (TaskTangCas).</summary>
+        public int OtSlips { get; set; }
         /// <summary>Số dòng lưu trữ theo từng bảng e-work.</summary>
         public Dictionary<string, int> Archive { get; set; } = new();
         public List<string> LinkedAccounts { get; set; } = new();
         /// <summary>Tài khoản mới tạo kèm mật khẩu tạm (chỉ trả về một lần cho quản trị, không lưu).</summary>
         public List<NewAccount> NewAccounts { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
-        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {Projects} dự án, {Tasks} nhiệm vụ và công việc, {Groups} nhóm vai trò mới, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
+        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {OtSlips} phiếu tăng ca, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {Projects} dự án, {Tasks} nhiệm vụ và công việc, {Groups} nhóm vai trò mới, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
     }
     public record NewAccount(string Name, string Username, string Password, string? Department);
 
@@ -224,6 +226,53 @@ public static class EworkImport
         var lt = root.TryGetProperty("luutru", out var l0) && l0.ValueKind == JsonValueKind.Object ? l0 : default;
         IEnumerable<JsonElement> Luu(string t) => lt.ValueKind == JsonValueKind.Object ? Arr(lt, t) : Arr(root, t);
         string? UserOf(string? ew) => ew is not null && empByEw.TryGetValue(ew, out var e) ? e.UserId : null;
+
+        // ---- bản 1.10.10: phiếu xác nhận tăng ca e-work (TaskTangCas, lập sau khi làm) -> đề xuất "Tăng ca" tính lương (khóa "tc-<Id>").
+        // Đề xuất tăng ca trước khi làm (QuanLyDeXuats) chỉ là đăng ký, không tính lương, để không cộng hai lần.
+        var tcRows = Luu("TaskTangCas").ToList();
+        if (tcRows.Count > 0)
+        {
+            foreach (var q in await db.Requests.Where(r => r.EworkId != null && !r.EworkId.StartsWith("tc-") && r.Type == "Tăng ca").ToListAsync())
+                q.Type = OtRegisterType;
+            var haveTc = (await db.Requests.AsNoTracking().Where(r => r.EworkId != null && r.EworkId.StartsWith("tc-")).Select(r => r.EworkId!).ToListAsync()).ToHashSet();
+            var seqTc = await db.Requests.CountAsync();
+            foreach (var x in tcRows)
+            {
+                var ew = S(x, "Id"); if (ew is null) continue; var key = Cut("tc-" + ew, 64)!;
+                if (haveTc.Contains(key)) continue;
+                Employee? e = null;
+                foreach (var k in new[] { "UserId", "NguoiTangCa", "NguoiThucHien", "NguoiNhan", "CreatedBy" })
+                    if (S(x, k) is { Length: > 0 } u && (empByEw.TryGetValue(u, out e) || byUserName.TryGetValue(Norm(u), out e))) break;
+                if (e is null) { rep.Warnings.Add($"Phiếu tăng ca e-work {ew}: không tìm thấy người tăng ca, bỏ qua."); continue; }
+                var day = Date(S(x, "NgayTangCa"));
+                var t0 = Dt(S(x, "ThoiGianBatDau")); var t1 = Dt(S(x, "ThoiGianKetThuc"));
+                DateTime? At(DateTime? t) => t is not { } v ? (day is { } d0 ? d0.ToDateTime(TimeOnly.MinValue) : null) : day is { } d && DateOnly.FromDateTime(v) != d ? d.ToDateTime(TimeOnly.FromDateTime(v)) : v;
+                var from = At(t0); var to = t1 is null ? null : At(t1);
+                if (from is null) { rep.Warnings.Add($"Phiếu tăng ca e-work {ew}: thiếu ngày tăng ca, bỏ qua."); continue; }
+                if (to is { } tt && tt <= from) to = tt.AddDays(1);
+                var hours = Num(x, "SoGio") is { } h && h > 0 ? (decimal)h : to is { } t2 ? Math.Round((decimal)(t2 - from.Value).TotalHours, 2) : 0;
+                var st = Norm(S(x, "RefTenTrangThaiXuLy") ?? S(x, "TenTrangThaiXuLy"));
+                var created = Dt(S(x, "CreatedDate")) ?? from.Value;
+                var status = st.Contains("từ chối") || st.Contains("không duyệt") ? "Từ chối" : st.Contains("hủy") ? "Đã hủy"
+                    : st.Contains("trình") || st.Contains("chờ") || st.Contains("chưa") || st.Length == 0 ? "Chờ duyệt" : st.Contains("duyệt") || st.Contains("hoàn thành") ? "Đã duyệt" : "Chờ duyệt";
+                string? note = null;
+                if (status == "Chờ duyệt" && created < DateTime.Now.AddDays(-30)) { status = "Đã hủy"; note = "Chờ duyệt quá 30 ngày trên e-work"; }
+                var decided = status == "Đã duyệt" ? Dt(S(x, "NgayDuyet") ?? S(x, "NgayHoanThanh") ?? S(x, "ModifiedDate")) ?? created : (DateTime?)null;
+                var apr = S(x, "TenNguoiDuyet") ?? (S(x, "NguoiDuyet") is { } nd && (empByEw.TryGetValue(nd, out var ae) || byUserName.TryGetValue(Norm(nd), out ae)) ? ae.Name : null);
+                var kind = Norm(S(x, "TenLoaiTangCa"));
+                db.Requests.Add(new Request
+                {
+                    Id = "dx-" + Guid.NewGuid().ToString("N")[..16], Code = $"DX-EW{++seqTc:0000}", Type = "Tăng ca", EmployeeId = e.Id,
+                    Title = kind.Contains("gấp") || kind.Contains("yêu cầu") ? "Tăng ca theo yêu cầu (gấp)" : "Tăng ca đảm bảo tiến độ dự án (bình thường)",
+                    FromAt = VnTime.ToUtc(from.Value), ToAt = to is { } t3 ? VnTime.ToUtc(t3) : null, Hours = hours,
+                    Reason = Plain(S(x, "NoiDung")) is { Length: > 0 } rs ? rs : null, Status = status, ApproverName = Cut(apr, 200),
+                    DecidedAt = decided is { } dd ? VnTime.ToUtc(dd) : null, DecisionNote = note,
+                    CreatedAt = VnTime.ToUtc(created), EworkId = key, UpdatedAt = now, UpdatedBy = by
+                });
+                haveTc.Add(key); rep.OtSlips++;
+            }
+            await Save(db, rep);
+        }
 
         // ---- lịch họp (khóa theo mã e-work: lh-ew-<Id>; đã có thì giữ bản trên QLDA)
         var haveM = (await db.Meetings.AsNoTracking().Where(m => m.Id.StartsWith("lh-ew-")).Select(m => m.Id).ToListAsync()).ToHashSet();
@@ -514,6 +563,9 @@ public static class EworkImport
         t = System.Net.WebUtility.HtmlDecode(t);
         return Regex.Replace(Regex.Replace(t, "[ \t\u00a0]+", " "), @"\s*\n\s*", "\n").Trim();
     }
+
+    /// <summary>Đề xuất tăng ca e-work trước khi làm: chỉ là đăng ký, không tính lương (lương tính theo phiếu xác nhận tăng ca).</summary>
+    public const string OtRegisterType = "Đăng ký tăng ca (e-work)";
 
     private static string MapType(string? t)
     {

@@ -189,7 +189,7 @@ public class KpiController : ApiControllerBase
             var st = stats.First(x => x.EmployeeId == e.Id);
             var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, parents, from, to, vs, k);
             var att = e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
-            return (e, total: Total(k, sh?.WorkScore ?? wd?.Score, sh?.ProjectScore, att, sh?.ManagerRating is { } mr ? mr * 20m : null));
+            return (e, total: Total(k, sh?.WorkScore ?? wd?.Score, sh?.ProjectScore, att, sh?.ManagerRating is { } mr ? mr * 20m : null, _strict));
         }).ToList();
         var rankOf = new Dictionary<string, int>();
         if (k.RankOn)
@@ -206,7 +206,7 @@ public class KpiController : ApiControllerBase
             var work = locked ? sh!.WorkFinal : sh?.WorkScore ?? wd?.Score;
             var att = locked ? sh!.AttendanceFinal : e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
             var mgr = sh?.ManagerRating is { } mr ? mr * 20m : (decimal?)null;
-            var total = locked ? sh!.Total ?? 0 : Total(k, work, sh?.ProjectScore, att, mgr);
+            var total = locked ? sh!.Total ?? 0 : Total(k, work, sh?.ProjectScore, att, mgr, _strict);
             var missing = new List<string>();
             if (work is null) missing.Add("Công việc"); if (sh?.ProjectScore is null) missing.Add("Kết quả dự án"); if (sh?.ManagerRating is null) missing.Add("Đánh giá quản lý");
             var canRate = !locked && e.UserId != Uc.User.Id && (edit || (e.DepartmentId != null && depts.Contains(e.DepartmentId)));
@@ -215,7 +215,7 @@ public class KpiController : ApiControllerBase
                 employeeId = e.Id, e.Name, e.DepartmentId, work, workAuto = wd, workOverride = sh?.WorkScore, project = sh?.ProjectScore, attendance = att,
                 attDetail = new { st.Late, st.LateMinutes, st.Early, st.NoOut, st.Absent, st.Worked, st.Standard },
                 rating = sh?.ManagerRating, ratingNote = sh?.ManagerNote, ratedBy = sh?.RatedBy, employeeNote = sh?.EmployeeNote,
-                total, grade = locked ? sh!.Grade : k.GradeOf(total), bonus = k.Grades.FirstOrDefault(g => g.Name == (locked ? sh!.Grade : k.GradeOf(total)))?.Bonus ?? 0,
+                total, grade = locked ? sh!.Grade : work is null && !_strict ? "Chưa đủ dữ liệu" : k.GradeOf(total), estimate = !locked && work is null, bonus = k.Grades.FirstOrDefault(g => g.Name == (locked ? sh!.Grade : k.GradeOf(total)))?.Bonus ?? 0,
                 rank = locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk) ? rk : (int?)null,
                 rankBonus = locked ? sh!.RankBonus ?? 0 : rankOf.TryGetValue(e.Id, out var rk2) ? k.RankBonus(month, rk2) : 0,
                 rankLabel = (locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk3) ? rk3 : (int?)null) is int rr && (locked ? sh!.RankBonus ?? 0 : k.RankBonus(month, rr)) > 0
@@ -226,8 +226,18 @@ public class KpiController : ApiControllerBase
         return Ok(new { month, settings = k, canEdit = edit, rows });
     }
 
-    private static decimal Total(KpiSettings k, decimal? work, decimal? project, decimal? att, decimal? mgr)
+    /// <summary>Bản 1.10.11: true khi chốt KPI: phần chưa có điểm tính 0 (như trước). Khi xem tạm tính, chỉ tính trên các phần đã có điểm
+    /// (giữa tháng chưa chấm dự án, chưa đánh giá thì không còn ra loại D cho mọi người).</summary>
+    private bool _strict;
+    private static decimal Total(KpiSettings k, decimal? work, decimal? project, decimal? att, decimal? mgr, bool strict = true)
     {
+        if (!strict && (work is null || project is null || mgr is null))
+        {
+            decimal sw = 0, sv = 0;
+            void Add(decimal? v, decimal w) { if (v is { } x && w > 0) { sw += w; sv += x * w; } }
+            Add(work, k.WWork); Add(project, k.WProject); Add(att, k.WAttendance); Add(mgr, k.WManager);
+            return sw <= 0 ? 0 : Math.Round(sv / sw, 1);
+        }
         // Người không điểm danh: phần chuyên cần chia đều cho ba nhóm còn lại để vẫn đủ thang 100
         decimal ww = k.WWork, wp = k.WProject, wa = k.WAttendance, wm = k.WManager;
         if (att is null && ww + wp + wm > 0) { var f = (ww + wp + wa + wm) / (ww + wp + wm); ww *= f; wp *= f; wm *= f; wa = 0; }
@@ -289,7 +299,7 @@ public class KpiController : ApiControllerBase
     {
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         if (!Uc.Can("kpi", true)) return Denied("Chỉ người quản lý KPI được chốt.");
-        var res = await Get(month) as OkObjectResult; if (res?.Value is null) return Error(400, "Tháng không hợp lệ.");
+        _strict = true; var res = await Get(month) as OkObjectResult; if (res?.Value is null) return Error(400, "Tháng không hợp lệ.");
         var rows = ((dynamic)res.Value).rows as System.Collections.IEnumerable;
         var n = 0;
         foreach (dynamic r in rows!)

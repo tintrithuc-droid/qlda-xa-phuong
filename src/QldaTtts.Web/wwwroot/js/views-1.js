@@ -80,7 +80,7 @@ function renderNav(){
   if(typeof VP!=='undefined' && vpOn.length){ if(!VP.st && !VP.loading && !VP.err) setTimeout(()=>vpLoad(),0);
     const pend=VP.st? VP.st.pending : 0, on=k=>vpOn.includes(k);
     html+=`<div class="grp">Văn phòng</div>`+(on('diem-danh')? link('van-phong','Điểm danh','check') : '')+(on('de-xuat')? `<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>` : '')
-      +(on('lich-hop')? link('lich-hop','Lịch công tác','cal') : '')+(on('thong-bao')? `<a href="#thong-bao" class="${S.route==='thong-bao'?'on':''}">${ic('bell')}<span>Thông báo</span>${VP.ib&&VP.ib.unread?`<span class="cnt">${VP.ib.unread}</span>`:''}</a>` : '')
+      +(on('lich-hop')? link('lich-hop','Lịch công tác','cal') : '')+(!modHidden('cong-viec')? link('cong-viec','Công việc','gantt') : '')+(on('thong-bao')? `<a href="#thong-bao" class="${S.route==='thong-bao'?'on':''}">${ic('bell')}<span>Thông báo</span>${VP.ib&&VP.ib.unread?`<span class="cnt">${VP.ib.unread}</span>`:''}</a>` : '')
       +(on('diem-danh') && vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(on('kpi')? link('kpi','KPI','chart') : '')+(on('luong')? link('luong','Lương','coin') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : '')+(VP.st&&VP.st.me? `<a href="#ho-so" data-act="hs-me" class="${S.route==='ho-so'&&S.sel.hs===VP.st.me.id?'on':''}">${ic('user')}<span>Hồ sơ của tôi</span></a>` : ''); grp='Văn phòng'; }
   MODULES.filter(m=>can(m.key) && m.grp!=='Văn phòng').forEach(m=>{
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;

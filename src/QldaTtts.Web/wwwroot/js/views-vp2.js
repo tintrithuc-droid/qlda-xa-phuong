@@ -219,7 +219,7 @@ ACT['nt-reads-xlsx']=()=>{ const r=VP._reads; if(!r) return;
 VP.kpi={};
 EXTRA_ROUTES.push('kpi');
 const kpiMonth = () => S.f.kpim || (()=>{ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-(new Date().getDate()<=5?1:0)); return d.getFullYear()+'-'+pad(d.getMonth()+1); })();
-const kpiGradePill = g => g? pill(g, g==='A'?'ok':g==='B'?'info':g==='C'?'warn':'bad') : '';
+const kpiGradePill = g => g? pill(g, g==='A'?'ok':g==='B'?'info':g==='C'?'warn':g.length>2?'':'bad') : '';
 const kpiN = v => v==null? '<span class="muted">—</span>' : fmtN(v,1);
 function kpiStars(r){ const v=r.rating||0;
   if(!r.canRate) return v? '★'.repeat(v)+'<span class="muted">'+'★'.repeat(5-v)+'</span>' : '<span class="muted">Chưa chấm</span>';
@@ -234,7 +234,7 @@ VIEWS['kpi']=()=>{
     const k=d.settings; const rows=d.rows.filter(r=>!dep||r.departmentId===dep);
     const locked=d.rows.length && d.rows.every(r=>r.locked);
     const need=rows.filter(r=>r.canRate && r.missing.length).length;
-    body=`<p class="small muted" style="margin:0 0 8px">Tổng điểm = Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%. Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}. ${locked?pill('Đã chốt','ok'):need?pill(need+' người chưa chấm đủ','warn'):''}</p>`
+    body=`<p class="small muted" style="margin:0 0 8px">Tổng điểm = Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%. Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}. ${locked?pill('Đã chốt','ok'):need?pill(need+' người chưa chấm đủ','warn')+' <span class="small">Chưa chốt: điểm tạm tính trên các phần đã có; khi chốt, phần còn thiếu tính 0.</span>':''}</p>`
     + table([
       {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
       {h:`Công việc (${k.wWork}%)`, r:1, f:r=>`${kpiN(r.work)}${r.workOverride!=null?' <span class="small muted" title="Quản lý ghi đè">✎</span>':''}${r.workAuto?`<div class="small muted">${r.workAuto.total} việc, ${r.workAuto.onTime} đúng hạn${r.workAuto.late?', '+r.workAuto.late+' trễ':''}${r.workAuto.overdue?', '+r.workAuto.overdue+' quá hạn':''}${r.workAuto.collab?', '+r.workAuto.collab+' phối hợp':''}</div>`:''}`},

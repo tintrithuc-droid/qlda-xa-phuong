@@ -191,9 +191,11 @@ const thisMonth = () => vnToday().slice(0, 7);
   // 5) Giao diện: lời chúc, nhắc lương, hồ sơ nhân sự
   await p.goto(BASE + '/#nhan-su'); await p.reload(); // đổi hash không tải lại trang: tải lại để có dữ liệu mới nạp
   await p.waitForFunction(() => typeof VP !== 'undefined' && VP.st && VP.emps.length > 0, null, { timeout: 20000 });
-  await p.evaluate(id => ACT['vp-prof'](id), ttb.id); await p.waitForTimeout(800);
-  const ptxt = await p.textContent('.mform'); ok(ptxt.includes('Bằng cấp, chứng chỉ') && ptxt.includes('Kỹ sư Công nghệ thông tin') && ptxt.includes('Quá trình công tác') && ptxt.includes('Tài khoản đăng nhập: ttb'), 'Hồ sơ nhân sự trên giao diện thiếu: ' + ptxt.slice(0, 300));
-  await p.evaluate(() => closeModal());
+  // Bản 1.10.11: hồ sơ là trang riêng, chia thẻ theo mục
+  await p.evaluate(id => ACT['vp-prof'](id), ttb.id); await p.waitForSelector('.hs-tabs', { timeout: 15000 });
+  let ptxt = await p.textContent('#content'); ok(ptxt.includes('Bằng cấp, chứng chỉ') && ptxt.includes('Quá trình công tác') && ptxt.includes('Tài khoản đăng nhập') && ptxt.includes('ttb'), 'Hồ sơ nhân sự trên giao diện thiếu: ' + ptxt.slice(0, 300));
+  await p.click('.hs-tabs button[data-id="bang-cap"]'); await p.waitForTimeout(400);
+  ptxt = await p.textContent('#content'); ok(ptxt.includes('Kỹ sư Công nghệ thông tin') && ptxt.includes('+ Thêm bằng cấp'), 'Thẻ bằng cấp thiếu: ' + ptxt.slice(0, 300));
   await p.evaluate(() => { location.hash = '#quan-tri'; }); await p.waitForTimeout(1000);
   ok((await p.textContent('#app')).includes('Hồ sơ nhân sự'), 'Danh sách người dùng không có cột hồ sơ nhân sự');
   const p2 = await ctx2.newPage(); p2.on('pageerror', e => errs.push('PAGEERR2 ' + e.message));

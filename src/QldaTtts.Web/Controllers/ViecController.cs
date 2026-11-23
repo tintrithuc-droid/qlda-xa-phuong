@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QldaTtts.Web.Data;
@@ -322,8 +322,8 @@ public class ViecController : ApiControllerBase
             var min = k.Grades.FirstOrDefault(g => g.Name == minName)?.Min ?? 0;
             foreach (dynamic r in (System.Collections.IEnumerable)((dynamic)res.Value).rows)
             {
-                if ((bool)r.self) kpi = new { total = (decimal)r.total, grade = (string)r.grade, target = minName, targetMin = min, work = (decimal?)r.work, missing = r.missing };
-                else if ((decimal)r.total < min && !(bool)r.locked) low.Add(new { name = (string)r.Name, total = (decimal)r.total, grade = (string)r.grade });
+                if ((bool)r.self) kpi = new { total = (decimal)r.total, grade = (string)r.grade, estimate = (bool)r.estimate, target = minName, targetMin = min, work = (decimal?)r.work, missing = r.missing };
+                else if ((decimal)r.total < min && !(bool)r.locked && !(bool)r.estimate) low.Add(new { name = (string)r.Name, total = (decimal)r.total, grade = (string)r.grade });
             }
         }
         object? team = null;

@@ -153,9 +153,10 @@ public static class ServerCli
             if (ew.Count == 0) { Fail($"Không có bảng lương e-work tháng {month} trong dữ liệu đã chuyển."); return true; }
             var emps = await db.Employees.AsNoTracking().Where(e => e.EworkId != null).ToListAsync();
             var slips = await LuongController.ComputeFor(db, month);
+            var m1 = DateOnly.Parse(month + "-01");
             var cols = new (string Name, string Ew, Func<LuongController.Slip, decimal> Q)[]
             {
-                ("Lương cơ bản", "LuongCoBan", s => s.BaseSalary), ("Công chuẩn", "NgayCongChuan", s => s.Standard), ("Công hưởng lương", "NgayCongThucTe", s => s.Paid),
+                ("Lương cơ bản", "LuongCoBan", s => s.BaseSalary), ("Công chuẩn", "NgayCongChuan", s => s.Standard), ("Công hưởng lương", "NgayCongThucTe+NgayNghiCoPhep", s => s.Paid),
                 ("Phụ cấp", "TongPhuCap", s => s.Allowances), ("Tăng ca", "TienTangCa", s => s.OtPay), ("Công tác phí", "CongTacPhi", s => s.TripPay),
                 ("Thưởng", "Thuong", s => s.KpiBonus + s.Bonus), ("BHXH người lao động", "BHXH_NLD", s => s.Bhxh), ("BHYT người lao động", "BHYT_NLD", s => s.Bhyt),
                 ("BHTN người lao động", "BHTN_NLD", s => s.Bhtn), ("Thuế TNCN", "ThueTNCN", s => s.Pit), ("Tạm ứng", "TamUng", s => s.Advance), ("Thực lĩnh", "LuongThucNhan", s => s.Net)
@@ -171,9 +172,17 @@ public static class ServerCli
                 var any = false;
                 foreach (var (cn, ek, q) in cols)
                 {
-                    var a = (decimal)(Num(o, ek) ?? 0); var b = q(sl);
+                    var a = (decimal)ek.Split('+').Sum(k => Num(o, k) ?? 0); var b = q(sl); // 1.10.12: e-work tách ngày phép có lương khỏi NgayCongThucTe
                     var diff = b - a; var tol = cn.StartsWith("Công") ? 0.01m : 1000m; // lệch dưới 1.000 đồng do làm tròn bỏ qua
                     if (Math.Abs(diff) > tol) { any = true; sb.Append($"{C(name)},{C(cn)},{a:0.##},{b:0.##},{diff:0.##}\r\n"); }
+                }
+                if (any && e is not null)
+                {
+                    // 1.10.12: chi tiết công để dò lệch (không có số tiền)
+                    var nAtt = await db.Attendances.AsNoTracking().CountAsync(a => a.EmployeeId == e.Id && a.Date >= m1 && a.Date < m1.AddMonths(1));
+                    var nOnl = await db.Attendances.AsNoTracking().CountAsync(a => a.EmployeeId == e.Id && a.Date >= m1 && a.Date < m1.AddMonths(1) && a.InPlace == "Làm việc online");
+                    sb.Append($"{C(name)},{C("Chi tiết công")},{C($"e-work: thực tế {Num(o, "NgayCongThucTe") ?? 0:0.##}, phép có lương {Num(o, "NgayNghiCoPhep") ?? 0:0.##}, ngoài phép {Num(o, "NgayNghiNgoaiPhep") ?? 0:0.##}, không phép {Num(o, "NgayNghiKhongPhep") ?? 0:0.##}, công tác {Num(o, "NgayCongTac") ?? 0:0.##}")},");
+                    sb.Append($"{C($"QLDA: {(e.Attendance ? "chấm công" : "không chấm công")}, {(e.Status ?? "")}, ngày có điểm danh {nAtt} (online {nOnl}), vắng {sl.Absent:0.##}, phép {sl.LeaveDays:0.##}, vượt phép {sl.LeaveOver:0.##}, không lương/ốm {sl.UnpaidDays:0.##}, bắt đầu {e.StartDate:dd/MM/yyyy}, nghỉ việc {e.EndDate:dd/MM/yyyy}")},\r\n");
                 }
                 if (any) lech++; else { khop++; sb.Append($"{C(name)},{C("Khớp")},,,\r\n"); }
             }

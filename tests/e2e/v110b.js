@@ -46,6 +46,9 @@ function totp(secret) {
   ok(ot[1].hours === 2 && ot[1].fromAt.startsWith('2025-10-14T11:00') && ot[1].title.includes('gấp') && (ot[1].decidedAt || '').startsWith('2025-10-20'), 'Phiếu tăng ca 2 (giờ không kèm ngày) chuyển sai: ' + JSON.stringify(ot[1]));
   ok(rq.some(x => x.type === 'Tăng ca' && x.hours === 1 && x.status === 'Đã hủy'), 'Phiếu tăng ca chờ duyệt quá 30 ngày chưa hủy');
   ok(rq.some(x => x.type === 'Đăng ký tăng ca (e-work)' && x.reason === 'Đăng ký trước') && !rq.some(x => x.type === 'Tăng ca' && x.reason === 'Đăng ký trước'), 'Đề xuất tăng ca trước khi làm vẫn tính là tăng ca');
+  // 1.10.12: nghỉ ngoài phép trên e-work thành nghỉ không lương; người đã nghỉ việc (e-work bỏ cờ chấm công) vẫn tính công theo điểm danh
+  ok(rq.some(x => x.type === 'Nghỉ không lương' && x.reason === 'Việc nhà'), 'Nghỉ ngoài phép e-work chưa thành nghỉ không lương');
+  ok(emps.find(e => e.name === 'Lê Văn C')?.attendance === true, 'Người đã nghỉ việc bị coi là không chấm công');
   // Chạy lại: không trùng, lưu trữ thay theo bảng
   const imp2 = await up();
   ok(imp2.meetings === 0 && imp2.otSlips === 0 && imp2.notices === 0 && imp2.archive.BangKPIs === 3, 'Chạy lại sinh trùng: ' + JSON.stringify({ m: imp2.meetings, n: imp2.notices }));

@@ -30,13 +30,15 @@ public static class EworkImport
         public int Groups { get; set; }
         /// <summary>Bản 1.10.10: phiếu xác nhận tăng ca e-work (TaskTangCas).</summary>
         public int OtSlips { get; set; }
+        /// <summary>Bản 1.10.12: đề xuất đã nạp trước được sửa lại loại (nghỉ ngoài phép -> nghỉ không lương).</summary>
+        public int Fixed { get; set; }
         /// <summary>Số dòng lưu trữ theo từng bảng e-work.</summary>
         public Dictionary<string, int> Archive { get; set; } = new();
         public List<string> LinkedAccounts { get; set; } = new();
         /// <summary>Tài khoản mới tạo kèm mật khẩu tạm (chỉ trả về một lần cho quản trị, không lưu).</summary>
         public List<NewAccount> NewAccounts { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
-        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {OtSlips} phiếu tăng ca, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {Projects} dự án, {Tasks} nhiệm vụ và công việc, {Groups} nhóm vai trò mới, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
+        public string Summary => $"{Departments} phòng ban, {Employees} nhân sự, {Attendances} lượt chấm công, {Requests} đề xuất, {OtSlips} phiếu tăng ca, {Fixed} đề xuất sửa loại, {Meetings} lịch họp, {Notices} thông báo, {PayProfiles} hồ sơ lương, {HrRecords} mục hồ sơ nhân sự (bằng cấp, khen thưởng, kỷ luật), {Projects} dự án, {Tasks} nhiệm vụ và công việc, {Groups} nhóm vai trò mới, {NewAccounts.Count} tài khoản mới, lưu trữ {Archive.Values.Sum()} dòng / {Archive.Count} bảng";
     }
     public record NewAccount(string Name, string Username, string Password, string? Department);
 
@@ -126,6 +128,8 @@ public static class EworkImport
             e.EworkId = ew; e.UserId ??= acc?.Id; e.UpdatedAt = now; e.UpdatedBy = by;
             if (h.ValueKind == JsonValueKind.Object && e.EndDate is null && Date(S(h, "NgayNghiViec")) is { } nd) e.EndDate = nd; // 1.10.4
             empByEw[ew] = e;
+            // 1.10.12: e-work bỏ cờ IsChamCong khi người lao động nghỉ việc nhưng vẫn tính công theo chấm công thực tế -> người đã nghỉ việc vẫn tính theo điểm danh
+            if (!active && !e.Attendance) e.Attendance = true;
             // Trưởng phòng theo vai trò e-work
             if (dept is not null && dept.ManagerUserId is null && acc is not null && Regex.IsMatch(role, "LANHDAO", RegexOptions.IgnoreCase)) dept.ManagerUserId = acc.Id;
         }
@@ -159,7 +163,17 @@ public static class EworkImport
         var seq = await db.Requests.CountAsync();
         foreach (var x in Arr(root, "dexuat"))
         {
-            var ew = S(x, "Id"); if (ew is null || haveReq.Contains(ew)) continue;
+            var ew = S(x, "Id"); if (ew is null) continue;
+            // 1.10.12: e-work ghi loại nghỉ trong JsonDeXuat: LoaiNghiPhep = NghiNgoaiPhep (hết phép) thì không hưởng lương
+            bool OutOfLeave()
+            {
+                try { var jj = JsonDocument.Parse(S(x, "JsonDeXuat") ?? "{}").RootElement; return jj.ValueKind == JsonValueKind.Object && Norm(S(jj, "LoaiNghiPhep")) == "nghingoaiphep"; } catch { return false; }
+            }
+            if (haveReq.Contains(ew))
+            {
+                if (OutOfLeave()) foreach (var q in await db.Requests.Where(r => r.EworkId == ew && r.Type == "Nghỉ phép").ToListAsync()) { q.Type = "Nghỉ không lương"; q.DecisionNote = "Nghỉ ngoài phép (e-work)"; rep.Fixed++; }
+                continue;
+            }
             var cb = S(x, "CreatedBy") ?? "";
             var e = empByEw.TryGetValue(cb, out var ee) ? ee : byUserName.TryGetValue(Norm(cb), out var e2) ? e2 : null;
             if (e is null) continue;
@@ -179,7 +193,7 @@ public static class EworkImport
             if (desc is { Length: > 300 }) reason = string.IsNullOrWhiteSpace(reason) ? desc : reason + "\n\n" + desc;
             db.Requests.Add(new Request
             {
-                Id = "dx-" + Guid.NewGuid().ToString("N")[..16], Code = $"DX-EW{++seq:0000}", Type = MapType(S(x, "TenDeXuat")), EmployeeId = e.Id,
+                Id = "dx-" + Guid.NewGuid().ToString("N")[..16], Code = $"DX-EW{++seq:0000}", Type = MapType(S(x, "TenDeXuat")) is var mt && mt == "Nghỉ phép" && OutOfLeave() ? "Nghỉ không lương" : mt, EmployeeId = e.Id,
                 Title = Cut(desc, 300), FromAt = from is { } f ? VnTime.ToUtc(f) : null, ToAt = to is { } t ? VnTime.ToUtc(t) : null,
                 Days = Jn("SoNgay", "SoNgayNghi", "SoNgayCongTac"), Hours = Jn("SoGio", "SoGioTangCa", "TongSoGio"), Amount = Jn("SoTien", "TongTien", "ThanhTien", "SoTienDeNghi"),
                 Place = J("DiaDiem", "NoiCongTac", "DiaDiemCongTac", "LoTrinh"), Reason = reason, Status = status,

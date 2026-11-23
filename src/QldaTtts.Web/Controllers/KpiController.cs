@@ -55,6 +55,10 @@ public class KpiSettings
     public decimal CollabFactor { get; set; } = 0.3m;
     /// <summary>Nhắc việc: số ngày trước hạn bắt đầu nhắc.</summary>
     public int RemindDays { get; set; } = 2;
+    /// <summary>Bản 1.10.13: tự chốt KPI tháng trước vào ngày AutoLockDay của tháng sau (0 giờ), để bảng lương có thưởng trước kỳ tự xác nhận lương.
+    /// Người quản lý KPI vẫn mở chốt để sửa rồi chốt lại. Tháng đã có bảng lương e-work thì không tự chốt (thưởng lấy theo e-work).</summary>
+    public bool AutoLock { get; set; } = true;
+    public int AutoLockDay { get; set; } = 1;
 
     public decimal LevelWeight(string? level)
     {
@@ -163,42 +167,24 @@ public class KpiController : ApiControllerBase
         return Math.Max(0, Math.Min(100, v));
     }
 
-    [HttpGet("kpi")]
-    public async Task<IActionResult> Get([FromQuery] string month)
+    /// <summary>Kết quả tính KPI một người trong tháng (dùng chung cho xem, chốt tay, tự chốt).</summary>
+    public record Calc(Employee E, KpiSheet? Sh, VpCalc.Row St, WorkDetail? Wd, decimal? Work, decimal? Att, decimal? Mgr, decimal Total, string Grade,
+        int? Rank, decimal RankBonus, string? RankLabel, bool Locked, List<string> Missing);
+
+    /// <summary>Tính KPI cả công ty của tháng. strict = true khi chốt: phần chưa có điểm tính 0.</summary>
+    public static async Task<List<Calc>?> Compute(AppDbContext db, string month, bool strict)
     {
-        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
-        if (!DateOnly.TryParse(month + "-01", out var from)) return Error(400, "Tháng không hợp lệ.");
+        if (!DateOnly.TryParse(month + "-01", out var from)) return null;
         var to = from.AddMonths(1);
-        var k = KpiSettings.Load(Db); var vs = VpSettings.Load(Db);
-        var depts = await ManagedDepts(); var all = Uc.Can("kpi"); var edit = Uc.Can("kpi", true);
-        // Tính cho mọi người (để xếp hạng trong phòng), trả về phần được xem
-        var emps = await Db.Employees.AsNoTracking().Where(e => e.Status != "Nghỉ việc" || e.UpdatedAt >= from.ToDateTime(TimeOnly.MinValue)).OrderBy(e => e.Name).ToListAsync();
-        bool Visible(Employee e) => all || e.UserId == Uc.User.Id || (e.DepartmentId != null && depts.Contains(e.DepartmentId));
-        var deptNames = await Db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name);
-        var sheets = await Db.KpiSheets.AsNoTracking().Where(x => x.Month == month).ToDictionaryAsync(x => x.EmployeeId);
-        var (_, stats) = await VpCalc.Month(Db, vs, emps, from);
-        var atts = (await Db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
-        var (tasks, parents) = await TasksFor(Db, from, to);
-        var users = await Db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);
-        // Hạng trong phòng (tạm tính khi chưa chốt; đã chốt thì dùng hạng lưu cố định)
-        var minG = k.Grades.FirstOrDefault(g => g.Name == k.RankMinGrade)?.Min ?? 0;
+        var k = KpiSettings.Load(db); var vs = VpSettings.Load(db);
+        var emps = await db.Employees.AsNoTracking().Where(e => e.Status != "Nghỉ việc" || e.UpdatedAt >= from.ToDateTime(TimeOnly.MinValue)).OrderBy(e => e.Name).ToListAsync();
+        var deptNames = await db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name);
+        var sheets = await db.KpiSheets.AsNoTracking().Where(x => x.Month == month).ToDictionaryAsync(x => x.EmployeeId);
+        var (_, stats) = await VpCalc.Month(db, vs, emps, from);
+        var atts = (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+        var (tasks, parents) = await TasksFor(db, from, to);
+        var users = await db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);
         var pre = emps.Select(e =>
-        {
-            sheets.TryGetValue(e.Id, out var sh);
-            if (sh?.LockedAt != null) return (e, total: sh.Total ?? 0m);
-            var st = stats.First(x => x.EmployeeId == e.Id);
-            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, parents, from, to, vs, k);
-            var att = e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
-            return (e, total: Total(k, sh?.WorkScore ?? wd?.Score, sh?.ProjectScore, att, sh?.ManagerRating is { } mr ? mr * 20m : null, _strict));
-        }).ToList();
-        var rankOf = new Dictionary<string, int>();
-        if (k.RankOn)
-            foreach (var g in pre.Where(x => x.e.DepartmentId != null && x.total > 0 && x.total >= minG).GroupBy(x => x.e.DepartmentId!))
-            {
-                int rank = 0; decimal? prev = null; int i = 0;
-                foreach (var x in g.OrderByDescending(x => x.total)) { i++; if (prev != x.total) rank = i; prev = x.total; rankOf[x.e.Id] = rank; } // bằng điểm thì cùng hạng
-            }
-        var rows = emps.Where(Visible).Select(e =>
         {
             sheets.TryGetValue(e.Id, out var sh); var locked = sh?.LockedAt != null;
             var st = stats.First(x => x.EmployeeId == e.Id);
@@ -206,29 +192,58 @@ public class KpiController : ApiControllerBase
             var work = locked ? sh!.WorkFinal : sh?.WorkScore ?? wd?.Score;
             var att = locked ? sh!.AttendanceFinal : e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
             var mgr = sh?.ManagerRating is { } mr ? mr * 20m : (decimal?)null;
-            var total = locked ? sh!.Total ?? 0 : Total(k, work, sh?.ProjectScore, att, mgr, _strict);
+            var total = locked ? sh!.Total ?? 0 : Total(k, work, sh?.ProjectScore, att, mgr, strict);
+            return (e, sh, st, wd, work, att, mgr, total, locked);
+        }).ToList();
+        // Hạng trong phòng (tạm tính khi chưa chốt; đã chốt thì dùng hạng lưu cố định)
+        var minG = k.Grades.FirstOrDefault(g => g.Name == k.RankMinGrade)?.Min ?? 0;
+        var rankOf = new Dictionary<string, int>();
+        if (k.RankOn)
+            foreach (var g in pre.Where(x => x.e.DepartmentId != null && x.total > 0 && x.total >= minG).GroupBy(x => x.e.DepartmentId!))
+            {
+                int rank = 0; decimal? prev = null; int i = 0;
+                foreach (var x in g.OrderByDescending(x => x.total)) { i++; if (prev != x.total) rank = i; prev = x.total; rankOf[x.e.Id] = rank; } // bằng điểm thì cùng hạng
+            }
+        return pre.Select(x =>
+        {
+            var (e, sh, st, wd, work, att, mgr, total, locked) = x;
             var missing = new List<string>();
             if (work is null) missing.Add("Công việc"); if (sh?.ProjectScore is null) missing.Add("Kết quả dự án"); if (sh?.ManagerRating is null) missing.Add("Đánh giá quản lý");
-            var canRate = !locked && e.UserId != Uc.User.Id && (edit || (e.DepartmentId != null && depts.Contains(e.DepartmentId)));
+            var grade = locked ? sh!.Grade ?? "" : work is null && !strict ? "Chưa đủ dữ liệu" : k.GradeOf(total);
+            int? rank = locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk) ? rk : null;
+            var rb = locked ? sh!.RankBonus ?? 0 : rank is int r0 ? k.RankBonus(month, r0) : 0;
+            var label = rank is int rr && rb > 0 ? $"{(e.DepartmentId != null && deptNames.TryGetValue(e.DepartmentId, out var dn) ? dn : "")} - Hạng {rr}" : null;
+            return new Calc(e, sh, st, wd, work, att, mgr, total, grade, rank, rb, label, locked, missing);
+        }).ToList();
+    }
+
+    [HttpGet("kpi")]
+    public async Task<IActionResult> Get([FromQuery] string month)
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var calc = await Compute(Db, month, false); if (calc is null) return Error(400, "Tháng không hợp lệ.");
+        var k = KpiSettings.Load(Db);
+        var depts = await ManagedDepts(); var all = Uc.Can("kpi"); var edit = Uc.Can("kpi", true);
+        bool Visible(Employee e) => all || e.UserId == Uc.User.Id || (e.DepartmentId != null && depts.Contains(e.DepartmentId));
+        var rows = calc.Where(c => Visible(c.E)).Select(c =>
+        {
+            var (e, sh, st) = (c.E, c.Sh, c.St);
+            var canRate = !c.Locked && e.UserId != Uc.User.Id && (edit || (e.DepartmentId != null && depts.Contains(e.DepartmentId)));
             return new
             {
-                employeeId = e.Id, e.Name, e.DepartmentId, work, workAuto = wd, workOverride = sh?.WorkScore, project = sh?.ProjectScore, attendance = att,
+                employeeId = e.Id, e.Name, e.DepartmentId, work = c.Work, workAuto = c.Wd, workOverride = sh?.WorkScore, project = sh?.ProjectScore, attendance = c.Att,
                 attDetail = new { st.Late, st.LateMinutes, st.Early, st.NoOut, st.Absent, st.Worked, st.Standard },
                 rating = sh?.ManagerRating, ratingNote = sh?.ManagerNote, ratedBy = sh?.RatedBy, employeeNote = sh?.EmployeeNote,
-                total, grade = locked ? sh!.Grade : work is null && !_strict ? "Chưa đủ dữ liệu" : k.GradeOf(total), estimate = !locked && work is null, bonus = k.Grades.FirstOrDefault(g => g.Name == (locked ? sh!.Grade : k.GradeOf(total)))?.Bonus ?? 0,
-                rank = locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk) ? rk : (int?)null,
-                rankBonus = locked ? sh!.RankBonus ?? 0 : rankOf.TryGetValue(e.Id, out var rk2) ? k.RankBonus(month, rk2) : 0,
-                rankLabel = (locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk3) ? rk3 : (int?)null) is int rr && (locked ? sh!.RankBonus ?? 0 : k.RankBonus(month, rr)) > 0
-                    ? $"{(e.DepartmentId != null && deptNames.TryGetValue(e.DepartmentId, out var dn) ? dn : "")} - Hạng {rr}" : null,
-                missing, locked, lockedAt = sh?.LockedAt, canRate, self = e.UserId == Uc.User.Id
+                total = c.Total, grade = c.Grade, estimate = !c.Locked && c.Work is null, bonus = k.Grades.FirstOrDefault(g => g.Name == c.Grade)?.Bonus ?? 0,
+                rank = c.Rank, rankBonus = c.RankBonus, rankLabel = c.RankLabel,
+                missing = c.Missing, locked = c.Locked, lockedAt = sh?.LockedAt, lockedBy = sh?.LockedAt != null ? sh.LockedBy : null, canRate, self = e.UserId == Uc.User.Id
             };
         }).ToList();
-        return Ok(new { month, settings = k, canEdit = edit, rows });
+        return Ok(new { month, settings = k, canEdit = edit, rows, autoLockAt = k.AutoLock ? DateOnly.Parse(month + "-01").AddMonths(1).AddDays(Math.Clamp(k.AutoLockDay, 1, 28) - 1).ToString("yyyy-MM-dd") : null });
     }
 
     /// <summary>Bản 1.10.12: true khi chốt KPI: phần chưa có điểm tính 0 (như trước). Khi xem tạm tính, chỉ tính trên các phần đã có điểm
     /// (giữa tháng chưa chấm dự án, chưa đánh giá thì không còn ra loại D cho mọi người).</summary>
-    private bool _strict;
     private static decimal Total(KpiSettings k, decimal? work, decimal? project, decimal? att, decimal? mgr, bool strict = true)
     {
         if (!strict && (work is null || project is null || mgr is null))
@@ -299,19 +314,42 @@ public class KpiController : ApiControllerBase
     {
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         if (!Uc.Can("kpi", true)) return Denied("Chỉ người quản lý KPI được chốt.");
-        _strict = true; var res = await Get(month) as OkObjectResult; if (res?.Value is null) return Error(400, "Tháng không hợp lệ.");
-        var rows = ((dynamic)res.Value).rows as System.Collections.IEnumerable;
-        var n = 0;
-        foreach (dynamic r in rows!)
-        {
-            var sh = await Sheet(month, (string)r.employeeId);
-            if (b.Lock && sh.LockedAt == null)
-            { sh.WorkFinal = r.work; sh.AttendanceFinal = r.attendance; sh.Total = r.total; sh.Grade = r.grade; sh.Rank = r.rank; sh.RankBonus = r.rankBonus; sh.LockedAt = DateTime.UtcNow; sh.LockedBy = Uc.User.Name; n++; }
-            else if (!b.Lock && sh.LockedAt != null) { sh.LockedAt = null; sh.LockedBy = null; n++; }
-        }
+        var n = await SetLock(Db, month, b.Lock, Uc.User.Name); if (n is null) return Error(400, "Tháng không hợp lệ.");
         Uc.Log(b.Lock ? "Chốt KPI tháng" : "Mở chốt KPI tháng", "KPI", $"Tháng {month}: {n} người");
         await Db.SaveChangesAsync();
         return Ok(new { ok = true, n });
+    }
+
+    /// <summary>Chốt hoặc mở chốt KPI tháng cho mọi người (chưa lưu, người gọi SaveChanges). Trả về số phiếu thay đổi.</summary>
+    public static async Task<int?> SetLock(AppDbContext db, string month, bool lck, string by)
+    {
+        var calc = await Compute(db, month, true); if (calc is null) return null;
+        var n = 0;
+        foreach (var r in calc)
+        {
+            var sh = await db.KpiSheets.FirstOrDefaultAsync(x => x.Month == month && x.EmployeeId == r.E.Id)
+                ?? db.KpiSheets.Local.FirstOrDefault(x => x.Month == month && x.EmployeeId == r.E.Id);
+            if (sh is null) { if (!lck) continue; sh = new KpiSheet { Id = "kpi-" + Guid.NewGuid().ToString("N")[..20], Month = month, EmployeeId = r.E.Id }; db.KpiSheets.Add(sh); }
+            if (lck && sh.LockedAt == null)
+            { sh.WorkFinal = r.Work; sh.AttendanceFinal = r.Att; sh.Total = r.Total; sh.Grade = r.Grade; sh.Rank = r.Rank; sh.RankBonus = r.RankBonus; sh.LockedAt = DateTime.UtcNow; sh.LockedBy = by; n++; }
+            else if (!lck && sh.LockedAt != null) { sh.LockedAt = null; sh.LockedBy = "Mở chốt: " + by; n++; } // dấu vết để tác vụ tự chốt không chốt lại
+        }
+        return n;
+    }
+
+    /// <summary>Bản 1.10.13: tác vụ nền gọi mỗi 15 phút. Từ 0 giờ ngày AutoLockDay, tự chốt KPI tháng trước một lần;
+    /// tháng đã có người mở chốt (để sửa) thì không tự chốt lại; tháng có bảng lương e-work thì bỏ qua.</summary>
+    public static async Task<string?> AutoLockTick(AppDbContext db, DateTime nowVn)
+    {
+        var k = KpiSettings.Load(db); if (!k.AutoLock) return null;
+        if (nowVn.Day < Math.Clamp(k.AutoLockDay, 1, 28)) return null;
+        var month = new DateOnly(nowVn.Year, nowVn.Month, 1).AddMonths(-1).ToString("yyyy-MM");
+        var sheets = await db.KpiSheets.AsNoTracking().Where(x => x.Month == month).ToListAsync();
+        if (sheets.Any(x => x.LockedAt != null || x.LockedBy != null)) return null; // đã chốt, hoặc người quản lý đã mở chốt để sửa
+        if (await db.EworkArchive.AsNoTracking().AnyAsync(r => r.TableName == "BangLuongs" && r.Period == month)) return null;
+        if (!await db.Employees.AsNoTracking().AnyAsync()) return null;
+        var n = await SetLock(db, month, true, "Hệ thống (tự chốt)");
+        return n > 0 ? month + ": " + n + " người" : null;
     }
 
     [HttpGet("kpi-settings")]

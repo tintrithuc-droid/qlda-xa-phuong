@@ -31,6 +31,9 @@ public class PaySettings
     public bool OtByApproval { get; set; } = true;
     /// <summary>Bản 1.10.11: đơn giá giờ tăng ca = (lương chính + phụ cấp) ÷ công chuẩn ÷ 8 (như e-work, theo tiền lương thực trả - Điều 98 BLLĐ); false: chỉ lương chính.</summary>
     public bool OtWithAllowances { get; set; } = true;
+    /// <summary>Bản 1.10.13: tháng còn làm trên e-work (đã có bảng lương e-work chuyển sang) thì thưởng lấy theo cột Thưởng của bảng lương e-work,
+    /// không lấy KPI tính trên QLDA (công việc tháng đó ở e-work).</summary>
+    public bool EworkBonus { get; set; } = true;
     /// <summary>Ngày trả lương ghi trên phiếu (ví dụ "05 tháng sau").</summary>
     public string PayDay { get; set; } = "Ngày 05 tháng sau";
     /// <summary>Bản 1.10.4: người lao động tự xác nhận lương từ ngày ConfirmFrom đến hết ngày ConfirmTo của tháng sau; quá hạn coi như đồng ý.</summary>
@@ -189,6 +192,11 @@ public class LuongController : ApiControllerBase
         var slips = (await Db.Payslips.AsNoTracking().Where(x => x.Month == month).ToListAsync()).ToDictionary(x => x.EmployeeId);
         var kpi = (await Db.KpiSheets.AsNoTracking().Where(x => x.Month == month && x.LockedAt != null).ToListAsync()).ToDictionary(x => x.EmployeeId);
         var (standard, stats) = await VpCalc.Month(Db, vs, emps, from);
+        var ewBonus = new Dictionary<string, decimal>();
+        if (ps.EworkBonus)
+            foreach (var r in await Db.EworkArchive.AsNoTracking().Where(r => r.TableName == "BangLuongs" && r.Period == month).ToListAsync())
+                if (System.Text.Json.Nodes.JsonNode.Parse(r.Data) is System.Text.Json.Nodes.JsonObject o && o["UserId"]?.ToString() is { Length: > 0 } uid)
+                    if (o["Thuong"] is { } th && decimal.TryParse(th.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v)) ewBonus[uid] = v; // bảng không có cột Thưởng thì dùng KPI
         var f = VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue)); var t = VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue));
         var monthReqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && (r.Type == "Ứng lương" || r.Type == "Tạm ứng" || r.Type == "Xăng xe")).ToListAsync())
             .Where(r => (r.FromAt ?? r.CreatedAt) >= f && (r.FromAt ?? r.CreatedAt) < t).ToList();
@@ -251,6 +259,7 @@ public class LuongController : ApiControllerBase
                 s.KpiGrade = k.Grade; s.KpiBonus = (ks.Grades.FirstOrDefault(g => g.Name == k.Grade)?.Bonus ?? 0) + (k.RankBonus ?? 0);
                 if (k.RankBonus > 0 && k.Rank is { } rk) s.KpiGrade += $", hạng {rk} trong phòng"; // 1.10.4: thưởng theo hạng như e-work
             }
+            if (e.EworkId is { } ewId && ewBonus.TryGetValue(ewId, out var eb)) { s.KpiBonus = eb; s.KpiGrade = "Theo bảng lương e-work"; }
             s.Bonus = sl?.Bonus ?? 0; s.Deduction = sl?.Deduction ?? 0; s.Note = sl?.Note;
             // Công tác phí, xăng xe đi công việc là khoản chi theo chế độ, không tính thuế TNCN; tiền phép năm chưa nghỉ tính thuế như tiền lương
             s.Gross = s.TimePay + s.Allowances + s.OtPay + s.KpiBonus + s.Bonus + s.UnusedLeavePay + s.TripPay + s.FuelPay;

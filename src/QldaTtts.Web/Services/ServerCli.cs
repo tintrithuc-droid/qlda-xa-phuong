@@ -16,6 +16,7 @@ namespace QldaTtts.Web.Services;
 ///   --thong-tin-don-vi &lt;tệp json&gt;                       gộp các mục Thông tin đơn vị (appName, bannerTitle…) vào cài đặt hiện có
 ///   --tao-khoa-chep &lt;tệp khóa&gt; [--tu-ngay yyyy-MM-dd]   tạo khóa chép chấm công sang e-work, ghi thẳng ra tệp (không in ra màn hình)
 ///   --doi-chieu-luong &lt;yyyy-MM&gt; [--ra &lt;tệp csv&gt;]        bản 1.10.4: đối chiếu bảng lương QLDA tính với bảng lương e-work đã chuyển (BangLuongs), ghi tệp CSV; màn hình chỉ in số người lệch
+///   --tu-chot-kpi                                        bản 1.10.13: chạy ngay bước tự chốt KPI tháng trước (tác vụ nền vẫn tự chạy)
 ///   --nhap-tep-ework &lt;tệp json&gt; --thu-muc &lt;thư mục site e-work&gt; [--thu]   bản 1.10.12: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp…); --thu: chỉ đếm, không chép
 /// </summary>
 public static class ServerCli
@@ -141,6 +142,14 @@ public static class ServerCli
             await db.SaveChangesAsync();
             Console.WriteLine($"Đã tạo khóa chép chấm công (từ ngày {s.SyncFrom}), lưu tại {Path.GetFullPath(file!)}. Khóa cũ (nếu có) hết hiệu lực.");
             return true;
+        }
+        if (args.Contains("--tu-chot-kpi"))
+        {
+            // 1.10.13: chạy ngay bước tự chốt KPI tháng trước (bình thường tác vụ nền tự chạy mỗi 15 phút)
+            var done = await KpiController.AutoLockTick(db, VnTime.Now);
+            if (done is null) { Console.WriteLine("Không có tháng cần tự chốt (đã chốt, đã mở chốt để sửa, tắt tự chốt, chưa đến ngày, hoặc tháng có bảng lương e-work)."); return true; }
+            Log("Tự chốt KPI tháng (dòng lệnh trên máy chủ)", "KPI", done); await db.SaveChangesAsync();
+            Console.WriteLine("Đã tự chốt KPI " + done); return true;
         }
         if (args.Contains("--doi-chieu-luong"))
         {

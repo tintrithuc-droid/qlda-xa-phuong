@@ -98,7 +98,7 @@ exports.CHAPTERS = [
 
   { id: 'tp-kpi', title: 'Chấm KPI, theo dõi bảng công của phòng', roles: ['tp', 'gd'], html: `
 <ol><li>Vào <b>KPI, đánh giá tháng</b>, chọn tháng. Điểm công việc và chuyên cần tự tính; bạn chấm <b>điểm dự án</b> và <b>đánh giá</b> (1 đến 5 sao) cho từng người.</li>
-<li>Ban giám đốc kiểm tra rồi bấm <b>Chốt KPI tháng</b>. Sau khi chốt, điểm và hạng cố định, thưởng xếp hạng đưa vào lương. Cần sửa thì bấm <b>Mở chốt</b>.</li>
+<li>Chấm xong trong tháng. <b>Máy tự chốt KPI lúc 0 giờ ngày 1 tháng sau</b> (không ai phải bấm), để phiếu lương nhân viên xác nhận từ ngày 1 đã có thưởng. Sau khi chốt, điểm và hạng cố định, việc cập nhật trễ không làm đổi thưởng. Cần sửa thì Ban giám đốc bấm <b>Mở chốt</b>, sửa xong bấm <b>Chốt KPI tháng</b> (máy không tự chốt lại tháng đã mở chốt).</li>
 <li>Bảng công: <b>Bảng công, chấm công</b> hiện công của phòng (Trưởng phòng) hoặc toàn công ty (Ban giám đốc, Kế toán); <b>Xuất Excel</b> khi cần.</li></ol>
 <p>Thiết lập KPI (tỷ trọng, hệ số mức độ, trễ hạn, chất lượng, phối hợp, xếp loại) do Ban giám đốc hoặc Quản trị đặt trong nút <b>Thiết lập</b>.</p>` },
 
@@ -152,8 +152,8 @@ exports.CHAPTERS = [
 
   { id: 'qt-thiet-lap', title: 'Thiết lập hệ thống', roles: ['qt'], html: `
 <ul><li><b>Bảng công → Thiết lập điểm danh</b>: giờ làm, ca sáng chiều, thứ Bảy, số ngày phép năm, vị trí và mạng công ty để điểm danh, cho phép ngoài phạm vi.</li>
-<li><b>KPI → Thiết lập</b>: tỷ trọng, hệ số mức độ, trễ hạn, chất lượng, trừ gia hạn, mở lại, hệ số phối hợp, xếp loại, thưởng xếp hạng, số ngày nhắc trước hạn.</li>
-<li><b>Lương → Thiết lập</b>: lương cơ sở, lương tối thiểu vùng, tỷ lệ bảo hiểm, giảm trừ, biểu thuế, tỷ lệ tăng ca, số giờ tăng ca tối đa một ngày (bình thường, gấp), tính tăng ca theo tháng duyệt phiếu hay theo ngày tăng ca, đơn giá tăng ca tính trên lương chính + phụ cấp hay chỉ lương chính, công tác phí, tạm ứng và xăng xe mặc định, tài khoản trích nợ, nội dung chuyển khoản, hạn xác nhận lương.</li>
+<li><b>KPI → Thiết lập</b>: tỷ trọng, hệ số mức độ, trễ hạn, chất lượng, trừ gia hạn, mở lại, hệ số phối hợp, xếp loại, thưởng xếp hạng, số ngày nhắc trước hạn, tự chốt KPI (bật/tắt, ngày tự chốt).</li>
+<li><b>Lương → Thiết lập</b>: lương cơ sở, lương tối thiểu vùng, tỷ lệ bảo hiểm, giảm trừ, biểu thuế, tỷ lệ tăng ca, số giờ tăng ca tối đa một ngày (bình thường, gấp), tính tăng ca theo tháng duyệt phiếu hay theo ngày tăng ca, đơn giá tăng ca tính trên lương chính + phụ cấp hay chỉ lương chính, thưởng của tháng còn làm trên e-work (lấy theo bảng lương e-work hay theo KPI trên phần mềm), công tác phí, tạm ứng và xăng xe mặc định, tài khoản trích nợ, nội dung chuyển khoản, hạn xác nhận lương.</li>
 <li><b>Thông tin đơn vị → Phân hệ sử dụng</b>: ẩn các phân hệ Công ty không dùng.</li>
 <li><b>Sao lưu, phục hồi</b>: sao lưu tự động hằng ngày; tải bản sao lưu đầy đủ trước mỗi lần cập nhật.</li>
 <li>Tài khoản quản trị bắt buộc xác thực 2 lớp (ứng dụng Authenticator, mục "e-work Trithuc").</li></ul>` },

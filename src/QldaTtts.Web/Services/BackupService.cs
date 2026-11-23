@@ -158,6 +158,13 @@ public class MaintenanceService : BackgroundService
             await db.SaveChangesAsync(ct);
         }
 
+        // Bản 1.10.13: tự chốt KPI tháng trước (từ 0 giờ ngày cấu hình của tháng sau)
+        if (await Controllers.KpiController.AutoLockTick(db, VnTime.Now) is { } locked)
+        {
+            Log(db, "Tự chốt KPI tháng", locked); await db.SaveChangesAsync(ct);
+            _log.LogInformation("Đã tự chốt KPI {M}", locked);
+        }
+
         // Sao lưu hằng đêm (một lần mỗi ngày, từ giờ cấu hình trở đi)
         var now = DateTime.Now;
         if (backup.Enabled && now.Hour >= backup.Hour && !backup.List().Any(b => b.CreatedAt.ToLocalTime().Date == now.Date))

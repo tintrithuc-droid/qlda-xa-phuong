@@ -177,6 +177,11 @@ public static class VpCalc
             .Where(a => ids.Contains(a.EmployeeId)).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
         var reqs = (await db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.FromAt != null).ToListAsync())
             .Where(r => r.FromAt < VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue)) && (r.ToAt ?? r.FromAt) >= VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue))).ToList();
+        // Bản 1.10.9: phiếu tăng ca được duyệt trong tháng nào thì tính vào lương tháng đó (theo ngày duyệt)
+        var fU = VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue)); var tU = VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue));
+        var otByApproval = QldaTtts.Web.Controllers.PaySettings.Load(db).OtByApproval;
+        var otByEmp = (await db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Tăng ca").ToListAsync())
+            .Where(r => (otByApproval ? r.DecidedAt ?? r.FromAt : r.FromAt) is { } dd && dd >= fU && dd < tU).GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Hours ?? 0));
         decimal standard = 0; for (var d = from; d < to; d = d.AddDays(1)) standard += VnTime.WorkValue(d, s);
         var today = DateOnly.FromDateTime(VnTime.Now);
         // Chỉ tính vắng từ ngày hệ thống có dữ liệu điểm danh đầu tiên (tránh tính vắng cả tháng khi mới đưa vào dùng)
@@ -199,7 +204,7 @@ public static class VpCalc
             }
             return new Row(e.Id, e.Name, e.DepartmentId, standard, worked, xs.Count(a => a.LateMinutes > 0), xs.Sum(a => a.LateMinutes), xs.Count(a => a.EarlyMinutes > 0),
                 xs.Count(a => a.InPlace == "Ngoài công ty"), xs.Count(a => a.InPlace == "Làm việc online"), xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today),
-                Days("Nghỉ phép"), Days("Công tác"), mine.Where(r => r.Type == "Tăng ca").Sum(r => r.Hours ?? 0), absent,
+                Days("Nghỉ phép"), Days("Công tác"), otByEmp.TryGetValue(e.Id, out var oth) ? oth : 0, absent,
                 Days("Nghỉ việc riêng có lương"), Days("Nghỉ không lương") + Days("Nghỉ ốm, thai sản (BHXH)"));
         }).ToList();
         return (standard, rows);

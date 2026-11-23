@@ -23,6 +23,12 @@ public class PaySettings
     public decimal OtRate { get; set; } = 150;
     /// <summary>Bản 1.10.4 (Điều 98 BLLĐ 2019): làm thêm vào ngày nghỉ hằng tuần ít nhất 200%, ngày lễ, tết, nghỉ có hưởng lương ít nhất 300% (chưa kể lương ngày lễ).</summary>
     public decimal OtRestRate { get; set; } = 200; public decimal OtHolidayRate { get; set; } = 300;
+    /// <summary>Bản 1.10.9: số giờ tăng ca tối đa một ngày (phiếu xác nhận tăng ca lập sau khi làm, người phụ trách duyệt).</summary>
+    public decimal OtMaxPerDay { get; set; } = 3;
+    /// <summary>Tăng ca theo yêu cầu (gấp): tối đa giờ một ngày (như e-work SO_GIO_TANG_CA_YEU_CAU).</summary>
+    public decimal OtMaxUrgent { get; set; } = 4;
+    /// <summary>true: phiếu tăng ca duyệt trong tháng nào tính vào lương tháng đó (anh Trí 23/11); false: theo ngày tăng ca (như e-work).</summary>
+    public bool OtByApproval { get; set; } = true;
     /// <summary>Ngày trả lương ghi trên phiếu (ví dụ "05 tháng sau").</summary>
     public string PayDay { get; set; } = "Ngày 05 tháng sau";
     /// <summary>Bản 1.10.4: người lao động tự xác nhận lương từ ngày ConfirmFrom đến hết ngày ConfirmTo của tháng sau; quá hạn coi như đồng ý.</summary>
@@ -135,6 +141,8 @@ public class LuongController : ApiControllerBase
         public DateTime? ApprovedAt { get; set; } public string? ApprovedBy { get; set; }
         /// <summary>Bản 1.10.9: nhân sự không chấm công (hồ sơ để "Không điểm danh"): hưởng nguyên lương chính, không theo ngày công, không cần tự xác nhận lương.</summary>
         public bool NoAttendance { get; set; }
+        /// <summary>Bản 1.10.9: giờ tăng ca theo loại ngày (ngày thường, ngày nghỉ hằng tuần, ngày lễ) từ phiếu tăng ca được duyệt trong tháng.</summary>
+        public decimal OtNormal { get; set; } public decimal OtRest { get; set; } public decimal OtHoliday { get; set; }
     }
 
 
@@ -183,7 +191,8 @@ public class LuongController : ApiControllerBase
         var monthReqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && (r.Type == "Ứng lương" || r.Type == "Tạm ứng" || r.Type == "Xăng xe")).ToListAsync())
             .Where(r => (r.FromAt ?? r.CreatedAt) >= f && (r.FromAt ?? r.CreatedAt) < t).ToList();
         // tăng ca theo loại ngày (ngày thường, ngày nghỉ hằng tuần, ngày lễ)
-        var otReqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Tăng ca" && r.FromAt != null && r.FromAt >= f && r.FromAt < t).ToListAsync())
+        var otReqs = (await Db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Tăng ca" && r.FromAt != null).ToListAsync())
+            .Where(r => (ps.OtByApproval ? r.DecidedAt ?? r.FromAt : r.FromAt) is { } dd && dd >= f && dd < t)
             .GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
         decimal OtFactor(Request r) { var k = VnTime.Day(DateOnly.FromDateTime(VnTime.ToVn(r.FromAt!.Value)), vs).Kind; return (k == "holiday" ? ps.OtHolidayRate : k == "off" ? ps.OtRestRate : ps.OtRate) / 100; }
         var adv = monthReqs.Where(r => r.Type == "Ứng lương").GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Amount ?? 0));
@@ -230,6 +239,8 @@ public class LuongController : ApiControllerBase
             var hourly = standard > 0 ? s.BaseSalary / standard / 8 : 0;
             var ots = otReqs.TryGetValue(e.Id, out var ol) ? ol : new();
             var otH = ots.Sum(r => r.Hours ?? 0);
+            string OtKind(Request r) => VnTime.Day(DateOnly.FromDateTime(VnTime.ToVn(r.FromAt!.Value)), vs).Kind;
+            s.OtNormal = ots.Where(r => OtKind(r) is not ("holiday" or "off")).Sum(r => r.Hours ?? 0); s.OtRest = ots.Where(r => OtKind(r) == "off").Sum(r => r.Hours ?? 0); s.OtHoliday = ots.Where(r => OtKind(r) == "holiday").Sum(r => r.Hours ?? 0);
             s.OtPay = Math.Round(hourly * (ots.Sum(r => (r.Hours ?? 0) * OtFactor(r)) + Math.Max(0, s.OtHours - otH) * ps.OtRate / 100), 0);
             var otPremium = Math.Max(0, s.OtPay - Math.Round(hourly * s.OtHours, 0)); // phần trả cao hơn giờ bình thường không chịu thuế
             if (kpi.TryGetValue(e.Id, out var k))

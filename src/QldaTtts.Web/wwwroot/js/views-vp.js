@@ -41,7 +41,7 @@ VIEWS['van-phong']=()=>{
   let box;
   if(!me) box=`<div class="alert">Tài khoản của bạn chưa gắn với hồ sơ nhân sự nên chưa điểm danh được. Liên hệ người quản lý nhân sự để được gắn.</div>`;
   else if(!me.attendance) box=`<div class="alert info">Hồ sơ của bạn được thiết lập không cần điểm danh.</div>`;
-  else if(st.day && st.day.canCheck===false) box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div><div class="toolbar" style="justify-content:center"><button class="btn" data-act="vp-req-new">Gửi đề xuất tăng ca</button></div>`;
+  else if(st.day && st.day.canCheck===false) box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div><div class="toolbar" style="justify-content:center"><button class="btn" data-act="vp-req-new">Lập phiếu xác nhận tăng ca</button></div>`;
   else box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div>
     <div class="vp-state">
       <div><span class="eyebrow">Giờ vào</span><b>${a&&a.inAt? vpHM(a.inAt) : '—'}</b>${a&&a.inAt? vpPlacePill(a.inPlace)+(a.lateMinutes>0?' '+pill('Muộn '+a.lateMinutes+' phút','bad'):''):''}${a&&a.site?`<div class="small muted">${esc(a.site)}</div>`:''}</div>
@@ -71,7 +71,7 @@ VIEWS['van-phong']=()=>{
 /* Bản 1.10.4: lời chúc theo lịch làm việc, nhắc xác nhận lương trong hạn */
 function vpGreet(st){
   const d=st.day||{}; const off=!(d.value>0);
-  let h=`<div class="alert ${off?'info':'ok'} vp-greet" style="margin-bottom:10px"><b>${esc(d.greeting||'')}</b>${off?(d.canCheck?'<div class="small">Hôm nay anh chị có đề xuất tăng ca, công tác được duyệt: điểm danh bình thường (không tính đi muộn).</div>':'<div class="small">Không cần điểm danh. Nếu được giao đi làm, gửi đề xuất Tăng ca; duyệt xong nút điểm danh sẽ hiện.</div>'):d.kind==='half'?`<div class="small">Hôm nay làm nửa ngày${d.name?' ('+esc(d.name)+')':''}.</div>`:d.name?`<div class="small">${esc(d.name)}</div>`:''}</div>`;
+  let h=`<div class="alert ${off?'info':'ok'} vp-greet" style="margin-bottom:10px"><b>${esc(d.greeting||'')}</b>${off?'<div class="small">Hôm nay không điểm danh. Có làm thêm giờ thì sau khi làm xong lập phiếu xác nhận tăng ca để người phụ trách duyệt.</div>':d.kind==='half'?`<div class="small">Hôm nay làm nửa ngày${d.name?' ('+esc(d.name)+')':''}.</div>`:d.name?`<div class="small">${esc(d.name)}</div>`:''}</div>`;
   return h;
 }
 function vpPayAlert(st){
@@ -104,11 +104,12 @@ setInterval(()=>{ const c=document.getElementById('vp_clock'); if(c){ const n=ne
 /* ---------------------------------------------------------------- Đề xuất */
 const VP_REQ_FIELDS = {
   'Nghỉ phép':['range','days','reason'], 'Nghỉ việc riêng có lương':['range','days','reason'], 'Nghỉ không lương':['range','days','reason'], 'Nghỉ ốm, thai sản (BHXH)':['range','days','reason'], 'Làm việc online':['range','days','reason'], 'Công tác':['range','days','place','reason'],
-  'Tăng ca':['day','times','hours','reason'], 'Đi muộn, về sớm':['day','times','reason'], 'Quên điểm danh':['day','times','reason'],
+  'Tăng ca':['otkind','day','times','hours','reason'], 'Đi muộn, về sớm':['day','times','reason'], 'Quên điểm danh':['day','times','reason'],
   'Xăng xe':['day','place','km','reason'], 'Tạm ứng':['title','amount','reason'], 'Ứng lương':['amount','reason'], 'Thanh toán':['title','amount','reason'],
   'Giải chi':['title','amount','reason'], 'Kiểm tra thanh toán':['title','amount','reason'], 'Gia hạn công việc':['title','due','reason'],
   'Mở lại công việc':['title','reason'], 'Làm việc':['title','range','reason'], 'Khác':['title','range','reason']};
 const VP_KM = 2000;
+const VP_OT_KINDS = ['Tăng ca đảm bảo tiến độ dự án (bình thường)', 'Tăng ca theo yêu cầu (gấp)'];
 function vpStatus(s){ return pill(s||'', s==='Đã duyệt'?'ok':s==='Từ chối'?'bad':s==='Đã hủy'?'':'warn'); }
 function vpRange(r){ const f=r.fromAt?parseTs(r.fromAt):null, t=r.toAt?parseTs(r.toAt):null; if(!f) return '';
   const d=x=>pad(x.getDate())+'/'+pad(x.getMonth()+1), h=x=>pad(x.getHours())+':'+pad(x.getMinutes());
@@ -142,11 +143,13 @@ ACT['vp-req-form']=(type, el, ev, rec)=>{
   const F=[];
   if(fs.includes('title')) F.push({key:'title', label: type==='Gia hạn công việc'||type==='Mở lại công việc'?'Công việc':'Nội dung', req:true, full:true});
   if(fs.includes('range')) F.push({key:'fd',label:'Từ ngày',type:'date',req:true},{key:'ft',label:'Từ giờ',ph:st.morningStart||'08:00',def:st.morningStart||'08:00'},{key:'td',label:'Đến ngày',type:'date',req:true},{key:'tt',label:'Đến giờ',ph:st.afternoonEnd||'17:30',def:st.afternoonEnd||'17:30'});
-  if(fs.includes('day')) F.push({key:'fd',label:'Ngày',type:'date',req:true,def:TODAY});
+  if(fs.includes('otkind')){ F.push({key:'title',label:'Loại tăng ca',type:'select',req:true,full:true,def:VP_OT_KINDS[0],options:VP_OT_KINDS});
+    F.unshift({key:'_i',type:'html',html:`<div class="fld full small muted">Phiếu xác nhận tăng ca lập <b>sau khi đã làm</b>, mỗi phiếu một ngày: bình thường tối đa ${fmtN(VP.st.otMax?.normal??3,1)} giờ, theo yêu cầu gấp tối đa ${fmtN(VP.st.otMax?.urgent??4,1)} giờ. Trưởng bộ phận hoặc Giám đốc duyệt; duyệt trong tháng nào tính vào lương tháng đó (ngày thường 150%, ngày nghỉ 200%, ngày lễ 300%).</div>`}); }
+  if(fs.includes('day')) F.push({key:'fd',label: type==='Tăng ca'?'Ngày đã tăng ca':'Ngày',type:'date',req:true,def:TODAY});
   if(fs.includes('times')) F.push({key:'ft',label:'Từ giờ',ph:'17:30'},{key:'tt',label:'Đến giờ',ph:'20:00'});
   if(fs.includes('due')) F.push({key:'td',label:'Hạn mới',type:'date',req:true});
   if(fs.includes('days')) F.push({key:'days',label:'Số ngày (để trống: tự tính theo ngày làm việc)',type:'number'});
-  if(fs.includes('hours')) F.push({key:'hours',label:'Số giờ (để trống: tự tính)',type:'number'});
+  if(fs.includes('hours')) F.push({key:'hours',label: type==='Tăng ca'?'Số giờ đã làm thêm':'Số giờ (để trống: tự tính)',type:'number',req:type==='Tăng ca'});
   if(fs.includes('km')) F.push({key:'hours',label:`Số km (${fmtN(VP_KM)} đ/km)`,type:'number',req:true});
   if(fs.includes('place')) F.push({key:'place',label: type==='Xăng xe'?'Lộ trình':'Nơi công tác',req:true,full:true});
   if(fs.includes('amount')) F.push({key:'amount',label:'Số tiền (đồng)',type:'money',req:true});

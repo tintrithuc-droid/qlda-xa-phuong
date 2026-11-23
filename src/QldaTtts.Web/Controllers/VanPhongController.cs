@@ -50,14 +50,6 @@ public class VanPhongController : ApiControllerBase
 
     // ------------------------------------------------------------------ trạng thái chung
 
-    /// <summary>Bản 1.10.9: có đề xuất "Tăng ca" (hoặc "Công tác") được duyệt phủ ngày này thì được điểm danh dù là ngày nghỉ (như e-work: ngày nghỉ không mở điểm danh).</summary>
-    private async Task<bool> WorkAllowedOnOff(string empId, DateOnly day)
-    {
-        var f = VnTime.ToUtc(day.ToDateTime(TimeOnly.MinValue)); var t = VnTime.ToUtc(day.AddDays(1).ToDateTime(TimeOnly.MinValue));
-        return await Db.Requests.AsNoTracking().AnyAsync(r => r.EmployeeId == empId && r.Status == "Đã duyệt" && (r.Type == "Tăng ca" || r.Type == "Công tác")
-            && r.FromAt != null && r.FromAt < t && (r.ToAt ?? r.FromAt) >= f);
-    }
-
     [HttpGet("state")]
     public async Task<IActionResult> State()
     {
@@ -76,7 +68,7 @@ public class VanPhongController : ApiControllerBase
         var greet = di.Value > 0 ? s.GreetWork : (di.Kind == "holiday" && di.Name is { } hn ? hn + ". " : "") + s.GreetOff;
         return Ok(new
         {
-            day = new { value = di.Value, kind = di.Kind, name = di.Name, greeting = greet, canCheck = di.Value > 0 || att?.InAt != null || (me is not null && await WorkAllowedOnOff(me.Id, today)) },
+            day = new { value = di.Value, kind = di.Kind, name = di.Name, greeting = greet, canCheck = di.Value > 0 || att?.InAt != null },
             payConfirm = me is null ? null : await LuongController.PendingConfirm(Db, me.Id),
             payFeedback = Uc.Can("luong", true) ? await Db.Payslips.CountAsync(x => x.FeedbackStatus == "Chờ xử lý") : 0,
             me = me is null ? null : Public(me), today = today.ToString("yyyy-MM-dd"), now = VnTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), attendance = att,
@@ -85,7 +77,7 @@ public class VanPhongController : ApiControllerBase
             leave = new { year, total = me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year), used, left = (me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year)) - used },
             perms = new { hr = Uc.Can("nhan-su"), hrEdit = Uc.Can("nhan-su", true), att = Uc.Can("diem-danh"), attEdit = Uc.Can("diem-danh", true),
                 req = Uc.Can("de-xuat"), approve = CanApproveAll || depts.Count > 0, admin = Uc.IsAdmin, managed = depts },
-            pending, types = RequestTypes, ip = Uc.Ip
+            pending, types = RequestTypes, ip = Uc.Ip, otMax = new { normal = PaySettings.Load(Db).OtMaxPerDay, urgent = PaySettings.Load(Db).OtMaxUrgent }
         });
     }
 
@@ -273,8 +265,8 @@ public class VanPhongController : ApiControllerBase
         var now = VnTime.Now; var today = DateOnly.FromDateTime(now);
         var online = r.Mode == "online" || r.Mode == "congtac";
         var dOff = VnTime.Day(today, s);
-        if (dOff.Value == 0 && !await Db.Attendances.AnyAsync(a => a.EmployeeId == me.Id && a.Date == today && a.InAt != null) && !await WorkAllowedOnOff(me.Id, today))
-            return Error(400, $"Hôm nay là ngày nghỉ{(dOff.Name is { } dn ? " (" + dn + ")" : "")}, không cần điểm danh. Được giao đi làm thì gửi đề xuất Tăng ca, duyệt xong sẽ điểm danh được.");
+        if (dOff.Value == 0 && !await Db.Attendances.AnyAsync(a => a.EmployeeId == me.Id && a.Date == today && a.InAt != null))
+            return Error(400, $"Hôm nay là ngày nghỉ{(dOff.Name is { } dn ? " (" + dn + ")" : "")}, không điểm danh. Có làm thêm giờ thì sau khi làm xong lập phiếu xác nhận tăng ca.");
         // Nơi điểm danh: theo IP mạng công ty hoặc khoảng cách tới địa điểm đã khai báo
         string place; string? site = null;
         var ip = Uc.Ip; var ipOk = s.Ips.Any(x => !string.IsNullOrWhiteSpace(x) && (ip == x.Trim() || ip.EndsWith(":" + x.Trim())));
@@ -463,6 +455,21 @@ public class VanPhongController : ApiControllerBase
         var me = await Me(); if (me is null) return Error(400, "Tài khoản chưa gắn với hồ sơ nhân sự. Liên hệ người quản lý nhân sự.");
         if (!RequestTypes.Contains(r.Type)) return Error(400, "Chọn loại đề xuất.");
         if (r.FromAt is { } f && r.ToAt is { } t && t < f) return Error(400, "Thời gian kết thúc phải sau thời gian bắt đầu.");
+        if (r.Type == "Tăng ca")
+        {
+            // Bản 1.10.9: phiếu xác nhận tăng ca lập sau khi đã làm, trong một ngày, không quá số giờ tối đa
+            if (r.FromAt is null || r.Hours is not > 0) return Error(400, "Phiếu tăng ca: chọn ngày và ghi số giờ đã làm thêm.");
+            var od = DateOnly.FromDateTime(VnTime.ToVn(r.FromAt.Value));
+            if (od > DateOnly.FromDateTime(VnTime.Now)) return Error(400, "Phiếu tăng ca lập sau khi đã làm thêm giờ, không lập trước.");
+            if (r.ToAt is { } te && DateOnly.FromDateTime(VnTime.ToVn(te)) != od) return Error(400, "Mỗi phiếu tăng ca ghi cho một ngày.");
+            var pset = PaySettings.Load(Db); bool Urgent(string? t) => (t ?? "").Contains("gấp", StringComparison.OrdinalIgnoreCase);
+            var f0 = VnTime.ToUtc(od.ToDateTime(TimeOnly.MinValue)); var t0 = VnTime.ToUtc(od.AddDays(1).ToDateTime(TimeOnly.MinValue));
+            var others = await Db.Requests.AsNoTracking().Where(q => q.EmployeeId == me.Id && q.Id != id && q.Type == "Tăng ca" && q.Status != "Từ chối" && q.Status != "Đã hủy"
+                && q.FromAt != null && q.FromAt >= f0 && q.FromAt < t0).ToListAsync();
+            var other = others.Sum(q => q.Hours ?? 0);
+            var max = Urgent(r.Title) || others.Any(q => Urgent(q.Title)) ? pset.OtMaxUrgent : pset.OtMaxPerDay;
+            if (max > 0 && other + r.Hours > max) return Error(400, $"Một ngày tăng ca không quá {max:0.#} giờ" + (other > 0 ? $" (ngày {od:dd/MM} đã ghi {other:0.#} giờ)." : "."));
+        }
         var x = await Db.Requests.FindAsync(id);
         if (x is null)
         {

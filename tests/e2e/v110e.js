@@ -80,14 +80,20 @@ const thisMonth = () => vnToday().slice(0, 7);
   await q2.post(BASE + '/api/auth/login', { headers: H, data: { username: 'ttb', password: 'Nhanvien2026' } });
   let st = await (await q2.get(BASE + '/api/vp/state', { headers: H })).json();
   ok(st.day && st.day.kind === 'holiday' && st.day.greeting.startsWith('Ngày hội công ty. ') && st.day.greeting.includes('ngày nghỉ vui vẻ'), 'Lời chúc ngày nghỉ sai: ' + JSON.stringify(st.day));
-  // 1.10.9: ngày nghỉ không mở điểm danh (như e-work), trừ khi có đề xuất tăng ca được duyệt
+  // 1.10.9: ngày nghỉ khóa hẳn điểm danh (như e-work); tăng ca lập phiếu xác nhận sau khi làm
   ok(st.day.canCheck === false, 'Ngày nghỉ vẫn mở điểm danh');
-  ok((await q2.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } })).status() === 400, 'Ngày nghỉ không có tăng ca vẫn điểm danh được');
-  await q2.put(BASE + '/api/vp/requests/dx-ot-hol', { headers: H, data: { type: 'Tăng ca', fromAt: T + 'T08:00:00+07:00', toAt: T + 'T12:00:00+07:00', hours: 4, reason: 'Trực' } });
+  ok((await q2.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } })).status() === 400, 'Ngày nghỉ vẫn điểm danh được');
+  const otPut = (id, d) => q2.put(BASE + '/api/vp/requests/' + id, { headers: H, data: { type: 'Tăng ca', fromAt: T + 'T08:00:00+07:00', toAt: T + 'T11:00:00+07:00', reason: 'Trực', ...d } });
+  ok((await otPut('dx-ot-4', { hours: 4, title: 'Tăng ca đảm bảo tiến độ dự án (bình thường)' })).status() === 400, 'Tăng ca bình thường 4 giờ vẫn nhận');
+  const fut = new Date(Date.now() + 3 * 864e5 + 7 * 36e5).toISOString().slice(0, 10);
+  ok((await otPut('dx-ot-fut', { hours: 2, fromAt: fut + 'T08:00:00+07:00', toAt: fut + 'T10:00:00+07:00' })).status() === 400, 'Phiếu tăng ca ngày tương lai vẫn nhận');
+  ok((await otPut('dx-ot-hol', { hours: 3, title: 'Tăng ca đảm bảo tiến độ dự án (bình thường)' })).ok(), 'Phiếu tăng ca 3 giờ lỗi');
+  ok((await otPut('dx-ot-x', { hours: 1, title: 'Tăng ca đảm bảo tiến độ dự án (bình thường)' })).status() === 400, 'Tổng tăng ca bình thường quá 3 giờ/ngày vẫn nhận');
+  ok((await otPut('dx-ot-g', { hours: 1, title: 'Tăng ca theo yêu cầu (gấp)' })).ok(), 'Tăng ca gấp đến 4 giờ/ngày bị chặn');
+  ok((await otPut('dx-ot-g2', { hours: 1, title: 'Tăng ca theo yêu cầu (gấp)' })).status() === 400, 'Tổng tăng ca gấp quá 4 giờ/ngày vẫn nhận');
   ok((await r.post(BASE + '/api/vp/requests/dx-ot-hol/decide', { headers: H, data: { action: 'approve' } })).ok(), 'Duyệt tăng ca ngày nghỉ lỗi');
-  st = await (await q2.get(BASE + '/api/vp/state', { headers: H })).json(); ok(st.day.canCheck === true, 'Có tăng ca được duyệt mà chưa mở điểm danh');
-  const ck = await (await q2.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } })).json();
-  ok(ck.lateMinutes === 0 && String(ck.note || '').includes('Đi làm ngày nghỉ'), 'Điểm danh ngày nghỉ vẫn tính muộn: ' + JSON.stringify(ck));
+  st = await (await q2.get(BASE + '/api/vp/state', { headers: H })).json(); ok(st.day.canCheck === false, 'Có phiếu tăng ca thì mở điểm danh ngày nghỉ (phải khóa)');
+  ok(st.otMax && st.otMax.normal === 3 && st.otMax.urgent === 4, 'Thiếu giới hạn tăng ca trong state: ' + JSON.stringify(st.otMax));
   await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vs, holidays: vs.holidays.filter(h => !h.startsWith(T)), workdays: [T + ' Làm bù'], greetWork: '' } });
   st = await (await q2.get(BASE + '/api/vp/state', { headers: H })).json();
   ok(st.day.kind === 'work' && st.day.value === 1 && st.day.greeting === 'Chúc ngày làm việc mới vui vẻ, thành công!', 'Lời chúc ngày làm việc sai: ' + JSON.stringify(st.day));

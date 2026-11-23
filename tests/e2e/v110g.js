@@ -100,7 +100,16 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   const after = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
   const hourly = 20000000 / after.standard / 8;
   ok(after.privateLeave === 1 && after.unpaidDays === 1 && after.paid === before.paid - 1 && after.leaveDays === before.leaveDays, 'Nghỉ việc riêng / không lương tính sai: ' + JSON.stringify({ b: before.paid, a: after.paid, pl: after.privateLeave, u: after.unpaidDays, l: after.leaveDays }));
-  ok(after.otHours === 2 && after.otPay === Math.round(hourly * 2 * 2), 'Tăng ca chủ nhật chưa tính 200%: ' + JSON.stringify({ h: after.otHours, p: after.otPay, e: Math.round(hourly * 4) }));
+  // 1.10.9: mặc định phiếu duyệt trong tháng nào tính vào lương tháng đó -> tháng trước chưa có, tháng này có
+  ok(after.otHours === 0, 'Phiếu tăng ca duyệt tháng này mà tính vào tháng trước: ' + after.otHours);
+  const nowRow = (await J(r.get(BASE + `/api/vp/luong?month=${thisMonth()}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  ok(nowRow.otHours === 2 && nowRow.otRest === 2, 'Phiếu tăng ca duyệt tháng này chưa vào lương tháng này: ' + JSON.stringify({ h: nowRow.otHours, r: nowRow.otRest }));
+  // Tùy chọn "theo ngày tăng ca" (như e-work): tính vào tháng có ngày tăng ca, chủ nhật 200%
+  const ps = await J(r.get(BASE + '/api/vp/luong-settings', { headers: H }));
+  ok((await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, otByApproval: false } })).ok(), 'Lưu tùy chọn tăng ca lỗi');
+  const after2 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  ok(after2.otHours === 2 && after2.otPay === Math.round(hourly * 2 * 2), 'Tăng ca chủ nhật chưa tính 200%: ' + JSON.stringify({ h: after2.otHours, p: after2.otPay, e: Math.round(hourly * 4) }));
+  await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, otByApproval: true } });
   const ps0 = await J(r.get(BASE + '/api/vp/luong-settings', { headers: H }));
   ok(ps0.baseWage === 2530000 && ps0.regionMinWage === 5310000 && ps0.otRestRate === 200 && ps0.otHolidayRate === 300, 'Mức lương cơ sở / vùng / tăng ca mặc định chưa đúng 2026: ' + JSON.stringify(ps0));
   ok((await r.post(BASE + `/api/vp/luong/${PM}/chot`, { headers: H, data: { lock: true } })).ok(), 'Chốt lương lỗi');

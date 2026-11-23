@@ -81,7 +81,7 @@ function renderNav(){
     const pend=VP.st? VP.st.pending : 0, on=k=>vpOn.includes(k);
     html+=`<div class="grp">Văn phòng</div>`+(on('diem-danh')? link('van-phong','Điểm danh','check') : '')+(on('de-xuat')? `<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>` : '')
       +(on('lich-hop')? link('lich-hop','Lịch công tác','cal') : '')+(on('thong-bao')? `<a href="#thong-bao" class="${S.route==='thong-bao'?'on':''}">${ic('bell')}<span>Thông báo</span>${VP.ib&&VP.ib.unread?`<span class="cnt">${VP.ib.unread}</span>`:''}</a>` : '')
-      +(on('diem-danh') && vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(on('kpi')? link('kpi','KPI','chart') : '')+(on('luong')? link('luong','Lương','coin') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : ''); grp='Văn phòng'; }
+      +(on('diem-danh') && vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(on('kpi')? link('kpi','KPI','chart') : '')+(on('luong')? link('luong','Lương','coin') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : '')+(VP.st&&VP.st.me? `<a href="#ho-so" data-act="hs-me" class="${S.route==='ho-so'&&S.sel.hs===VP.st.me.id?'on':''}">${ic('user')}<span>Hồ sơ của tôi</span></a>` : ''); grp='Văn phòng'; }
   MODULES.filter(m=>can(m.key) && m.grp!=='Văn phòng').forEach(m=>{
     if(m.grp!==grp){ grp=m.grp; html+=`<div class="grp">${esc(grp)}</div>`;
       if(grp==='Nghiệp vụ'){ const cb=NAV_CB.filter(([r])=>can(r)); if(cb.length) html+=`<div class="sub">${esc(PHASES.cb)}</div>`+cb.map(([r,l,i])=>link(r,l,i,PHASES.cb+': '+l)).join('')+`<div class="sub">${esc(PHASES.dt)}</div>`; } }
@@ -97,11 +97,11 @@ function renderNav(){
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':S.route==='van-phong'?'Điểm danh':S.route==='ework-cu'?'Dữ liệu e-work cũ':'Danh mục chức năng';
+  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':S.route==='van-phong'?'Điểm danh':S.route==='ework-cu'?'Dữ liệu e-work cũ':S.route==='ho-so'?'Hồ sơ nhân sự':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
-    ${['van-phong','de-xuat','diem-danh','nhan-su'].includes(S.route)?'':`<select id="gpid" data-f="__pid" aria-label="Lọc theo dự án">${opts(projOpts(), S.pid, 'Tất cả dự án')}</select>`}
+    ${['van-phong','de-xuat','diem-danh','nhan-su','ho-so'].includes(S.route)?'':`<select id="gpid" data-f="__pid" aria-label="Lọc theo dự án">${opts(projOpts(), S.pid, 'Tất cả dự án')}</select>`}
     ${themeBtn()}${wfBell()}
     <span class="mode ${Store.mode==='server'?'shared':''}" title="${Store.mode==='server'?'Dữ liệu lưu tập trung trên máy chủ, mọi người dùng cùng thấy':'Mất kết nối máy chủ: thay đổi chưa được lưu'}">${Store.mode==='server'?'Đã kết nối máy chủ':'Mất kết nối máy chủ'}</span>
     <div class="who"><button class="btn ghost sm" data-act="account" title="Tài khoản"><span class="avatar">${esc(initials(S.user.name))}</span><span class="nm" style="text-align:left;line-height:1.2">${esc(S.user.name)}<br><span class="small muted">${esc(g?g.name:'')}</span></span></button></div>`;
@@ -324,6 +324,7 @@ ACT.account=()=>{
   <div style="padding:16px;display:flex;flex-direction:column;gap:12px"><div style="display:flex;gap:12px;align-items:center"><span class="avatar" style="width:44px;height:44px;font-size:15px">${esc(initials(S.user.name))}</span><div><b>${esc(S.user.name)}</b><div class="small muted">${esc(S.user.username)} · ${esc(g?g.name:'')}</div><div class="small muted">${esc(S.user.unit||'')}</div></div></div>
   ${S.mfa&&S.mfa.enabled?`<div class="mfa-state">${ic('shield').replace('<svg','<svg width="18" height="18"')}<div><b>Xác thực 2 lớp: đang bật</b><div class="small muted">Còn ${S.mfa.recoveryLeft} mã khôi phục chưa dùng</div></div></div>
   <button class="btn" data-act="new-rc">Tạo mã khôi phục mới</button>`:''}
+  ${typeof VP!=='undefined'&&VP.st&&VP.st.me?`<button class="btn" data-act="hs-me">${ic('user').replace('<svg','<svg width="16" height="16"')} Hồ sơ của tôi (bằng cấp, giấy tờ)</button>`:''}
   <button class="btn" data-act="appearance">${ic('palette').replace('<svg','<svg width="16" height="16"')} Giao diện: màu sắc, cỡ chữ</button>
   <button class="btn" data-act="chpw">${ic('key').replace('<svg','<svg width="16" height="16"')} Đổi mật khẩu</button>
   <button class="btn danger" data-act="logout">${ic('out').replace('<svg','<svg width="16" height="16"')} Đăng xuất</button></div></div>`);

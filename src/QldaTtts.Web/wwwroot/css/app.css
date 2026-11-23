@@ -752,3 +752,26 @@ select:not([multiple]):not([size]):disabled{opacity:.6}
   .auth form input:not([type=checkbox]):not([type=radio]){width:100%}
   .auth .cap-img{max-width:100%; height:auto}
 }
+
+/* Bản 1.10.11: hồ sơ nhân sự (trang riêng, thẻ theo mục, tệp có nút Xem / Tải về / Gỡ) */
+.hs-tabs .cnt{display:inline-block; min-width:20px; padding:0 6px; margin-left:4px; border-radius:9px; background:var(--accent); color:#fff; font-size:11px; font-weight:600; text-align:center}
+.hs-tabs .cnt.zero{background:var(--panel2); color:var(--muted)}
+.hs-sums{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-top:12px}
+.hs-sum{display:flex; flex-direction:column; gap:4px; text-align:left; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--panel); cursor:pointer; color:var(--ink); font:inherit}
+.hs-sum:hover{border-color:var(--accent)}
+.hs-sum span{font-size:13px; color:var(--muted)}
+.hs-sum .warn, .small.warn{color:var(--amber,#b45309)}
+.hs-item{padding:14px 16px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px}
+.hs-item.over{outline:2px dashed var(--accent); outline-offset:-4px}
+.hs-ih{display:flex; gap:10px; align-items:flex-start}
+.hs-ih .grow{flex:1; min-width:0}
+.hs-ib{display:flex; gap:6px; flex-shrink:0}
+.hs-files{list-style:none; margin:10px 0 8px; padding:0; display:flex; flex-direction:column; gap:6px}
+.hs-file{display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel2)}
+.hs-fi{flex-shrink:0; display:grid; place-items:center; color:var(--accent)}
+.hs-fn{flex:1; min-width:0; display:flex; flex-direction:column}
+.hs-fn a{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500}
+.hs-fb{display:flex; gap:6px; flex-shrink:0}
+.hs-nofile{padding:4px 0}
+.hs-add{cursor:pointer}
+@media (max-width:700px){ .hs-file{flex-wrap:wrap} .hs-fb{width:100%; justify-content:flex-end} .hs-ih{flex-wrap:wrap} }

@@ -252,7 +252,7 @@ function can(mod, lvl='view'){
   if(modHidden(mod)) return false; /* Bản 1.10: phân hệ đơn vị không dùng (Thông tin đơn vị → Phân hệ sử dụng) */
   if(mod==='hien-truong'||mod==='huong-dan'||mod==='trinh-duyet'||mod==='canh-bao') return !!S.user;
   /* Bản 1.9: mọi tài khoản tự điểm danh, gửi đề xuất; bảng công (trưởng phòng xem phòng mình) do máy chủ lọc phạm vi */
-  if(lvl==='view' && (mod==='van-phong'||mod==='de-xuat'||mod==='diem-danh'||mod==='lich-hop'||mod==='thong-bao'||mod==='kpi'||mod==='luong'||mod==='cong-viec')) return !!S.user;
+  if(lvl==='view' && (mod==='van-phong'||mod==='de-xuat'||mod==='diem-danh'||mod==='lich-hop'||mod==='thong-bao'||mod==='kpi'||mod==='luong'||mod==='cong-viec'||mod==='ho-so')) return !!S.user;
   if(mod==='doi-chieu') mod='quan-tri'; // trang giới thiệu chức năng: dành cho quản trị
   const g=myGroup(); if(!g) return false; if(g.admin) return true;
   if(mod==='quan-tri') return false; // Quản trị hệ thống: chỉ nhóm toàn quyền

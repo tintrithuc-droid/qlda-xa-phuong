@@ -199,8 +199,9 @@ VIEWS['de-xuat']=()=>{
     {h:'Số tiền', r:1, f:r=>r.amount!=null? fmtN(r.amount) : ''},
     {h:'Lý do', f:r=>esc(r.reason||'')+(r.place?`<div class="small muted">${esc(r.place)}</div>`:'')},
     {h:'Trạng thái', f:r=>vpStatus(r.status)+(r.approverName?`<div class="small muted">${esc(r.approverName)}${r.decidedAt?' · '+fmtDT(r.decidedAt):''}</div>`:'')+(r.decisionNote?`<div class="small">${esc(r.decisionNote)}</div>`:'')}],
-    rows, {empty: t==='approve'?'Không có đề xuất nào chờ bạn duyệt.':'Chưa có đề xuất.', pk:'dx'+t, actions:r=>{
-      let h=''; if(t==='approve' && r.status==='Chờ duyệt') h+=`<button class="btn sm primary" data-act="vp-req-decide" data-a="approve" data-id="${esc(r.id)}">Duyệt</button><button class="btn sm ghost danger" data-act="vp-req-decide" data-a="reject" data-id="${esc(r.id)}">Không duyệt</button>`;
+    (typeof vptCount==='function'&&!VPT.cnt['vp-de-xuat']&&setTimeout(()=>vptCount('vp-de-xuat'),0), rows), {empty: t==='approve'?'Không có đề xuất nào chờ bạn duyệt.':'Chưa có đề xuất.', pk:'dx'+t, actions:r=>{
+      let h=''; const nf=(typeof VPT!=='undefined'&&VPT.cnt['vp-de-xuat']||{})[r.id]; if(nf) h+=`<button class="btn sm ghost" data-act="vpt-req" data-id="${esc(r.id)}">${AICO.clip} ${nf} tệp</button>`;
+      if(t==='approve' && r.status==='Chờ duyệt') h+=`<button class="btn sm primary" data-act="vp-req-decide" data-a="approve" data-id="${esc(r.id)}">Duyệt</button><button class="btn sm ghost danger" data-act="vp-req-decide" data-a="reject" data-id="${esc(r.id)}">Không duyệt</button>`;
       if(r.employeeId===myId && r.status==='Chờ duyệt') h+=`<button class="btn sm ghost" data-act="vp-req-edit" data-id="${esc(r.id)}">Sửa</button><button class="btn sm ghost danger" data-act="vp-req-decide" data-a="cancel" data-id="${esc(r.id)}">Hủy</button>`;
       return h; }})}`;
 };
@@ -377,8 +378,10 @@ VIEWS['nhan-su']=()=>{
     body=`<div class="toolbar" style="margin:10px 0"><select data-f="nsd" aria-label="Phòng ban">${opts(VP.depts.map(d=>[d.id,d.name]), dep, 'Tất cả phòng ban')}</select><select data-f="nss" aria-label="Trạng thái">${opts(['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc'], stt, 'Mọi trạng thái')}</select><input type="search" data-f="nsq" value="${esc(q)}" placeholder="Tìm họ tên, điện thoại…" aria-label="Tìm nhân sự">${ed?`<button class="btn primary" data-act="vp-emp" data-id="">+ Thêm nhân sự</button>`:''}</div>`
     + table([{h:'Họ tên', f:e=>`<b style="font-weight:600">${esc(e.name)}</b>${e.code?` <span class="small muted">${esc(e.code)}</span>`:''}<div class="small muted">${esc(e.position||'')}</div>`},
       {h:'Phòng ban', f:e=>esc(vpDeptName(e.departmentId))}, {h:'Liên hệ', f:e=>[e.phone,e.email].filter(Boolean).map(esc).join('<br>')},
-      {h:'Tài khoản', f:e=>acc(e.userId)}, {h:'Chấm công', f:e=>e.attendance?'Có':pill('Không chấm công','info')}, {h:'Trạng thái', f:e=>pill(e.status, e.status==='Đang làm việc'?'ok':'')}],
-      rows, {empty:'Chưa có hồ sơ nhân sự.', pk:'ns', rowAct: ed||VP.st.perms.hr? 'vp-prof' : null});
+      {h:'Tài khoản', f:e=>acc(e.userId)}, {h:'Chấm công', f:e=>e.attendance?'Có':pill('Không chấm công','info')}, {h:'Trạng thái', f:e=>pill(e.status, e.status==='Đang làm việc'?'ok':'')},
+      {h:'Bằng cấp, giấy tờ', f:e=>{ const x=(HS.sum||{})[e.id]; return !HS.sum? '…' : !x||!x.muc? '<span class="muted small">Chưa có</span>' : `${x.bangCap?x.bangCap+' bằng cấp':''}${x.bangCap&&x.muc>x.bangCap?' · ':''}${x.muc>x.bangCap?(x.muc-x.bangCap)+' mục khác':''}<div class="small ${x.tep?'muted':'warn'}">${x.tep?x.tep+' tệp đính kèm':'chưa có tệp'}</div>`; }}],
+      rows, {empty:'Chưa có hồ sơ nhân sự.', pk:'ns', rowAct: ed||VP.st.perms.hr? 'vp-prof' : null, actions: ed||VP.st.perms.hr? e=>`<button class="btn sm" data-act="vp-prof" data-id="${esc(e.id)}">Xem hồ sơ</button>` : null});
+    if(!HS.sum) setTimeout(()=>hsSumLoad(),0);
   } else {
     body=`<div class="toolbar" style="margin:10px 0">${ed?`<button class="btn primary" data-act="vp-dept" data-id="">+ Thêm phòng ban</button>`:''}</div>`+table([
       {h:'Mã', k:'code'}, {h:'Phòng ban', f:d=>`<b style="font-weight:600">${esc(d.name)}</b>`},
@@ -386,7 +389,7 @@ VIEWS['nhan-su']=()=>{
       {h:'Giờ vào', f:d=>esc(d.checkinTime||VP.st.settings.checkIn)}, {h:'Số người', r:1, f:d=>VP.emps.filter(e=>e.departmentId===d.id && e.status!=='Nghỉ việc').length}],
       VP.depts, {empty:'Chưa có phòng ban.', pk:'pb', actions: ed? d=>`<button class="btn sm ghost" data-act="vp-dept" data-id="${esc(d.id)}">Sửa</button><button class="btn sm ghost danger" data-act="vp-dept-del" data-id="${esc(d.id)}">Xóa</button>` : null});
   }
-  return `<div class="head"><div class="grow"><h1>Nhân sự</h1><p>${VP.emps.filter(e=>e.status!=='Nghỉ việc').length} người đang làm việc, ${VP.depts.length} phòng ban</p></div></div>
+  return `<div class="head"><div class="grow"><h1>Nhân sự</h1><p>${VP.emps.filter(e=>e.status!=='Nghỉ việc').length} người đang làm việc, ${VP.depts.length} phòng ban. Bấm <b>Xem hồ sơ</b> để xem, thêm bằng cấp, hợp đồng, giấy tờ và tệp đính kèm.</p></div>${VP.st.me?`<div><button class="btn" data-act="hs-me">Hồ sơ của tôi</button></div>`:''}</div>
   <div class="tabs">${[['ns','Hồ sơ nhân sự'],['pb','Phòng ban']].map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="ns" data-id="${k}">${l}</button>`).join('')}</div>${body}`;
 };
 ACT['vp-emp']=id=>{
@@ -417,35 +420,7 @@ const VP_REC = [['bang-cap','Bằng cấp, chứng chỉ','Tên văn bằng, ch�
   ['cong-tac','Quá trình công tác','Nội dung (bổ nhiệm, điều chuyển, tăng lương…)','Phòng ban, đơn vị','Số quyết định','Từ ngày'],['khen-thuong','Khen thưởng','Nội dung khen thưởng','Hình thức','Số quyết định','Ngày'],
   ['ky-luat','Kỷ luật','Nội dung vi phạm','Hình thức kỷ luật','Số quyết định','Ngày'],['giay-to','Giấy tờ khác (CCCD, sơ yếu lý lịch, giấy khám sức khỏe…)','Tên giấy tờ','Nơi cấp','Số','Ngày cấp']];
 const vpUser = id => D('users').find(u=>u.id===id);
-ACT['vp-prof']=async id=>{
-  const e=vpEmp(id); if(!e) return; const ed=VP.st.perms.hrEdit;
-  let recs=[]; try{ recs=await api('GET','/api/vp/employees/'+encodeURIComponent(id)+'/records'); }catch(x){ toast(errText(x),'err'); }
-  VP._recs={id, list:recs}; const u=vpUser(e.userId);
-  const I=(l,v)=>v!=null&&v!==''?`<div class="fld"><label>${l}</label><div>${esc(String(v))}</div></div>`:'';
-  const grp=VP_REC.map(([k,label,t1,t2,t3,t4])=>{ const l=recs.filter(r=>r.kind===k); if(!l.length && !ed) return '';
-    return `<h3 style="margin:14px 0 6px">${label} ${ed?`<button class="btn sm ghost" data-act="vp-rec" data-id="${k}|">+ Thêm</button>`:''}</h3>${l.length? table([{h:t1,f:r=>`<b style="font-weight:600">${esc(r.title)}</b>${r.note?`<div class="small muted" style="white-space:pre-wrap">${esc(r.note)}</div>`:''}`},{h:t2,f:r=>esc(r.org||'')},{h:t3,f:r=>esc(r.number||'')},
-      {h:t4,f:r=>(r.fromDate?fmtDate(r.fromDate):'')+(r.toDate?' – '+fmtDate(r.toDate):'')},...(k==='khen-thuong'||k==='ky-luat'?[{h:'Số tiền',r:1,f:r=>r.amount?vnd(r.amount):''}]:[]),
-      {h:'Tệp',f:r=>r.fileId?`<a href="/api/files/${esc(r.fileId)}" target="_blank" rel="noopener">${esc(r.fileName||'Xem tệp')}</a>`:''}], l, {nopage:true, rowAct: ed?'vp-rec-edit':null}) : '<p class="small muted" style="margin:0">Chưa có.</p>'}`; }).join('');
-  openModal(`<div class="mform wide"><header><h3>${esc(e.name)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header><div style="padding:16px;max-height:calc(100vh - 120px);overflow:auto">
-    <div class="alert info" style="margin-bottom:10px">Tài khoản đăng nhập: ${u?`<b>${esc(u.username)}</b>`:'<b>chưa gắn</b>'}. Hồ sơ này là thông tin người lao động; tên đăng nhập, mật khẩu, quyền quản lý ở <b>Quản trị hệ thống → Người dùng</b>.</div>
-    <div class="fgrid">${I('Phòng ban',vpDeptName(e.departmentId))}${I('Chức vụ',e.position)}${I('Mã nhân viên',e.code)}${I('Trạng thái',e.status)}${I('Điện thoại',e.phone)}${I('Thư điện tử',e.email)}
-      ${I('Ngày sinh',e.birthday&&fmtDate(e.birthday))}${I('Giới tính',e.gender)}${I('Ngày vào làm',e.startDate&&fmtDate(e.startDate))}${I('Ngày nghỉ việc',e.endDate&&fmtDate(e.endDate))}
-      ${I('Trình độ',e.education)}${I('Chuyên ngành',e.major)}${I('Quê quán',e.hometown)}${I('Chỗ ở hiện nay',e.currentAddress)}${I('Người liên hệ khẩn cấp',[e.emergencyName,e.emergencyRelation,e.emergencyPhone].filter(Boolean).join(', '))}
-      ${I('Hợp đồng',[e.contractType,e.contractNo,e.contractStart&&('từ '+fmtDate(e.contractStart)),e.contractEnd&&('đến '+fmtDate(e.contractEnd))].filter(Boolean).join(', '))}</div>
-    ${ed?`<div class="toolbar" style="margin-top:8px"><button class="btn" data-act="vp-emp" data-id="${esc(id)}">Sửa thông tin</button></div>`:''}${grp}</div></div>`);
-};
-ACT['vp-rec-edit']=rid=>{ const r=(VP._recs.list||[]).find(x=>x.id===rid); if(r) ACT['vp-rec'](r.kind+'|'+rid); };
-ACT['vp-rec']=key=>{ const [kind,rid]=key.split('|'); const eid=VP._recs.id; const r=(VP._recs.list||[]).find(x=>x.id===rid)||{kind}; const d=VP_REC.find(x=>x[0]===kind); closeModal();
-  const F=[{key:'title',label:d[2],req:true,full:true},{key:'org',label:d[3]},{key:'number',label:d[4]},{key:'fromDate',label:d[5],type:'date'},{key:'toDate',label:'Đến ngày (nếu có)',type:'date'},
-    ...(kind==='khen-thuong'||kind==='ky-luat'?[{key:'amount',label:'Số tiền (đồng)',type:'money'}]:[]),{key:'note',label:'Ghi chú',type:'textarea',keepLines:true},
-    {key:'file',label:r.fileId?'Thay tệp đính kèm ('+(r.fileName||'đã có')+')':'Tệp đính kèm (ảnh, PDF)',type:'files'}];
-  openForm({title:d[1].split(' (')[0]+': '+(vpEmp(eid)||{}).name, narrow:true, fields:F, value:{...r},
-    onSave:async v=>{ const o={...r, ...v, kind, fromDate:v.fromDate||null, toDate:v.toDate||null, amount:v.amount==null||v.amount===''?null:N(v.amount)}; delete o.file;
-      if(v.file&&v.file[0]){ const up=await uploadFile(v.file[0]); o.fileId=up.id; o.fileName=v.file[0].name; }
-      const x=await api('PUT',`/api/vp/employees/${encodeURIComponent(eid)}/records/${encodeURIComponent(rid||uid('hs'))}`, o); setTimeout(()=>ACT['vp-prof'](eid),50); return x; }});
-  if(rid) setTimeout(()=>{ const b=document.querySelector('.mform footer, .mform .actions'); if(b && !b.querySelector('[data-act="vp-rec-del"]')) b.insertAdjacentHTML('afterbegin',`<button type="button" class="btn ghost danger" data-act="vp-rec-del" data-id="${esc(rid)}">Xóa</button>`); },0);
-};
-ACT['vp-rec-del']=async rid=>{ const eid=VP._recs.id; if(!await confirmBox('Xóa mục này khỏi hồ sơ?')) return; await api('DELETE',`/api/vp/employees/${encodeURIComponent(eid)}/records/${encodeURIComponent(rid)}`); closeModal(); toast('Đã xóa'); ACT['vp-prof'](eid); };
+/* Bản 1.10.11: hồ sơ (vp-prof) là trang riêng, xem views-hs.js */
 ACT['vp-dept']=id=>{ const d=vpDept(id)||{order:VP.depts.length+1};
   openForm({title: id?'Sửa phòng ban':'Thêm phòng ban', narrow:true, value:d, fields:[{key:'name',label:'Tên phòng ban',req:true},{key:'code',label:'Mã'},
     {key:'managerUserId',label:'Trưởng phòng (duyệt đề xuất, xem bảng công của phòng)',type:'select',options:()=>D('users').filter(u=>u.active!==false).map(u=>[u.id,u.name+' ('+u.username+')'])},

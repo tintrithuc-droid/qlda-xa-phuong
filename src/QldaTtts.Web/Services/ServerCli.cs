@@ -16,12 +16,13 @@ namespace QldaTtts.Web.Services;
 ///   --thong-tin-don-vi &lt;tệp json&gt;                       gộp các mục Thông tin đơn vị (appName, bannerTitle…) vào cài đặt hiện có
 ///   --tao-khoa-chep &lt;tệp khóa&gt; [--tu-ngay yyyy-MM-dd]   tạo khóa chép chấm công sang e-work, ghi thẳng ra tệp (không in ra màn hình)
 ///   --doi-chieu-luong &lt;yyyy-MM&gt; [--ra &lt;tệp csv&gt;]        bản 1.10.4: đối chiếu bảng lương QLDA tính với bảng lương e-work đã chuyển (BangLuongs), ghi tệp CSV; màn hình chỉ in số người lệch
+///   --nhap-tep-ework &lt;tệp json&gt; --thu-muc &lt;thư mục site e-work&gt; [--thu]   bản 1.10.11: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp…); --thu: chỉ đếm, không chép
 /// </summary>
 public static class ServerCli
 {
     public const string By = "he-thong";
 
-    public static async Task<bool> RunAsync(AppDbContext db, string[] args)
+    public static async Task<bool> RunAsync(AppDbContext db, string[] args, FileStore? store = null)
     {
         string? Arg(string name) { var i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : null; }
         void Fail(string m) { Console.Error.WriteLine(m); Environment.Exit(1); }
@@ -30,6 +31,28 @@ public static class ServerCli
             Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, Username = By, Action = action, Module = module,
             Target = target.Length > 500 ? target[..500] : target
         });
+
+        // Bản 1.10.11: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp, thông báo, đề xuất, công việc); chạy sau --nhap-ework, chạy lại không trùng
+        if (args.Contains("--nhap-tep-ework"))
+        {
+            var file = Arg("--nhap-tep-ework"); var dirs = Arg("--thu-muc");
+            if (file is null || !File.Exists(file)) Fail($"Không thấy tệp: {file}");
+            if (string.IsNullOrWhiteSpace(dirs)) Fail("Thiếu --thu-muc <thư mục site e-work> (nhiều thư mục cách nhau bằng dấu ;).");
+            if (store is null) Fail("Không mở được kho tệp.");
+            var roots = dirs!.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var d in roots) if (!Directory.Exists(d)) Fail($"Không thấy thư mục: {d}");
+            var dry = args.Contains("--thu");
+            Console.WriteLine("Đang lập chỉ mục tệp e-work…");
+            var idx = new EworkFiles.Index(roots); Console.WriteLine($"Thấy {idx.Count} tệp trong {roots.Length} thư mục.");
+            await using var fs = File.OpenRead(file!);
+            using var doc = await JsonDocument.ParseAsync(fs);
+            db.Database.SetCommandTimeout(600);
+            var rep = await EworkFiles.Run(db, store!, doc.RootElement, idx, By, dry);
+            if (!dry) { Log("Chép tệp đính kèm từ e-work (dòng lệnh trên máy chủ)", "Văn phòng", rep.Summary); await db.SaveChangesAsync(); }
+            Console.WriteLine((dry ? "CHẠY THỬ (chưa chép gì): " : "XONG: ") + rep.Summary);
+            if (rep.MissingSamples.Count > 0) Console.WriteLine("Một số tệp không tìm thấy (đường dẫn trong CSDL e-work):\n  " + string.Join("\n  ", rep.MissingSamples));
+            return true;
+        }
 
         if (args.Contains("--nhap-ework"))
         {

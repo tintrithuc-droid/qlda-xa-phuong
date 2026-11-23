@@ -78,7 +78,7 @@ public class AttachmentsController : ApiControllerBase
         var files = await Db.Files.AsNoTracking().ToListAsync();
         var atts = await Db.Attachments.AsNoTracking().ToListAsync();
         var byCol = atts.Where(a => a.DeletedAt == null).GroupBy(a => a.Collection)
-            .Select(g => new { collection = g.Key, label = Collections.Find(g.Key)?.Label ?? g.Key, count = g.Count(), size = g.Sum(x => x.Size) })
+            .Select(g => new { collection = g.Key, label = g.Key == HoSoNhanSuController.Col ? "Hồ sơ nhân sự" : Collections.Find(g.Key)?.Label ?? g.Key, count = g.Count(), size = g.Sum(x => x.Size) })
             .OrderByDescending(x => x.size).ToList();
         var trash = atts.Where(a => a.DeletedAt != null).OrderByDescending(a => a.DeletedAt).ToList();
         var orphans = await Orphans(files);
@@ -96,6 +96,12 @@ public class AttachmentsController : ApiControllerBase
         if (!Uc.IsAdmin) return Denied();
         var a = await Db.Attachments.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt != null);
         if (a is null) return Error(404, "Không tìm thấy tệp trong thùng rác.");
+        if (a.Collection == HoSoNhanSuController.Col)
+        {
+            if (!await Db.EmployeeRecords.AnyAsync(r => r.Id == a.RecordId)) return Error(409, "Mục hồ sơ nhân sự của tệp đã bị xóa nên không khôi phục được. Hãy tải tệp về và đính kèm lại.");
+            a.DeletedAt = null; a.DeletedBy = null; Uc.Log("Khôi phục tệp đính kèm", "Nhân sự", a.FileName, "employees", a.RecordId);
+            await Db.SaveChangesAsync(); return Ok(a);
+        }
         var def = Collections.Find(a.Collection);
         if (def is null || await Db.FindAsync(def.Type, a.RecordId) is null) return Error(409, "Bản ghi gốc của tệp đã bị xóa nên không khôi phục được. Hãy tải tệp về và đính kèm lại vào bản ghi khác.");
         a.DeletedAt = null; a.DeletedBy = null;
@@ -138,6 +144,7 @@ public class AttachmentsController : ApiControllerBase
         used.UnionWith((await Db.LegalDocuments.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
         used.UnionWith((await Db.ModelFiles.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
         used.UnionWith((await Db.Payments.AsNoTracking().Select(x => x.AssetId).ToListAsync()).OfType<string>());
+        used.UnionWith((await Db.EmployeeRecords.AsNoTracking().Select(x => x.FileId).ToListAsync()).OfType<string>()); // bản 1.10.11: tệp cũ của hồ sơ nhân sự
         foreach (var d in await Db.Diaries.AsNoTracking().ToListAsync()) used.UnionWith(d.Photos.Select(p => p.AssetId).OfType<string>());
         used.UnionWith((await Db.Settings.AsNoTracking().Where(s => s.Key == BrandingController.LogoKey).Select(s => s.Value).ToListAsync()).OfType<string>());
         var cutoff = DateTime.UtcNow.AddDays(-1);

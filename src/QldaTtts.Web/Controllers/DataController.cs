@@ -64,7 +64,7 @@ public class DataController : ApiControllerBase
         }
         var hiddenGuides = (await Db.Guides.AsNoTracking().ToListAsync()).Where(g => !Uc.SeesGuide(g)).Select(g => g.Id).ToHashSet();
         // Tệp đính kèm (không gồm thùng rác) trong phạm vi dự án được giao
-        result["attachments"] = (await Db.Attachments.AsNoTracking().Where(a => a.DeletedAt == null).OrderBy(a => a.UploadedAt).ToListAsync())
+        result["attachments"] = (await Db.Attachments.AsNoTracking().Where(a => a.DeletedAt == null && a.Collection != HoSoNhanSuController.Col && !VpTepController.Cols.Contains(a.Collection)).OrderBy(a => a.UploadedAt).ToListAsync())
             .Where(a => a.Collection == "guides" ? !hiddenGuides.Contains(a.RecordId) : Uc.InScope(a.ProjectId) && !Hidden(a.Collection)).Cast<object>().ToList();
         if (Uc.Can("quan-tri"))
         {

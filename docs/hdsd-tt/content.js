@@ -39,6 +39,7 @@ exports.CHAPTERS = [
 <ol><li>Vào <b>Văn phòng → Điểm danh</b> (trang mở đầu sau khi đăng nhập).</li>
 <li>Chọn nơi làm việc (<i>Tại công ty, công trình</i>, <i>Làm việc online</i>, <i>Đi công tác</i>), bấm <b>Điểm danh vào</b>; về bấm <b>Điểm danh ra</b>. Tại công ty: cho phép trình duyệt dùng định vị, hoặc kết nối mạng của công ty.</li>
 <li>Màn hình hiện giờ vào, giờ ra, lời chúc trong ngày lễ, sinh nhật, và các việc sắp đến hạn của bạn.</li></ol>
+<p>Ngày nghỉ (Chủ nhật, thứ Bảy nghỉ, ngày lễ): nút điểm danh khóa, màn hình chỉ hiện lời chúc. Có làm thêm vào ngày nghỉ thì làm xong lập <b>phiếu xác nhận tăng ca</b> (chương <i>Đề xuất</i>).</p>
 <p>Quên điểm danh, đi muộn có lý do, làm việc online: gửi đề xuất tương ứng (chương <i>Đề xuất</i>). Đề xuất được duyệt thì bảng công tự tính lại.</p>
 <p class="note">Chấm công trên phần mềm mới được chép sang e-work cũ mỗi 5 phút trong thời gian chạy song song, nên không cần chấm hai nơi.</p>` },
 
@@ -52,7 +53,7 @@ exports.CHAPTERS = [
 <tr><td>Nghỉ không lương</td><td>Không tính lương ngày đó, không tính vắng không phép.</td></tr>
 <tr><td>Nghỉ ốm, thai sản (BHXH)</td><td>Công ty không trả lương ngày đó; bảo hiểm xã hội chi trả theo chứng từ.</td></tr>
 <tr><td>Làm việc online, Công tác</td><td>Tính đủ công. Công tác phí theo mức Công ty đặt (nếu bật).</td></tr>
-<tr><td>Tăng ca</td><td>Tính theo loại ngày: ngày thường 150%, ngày nghỉ hằng tuần 200%, ngày lễ 300% (tối thiểu theo Điều 98).</td></tr>
+<tr><td>Tăng ca (phiếu xác nhận)</td><td>Lập <b>sau khi đã làm thêm</b>: chọn loại (bình thường tối đa 3 giờ/ngày; theo yêu cầu gấp tối đa 4 giờ/ngày), ngày, số giờ đã làm, nội dung. Không lập cho ngày chưa tới. Trưởng bộ phận hoặc Giám đốc duyệt. Phiếu duyệt trong tháng nào tính vào lương tháng đó. Tiền = số giờ × (lương chính + phụ cấp) ÷ công chuẩn ÷ 8 × hệ số: ngày thường 150%, ngày nghỉ hằng tuần 200%, ngày lễ 300% (Điều 98).</td></tr>
 <tr><td>Đi muộn, về sớm; Quên điểm danh</td><td>Được duyệt thì không tính đi muộn hoặc thiếu công.</td></tr>
 <tr><td>Tạm ứng, Xăng xe, Thanh toán, Ứng lương</td><td>Kế toán hoặc Ban giám đốc chọn có đưa vào lương tháng hay không.</td></tr></table>` },
 
@@ -103,7 +104,8 @@ exports.CHAPTERS = [
 
   // ---------------- kế toán
   { id: 'kt-nhan-su', title: 'Hồ sơ nhân sự, hồ sơ lương', roles: ['kt', 'gd'], shot: 'nhan-su', html: `
-<ol><li><b>Văn phòng → Nhân sự</b>, thẻ <b>Hồ sơ nhân sự</b>: thông tin cá nhân, phòng ban, chức vụ, ngày vào làm, hợp đồng, bằng cấp, khen thưởng, kỷ luật, quá trình công tác, liên hệ khẩn cấp, tài khoản ngân hàng, CCCD, người phụ thuộc, phép tồn. Bấm <b>Sửa thông tin</b> để cập nhật.</li>
+<ol><li><b>Văn phòng → Nhân sự</b>, bấm tên một người để mở trang hồ sơ: thẻ <b>Thông tin chung</b> (cá nhân, phòng ban, chức vụ, ngày vào làm, ngân hàng, CCCD, người phụ thuộc), <b>Bằng cấp, chứng chỉ</b>, <b>Hợp đồng lao động</b>, <b>Quá trình công tác</b>, <b>Khen thưởng</b>, <b>Kỷ luật</b>, <b>Giấy tờ</b>, <b>Tất cả tệp</b>. Mỗi mục đính kèm được ảnh chụp hoặc bản PDF, bấm <b>Xem</b> để mở ngay. Mỗi người xem hồ sơ của mình ở <b>Hồ sơ của tôi</b>.</li>
+<li>Ô <b>Chấm công</b>: chọn <i>Không chấm công</i> cho người không cần điểm danh. Người đó hưởng nguyên lương chính, không cần tự xác nhận lương.</li>
 <li>Người nghỉ việc: ghi ngày nghỉ việc và trạng thái <i>Nghỉ việc</i>; hồ sơ vẫn giữ để tra cứu và tính lương tháng cuối.</li>
 <li><b>Lương → Hồ sơ lương</b>: lương cơ bản, lương đóng bảo hiểm, các khoản phụ cấp, số người phụ thuộc, cách tính thuế.</li></ol>
 <p class="note">Thông tin CCCD, ngân hàng là dữ liệu cá nhân (Nghị định 13/2023): chỉ dùng để chi lương, không chụp màn hình gửi ra ngoài.</p>` },
@@ -151,7 +153,7 @@ exports.CHAPTERS = [
   { id: 'qt-thiet-lap', title: 'Thiết lập hệ thống', roles: ['qt'], html: `
 <ul><li><b>Bảng công → Thiết lập điểm danh</b>: giờ làm, ca sáng chiều, thứ Bảy, số ngày phép năm, vị trí và mạng công ty để điểm danh, cho phép ngoài phạm vi.</li>
 <li><b>KPI → Thiết lập</b>: tỷ trọng, hệ số mức độ, trễ hạn, chất lượng, trừ gia hạn, mở lại, hệ số phối hợp, xếp loại, thưởng xếp hạng, số ngày nhắc trước hạn.</li>
-<li><b>Lương → Thiết lập</b>: lương cơ sở, lương tối thiểu vùng, tỷ lệ bảo hiểm, giảm trừ, biểu thuế, tỷ lệ tăng ca, công tác phí, tạm ứng và xăng xe mặc định, tài khoản trích nợ, nội dung chuyển khoản, hạn xác nhận lương.</li>
+<li><b>Lương → Thiết lập</b>: lương cơ sở, lương tối thiểu vùng, tỷ lệ bảo hiểm, giảm trừ, biểu thuế, tỷ lệ tăng ca, số giờ tăng ca tối đa một ngày (bình thường, gấp), tính tăng ca theo tháng duyệt phiếu hay theo ngày tăng ca, đơn giá tăng ca tính trên lương chính + phụ cấp hay chỉ lương chính, công tác phí, tạm ứng và xăng xe mặc định, tài khoản trích nợ, nội dung chuyển khoản, hạn xác nhận lương.</li>
 <li><b>Thông tin đơn vị → Phân hệ sử dụng</b>: ẩn các phân hệ Công ty không dùng.</li>
 <li><b>Sao lưu, phục hồi</b>: sao lưu tự động hằng ngày; tải bản sao lưu đầy đủ trước mỗi lần cập nhật.</li>
 <li>Tài khoản quản trị bắt buộc xác thực 2 lớp (ứng dụng Authenticator, mục "e-work Trithuc").</li></ul>` },

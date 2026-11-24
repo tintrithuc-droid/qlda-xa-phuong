@@ -107,7 +107,7 @@ exports.CHAPTERS = [
 <ol><li><b>Văn phòng → Nhân sự</b>, bấm tên một người để mở trang hồ sơ: thẻ <b>Thông tin chung</b> (cá nhân, phòng ban, chức vụ, ngày vào làm, ngân hàng, CCCD, người phụ thuộc), <b>Bằng cấp, chứng chỉ</b>, <b>Hợp đồng lao động</b>, <b>Quá trình công tác</b>, <b>Khen thưởng</b>, <b>Kỷ luật</b>, <b>Giấy tờ</b>, <b>Tất cả tệp</b>. Mỗi mục đính kèm được ảnh chụp hoặc bản PDF, bấm <b>Xem</b> để mở ngay. Mỗi người xem hồ sơ của mình ở <b>Hồ sơ của tôi</b>.</li>
 <li>Ô <b>Chấm công</b>: chọn <i>Không chấm công</i> cho người không cần điểm danh. Người đó hưởng nguyên lương chính, không cần tự xác nhận lương.</li>
 <li>Người nghỉ việc: ghi ngày nghỉ việc và trạng thái <i>Nghỉ việc</i>; hồ sơ vẫn giữ để tra cứu và tính lương tháng cuối.</li>
-<li><b>Lương → Hồ sơ lương</b>: lương cơ bản, lương đóng bảo hiểm, các khoản phụ cấp, số người phụ thuộc, cách tính thuế.</li></ol>
+<li><b>Lương → Hồ sơ lương</b>: lương cơ bản, lương đóng bảo hiểm, các khoản phụ cấp, số người phụ thuộc, cách tính thuế, đóng hay không đóng bảo hiểm, mức công tác phí riêng (để trống thì dùng mức chung, 0 là không hưởng; đã lấy sẵn từ e-work).</li></ol>
 <p class="note">Thông tin CCCD, ngân hàng là dữ liệu cá nhân (Nghị định 13/2023): chỉ dùng để chi lương, không chụp màn hình gửi ra ngoài.</p>` },
 
   { id: 'kt-bang-cong', title: 'Bảng công, ngày nghỉ lễ', roles: ['kt', 'gd'], html: `

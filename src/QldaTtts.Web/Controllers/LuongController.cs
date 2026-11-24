@@ -235,7 +235,8 @@ public class LuongController : ApiControllerBase
             {
                 s.UnusedLeave = Math.Max(0, s.LeaveTotal - s.LeaveUsedYear); s.UnusedLeavePay = Math.Round(daily * s.UnusedLeave, 0);
             }
-            if (ps.TripOn && ps.TripRate > 0) { s.TripDays = st.Trip; s.TripPay = Math.Round(st.Trip * ps.TripRate, 0); }
+            var tripRate = p?.TripRate ?? ps.TripRate; // 1.10.14: mức riêng từng người (như e-work), trống = mức chung
+            if (ps.TripOn && tripRate > 0) { s.TripDays = st.Trip; s.TripPay = Math.Round(st.Trip * tripRate, 0); }
             foreach (var r in monthReqs.Where(r => r.EmployeeId == e.Id && r.Type != "Ứng lương"))
             {
                 var inc = r.Payroll ?? (r.Type == "Xăng xe" ? ps.FuelToPayroll : ps.AdvanceToPayroll);
@@ -424,10 +425,10 @@ public class LuongController : ApiControllerBase
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         if (!Uc.Can("luong")) return Denied();
         var l = await Db.PayProfiles.AsNoTracking().ToListAsync();
-        return Ok(l.Select(p => new { p.EmployeeId, p.BaseSalary, p.InsuranceSalary, allowances = Allow(p.Allowances), p.NoInsurance, p.FlatTax, p.FromMonth }));
+        return Ok(l.Select(p => new { p.EmployeeId, p.BaseSalary, p.InsuranceSalary, allowances = Allow(p.Allowances), p.NoInsurance, p.FlatTax, p.FromMonth, p.TripRate }));
     }
 
-    public record ProfileBody(decimal BaseSalary, decimal? InsuranceSalary, List<Allowance>? Allowances, bool NoInsurance, bool FlatTax, string? FromMonth, int? Dependents);
+    public record ProfileBody(decimal BaseSalary, decimal? InsuranceSalary, List<Allowance>? Allowances, bool NoInsurance, bool FlatTax, string? FromMonth, int? Dependents, decimal? TripRate = null);
 
     [HttpPut("luong-ho-so/{employeeId}")]
     public async Task<IActionResult> PutProfile(string employeeId, [FromBody] ProfileBody b)
@@ -436,11 +437,11 @@ public class LuongController : ApiControllerBase
         if (!Uc.Can("luong", true)) return Denied();
         if (!ValidId(employeeId)) return Error(400, "Mã không hợp lệ.");
         var e = await Db.Employees.FirstOrDefaultAsync(x => x.Id == employeeId); if (e is null) return NotFound();
-        if (b.BaseSalary < 0 || b.InsuranceSalary < 0 || (b.Allowances ?? new()).Any(a => a.Amount < 0 || string.IsNullOrWhiteSpace(a.Name))) return Error(400, "Số tiền không hợp lệ.");
+        if (b.BaseSalary < 0 || b.InsuranceSalary < 0 || b.TripRate < 0 || (b.Allowances ?? new()).Any(a => a.Amount < 0 || string.IsNullOrWhiteSpace(a.Name))) return Error(400, "Số tiền không hợp lệ.");
         var p = await Db.PayProfiles.FirstOrDefaultAsync(x => x.EmployeeId == employeeId);
         if (p is null) { p = new PayProfile { Id = "hl-" + Guid.NewGuid().ToString("N")[..20], EmployeeId = employeeId }; Db.PayProfiles.Add(p); }
         p.BaseSalary = b.BaseSalary; p.InsuranceSalary = b.InsuranceSalary; p.Allowances = JsonSerializer.Serialize(b.Allowances ?? new(), Opts);
-        p.NoInsurance = b.NoInsurance; p.FlatTax = b.FlatTax; p.FromMonth = b.FromMonth; p.UpdatedAt = DateTime.UtcNow; p.UpdatedBy = Uc.User.Username;
+        p.NoInsurance = b.NoInsurance; p.FlatTax = b.FlatTax; p.FromMonth = b.FromMonth; p.TripRate = b.TripRate; p.UpdatedAt = DateTime.UtcNow; p.UpdatedBy = Uc.User.Username;
         if (b.Dependents is { } dp && dp >= 0) e.Dependents = dp;
         Uc.Log("Cập nhật hồ sơ lương", "Lương", e.Name);
         await Db.SaveChangesAsync(); return Ok(new { ok = true });

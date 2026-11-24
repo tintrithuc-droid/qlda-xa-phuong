@@ -38,6 +38,17 @@ public static class Upgrades
         }
         db.SaveChanges();
 
+        // Bản 1.10.14: mức công tác phí riêng từng người lấy từ bảng lương e-work đã chuyển, chạy một lần
+        {
+            const string key = "upgrade:1.10.14-cong-tac-phi-ework";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                EworkImport.TripRatesFromArchive(db).GetAwaiter().GetResult();
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // 3) Phiên bản 1.1: chức năng Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026), chạy một lần
         CapXa(db);
 

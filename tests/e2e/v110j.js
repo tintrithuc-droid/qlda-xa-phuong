@@ -1,4 +1,4 @@
-// Kiểm thử bản 1.10.13: KPI tự chốt lúc 0 giờ ngày 1 tháng sau (mở chốt để sửa thì không tự chốt lại), thưởng tháng còn làm trên e-work lấy theo bảng lương e-work.
+// Kiểm thử bản 1.10.13–1.10.14: mức công tác phí riêng từ e-work; KPI tự chốt lúc 0 giờ ngày 1 tháng sau (mở chốt để sửa thì không tự chốt lại), thưởng tháng còn làm trên e-work lấy theo bảng lương e-work.
 // node tests/e2e/v110h.js [BASE] [tên CSDL]
 // node tests/e2e/v110g.js [BASE] [tên CSDL] — cần CSDL trống, máy chủ chạy bằng /tmp/claude-0/run.sh <tên CSDL>
 const { chromium } = require('playwright');
@@ -43,11 +43,22 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   // 1) Nạp e-work: bảng lương e-work tháng 09/2026 có cột Thưởng; tháng trước (theo ngày máy) không có bảng lương e-work
   const fx = JSON.parse(fs.readFileSync(path.join(__dirname, '../fixtures/ework_luutru.json'), 'utf8').replace(/^\uFEFF/, ''));
   fx.luutru.QuanLyCongViecs = [];
-  fx.luutru.BangLuongs = [{ Id: 'l9', UserId: 'u2', FullName: 'Trần Thị B', LuongCoBan: 9000000, Thuong: 1500000, Thang: 9, Nam: 2026 }];
+  fx.luutru.BangLuongs = [{ Id: 'l9', UserId: 'u2', FullName: 'Trần Thị B', LuongCoBan: 9000000, Thuong: 1500000, NgayCongTac: 2, MucCongTacPhi: 0, Thang: 9, Nam: 2026 },
+    { Id: 'l8a', UserId: 'u1', FullName: 'Nguyễn Văn A', NgayCongTac: 1.5, MucCongTacPhi: 150000, Thang: 8, Nam: 2026 }, { Id: 'l9a', UserId: 'u1', FullName: 'Nguyễn Văn A', NgayCongTac: 0, MucCongTacPhi: 0, Thang: 9, Nam: 2026 }];
   const FX = path.join(tmp, 'ew.json'); fs.writeFileSync(FX, JSON.stringify(fx));
   const c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: 'TriThuc2026' });
   ok(c.code === 0, 'Nạp e-work lỗi: ' + c.out);
   const emps = await J(r.get(BASE + '/api/vp/employees', { headers: H })); const ttb = emps.find(e => e.name === 'Trần Thị B');
+
+  // 1b) 1.10.14: mức công tác phí riêng lấy từ bảng lương e-work (tháng gần nhất có ngày công tác)
+  { const nva = emps.find(e => e.name === 'Nguyễn Văn A'); const pr = await J(r.get(BASE + '/api/vp/luong-ho-so', { headers: H })); if (!Array.isArray(pr)) console.log('HOSO', JSON.stringify(pr).slice(0, 300)); const P = id => pr.find(x => x.employeeId === id);
+    ok(P(ttb.id) && P(ttb.id).tripRate === 0, 'Mức công tác phí riêng của B phải 0: ' + JSON.stringify(P(ttb.id)));
+    ok(!P(nva.id) || P(nva.id).tripRate === 150000, 'Mức công tác phí riêng của A phải 150000: ' + JSON.stringify(P(nva.id)));
+    ok(pr.filter(x => x.employeeId !== ttb.id && x.employeeId !== nva.id).every(x => x.tripRate == null), 'Người không có công tác trên e-work phải dùng mức chung');
+    const pa = P(ttb.id); const rs0 = await r.put(BASE + '/api/vp/luong-ho-so/' + ttb.id, { headers: H, data: { ...pa, tripRate: null } }); ok(rs0.ok(), 'Lưu hồ sơ lương lỗi');
+    const pr2 = await J(r.get(BASE + '/api/vp/luong-ho-so', { headers: H })); ok(pr2.find(x => x.employeeId === ttb.id).tripRate == null, 'Xóa mức riêng không lưu');
+    await r.put(BASE + '/api/vp/luong-ho-so/' + ttb.id, { headers: H, data: { ...pa, tripRate: 0 } });
+    const bad = await r.put(BASE + '/api/vp/luong-ho-so/' + ttb.id, { headers: H, data: { ...pa, tripRate: -1 } }); ok(bad.status() === 400, 'Nhận mức âm'); }
 
   // 2) KPI tháng trước: chưa chốt, trang ghi giờ tự chốt (0 giờ ngày 1 tháng sau)
   let k = await J(r.get(BASE + '/api/vp/kpi?month=' + PM, { headers: H }));

@@ -551,7 +551,34 @@ public static class EworkImport
                 await Save(db, rep); db.ChangeTracker.Clear();
                 rep.Archive[name] = i;
             }
+        rep.Warnings.AddRange(await TripRatesFromArchive(db) is var tr && tr > 0 ? new[] { $"Mức công tác phí riêng từ bảng lương e-work: {tr} người" } : Array.Empty<string>());
         return rep;
+    }
+
+    /// <summary>Bản 1.10.14: e-work đặt mức công tác phí riêng từng người (BangLuongs.MucCongTacPhi, có người 0 = không hưởng).
+    /// Lấy mức ở tháng gần nhất người đó có ngày công tác, ghi vào hồ sơ lương còn trống mức riêng. Trả về số người được điền.</summary>
+    public static async Task<int> TripRatesFromArchive(AppDbContext db)
+    {
+        var rows = await db.EworkArchive.AsNoTracking().Where(r => r.TableName == "BangLuongs").Select(r => new { r.Period, r.Data }).ToListAsync();
+        var latest = new Dictionary<string, (string period, decimal rate)>();
+        foreach (var r in rows)
+        {
+            using var doc = JsonDocument.Parse(r.Data); var o = doc.RootElement;
+            var uid = S(o, "UserId"); if (uid is null || (Num(o, "NgayCongTac") ?? 0) <= 0 || Num(o, "MucCongTacPhi") is not { } rate) continue;
+            var per = r.Period ?? "";
+            if (!latest.TryGetValue(uid, out var cur) || string.CompareOrdinal(per, cur.period) > 0) latest[uid] = (per, (decimal)rate);
+        }
+        if (latest.Count == 0) return 0;
+        var emps = await db.Employees.AsNoTracking().Where(e => e.EworkId != null).ToDictionaryAsync(e => e.Id, e => e.EworkId!);
+        var n = 0;
+        foreach (var p in await db.PayProfiles.Where(p => p.TripRate == null).ToListAsync())
+            if (emps.TryGetValue(p.EmployeeId, out var ew) && latest.TryGetValue(ew, out var v)) { p.TripRate = v.rate; p.UpdatedAt = DateTime.UtcNow; p.UpdatedBy = "he-thong"; n++; }
+        if (n > 0)
+        {
+            db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, Username = "he-thong", Fullname = "Hệ thống", Action = "Mức công tác phí riêng từ bảng lương e-work", Module = "Lương", Target = n + " người" });
+            await db.SaveChangesAsync();
+        }
+        return n;
     }
 
     /// <summary>Bản 1.10.3: dữ liệu e-work dài hơn cột của QLDA thì cắt vừa cột (ghi lưu ý) thay vì dừng cả lần nạp.</summary>

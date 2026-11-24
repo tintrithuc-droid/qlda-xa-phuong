@@ -258,6 +258,8 @@ public class PayProfile : EntityBase
     /// <summary>Khấu trừ thuế 10% (cộng tác viên, hợp đồng dưới 3 tháng) thay cho biểu lũy tiến.</summary>
     public bool FlatTax { get; set; }
     [MaxLength(7)] public string? FromMonth { get; set; }
+    /// <summary>Bản 1.10.14: mức công tác phí riêng (đồng/ngày) như e-work (MucCongTacPhi từng người); trống = mức chung trong Thiết lập lương, 0 = không hưởng.</summary>
+    [Column(TypeName = "decimal(18,0)")] public decimal? TripRate { get; set; }
 }
 
 /// <summary>Phiếu lương một người một tháng: điều chỉnh tay (thưởng, khấu trừ) và số liệu cố định khi chốt.</summary>

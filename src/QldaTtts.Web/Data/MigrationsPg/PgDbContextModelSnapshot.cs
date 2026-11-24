@@ -1894,6 +1894,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<bool>("NoInsurance")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal?>("TripRate")
+                        .HasColumnType("decimal(18,0)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
 

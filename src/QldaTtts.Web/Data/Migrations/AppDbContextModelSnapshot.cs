@@ -1894,6 +1894,9 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<bool>("NoInsurance")
                         .HasColumnType("bit");
 
+                    b.Property<decimal?>("TripRate")
+                        .HasColumnType("decimal(18,0)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 

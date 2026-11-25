@@ -308,7 +308,7 @@ VIEWS['diem-danh']=()=>{
 };
 /* Bản 1.10.16: hôm nay ai ở đâu (Giám đốc, Trưởng phòng) */
 function vpTodayBoard(){
-  const d=S.f.tdd||TODAY, W=vpW(), w=W.toLowerCase(); VP.td=VP.td||{};
+  const d=S.f.tdd||(VP.st&&VP.st.today)||TODAY, W=vpW(), w=W.toLowerCase(); VP.td=VP.td||{}; // ngày theo máy chủ (giờ Việt Nam), không theo đồng hồ máy người xem
   const b=vpFetch(VP.td, d, '/api/vp/today?date='+d);
   const bar=`<div class="toolbar" style="margin:10px 0"><input type="date" data-f="tdd" value="${esc(d)}" aria-label="Ngày"><button class="btn sm ghost" data-act="vp-td-reload">Làm mới</button></div>`;
   if(!b) return bar+'<div class="empty">Đang tải…</div>'; if(b.error) return bar+emptyBox(esc(b.error));

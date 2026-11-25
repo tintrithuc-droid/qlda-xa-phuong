@@ -49,10 +49,10 @@ VIEWS['van-phong']=()=>{
   else if(st.day && st.day.canCheck===false) box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div><div class="toolbar" style="justify-content:center"><button class="btn" data-act="vp-req-new">Lập phiếu xác nhận tăng ca</button></div>`;
   else if(simple) box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div>
     ${a&&a.inAt? `<div class="alert ok vp-done"><b>Đã ${esc(w)} lúc ${vpHM(a.inAt)}</b> ${vpPlacePill(a.inPlace)}${a.lateMinutes>0?' '+pill('Muộn '+a.lateMinutes+' phút','bad'):''}${a.note?`<div class="small">${esc(a.note)}</div>`:''}${a.taskNames?`<div class="small" style="margin-top:4px"><b>Việc hôm nay:</b><ul style="margin:2px 0 0 18px;padding:0">${a.taskNames.split('\n').map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>`:''}</div>
-    <div class="fld" style="margin-top:8px"><label for="vp_result">Kết quả hôm nay (không bắt buộc)</label><textarea id="vp_result" rows="2" maxlength="1000" style="width:100%" placeholder="Ví dụ: xong dự toán hạng mục cấp nước, gửi chủ đầu tư">${esc(a.result||'')}</textarea></div>
+    <div class="fld" style="margin-top:8px"><label for="vp_result">Kết quả hôm nay (không bắt buộc)</label><textarea id="vp_result" rows="2" maxlength="1000" style="width:100%" placeholder="Ví dụ: xong dự toán hạng mục cấp nước, gửi chủ đầu tư">${esc(S.f.vpres!=null?S.f.vpres:(a.result||''))}</textarea></div>
     <div class="toolbar"><button class="btn sm" data-act="vp-result">${a.result?'Cập nhật kết quả':'Lưu kết quả'}</button>${a.resultAt?`<span class="small muted">Đã lưu lúc ${vpHM(a.resultAt)}</span>`:''}</div>`
     : `<div class="vp-mode" role="radiogroup" aria-label="Hôm nay làm việc ở đâu">${[['office','Ở công ty'],['online','Làm việc online'],['congtac','Đi công tác'],['khac','Khác']].map(([k,l])=>`<label><input type="radio" name="vp_mode" value="${k}" ${(S.f.vpmode||'office')===k?'checked':''}> ${l}</label>`).join('')}</div>
-    <div class="fld" id="vp_note_box" style="margin:8px 0;${(S.f.vpmode||'office')==='khac'?'':'display:none'}"><label for="vp_note">Nội dung công việc hôm nay</label><textarea id="vp_note" rows="2" maxlength="500" style="width:100%" placeholder="Ví dụ: họp với chủ đầu tư tại UBND xã…"></textarea></div>
+    <div class="fld" id="vp_note_box" style="margin:8px 0;${(S.f.vpmode||'office')==='khac'?'':'display:none'}"><label for="vp_note">Nội dung công việc hôm nay</label><textarea id="vp_note" rows="2" maxlength="500" style="width:100%" placeholder="Ví dụ: họp với chủ đầu tư tại UBND xã…">${esc(S.f.vpnote||'')}</textarea></div>
     ${vpTaskPick()}
     <div class="vp-btns"><button class="btn primary vp-big" data-act="vp-check" data-id="in">${esc(W)}</button></div>`}
     ${'Notification' in window && Notification.permission==='default' && !(a&&a.inAt)? `<div class="small" style="margin-top:6px"><a href="#" data-act="vp-notify-on">Bật nhắc trên thiết bị này</a></div>`:''}
@@ -105,10 +105,13 @@ document.addEventListener('change', e=>{ if(e.target.name!=='vp_mode') return; S
 function vpTaskPick(){
   if(VP.tk===undefined||VP.tk===null){ if(VP.tk!==null){ VP.tk=null; api('GET','/api/vp/my-tasks').then(r=>{ VP.tk=r||[]; onData(); }).catch(()=>{ VP.tk=[]; onData(); }); } return '<div class="small muted" style="margin:6px 0">Đang tải việc được giao…</div>'; }
   if(!VP.tk.length) return `<p class="small muted" style="margin:6px 0">Bạn chưa có việc đang mở được giao trong mục <a href="#cong-viec">Công việc</a>.</p>`;
-  return `<div class="vp-tasks" style="margin:8px 0"><div class="eyebrow" style="margin-bottom:4px">Việc làm hôm nay (chọn một hoặc nhiều)</div>${VP.tk.slice(0,15).map(t=>`<label style="display:flex;gap:8px;align-items:flex-start;padding:4px 0"><input type="checkbox" name="vp_task" value="${esc(t.id)}"><span>${esc(t.name)}${t.projectName?` <span class="small muted">· ${esc(t.projectName)}</span>`:''}${t.overdue?' '+pill('Quá hạn','bad'):''}</span></label>`).join('')}${VP.tk.length>15?`<div class="small muted">Còn ${VP.tk.length-15} việc khác trong mục <a href="#cong-viec">Công việc</a>.</div>`:''}</div>`;
+  return `<div class="vp-tasks" style="margin:8px 0"><div class="eyebrow" style="margin-bottom:4px">Việc làm hôm nay (chọn một hoặc nhiều)</div>${VP.tk.slice(0,15).map(t=>`<label style="display:flex;gap:8px;align-items:flex-start;padding:4px 0"><input type="checkbox" name="vp_task" value="${esc(t.id)}" ${(S.f.vptasks||[]).includes(t.id)?'checked':''}><span>${esc(t.name)}${t.projectName?` <span class="small muted">· ${esc(t.projectName)}</span>`:''}${t.overdue?' '+pill('Quá hạn','bad'):''}</span></label>`).join('')}${VP.tk.length>15?`<div class="small muted">Còn ${VP.tk.length-15} việc khác trong mục <a href="#cong-viec">Công việc</a>.</div>`:''}</div>`;
 }
+/* giữ nội dung đang gõ khi trang vẽ lại (dữ liệu tải xong, nhắc việc cập nhật) */
+document.addEventListener('input', e=>{ const id=e.target.id; if(id==='vp_result') S.f.vpres=e.target.value; else if(id==='vp_note') S.f.vpnote=e.target.value; });
+document.addEventListener('change', e=>{ if(e.target.name==='vp_task') S.f.vptasks=[...document.querySelectorAll('input[name="vp_task"]:checked')].map(x=>x.value); });
 ACT['vp-result']=async(id,el)=>{ const v=(($('#vp_result')||{}).value||'').trim(); el.disabled=true;
-  try{ const a=await api('POST','/api/vp/check/today',{result:v}); VP.st.attendance=a; toast(v?'Đã lưu kết quả hôm nay':'Đã xóa kết quả'); render(); }catch(e){ toast(errText(e),'err'); el.disabled=false; } };
+  try{ const a=await api('POST','/api/vp/check/today',{result:v}); VP.st.attendance=a; S.f.vpres=null; toast(v?'Đã lưu kết quả hôm nay':'Đã xóa kết quả'); render(); }catch(e){ toast(errText(e),'err'); el.disabled=false; } };
 ACT['vp-check']=async(kind,el)=>{
   const mode=(document.querySelector('input[name="vp_mode"]:checked')||{}).value||'office'; S.f.vpmode=mode;
   if(vpSimple()){
@@ -118,7 +121,7 @@ ACT['vp-check']=async(kind,el)=>{
     try{
       const taskIds=[...document.querySelectorAll('input[name="vp_task"]:checked')].map(x=>x.value);
       const a=await api('POST','/api/vp/check',{kind:'in', mode, note: note||null, taskIds});
-      VP.st.attendance=a; delete VP.att['me|'+vpMonth()];
+      VP.st.attendance=a; delete VP.att['me|'+vpMonth()]; S.f.vpnote=''; S.f.vptasks=[];
       toast(`Đã ${vpW().toLowerCase()} lúc ${vpHM(a.inAt)}`+(a.lateMinutes>0?` · muộn ${a.lateMinutes} phút`:''));
       render();
     }catch(e){ toast(errText(e),'err'); el.disabled=false; el.textContent=lb0; }

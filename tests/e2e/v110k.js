@@ -142,7 +142,13 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   // KPI: chỉ 2 người điểm cao nhất toàn công ty được thưởng
   const ks2 = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
   await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks2, rankOn: true, rankCompany: true, rankTop: 2, rankMinGrade: 'D', rankTables: [{ from: '2020-01', amounts: [300000, 200000, 100000] }] } });
+  // bằng điểm: mọi người cùng điểm công việc 100 (ghi đè) để có người bằng tổng điểm, vẫn chỉ 2 người được thưởng, không trùng hạng
+  for (const e of emps) await r.put(BASE + `/api/vp/kpi/${thisMonth()}/${e.id}`, { headers: H, data: { workScore: 100 } });
   const kr = (await J(r.get(BASE + '/api/vp/kpi?month=' + thisMonth(), { headers: H }))).rows;
+  const rk = kr.filter(z => z.rank != null).map(z => z.rank);
+  ok(new Set(rk).size === rk.length, 'Không được trùng hạng khi chỉ thưởng 2 người: ' + JSON.stringify(kr.map(z => [z.name, z.total, z.attendance, z.rank])));
+  const tops = kr.filter(z => z.rank === 1 || z.rank === 2), rest = kr.filter(z => z.rank > 2);
+  ok(rest.every(z => tops.every(t0 => t0.total > z.total || (t0.total === z.total && (t0.attendance ?? -1) >= (z.attendance ?? -1)))), 'Thứ tự xét bằng điểm sai');
   const paid = kr.filter(z => z.rankBonus > 0);
   ok(paid.length >= 1 && paid.length <= 2 && paid.every(z => z.rank <= 2 && z.rankLabel.startsWith('Toàn công ty')), 'Thưởng 2 người đứng đầu: ' + JSON.stringify(kr.map(z => [z.name, z.total, z.rank, z.rankBonus])));
   ok(kr.filter(z => z.rank > 2).every(z => !z.rankBonus), 'Hạng 3 trở đi không được thưởng');

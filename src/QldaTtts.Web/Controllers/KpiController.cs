@@ -210,6 +210,14 @@ public class KpiController : ApiControllerBase
             foreach (var g in pre.Where(x => (k.RankCompany || x.e.DepartmentId != null) && x.total > 0 && x.total >= minG).GroupBy(x => k.RankCompany ? "" : x.e.DepartmentId!))
             {
                 int rank = 0; decimal? prev = null; int i = 0;
+                if (k.RankTop > 0)
+                {
+                    // Bản 1.10.16 (anh Trí: thưởng "chỉ 2 người"): không để trùng hạng; bằng tổng điểm thì xét chuyên cần, rồi công việc, cuối cùng theo tên
+                    foreach (var x in g.OrderByDescending(x => x.total).ThenByDescending(x => x.att ?? -1).ThenByDescending(x => x.work ?? -1)
+                        .ThenBy(x => x.e.Name, StringComparer.Create(new System.Globalization.CultureInfo("vi-VN"), false)).ThenBy(x => x.e.Id, StringComparer.Ordinal))
+                        rankOf[x.e.Id] = ++i;
+                    continue;
+                }
                 foreach (var x in g.OrderByDescending(x => x.total)) { i++; if (prev != x.total) rank = i; prev = x.total; rankOf[x.e.Id] = rank; } // bằng điểm thì cùng hạng
             }
         return pre.Select(x =>

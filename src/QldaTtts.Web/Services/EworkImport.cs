@@ -78,6 +78,7 @@ public static class EworkImport
         {
             var ew = S(u, "Id"); if (ew is null) continue;
             var role = S(u, "RoleName") ?? S(u, "UserRole") ?? "";
+            var pos = S(u, "TenChucVu");
             if (Regex.IsMatch(role, "API|KETNOI", RegexOptions.IgnoreCase)) continue;
             var uname = Norm(S(u, "UserName")); userNameOf[ew] = uname;
             var email = Norm(S(u, "Email"));
@@ -96,7 +97,7 @@ public static class EworkImport
                 {
                     var pw = commonPassword ?? TempPassword();
                     acc = new AppUser { Id = "u-" + Guid.NewGuid().ToString("N")[..12], Username = un, Name = name, Email = S(u, "Email"), Phone = S(u, "PhoneNumber"),
-                        Unit = dept?.Name, GroupId = CompanyRoles.GroupFor(role), Active = true, MustChangePassword = true, CreatedAt = now, UpdatedAt = now, UpdatedBy = by };
+                        Unit = dept?.Name, GroupId = CompanyRoles.GroupFor(role, pos), Active = true, MustChangePassword = true, CreatedAt = now, UpdatedAt = now, UpdatedBy = by };
                     acc.PasswordHash = Passwords.Hash(acc, pw);
                     db.Users.Add(acc); users.Add(acc);
                     rep.NewAccounts.Add(new NewAccount(name, un, commonPassword is null ? pw : "(mật khẩu ban đầu chung)", dept?.Name));
@@ -105,9 +106,12 @@ public static class EworkImport
             else if (acc is not null)
             {
                 rep.LinkedAccounts.Add($"{name} → {acc.Username}");
-                if (acc.GroupId is null) { acc.GroupId = CompanyRoles.GroupFor(role); acc.UpdatedAt = now; }
+                if (acc.GroupId is null) { acc.GroupId = CompanyRoles.GroupFor(role, pos); acc.UpdatedAt = now; }
+                // 1.10.15: tài khoản có sẵn từ trước ở nhóm khác bộ vai trò công ty thì không tự đổi (có thể đang dùng phần dự án), chỉ báo để quản trị chọn
+                else if (!CompanyRoles.All.Any(x => x.Id == acc.GroupId) && acc.GroupId != "g-admin")
+                    rep.Warnings.Add($"{name} ({acc.Username}) đang ở nhóm khác bộ vai trò công ty; theo e-work nên là {CompanyRoles.NameOf(CompanyRoles.GroupFor(role, pos))}. Quản trị đổi nhóm ở Người dùng.");
             }
-            if (Regex.IsMatch(role, "ADMIN|QUANTRI", RegexOptions.IgnoreCase)) rep.Warnings.Add($"{name} là quản trị trên e-work: tài khoản nhận nhóm {CompanyRoles.NameOf(CompanyRoles.GroupFor(role))}, quản trị chính tự gán quyền quản trị nếu cần.");
+            if (Regex.IsMatch(role, "ADMIN|QUANTRI", RegexOptions.IgnoreCase)) rep.Warnings.Add($"{name} là quản trị trên e-work: tài khoản nhận nhóm {CompanyRoles.NameOf(CompanyRoles.GroupFor(role, pos))}, quản trị chính tự gán quyền quản trị nếu cần.");
             if (acc is not null && emps.Any(x => x.UserId == acc.Id && x.EworkId != ew)) acc = null; // tài khoản đã gắn hồ sơ khác
             if (e is null)
             {

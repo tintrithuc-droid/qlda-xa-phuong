@@ -41,6 +41,11 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   fx.users.push({ ...base, Id: 'u6', UserName: 'giamdoc', Email: 'gd@tt.vn', FullName: 'Đỗ Giám Đốc', RoleName: 'GIAMDOC', PhongBan: 'pb-kd' });
   fx.users.push({ ...base, Id: 'u7', UserName: 'qtew', Email: 'qt@tt.vn', FullName: 'Quản Trị Cũ', RoleName: 'ADMIN', PhongBan: 'pb-kd' });
   fx.luutru.QuanLyCongViecs = [];
+  // 1.10.15: vai trò/chức vụ đúng như e-work Tri Thức (chức vụ có dấu tiếng Việt)
+  const realRoles = [['gdthat', 'LANHDAOCOQUAN', 'Giám đốc', 'g-bgd'], ['doitruong', 'LANHDAOCOQUAN', 'Đội trưởng', 'g-nv'], ['tpketoan', 'LANHDAOPHONGKETOAN', 'Trưởng phòng', 'g-ketoan'],
+    ['ketoan2', 'LANHDAOPHONGKETOAN', 'Kế toán', 'g-ketoan'], ['phogd', 'LANHDAOPHONGLAPTRINH', 'Phó giám đốc', 'g-bgd'], ['doanhnghiep', 'DOANHNGHIEP', 'Trưởng đại diện', 'g-nv'],
+    ['tpvanphong', 'LANHDAOPHONGVANPHONG', 'Trưởng phòng', 'g-tp'], ['nvlaptrinh', 'NHANVIENLAPTRINH', 'Nhân viên', 'g-nv']];
+  realRoles.forEach(([un, role, pos], i) => fx.users.push({ ...base, Id: 'ur' + i, UserName: un, Email: un + '@tt.vn', FullName: 'Người ' + un, RoleName: role, TenChucVu: pos, PhongBan: 'pb-kd' }));
   // thứ Bảy nghỉ luân phiên kiểu e-work: ghi từng ngày (03/10, 17/10, 31/10, 14/11, 28/11, 12/12, 26/12)
   for (const d of ['2026-10-03', '2026-10-17', '2026-10-31', '2026-11-14', '2026-11-28', '2026-12-12', '2026-12-26']) fx.ngaynghi.push({ Ngay: d + 'T00:00:00', MoTa: 'Nghỉ thứ 7' });
   const FX = path.join(tmp, 'ew.json'); fs.writeFileSync(FX, JSON.stringify(fx));
@@ -55,6 +60,7 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   const grp = id => all.groups.find(g => g.id === id); const usr = u => all.users.find(x => x.username === u);
   ok(['g-nv', 'g-tp', 'g-ketoan', 'g-bgd'].every(grp), 'Thiếu nhóm vai trò: ' + all.groups.map(g => g.id).join(','));
   const want = { nva: 'g-tp', ttb: 'g-nv', ktoan: 'g-ketoan', giamdoc: 'g-bgd', qtew: 'g-nv' };
+  realRoles.forEach(([un, , , g]) => want[un] = g);
   for (const [u, g] of Object.entries(want)) ok(usr(u)?.groupId === g, `Tài khoản ${u} nhận nhóm ${usr(u)?.groupId}, cần ${g}`);
   ok(!grp('g-nv').perms['luong'] && !grp('g-nv').perms['nhan-su'] && grp('g-nv').perms['du-an'] === 'view', 'Quyền nhóm Nhân viên sai: ' + JSON.stringify(grp('g-nv').perms));
   // nạp lại không tạo trùng, không đổi nhóm đã gán

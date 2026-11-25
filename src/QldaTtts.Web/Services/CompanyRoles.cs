@@ -49,13 +49,21 @@ public static class CompanyRoles
 
     public static string NameOf(string id) => All.FirstOrDefault(x => x.Id == id).Name ?? id;
 
-    /// <summary>Vai trò trên e-work (RoleName) → nhóm. Tài khoản quản trị e-work không tự nhận quyền quản trị (quản trị gán tay).</summary>
-    public static string GroupFor(string ewRole)
+    /// <summary>Vai trò (RoleName) và chức vụ (TenChucVu) trên e-work → nhóm. Tài khoản quản trị e-work không tự nhận quyền quản trị (quản trị gán tay).
+    /// 1.10.15 (dữ liệu thật Tri Thức): bỏ dấu tiếng Việt trước khi so (trước đây "Giám đốc" thành "Gimc");
+    /// chức vụ Giám đốc/Phó giám đốc → Ban giám đốc; có KETOAN ở vai trò hoặc chức vụ → Kế toán (kể cả trưởng phòng kế toán);
+    /// lãnh đạo PHÒNG/trưởng phòng → Trưởng phòng; "lãnh đạo cơ quan" không kèm chức vụ giám đốc, "doanh nghiệp" → Nhân viên.</summary>
+    public static string GroupFor(string? ewRole, string? position = null)
     {
-        var r = Regex.Replace(ewRole ?? "", "[^A-Za-z]", "").ToUpperInvariant();
-        if (Regex.IsMatch(r, "GIAMDOC|BGD|BANGIAMDOC|DIRECTOR|CEO")) return Director;
-        if (Regex.IsMatch(r, "KETOAN|ACCOUNT")) return Accountant;
-        if (Regex.IsMatch(r, "LANHDAO|TRUONGPHONG|QUANLYPHONG|MANAGER")) return Manager;
+        string K(string? s)
+        {
+            var d = (s ?? "").Replace('đ', 'd').Replace('Đ', 'D').Normalize(System.Text.NormalizationForm.FormD);
+            return Regex.Replace(new string(d.Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray()), "[^A-Za-z]", "").ToUpperInvariant();
+        }
+        var r = K(ewRole); var p = K(position);
+        if (Regex.IsMatch(p, "GIAMDOC|DIRECTOR|CEO") || Regex.IsMatch(r, "GIAMDOC|BANGIAMDOC|^BGD|DIRECTOR|CEO")) return Director;
+        if (Regex.IsMatch(r + "|" + p, "KETOAN|ACCOUNT")) return Accountant;
+        if (Regex.IsMatch(r, "LANHDAOPHONG|TRUONGPHONG|TRUONGBOPHAN|QUANLYPHONG|MANAGER") || Regex.IsMatch(p, "^(TRUONGPHONG|TRUONGBOPHAN|QUANLYPHONG|PHUTRACHPHONG)")) return Manager;
         return Staff;
     }
 }

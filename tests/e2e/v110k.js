@@ -74,6 +74,12 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   x = await qa.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'out', mode: 'office' } });
   ok(x.status() === 400, 'Không có lượt ra: ' + x.status());
 
+  // việc giao cho Trần Thị B để chọn khi nhận nhiệm vụ
+  const tk = await r.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Lập dự toán hạng mục cấp nước', assigneeUserId: ttb.userId, due: addDays(D0, 3) } });
+  ok(tk.ok(), 'Giao việc lỗi ' + tk.status() + ' ' + (await tk.text()).slice(0, 200));
+  const myT = await J(qb.get(BASE + '/api/vp/my-tasks', { headers: H }));
+  ok(myT.some(z => z.name === 'Lập dự toán hạng mục cấp nước'), 'my-tasks thiếu việc: ' + JSON.stringify(myT).slice(0, 200));
+
   // 3) Giao diện nhân viên Trần Thị B: 4 mục, chọn Khác hiện ô nội dung, bấm một nút
   const pb = await cB.newPage(); pb.on('pageerror', e => errs.push('PAGEERR(B) ' + e.message));
   await pb.setViewportSize({ width: 420, height: 900 });
@@ -87,9 +93,13 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   await pb.click('[data-act="vp-check"][data-id="in"]'); await pb.waitForTimeout(500);
   ok(!(await pb.$('.vp-done')), 'Khác chưa ghi nội dung mà vẫn ghi');
   await pb.fill('#vp_note', 'Họp với chủ đầu tư tại UBND xã');
+  await pb.waitForSelector('input[name=vp_task]', { timeout: 10000 }); await pb.check('input[name=vp_task]');
   await pb.screenshot({ path: path.join(tmp, '1-nv-truoc.png') });
   await pb.click('[data-act="vp-check"][data-id="in"]'); await pb.waitForSelector('.vp-done', { timeout: 10000 });
   ok((await pb.textContent('.vp-done')).includes('Họp với chủ đầu tư'), 'Không hiện nội dung đã ghi');
+  ok((await pb.textContent('.vp-done')).includes('Lập dự toán hạng mục cấp nước'), 'Không hiện việc đã chọn');
+  await pb.fill('#vp_result', 'Xong dự toán, đã gửi chủ đầu tư'); await pb.click('[data-act="vp-result"]'); await pb.waitForTimeout(800);
+  ok(((await J(qb.get(BASE + '/api/vp/state', { headers: H }))).attendance || {}).result === 'Xong dự toán, đã gửi chủ đầu tư', 'Chưa lưu kết quả cuối ngày');
   await pb.screenshot({ path: path.join(tmp, '2-nv-da-nhan.png') });
   const navTxt = await pb.textContent('body'); ok(navTxt.includes('Lịch sử nhận nhiệm vụ'), 'Lịch sử chưa đổi chữ');
 
@@ -100,7 +110,7 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   ok(rB && rB.other === 1, 'Dòng B: ' + JSON.stringify(rB));
   await p.goto(BASE + '/#diem-danh'); await p.reload(); await p.waitForSelector('.tabs', { timeout: 20000 });
   const tabTxt = await p.textContent('.tabs'); ok(tabTxt.includes('Tổng hợp tháng') && tabTxt.includes('Chi tiết nhận nhiệm vụ'), 'Thẻ: ' + tabTxt);
-  await p.waitForSelector('table', { timeout: 15000 });
+  await p.click('.tabs button[data-id=bang]'); await p.waitForSelector('table', { timeout: 15000 });
   const th = await p.$$eval('table th', l => l.map(x => x.textContent.trim()));
   ok(th.includes('Nghỉ không phép') && th.includes('Ở công ty') && th.includes('Khác') && !th.includes('Về sớm'), 'Cột tổng hợp: ' + th);
   await p.screenshot({ path: path.join(tmp, '3-tong-hop.png'), fullPage: true });
@@ -114,7 +124,29 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   await p.screenshot({ path: path.join(tmp, '4-chi-tiet.png'), fullPage: true });
   const menu = await p.textContent('nav, .side, body'); ok(menu.includes('Nhận nhiệm vụ'), 'Menu chưa đổi chữ');
 
-  // 5) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
+  // 5) Hôm nay ai ở đâu
+  const bd = await J(r.get(BASE + '/api/vp/today', { headers: H }));
+  const bB = bd.rows.find(z => z.employeeId === ttb.id);
+  ok(bB && bB.place === 'Khác' && bB.tasks.includes('Lập dự toán hạng mục cấp nước') && bB.result, 'Bảng hôm nay: ' + JSON.stringify(bB));
+  const dA = await qa.get(BASE + '/api/vp/today', { headers: H }); ok(dA.status() === ((stA.perms.att || stA.perms.managed.length) ? 200 : 403), 'Quyền xem bảng hôm nay theo quyền bảng công: ' + dA.status());
+  await p.click('.tabs button[data-id=hom-nay]'); await p.waitForSelector('.kpis', { timeout: 15000 }); await p.waitForTimeout(500);
+  ok((await p.textContent('#main, body')).includes('Xong dự toán'), 'Bảng hôm nay chưa hiện kết quả');
+  await p.screenshot({ path: path.join(tmp, '5-hom-nay.png'), fullPage: true });
+  // 6) KPI tự động: công việc 70 + chuyên cần 30, không ai chấm tay
+  const ks = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
+  const kp = await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks, auto: true, wWork: 70, wProject: 0, wAttendance: 30, wManager: 0, qualityFactors: [1, 1, 1, 1, 1] } });
+  ok(kp.ok(), 'Lưu KPI tự động lỗi ' + kp.status());
+  const kk = await J(r.get(BASE + '/api/vp/kpi?month=' + thisMonth(), { headers: H }));
+  const kB = kk.rows.find(z => z.employeeId === ttb.id);
+  ok(kB && kB.missing.length === 0 && kB.grade !== 'Chưa đủ dữ liệu' && kB.total > 0, 'KPI tự động: ' + JSON.stringify(kB).slice(0, 300));
+  // KPI: chỉ 2 người điểm cao nhất toàn công ty được thưởng
+  const ks2 = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
+  await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks2, rankOn: true, rankCompany: true, rankTop: 2, rankMinGrade: 'D', rankTables: [{ from: '2020-01', amounts: [300000, 200000, 100000] }] } });
+  const kr = (await J(r.get(BASE + '/api/vp/kpi?month=' + thisMonth(), { headers: H }))).rows;
+  const paid = kr.filter(z => z.rankBonus > 0);
+  ok(paid.length >= 1 && paid.length <= 2 && paid.every(z => z.rank <= 2 && z.rankLabel.startsWith('Toàn công ty')), 'Thưởng 2 người đứng đầu: ' + JSON.stringify(kr.map(z => [z.name, z.total, z.rank, z.rankBonus])));
+  ok(kr.filter(z => z.rank > 2).every(z => !z.rankBonus), 'Hạng 3 trở đi không được thưởng');
+  // 7) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
   const vs1 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs1.leaveSeniorityBonus === false && vs1.inOnly === true, 'Thiết lập chưa lưu');
 
   console.log('Ảnh: ' + tmp);

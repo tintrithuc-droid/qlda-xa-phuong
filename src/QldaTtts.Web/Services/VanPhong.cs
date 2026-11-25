@@ -21,6 +21,8 @@ public class VpSettings
     public decimal LeavePerYear { get; set; } = 12;
     /// <summary>Bản 1.10.16: cộng 1 ngày phép cho mỗi 5 năm thâm niên (Điều 114 BLLĐ). Tri Thức tắt để giống e-work: đủ năm là 12 ngày.</summary>
     public bool LeaveSeniorityBonus { get; set; } = true;
+    /// <summary>Bản 1.10.16: giờ nhắc người chưa nhận nhiệm vụ (trống = không nhắc).</summary>
+    public string? RemindAt { get; set; } = "07:50";
     /// <summary>Làm việc thứ Bảy: "khong", "sang" (buổi sáng), "ca-ngay", "cach-tuan" (tuần làm cả ngày, tuần nghỉ, luân phiên).</summary>
     public string Saturday { get; set; } = "khong";
     /// <summary>Bản 1.10.4: một thứ Bảy có đi làm (yyyy-MM-dd) làm mốc cho chế độ "cach-tuan"; các thứ Bảy cách mốc số chẵn tuần là ngày làm.</summary>

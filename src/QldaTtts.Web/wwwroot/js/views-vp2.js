@@ -16,11 +16,30 @@ const mtMine = m => (VP.st&&VP.st.me&&mtIds(m).includes(VP.st.me.id)) || m.creat
 const mtCanEdit = m => !m || !m.id || m.createdByUserId===S.user.id || can('lich-hop','edit');
 const mtStatusPill = m => m.status==='Đã hủy'? pill('Đã hủy','bad') : m.status==='Đã hoãn'? pill('Đã hoãn','warn') : '';
 
+/* Bản 1.10.16 (anh Trí 25/11): ngày 1-10 mỗi tháng, mỗi người thấy tổng kết tháng trước của chính mình, đọc xong thì ẩn */
+function vpMonthlyCard(mo){
+  if(!mo||!mo.row) return ''; let hid=false; try{ hid=localStorage.getItem('vpMonthly')===mo.month; }catch(e){}
+  if(hid) return ''; const r=mo.row, w=vpW().toLowerCase(), mm=mo.month.slice(5)+'/'+mo.month.slice(0,4);
+  const good=!r.absent && !r.late;
+  const k=(l,v,c)=>`<div class="kpi ${c||''}"><div class="eyebrow">${l}</div><div class="v">${v}</div></div>`;
+  return `<div class="card vp-monthly" style="margin-bottom:12px;border-left:4px solid var(--${good?'green':'amber'})"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Tổng kết tháng ${mm} của bạn</h2><button class="btn sm ghost" data-act="vp-monthly-ok" data-id="${esc(mo.month)}">Đã xem</button></div>
+    <div class="grid g4 kpis" style="margin-top:8px">${k('Ngày công',fmtN(r.worked,1)+'/'+fmtN(r.standard,1))}${k('Ở công ty',r.office||0)}${k('Online',r.online||0)}${k('Công tác',r.tripDays||0)}${k('Khác',r.other||0)}${k('Đi muộn',(r.late||0)+' lần',r.late?'warn':'')}${k('Nghỉ phép',fmtN(r.leave||0,1))}${k('Nghỉ không phép',fmtN(r.absent||0,1),r.absent?'bad':'')}</div>
+    <p style="margin:10px 0 0">${good?`Cảm ơn bạn đã ${esc(w)} đầy đủ và đúng giờ trong tháng ${mm}. Chúc bạn tháng mới làm việc hiệu quả!`:`Tháng mới, mời bạn ${esc(w)} đều mỗi ngày làm việc, trước ${esc(VP.st.settings.checkIn)}. Ngày nghỉ nhớ lập phiếu nghỉ phép để không bị tính nghỉ không phép.`}</p></div>`;
+}
+ACT['vp-monthly-ok']=m=>{ try{ localStorage.setItem('vpMonthly',m); }catch(e){} render(); };
+/* Nhắc người chưa nhận nhiệm vụ: khung nhắc trên trang; nếu đã cho phép thông báo của trình duyệt thì hiện thêm thông báo (mỗi ngày một lần, khi ứng dụng đang mở) */
+function vpRemindNotify(ib){
+  if(!ib||!ib.remind||!('Notification' in window)||Notification.permission!=='granted') return;
+  let last=''; try{ last=localStorage.getItem('vpRemindDay')||''; }catch(e){} if(last===TODAY) return;
+  try{ localStorage.setItem('vpRemindDay',TODAY); new Notification(vpW(), {body: ib.remind, icon:'/icons/icon.svg'}); }catch(e){}
+}
+ACT['vp-notify-on']=async()=>{ if(!('Notification' in window)){ toast('Trình duyệt này không hỗ trợ thông báo.','err'); return; }
+  const p=await Notification.requestPermission(); toast(p==='granted'?'Đã bật nhắc. Khi ứng dụng đang mở, quá giờ chưa '+vpW().toLowerCase()+' sẽ có thông báo.':'Chưa được phép hiện thông báo.', p==='granted'?undefined:'err'); render(); };
 /* Hộp thư: số thông báo chưa xem, thông báo quan trọng, lịch của tôi trong 7 ngày */
 function vpInbox(force){
   if(!S.user || VP.ibLoading || (!force && VP.ib && Date.now()-VP.ibAt<120000)) return;
   VP.ibLoading=true;
-  api('GET','/api/vp/inbox').then(r=>{ VP.ib=r; VP.ibAt=Date.now(); }).catch(()=>{}).finally(()=>{ VP.ibLoading=false; onData(); });
+  api('GET','/api/vp/inbox').then(r=>{ VP.ib=r; VP.ibAt=Date.now(); vpRemindNotify(r); }).catch(()=>{}).finally(()=>{ VP.ibLoading=false; onData(); });
 }
 setInterval(()=>{ if(S.user && document.visibilityState==='visible') vpInbox(true); }, 120000);
 
@@ -30,12 +49,14 @@ VIEWS['van-phong']=()=>{
   const html=_vpHome(); if(!VP.st) return html; vpInbox();
   const ib=VP.ib; if(!ib) return html;
   let top='', mid='';
+  if(ib.remind && !(VP.st.attendance&&VP.st.attendance.inAt)) top+=`<div class="alert warn" style="margin-bottom:10px"><b>${esc(ib.remind)}</b> Chọn nơi làm việc bên dưới rồi bấm <b>${esc(vpW())}</b>.</div>`;
+  top+=vpMonthlyCard(ib.monthly);
   if(ib.important.length) top+=`<div class="alert bad" style="margin-bottom:10px"><b>Thông báo quan trọng chưa xem:</b> ${ib.important.map(n=>`<a href="#" data-act="nt-open" data-id="${esc(n.id)}">${esc(n.title)}</a>`).join(' · ')}</div>`;
   const ms=ib.meetings.filter(m=>m.status!=='Đã hủy');
   if(ms.length) mid+=`<div class="card" style="margin-top:12px"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Lịch của tôi 7 ngày tới</h2><a class="small" href="#lich-hop">Lịch công tác tuần</a></div>
     <div class="alertList">${ms.map(m=>`<div class="alr click" data-act="mt-view" data-id="${esc(m.id)}"><span class="alr-d"><b>${['CN','T2','T3','T4','T5','T6','T7'][mtLocal(m.startAt).getDay()]} ${fmtDate(mtDay(m.startAt)).slice(0,5)}</b> ${mtTime(m)}</span><span>${esc(m.title)}${m.place?` <span class="muted">· ${esc(m.place)}</span>`:''} ${mtStatusPill(m)}</span></div>`).join('')}</div></div>`;
   /* Thông báo quan trọng trên cùng; lịch của tôi ngay dưới khối điểm danh (điểm danh vẫn là việc chính của trang) */
-  const i=html.indexOf('<div class="grid g2 vp-top">'), j=html.indexOf('<div class="card" style="margin-top:12px"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Lịch sử điểm danh');
+  const i=html.indexOf('<div class="grid g2 vp-top">'), j=html.indexOf('<div class="card" style="margin-top:12px"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Lịch sử ');
   if(i<0) return html;
   return j>i? html.slice(0,i)+top+html.slice(i,j)+mid+html.slice(j) : html.slice(0,i)+top+html.slice(i)+mid;
 };
@@ -234,13 +255,13 @@ VIEWS['kpi']=()=>{
     const k=d.settings; const rows=d.rows.filter(r=>!dep||r.departmentId===dep);
     const locked=d.rows.length && d.rows.every(r=>r.locked);
     const need=rows.filter(r=>r.canRate && r.missing.length).length;
-    body=`<p class="small muted" style="margin:0 0 8px">Tổng điểm = Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%. Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}. ${locked?pill('Đã chốt','ok'):need?pill(need+' người chưa chấm đủ','warn')+' <span class="small">Chưa chốt: điểm tạm tính trên các phần đã có; khi chốt, phần còn thiếu tính 0.</span>':''}</p>`
+    body=`<p class="small muted" style="margin:0 0 8px">${k.auto?`Máy tự tính, không ai chấm tay. Tổng điểm = Công việc ${k.wWork}% + Chuyên cần ${k.wAttendance}% (tháng không có việc được giao thì chỉ tính chuyên cần).`:`Tổng điểm = Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%.`} Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}. ${locked?pill('Đã chốt','ok'):need?pill(need+' người chưa chấm đủ','warn')+' <span class="small">Chưa chốt: điểm tạm tính trên các phần đã có; khi chốt, phần còn thiếu tính 0.</span>':''}</p>`
     + table([
       {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
       {h:`Công việc (${k.wWork}%)`, r:1, f:r=>`${kpiN(r.work)}${r.workOverride!=null?' <span class="small muted" title="Quản lý ghi đè">✎</span>':''}${r.workAuto?`<div class="small muted">${r.workAuto.total} việc, ${r.workAuto.onTime} đúng hạn${r.workAuto.late?', '+r.workAuto.late+' trễ':''}${r.workAuto.overdue?', '+r.workAuto.overdue+' quá hạn':''}${r.workAuto.collab?', '+r.workAuto.collab+' phối hợp':''}</div>`:''}`},
-      {h:`Dự án (${k.wProject}%)`, r:1, f:r=> r.canRate? `<input type="number" min="0" max="100" step="5" value="${r.project??''}" data-kpi-proj="${esc(r.employeeId)}" style="width:70px;text-align:right" aria-label="Điểm kết quả dự án của ${esc(r.name)}">` : kpiN(r.project)},
+      ...(k.auto||!k.wProject?[]:[{h:`Dự án (${k.wProject}%)`, r:1, f:r=> r.canRate? `<input type="number" min="0" max="100" step="5" value="${r.project??''}" data-kpi-proj="${esc(r.employeeId)}" style="width:70px;text-align:right" aria-label="Điểm kết quả dự án của ${esc(r.name)}">` : kpiN(r.project)}]),
       {h:`Chuyên cần (${k.wAttendance}%)`, r:1, f:r=>`${kpiN(r.attendance)}${r.attendance!=null?`<div class="small muted">muộn ${r.attDetail.late}${r.attDetail.absent?', nghỉ KLD '+fmtN(r.attDetail.absent,1):''}${r.attDetail.noOut?', quên ra '+r.attDetail.noOut:''}</div>`:''}`},
-      {h:`Quản lý (${k.wManager}%)`, f:r=>kpiStars(r)+(r.ratingNote?`<div class="small muted" title="${esc(r.ratingNote)}">${esc(r.ratingNote.slice(0,40))}</div>`:'')},
+      ...(k.auto||!k.wManager?[]:[{h:`Quản lý (${k.wManager}%)`, f:r=>kpiStars(r)+(r.ratingNote?`<div class="small muted" title="${esc(r.ratingNote)}">${esc(r.ratingNote.slice(0,40))}</div>`:'')}]),
       {h:'Tổng', r:1, f:r=>`<b>${fmtN(r.total,1)}</b>`}, {h:'Xếp loại', f:r=>kpiGradePill(r.grade)+(r.rankLabel?`<div class="small" style="color:var(--green,#16a34a)">${esc(r.rankLabel)}${r.rankBonus?' · '+fmtVND(r.rankBonus):''}</div>`:'')+(r.employeeNote?` <span title="Có phản hồi: ${esc(r.employeeNote)}">💬</span>`:'')}],
       rows, {empty:'Chưa có nhân sự trong phạm vi bạn xem.', nopage:true, rowAct:'kpi-row'});
   }
@@ -273,15 +294,15 @@ ACT['kpi-lock']=async l=>{ const m=kpiMonth(); const d=VP.kpi[m];
   if(l==='1' && !await confirmBox(`Chốt KPI tháng ${m.slice(5)}/${m.slice(0,4)}? Điểm, xếp loại được lưu cố định để tính thưởng.${miss?` <b>${miss} người chưa chấm đủ</b> (phần thiếu tính 0 điểm).`:''}`,'Chốt')) return;
   await api('POST',`/api/vp/kpi/${m}/chot`,{lock:l==='1'}); delete VP.kpi[m]; render(); toast(l==='1'?'Đã chốt KPI tháng':'Đã mở chốt'); };
 ACT['kpi-set']=async()=>{ const k=await api('GET','/api/vp/kpi-settings');
-  openForm({title:'Thiết lập KPI', value:{...k, grades:k.grades.map(g=>[g.name,g.min,g.bonus].join('; ')).join('\n'), rankOn:k.rankOn?'1':'0', autoLock:k.autoLock===false?'0':'1', autoLockDay:k.autoLockDay||1, rankTables:(k.rankTables||[]).map(x=>x.from+' | '+x.amounts.join('; ')).join('\n'),
+  openForm({title:'Thiết lập KPI', value:{...k, grades:k.grades.map(g=>[g.name,g.min,g.bonus].join('; ')).join('\n'), rankOn:k.rankOn?'1':'0', auto:k.auto?'1':'0', rankCompany:k.rankCompany?'1':'0', rankTop:k.rankTop||0, autoLock:k.autoLock===false?'0':'1', autoLockDay:k.autoLockDay||1, rankTables:(k.rankTables||[]).map(x=>x.from+' | '+x.amounts.join('; ')).join('\n'),
       levels:(k.levels||[]).map(x=>x.name+'; '+x.weight).join('\n'), lateSteps:(k.lateSteps||[]).map(x=>x.days+'; '+x.factor).join('\n'), qualityFactors:(k.qualityFactors||[]).join('; ')},
-    fields:[{key:'_h1',type:'html',html:'<div class="fld full"><b>Trọng số bốn nhóm (tổng 100)</b></div>'},{key:'wWork',label:'Hoàn thành công việc',type:'number',req:true},{key:'wProject',label:'Kết quả dự án',type:'number',req:true},
+    fields:[{key:'auto',label:'Cách tính',type:'select',options:[['1','Tự động hoàn toàn: chỉ công việc + chuyên cần, không ai chấm tay'],['0','Có thêm điểm dự án và đánh giá của quản lý']]},{key:'_h1',type:'html',html:'<div class="fld full"><b>Trọng số bốn nhóm (tổng 100)</b><div class="small muted">Tự động hoàn toàn: đặt Kết quả dự án và Đánh giá của quản lý bằng 0.</div></div>'},{key:'wWork',label:'Hoàn thành công việc',type:'number',req:true},{key:'wProject',label:'Kết quả dự án',type:'number',req:true},
       {key:'wAttendance',label:'Chuyên cần',type:'number',req:true},{key:'wManager',label:'Đánh giá của quản lý',type:'number',req:true},
       {key:'_h2',type:'html',html:'<div class="fld full"><b>Chuyên cần: 100 điểm, trừ mỗi lần</b></div>'},{key:'penLate',label:'Đi muộn',type:'number'},{key:'graceMinutes',label:'Phút ân hạn (muộn không quá số phút này không trừ)',type:'number'},
       {key:'penEarly',label:'Về sớm',type:'number'},{key:'penNoOut',label:'Quên điểm danh ra',type:'number'},{key:'penAbsent',label:'Mỗi ngày nghỉ không lý do',type:'number'},
       {key:'grades',label:'Xếp loại: mỗi dòng "tên; điểm từ; thưởng (đồng)"',type:'textarea',rows:4,keepLines:true},
       {key:'_h3',type:'html',html:'<div class="fld full"><b>Thưởng theo hạng trong phòng ban (như e-work)</b><div class="small muted">Mỗi phòng xếp hạng theo tổng điểm; người đạt xếp loại tối thiểu mới được xếp hạng; bằng điểm thì cùng hạng. Cộng vào lương tháng khi chốt KPI.</div></div>'},
-      {key:'rankOn',label:'Thưởng theo hạng',type:'select',options:[['0','Không dùng'],['1','Có']]},{key:'rankMinGrade',label:'Xếp loại tối thiểu để được xếp hạng',type:'text'},
+      {key:'rankOn',label:'Thưởng theo hạng',type:'select',options:[['0','Không dùng'],['1','Có']]},{key:'rankMinGrade',label:'Xếp loại tối thiểu để được xếp hạng',type:'text'},{key:'rankCompany',label:'Xếp hạng',type:'select',options:[['1','Chung toàn công ty'],['0','Riêng từng phòng ban']]},{key:'rankTop',label:'Chỉ thưởng cho số người đứng đầu (0 = theo bảng)',type:'number'},
       {key:'rankTables',label:'Mức thưởng: mỗi dòng "tháng áp dụng | hạng 1; hạng 2; …"',type:'textarea',rows:3,keepLines:true,ph:'2026-05 | 1000000; 500000'},
       {key:'_h4',type:'html',html:'<div class="fld full"><b>Cách tính điểm công việc</b><div class="small muted">Mỗi việc: hệ số mức độ × hệ số đúng hạn × hệ số chất lượng × (1 − trừ mỗi lần mở lại − trừ mỗi lần gia hạn). Người phối hợp tính hệ số mức độ × hệ số phối hợp. Điểm = 100 × tổng đạt / tổng hệ số mức độ. Nhiệm vụ có việc con chỉ tính các việc con; việc phát sinh tính khi đã xác nhận.</div></div>'},
       {key:'levels',label:'Mức độ: mỗi dòng "tên; hệ số"',type:'textarea',rows:3,keepLines:true,ph:'Bình thường; 1'},
@@ -295,7 +316,8 @@ ACT['kpi-set']=async()=>{ const k=await api('GET','/api/vp/kpi-settings');
     onSave:async v=>{ const rankTables=String(v.rankTables||'').split('\n').map(l=>l.split('|')).filter(p=>p.length===2&&p[0].trim()).map(p=>({from:p[0].trim(), amounts:p[1].split(';').map(x=>N(x.trim().replace(/\./g,''))).filter(x=>!isNaN(x))}));
       const grades=String(v.grades||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0], min:N(p[1]), bonus:N(String(p[2]||'0').replace(/\./g,''))}));
       if(N(v.wWork)+N(v.wProject)+N(v.wAttendance)+N(v.wManager)!==100) throw new Error('Tổng trọng số phải bằng 100.');
-      await api('PUT','/api/vp/kpi-settings',{wWork:N(v.wWork), wProject:N(v.wProject), wAttendance:N(v.wAttendance), wManager:N(v.wManager), penLate:N(v.penLate), penEarly:N(v.penEarly), penNoOut:N(v.penNoOut), penAbsent:N(v.penAbsent), graceMinutes:N(v.graceMinutes), grades, rankOn:v.rankOn==='1', rankMinGrade:(v.rankMinGrade||'').trim(), rankTables,
+      if(v.auto==='1' && (N(v.wProject)>0||N(v.wManager)>0)) throw new Error('Tự động hoàn toàn: đặt Kết quả dự án và Đánh giá của quản lý bằng 0.');
+      await api('PUT','/api/vp/kpi-settings',{auto:v.auto==='1', wWork:N(v.wWork), wProject:N(v.wProject), wAttendance:N(v.wAttendance), wManager:N(v.wManager), penLate:N(v.penLate), penEarly:N(v.penEarly), penNoOut:N(v.penNoOut), penAbsent:N(v.penAbsent), graceMinutes:N(v.graceMinutes), grades, rankOn:v.rankOn==='1', rankCompany:v.rankCompany==='1', rankTop:Math.max(0,N(v.rankTop)||0), rankMinGrade:(v.rankMinGrade||'').trim(), rankTables,
         levels:String(v.levels||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]).map(p=>({name:p[0], weight:N(String(p[1]||'1').replace(',','.'))})),
         lateSteps:String(v.lateSteps||'').split('\n').map(l=>l.split(';').map(x=>x.trim())).filter(p=>p[0]!==''&&p.length>1).map(p=>({days:Math.round(N(p[0])), factor:N(String(p[1]).replace(',','.'))})),
         lateOver:N(v.lateOver), qualityFactors:String(v.qualityFactors||'').split(';').map(x=>N(x.trim().replace(',','.'))).filter(x=>!isNaN(x)),

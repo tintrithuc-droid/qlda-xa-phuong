@@ -452,6 +452,13 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("Result")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("ResultAt")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<string>("Site")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -463,6 +470,14 @@ namespace QldaTtts.Web.Data.MigrationsPg
 
                     b.Property<DateTime?>("SyncedAt")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("TaskIds")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("TaskNames")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");

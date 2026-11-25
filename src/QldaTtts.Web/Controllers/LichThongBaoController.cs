@@ -176,8 +176,33 @@ public class LichThongBaoController : ApiControllerBase
         var a = VnTime.ToUtc(today.ToDateTime(TimeOnly.MinValue)); var b = VnTime.ToUtc(today.AddDays(8).ToDateTime(TimeOnly.MinValue));
         var ms = await Db.Meetings.AsNoTracking().Where(m => m.StartAt >= a && m.StartAt < b && m.Status != "Đã hủy").OrderBy(m => m.StartAt).ToListAsync();
         var mine = ms.Where(m => (me is not null && Split(m.AttendeeIds).Contains(me.Id)) || m.CreatedByUserId == Uc.User.Id).Take(10);
+        // Bản 1.10.16: nhắc người chưa nhận nhiệm vụ sau giờ nhắc của ngày làm việc (không nhắc khi có phiếu nghỉ, online, công tác đã duyệt cả ngày)
+        string? remind = null;
+        var vs = VpSettings.Load(Db);
+        if (vs.InOnly && me is { Attendance: true } && VnTime.WorkValue(today, vs) > 0 && TimeSpan.TryParse(vs.RemindAt, out var ra) && now.TimeOfDay >= ra
+            && (me.EndDate is null || me.EndDate >= today) && !await Db.Attendances.AnyAsync(x => x.EmployeeId == me.Id && x.Date == today && x.InAt != null))
+        {
+            var dU = VnTime.ToUtc(today.ToDateTime(TimeOnly.MinValue)); var dU2 = VnTime.ToUtc(today.AddDays(1).ToDateTime(TimeOnly.MinValue));
+            var (am, pm) = VnTime.Sessions(today, vs);
+            var rs = (await Db.Requests.AsNoTracking().Where(x => x.EmployeeId == me.Id && x.Status == "Đã duyệt" && x.Type != "Tăng ca" && x.FromAt != null && x.FromAt < dU2).ToListAsync())
+                .Where(x => (x.ToAt ?? x.FromAt) >= dU).ToList();
+            bool cov = rs.Any(x => (!am || VnTime.Covers(x, today, true, vs)) && (!pm || VnTime.Covers(x, today, false, vs)));
+            if (!cov) remind = $"Hôm nay bạn chưa {vs.Word.ToLower()}.";
+        }
+        // Bản 1.10.16 (anh Trí 25/11): ngày 1-10 mỗi tháng, mỗi người thấy tổng kết tháng trước của chính mình để tự giác cho tháng mới
+        object? monthly = null;
+        if (vs.InOnly && me is { Attendance: true } && today.Day <= 10)
+        {
+            var pf = new DateOnly(today.Year, today.Month, 1).AddMonths(-1);
+            if (me.StartDate is null || me.StartDate < pf.AddMonths(1))
+            {
+                var (std, rows) = await VpCalc.Month(Db, vs, new List<Employee> { me }, pf);
+                if (rows.FirstOrDefault() is { } row) monthly = new { month = pf.ToString("yyyy-MM"), standard = std, row };
+            }
+        }
         return Ok(new
         {
+            remind, monthly,
             unread = unread.Count,
             important = unread.Where(n => n.Important).Take(3).Select(n => new { n.Id, n.Title, n.PublishedAt }),
             meetings = mine

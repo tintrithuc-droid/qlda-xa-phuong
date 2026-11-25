@@ -60,6 +60,13 @@ public static class Upgrades
                     var vs = VpSettings.Load(db);
                     vs.InOnly = true; vs.Word = "Nhận nhiệm vụ"; vs.LeaveSeniorityBonus = false;
                     VpSettings.Save(db, vs, "he-thong");
+                    // KPI Tri Thức (anh Trí 25/11): tự động hoàn toàn, không ai chấm tay: công việc 70 + chuyên cần 30; bỏ chấm sao nghiệm thu khỏi điểm
+                    var k = QldaTtts.Web.Controllers.KpiSettings.Load(db);
+                    k.Auto = true; k.WWork = 70; k.WProject = 0; k.WAttendance = 30; k.WManager = 0;
+                    k.QualityFactors = new() { 1m, 1m, 1m, 1m, 1m };
+                    // Công việc làm chung: chỉ 2 người điểm cao nhất toàn công ty được thưởng KPI (anh Trí chọn 25/11)
+                    k.RankOn = true; k.RankCompany = true; k.RankTop = 2;
+                    k.Save(db, "he-thong");
                 }
                 db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
                 db.SaveChanges();

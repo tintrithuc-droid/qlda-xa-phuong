@@ -113,6 +113,12 @@ public class Attendance : EntityBase
     [MaxLength(64)] public string? EworkId { get; set; }
     /// <summary>Đã chép sang bảng ChamCongs của e-work (để tính lương trong thời gian chuyển tiếp).</summary>
     public DateTime? SyncedAt { get; set; }
+    /// <summary>Bản 1.10.16: việc được giao chọn khi nhận nhiệm vụ (mã ProjectTasks, cách nhau dấu phẩy) và tên việc lúc chọn (mỗi dòng một việc).</summary>
+    [MaxLength(1000)] public string? TaskIds { get; set; }
+    [MaxLength(2000)] public string? TaskNames { get; set; }
+    /// <summary>Bản 1.10.16: kết quả cuối ngày (không bắt buộc).</summary>
+    [MaxLength(1000)] public string? Result { get; set; }
+    public DateTime? ResultAt { get; set; }
 }
 
 /// <summary>Đề xuất: nghỉ phép, làm việc online, tăng ca, công tác, … Duyệt bởi trưởng phòng hoặc người có quyền duyệt đề xuất.</summary>

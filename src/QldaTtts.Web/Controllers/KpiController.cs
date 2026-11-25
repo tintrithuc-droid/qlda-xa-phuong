@@ -14,6 +14,8 @@ public class KpiSettings
     public decimal WProject { get; set; } = 20;
     public decimal WAttendance { get; set; } = 10;
     public decimal WManager { get; set; } = 30;
+    /// <summary>Bản 1.10.16 (anh Trí 25/11): KPI tự động hoàn toàn, không ai chấm tay: chỉ công việc + chuyên cần; tháng không có việc thì chỉ tính chuyên cần.</summary>
+    public bool Auto { get; set; }
     /// <summary>Điểm chuyên cần (thang 100) trừ mỗi lần đi muộn, về sớm, quên điểm danh ra, mỗi ngày nghỉ không lý do.</summary>
     public decimal PenLate { get; set; } = 5;
     public decimal PenEarly { get; set; } = 5;
@@ -34,8 +36,12 @@ public class KpiSettings
     public string RankMinGrade { get; set; } = "B";
     public class RankTable { public string From { get; set; } = ""; public List<decimal> Amounts { get; set; } = new(); }
     public List<RankTable> RankTables { get; set; } = new();
+    /// <summary>Bản 1.10.16 (anh Trí 25/11): xếp hạng chung toàn công ty (không chia phòng) và chỉ RankTop người đứng đầu được thưởng (0 = theo bảng).</summary>
+    public bool RankCompany { get; set; }
+    public int RankTop { get; set; }
     public decimal RankBonus(string month, int rank)
     {
+        if (RankTop > 0 && rank > RankTop) return 0;
         var tb = RankTables.Where(x => string.CompareOrdinal(x.From, month) <= 0).OrderByDescending(x => x.From).FirstOrDefault();
         return tb is not null && rank >= 1 && rank <= tb.Amounts.Count ? tb.Amounts[rank - 1] : 0;
     }
@@ -199,7 +205,7 @@ public class KpiController : ApiControllerBase
         var minG = k.Grades.FirstOrDefault(g => g.Name == k.RankMinGrade)?.Min ?? 0;
         var rankOf = new Dictionary<string, int>();
         if (k.RankOn)
-            foreach (var g in pre.Where(x => x.e.DepartmentId != null && x.total > 0 && x.total >= minG).GroupBy(x => x.e.DepartmentId!))
+            foreach (var g in pre.Where(x => (k.RankCompany || x.e.DepartmentId != null) && x.total > 0 && x.total >= minG).GroupBy(x => k.RankCompany ? "" : x.e.DepartmentId!))
             {
                 int rank = 0; decimal? prev = null; int i = 0;
                 foreach (var x in g.OrderByDescending(x => x.total)) { i++; if (prev != x.total) rank = i; prev = x.total; rankOf[x.e.Id] = rank; } // bằng điểm thì cùng hạng
@@ -208,11 +214,11 @@ public class KpiController : ApiControllerBase
         {
             var (e, sh, st, wd, work, att, mgr, total, locked) = x;
             var missing = new List<string>();
-            if (work is null) missing.Add("Công việc"); if (sh?.ProjectScore is null) missing.Add("Kết quả dự án"); if (sh?.ManagerRating is null) missing.Add("Đánh giá quản lý");
-            var grade = locked ? sh!.Grade ?? "" : work is null && !strict ? "Chưa đủ dữ liệu" : k.GradeOf(total);
+            if (!k.Auto) { if (work is null) missing.Add("Công việc"); if (k.WProject > 0 && sh?.ProjectScore is null) missing.Add("Kết quả dự án"); if (k.WManager > 0 && sh?.ManagerRating is null) missing.Add("Đánh giá quản lý"); }
+            var grade = locked ? sh!.Grade ?? "" : (k.Auto ? work is null && att is null : work is null) && !strict ? "Chưa đủ dữ liệu" : k.GradeOf(total);
             int? rank = locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk) ? rk : null;
             var rb = locked ? sh!.RankBonus ?? 0 : rank is int r0 ? k.RankBonus(month, r0) : 0;
-            var label = rank is int rr && rb > 0 ? $"{(e.DepartmentId != null && deptNames.TryGetValue(e.DepartmentId, out var dn) ? dn : "")} - Hạng {rr}" : null;
+            var label = rank is int rr && rb > 0 ? (k.RankCompany ? $"Toàn công ty - Hạng {rr}" : $"{(e.DepartmentId != null && deptNames.TryGetValue(e.DepartmentId, out var dn) ? dn : "")} - Hạng {rr}") : null;
             return new Calc(e, sh, st, wd, work, att, mgr, total, grade, rank, rb, label, locked, missing);
         }).ToList();
     }
@@ -246,7 +252,14 @@ public class KpiController : ApiControllerBase
     /// (giữa tháng chưa chấm dự án, chưa đánh giá thì không còn ra loại D cho mọi người).</summary>
     private static decimal Total(KpiSettings k, decimal? work, decimal? project, decimal? att, decimal? mgr, bool strict = true)
     {
-        if (!strict && (work is null || project is null || mgr is null))
+        if (k.Auto)
+        {
+            decimal aw = 0, av = 0;
+            if (work is { } w0 && k.WWork > 0) { aw += k.WWork; av += w0 * k.WWork; }
+            if (att is { } a0 && k.WAttendance > 0) { aw += k.WAttendance; av += a0 * k.WAttendance; }
+            return aw <= 0 ? 0 : Math.Round(av / aw, 1);
+        }
+        if (!strict && (work is null || (project is null && k.WProject > 0) || mgr is null))
         {
             decimal sw = 0, sv = 0;
             void Add(decimal? v, decimal w) { if (v is { } x && w > 0) { sw += w; sv += x * w; } }

@@ -452,6 +452,13 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("Result")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ResultAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Site")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -463,6 +470,14 @@ namespace QldaTtts.Web.Data.Migrations
 
                     b.Property<DateTime?>("SyncedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("TaskIds")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("TaskNames")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");

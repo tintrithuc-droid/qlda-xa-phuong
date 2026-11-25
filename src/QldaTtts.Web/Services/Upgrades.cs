@@ -80,14 +80,24 @@ public static class Upgrades
             {
                 var vs = VpSettings.Load(db);
                 var br = db.Settings.FirstOrDefault(x => x.Key == QldaTtts.Web.Controllers.BrandingController.Key);
-                if (vs.InOnly && br?.Value is { } v)
+                if (br?.Value is { } v)
                 {
                     try
                     {
-                        if (System.Text.Json.Nodes.JsonNode.Parse(v) is System.Text.Json.Nodes.JsonObject o && o["bannerText"]?.GetValue<string>() is { } t && t.Contains("Điểm danh"))
+                        if (System.Text.Json.Nodes.JsonNode.Parse(v) is System.Text.Json.Nodes.JsonObject o)
                         {
-                            o["bannerText"] = t.Replace("Điểm danh", vs.Word ?? "Nhận nhiệm vụ");
-                            br.Value = o.ToJsonString(); br.UpdatedAt = DateTime.UtcNow; br.UpdatedBy = "he-thong";
+                            var doi = false;
+                            if (vs.InOnly && o["bannerText"]?.GetValue<string>() is { } t && t.Contains("Điểm danh"))
+                            { o["bannerText"] = t.Replace("Điểm danh", vs.Word ?? "Nhận nhiệm vụ"); doi = true; }
+                            // Địa chỉ cũ trước sắp xếp đơn vị hành chính: P. Võ Thị Sáu, Q.3 nay là phường Xuân Hòa
+                            if (o["address"]?.GetValue<string>() is { } a)
+                            {
+                                var a2 = System.Text.RegularExpressions.Regex.Replace(a.Normalize(),
+                                    @"(P\.|Phường)\s*Võ Thị Sáu\s*,\s*(Q\.|Quận)\s*3\s*,\s*(TP\.?\s*HCM|TP\.?\s*Hồ Chí Minh|Thành phố Hồ Chí Minh)\.?",
+                                    "phường Xuân Hòa, TP. Hồ Chí Minh");
+                                if (a2 != a) { o["address"] = a2; doi = true; }
+                            }
+                            if (doi) { br.Value = o.ToJsonString(); br.UpdatedAt = DateTime.UtcNow; br.UpdatedBy = "he-thong"; }
                         }
                     }
                     catch (System.Text.Json.JsonException) { }

@@ -33,6 +33,12 @@ public class VpSettings
     };
     /// <summary>Cho phép điểm danh ngoài công ty (ghi nhận "Ngoài công ty" để trưởng phòng xem).</summary>
     public bool AllowOutside { get; set; } = true;
+    /// <summary>Bản 1.10.16: chỉ điểm danh vào như e-work (không điểm danh ra, không tính về sớm, quên điểm danh ra).</summary>
+    public bool InOnly { get; set; }
+    /// <summary>Bản 1.10.16: chữ hiện cho việc điểm danh (Tri Thức: "Nhận nhiệm vụ").</summary>
+    public string Word { get; set; } = "Điểm danh";
+    /// <summary>Bản 1.10.16: ngoài vùng điểm danh chỉ được ghi khi hôm đó có phiếu công tác (đã duyệt hoặc đang chờ duyệt); phiếu làm việc online đã duyệt thì không phải điểm danh.</summary>
+    public bool OutsideTripOnly { get; set; }
     /// <summary>Ngày nghỉ lễ, tết (yyyy-MM-dd), nửa ngày ghi thêm ":s" (sáng) hoặc ":c" (chiều).</summary>
     public List<string> Holidays { get; set; } = new();
     /// <summary>Bản 1.10.4: ngày đi làm bù (làm việc dù là cuối tuần hoặc ngày nghỉ), dạng yyyy-MM-dd, làm nửa ngày ghi thêm ":s"; có thể kèm ghi chú sau dấu cách.</summary>
@@ -99,6 +105,46 @@ public static class VnTime
         var dLat = r(lat2 - lat1); var dLng = r(lng2 - lng1);
         var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) + Math.Cos(r(lat1)) * Math.Cos(r(lat2)) * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
         return 2 * R * Math.Asin(Math.Min(1, Math.Sqrt(a)));
+    }
+
+    /// <summary>Bản 1.10.16: buổi phải làm của một ngày theo lịch công ty (sáng, chiều).</summary>
+    public static (bool Am, bool Pm) Sessions(DateOnly d, VpSettings s)
+    {
+        var di = Day(d, s);
+        if (di.Value <= 0) return (false, false);
+        if (di.Value >= 1) return (true, true);
+        var hol = s.Holidays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        if (hol?.Half == "s" && !s.Workdays.Select(ParseDay).Any(x => x is not null && x.Date == d)) return (false, true);   // nghỉ sáng, làm chiều
+        return (true, false);   // thứ Bảy buổi sáng, làm bù nửa ngày, nghỉ chiều
+    }
+
+    /// <summary>Bản 1.10.16: phiếu (nghỉ, online, công tác…) có che buổi sáng/chiều của ngày d không. Phiếu chỉ ghi ngày (00:00) tính trọn ngày.</summary>
+    public static bool Covers(Request r, DateOnly d, bool am, VpSettings s)
+    {
+        if (r.FromAt is not { } f) return false;
+        var a = ToVn(f);
+        var b = r.ToAt is { } t ? ToVn(t) : a.Date.AddDays(1);
+        if (a.TimeOfDay == TimeSpan.Zero && b.TimeOfDay == TimeSpan.Zero) b = b.AddDays(1);   // phiếu ghi ngày: đến hết ngày cuối
+        if (b <= a) b = a.Date.AddDays(1);
+        var st = d.ToDateTime(TimeOnly.FromTimeSpan(Hm(am ? s.MorningStart : s.AfternoonStart, am ? "08:00" : "13:30")));
+        var en = d.ToDateTime(TimeOnly.FromTimeSpan(Hm(am ? s.MorningEnd : s.AfternoonEnd, am ? "12:30" : "17:30")));
+        return a < en && b > st;
+    }
+
+    /// <summary>Bản 1.10.16: giờ bắt đầu tính đi muộn của một người trong ngày: đầu buổi đầu tiên phải làm tại công ty (bỏ buổi đã có phiếu nghỉ, online, công tác).
+    /// Không còn buổi nào phải có mặt thì trả null (không tính muộn).</summary>
+    public static TimeSpan? LateFrom(DateOnly d, VpSettings s, string? deptCheckin, IEnumerable<Request> approved)
+    {
+        var (am, pm) = Sessions(d, s);
+        var list = approved.ToList();
+        if (am && !list.Any(r => Covers(r, d, true, s))) return Hm(deptCheckin, s.CheckIn);
+        if (pm && !list.Any(r => Covers(r, d, false, s)))
+        {
+            // Giờ vào riêng của phòng/ân hạn buổi sáng áp sang chiều theo cùng độ lệch so với đầu ca sáng
+            var shift = Hm(deptCheckin, s.CheckIn) - Hm(s.MorningStart, "08:00");
+            return Hm(s.AfternoonStart, "13:30") + (shift > TimeSpan.Zero ? shift : TimeSpan.Zero);
+        }
+        return null;
     }
 
     /// <summary>Ngày làm việc trong tháng: 1 = cả ngày, 0.5 = nửa ngày (thứ Bảy buổi sáng, lễ nửa ngày), 0 = nghỉ.</summary>
@@ -169,6 +215,38 @@ public static class VpCalc
     /// <summary>Bản 1.10.4: các loại nghỉ có đề xuất được duyệt (không tính vắng không lý do).</summary>
     public static readonly string[] LeaveTypes = { "Nghỉ phép", "Nghỉ việc riêng có lương", "Nghỉ không lương", "Nghỉ ốm, thai sản (BHXH)" };
 
+    /// <summary>Bản 1.10.16: ngày có phiếu "Làm việc online" đã duyệt (che hết các buổi phải làm) mà chưa có điểm danh thì tự ghi một lượt "Làm việc online"
+    /// (không phải bấm), để bảng công thấy và lượt này được chép sang e-work. Chỉ ghi đến hôm nay; empId null = mọi người.</summary>
+    public static async Task EnsureOnlineDays(AppDbContext db, VpSettings s, string? empId, DateOnly? since = null)
+    {
+        var today = DateOnly.FromDateTime(VnTime.Now);
+        var start = since ?? today.AddDays(-60);
+        var sU = VnTime.ToUtc(start.ToDateTime(TimeOnly.MinValue));
+        var reqs = await db.Requests.AsNoTracking().Where(r => r.Type == "Làm việc online" && r.Status == "Đã duyệt" && r.FromAt != null && (empId == null || r.EmployeeId == empId)
+            && (r.ToAt ?? r.FromAt) >= sU).ToListAsync();
+        if (reqs.Count == 0) return;
+        var emps = await db.Employees.AsNoTracking().Where(e => e.Attendance).ToDictionaryAsync(e => e.Id);
+        var added = 0;
+        foreach (var r in reqs)
+        {
+            if (!emps.TryGetValue(r.EmployeeId, out var e)) continue;
+            var d0 = DateOnly.FromDateTime(VnTime.ToVn(r.FromAt!.Value)); var d1 = DateOnly.FromDateTime(VnTime.ToVn(r.ToAt ?? r.FromAt!.Value));
+            if (d0 < start) d0 = start;
+            for (var d = d0; d <= d1 && d <= today; d = d.AddDays(1))
+            {
+                if (e.EndDate is { } ed && d > ed) break;
+                var (am, pm) = VnTime.Sessions(d, s); if (!am && !pm) continue;
+                if ((am && !VnTime.Covers(r, d, true, s)) || (pm && !VnTime.Covers(r, d, false, s))) continue;
+                if (await db.Attendances.AnyAsync(a => a.EmployeeId == e.Id && a.Date == d)) continue;
+                var t = VnTime.ToUtc(d.ToDateTime(TimeOnly.FromTimeSpan(VnTime.Hm(am ? s.MorningStart : s.AfternoonStart, "08:00"))));
+                db.Attendances.Add(new Attendance { Id = "cc-" + Guid.NewGuid().ToString("N")[..16], EmployeeId = e.Id, Date = d, InAt = t, InPlace = "Làm việc online",
+                    Site = $"Theo phiếu {r.Code}", Note = "Làm việc online theo phiếu đã duyệt (không phải bấm)", UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                added++;
+            }
+        }
+        if (added > 0) await db.SaveChangesAsync();
+    }
+
     public static async Task<(decimal standard, List<Row> rows)> Month(AppDbContext db, VpSettings s, List<Employee> emps, DateOnly from)
     {
         var to = from.AddMonths(1);
@@ -183,7 +261,7 @@ public static class VpCalc
         var otByEmp = (await db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Tăng ca").ToListAsync())
             .Where(r => (otByApproval ? r.DecidedAt ?? r.FromAt : r.FromAt) is { } dd && dd >= fU && dd < tU).GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Hours ?? 0));
         decimal standard = 0; for (var d = from; d < to; d = d.AddDays(1)) standard += VnTime.WorkValue(d, s);
-        var today = DateOnly.FromDateTime(VnTime.Now);
+        var nowVn = VnTime.Now; var today = DateOnly.FromDateTime(nowVn);
         // Chỉ tính vắng từ ngày hệ thống có dữ liệu điểm danh đầu tiên (tránh tính vắng cả tháng khi mới đưa vào dùng)
         var first = await db.Attendances.AsNoTracking().OrderBy(a => a.Date).Select(a => (DateOnly?)a.Date).FirstOrDefaultAsync() ?? today.AddDays(1);
         var rows = emps.Select(e =>
@@ -192,18 +270,22 @@ public static class VpCalc
             var mine = reqs.Where(r => r.EmployeeId == e.Id).ToList();
             decimal Days(string type) => mine.Where(r => r.Type == type).Sum(r => r.Days ?? 0);
             var worked = xs.Where(a => a.InAt != null || a.OutAt != null).Sum(a => Math.Max(0.5m, VnTime.WorkValue(a.Date, s) == 0 ? 1 : VnTime.WorkValue(a.Date, s)));
-            // Ngày làm việc đã qua không có điểm danh, không có đề xuất nghỉ/công tác/online được duyệt
+            // Ngày làm việc đã qua không có điểm danh; bản 1.10.16: xét theo buổi (phiếu nửa ngày chỉ che buổi đó), không tính sau ngày nghỉ việc, hôm nay chỉ tính khi đã hết giờ làm
             var absent = 0m;
+            var cover = mine.Where(r => LeaveTypes.Contains(r.Type) || r.Type is "Công tác" or "Làm việc online").ToList();
             for (var d = from; d < to && d <= today; d = d.AddDays(1))
             {
-                if (d < first || (e.StartDate is { } sd && d < sd)) continue;
+                if (d < first || (e.StartDate is { } sd && d < sd) || (e.EndDate is { } ed && d > ed)) continue;
+                if (d == today && nowVn.TimeOfDay < VnTime.Hm(s.AfternoonEnd, "17:30")) continue;
                 var wv = VnTime.WorkValue(d, s); if (wv == 0 || xs.Any(a => a.Date == d)) continue;
-                var covered = mine.Any(r => r.FromAt is { } f && DateOnly.FromDateTime(VnTime.ToVn(f)) <= d && DateOnly.FromDateTime(VnTime.ToVn(r.ToAt ?? f)) >= d
-                    && (LeaveTypes.Contains(r.Type) || r.Type is "Công tác" or "Làm việc online"));
-                if (!covered) absent += wv;
+                var (am, pm) = VnTime.Sessions(d, s);
+                var miss = 0m;
+                if (am && !cover.Any(r => VnTime.Covers(r, d, true, s))) miss += 0.5m;
+                if (pm && !cover.Any(r => VnTime.Covers(r, d, false, s))) miss += 0.5m;
+                absent += Math.Min(miss, wv);
             }
-            return new Row(e.Id, e.Name, e.DepartmentId, standard, worked, xs.Count(a => a.LateMinutes > 0), xs.Sum(a => a.LateMinutes), xs.Count(a => a.EarlyMinutes > 0),
-                xs.Count(a => a.InPlace == "Ngoài công ty"), xs.Count(a => a.InPlace == "Làm việc online"), xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today),
+            return new Row(e.Id, e.Name, e.DepartmentId, standard, worked, xs.Count(a => a.LateMinutes > 0), xs.Sum(a => a.LateMinutes), s.InOnly ? 0 : xs.Count(a => a.EarlyMinutes > 0),
+                xs.Count(a => a.InPlace == "Ngoài công ty"), xs.Count(a => a.InPlace == "Làm việc online"), s.InOnly ? 0 : xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today),
                 Days("Nghỉ phép"), Days("Công tác"), otByEmp.TryGetValue(e.Id, out var oth) ? oth : 0, absent,
                 Days("Nghỉ việc riêng có lương"), Days("Nghỉ không lương") + Days("Nghỉ ốm, thai sản (BHXH)"));
         }).ToList();

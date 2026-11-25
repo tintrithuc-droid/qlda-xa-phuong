@@ -1,7 +1,8 @@
 ﻿<#
 .SYNOPSIS
   Chép lượt điểm danh trên QLDA sang bảng ChamCongs của e-work (thời gian chuyển tiếp: lương còn tính trên e-work).
-  Chỉ THÊM dòng mới, không sửa, không xóa dữ liệu cũ; người đã có chấm công trên e-work trong ngày thì bỏ qua.
+  Thêm dòng mới; người đã có chấm công trên e-work trong ngày thì bỏ qua. Bản 1.10.16: lượt đã chép mà QLDA sửa lại (sửa công, duyệt giải trình)
+  thì cập nhật đúng dòng do QLDA tạo (ThietBiChamCong = QLDA), không đụng dòng e-work tự có. Không xóa dữ liệu.
 .EXAMPLE
   .\chep-cham-cong-ework.ps1 -Qlda https://trithuc.qlda.trithucsoft.vn -Khoa <khóa>            # chạy một lần
   .\chep-cham-cong-ework.ps1 -Qlda https://trithuc.qlda.trithucsoft.vn -Khoa <khóa> -CaiLich    # đặt lịch 5 phút một lần
@@ -32,7 +33,7 @@ trap { Ghi ("LỖI: " + $_.Exception.Message + $(if ($_.ErrorDetails) { " | " + 
 $ds = Invoke-RestMethod -Uri "$Qlda/api/vp/sync/pending" -Headers @{ "X-Sync-Key" = $Khoa } -TimeoutSec 60
 if (-not $ds -or $ds.Count -eq 0) { exit 0 }
 $cn = New-Object System.Data.SqlClient.SqlConnection "Server=$May;Database=$Csdl;Integrated Security=True;TrustServerCertificate=True"; $cn.Open()
-$ack = @(); $them = 0
+$ack = @(); $them = 0; $sua = 0
 foreach ($a in $ds) {
   $t = [datetime]::Parse($a.checkIn)
   $q = $cn.CreateCommand()
@@ -42,10 +43,20 @@ foreach ($a in $ds) {
   if ($rd.Read()) { $un = $rd.GetString(0); $fn = $rd.GetString(1) }
   [void]$rd.NextResult(); [void]$rd.Read(); $co = $rd.GetInt32(0); $rd.Close()
   if (-not $un) { Ghi "Bỏ qua $($a.fullName): không có tài khoản e-work $($a.eworkUserId)"; $ack += @{ id = $a.id; eworkId = $null }; continue }
-  if ($co -gt 0) { $ack += @{ id = $a.id; eworkId = $null }; continue }   # đã có chấm công trên e-work trong ngày
   if ($a.online) { $vt = "Làm việc Online"; $tt = $(if ($a.lateMinutes -gt 0) { "Đi trễ" } else { "Đúng giờ" }); $dt = "ONLINE" }
   elseif ($a.inside) { $vt = $(if ($a.site -and $a.site -ne "Mạng công ty") { $a.site } else { "CTY TRI THỨC" }); $tt = $(if ($a.lateMinutes -gt 0) { "Đi trễ" } else { "Đúng giờ" }); $dt = $null }
   else { $vt = "Làm việc ngoài Cty"; $tt = "6a80c00a-a5eb-4c2b-b14a-26000cc1750b"; $dt = $null }
+  if ($a.eworkId) {
+    # Bản 1.10.16: dòng QLDA đã chép trước đó, nay sửa lại
+    $u = $cn.CreateCommand()
+    $u.CommandText = "UPDATE ChamCongs SET NgayChamCong = @t, Thang = @m, Nam = @y, SoPhutDiMuon = @late, ViTriDiemDanh = @vt, TrangThaiDiemDanh = @tt, ChamCongDacThu = @dt, ModifiedDate = GETDATE(), ModifiedBy = @un WHERE Id = @eid AND ThietBiChamCong = N'QLDA'"
+    $pu = @{ "@t" = $t; "@m" = $t.Month; "@y" = $t.Year; "@late" = [int]$a.lateMinutes; "@vt" = $vt; "@tt" = $tt; "@dt" = $(if ($dt) { $dt } else { [DBNull]::Value }); "@un" = $un; "@eid" = [string]$a.eworkId }
+    foreach ($k in $pu.Keys) { [void]$u.Parameters.AddWithValue($k, $pu[$k]) }
+    try { $n = $u.ExecuteNonQuery() } catch { Ghi "Không cập nhật được dòng $($a.eworkId) của $($a.fullName): $($_.Exception.Message) (cần quyền UPDATE trên ChamCongs)"; $n = -1 }
+    if ($n -gt 0) { $sua++; $ack += @{ id = $a.id; eworkId = $a.eworkId }; continue }
+    if ($n -lt 0) { continue }   # lỗi quyền: để lần sau thử lại
+  }
+  if ($co -gt 0) { $ack += @{ id = $a.id; eworkId = $null }; continue }   # đã có chấm công trên e-work trong ngày
   $id = [guid]::NewGuid().ToString()
   $c = $cn.CreateCommand()
   $c.CommandText = "INSERT INTO ChamCongs (Id, UserId, UserName, FullName, NgayChamCong, Thang, Nam, SoPhutDiMuon, ViTriDiemDanh, TrangThaiDiemDanh, ThietBiChamCong, IPDiemDanh, KinhDo, ViDo, ChamCongDacThu, CreatedDate, CreatedBy, TrangThaiXuLy) VALUES (@id, @u, @un, @fn, @t, @m, @y, @late, @vt, @tt, N'QLDA', @ip, @lng, @lat, @dt, GETDATE(), @un, 'HOANTAT')"
@@ -57,4 +68,4 @@ foreach ($a in $ds) {
 }
 $cn.Close()
 Invoke-RestMethod -Uri "$Qlda/api/vp/sync/ack" -Method Post -Headers @{ "X-Sync-Key" = $Khoa; "X-QLDA" = "1" } -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes((@{ items = $ack } | ConvertTo-Json -Depth 4))) -TimeoutSec 60 | Out-Null
-Ghi "Đã chép $them lượt, đánh dấu $($ack.Count)."
+Ghi "Đã chép $them lượt, cập nhật $sua lượt, đánh dấu $($ack.Count)."

@@ -49,6 +49,23 @@ public static class Upgrades
             }
         }
 
+        // Bản 1.10.16: đơn vị chuyển từ e-work (Công ty Tri Thức) chỉ điểm danh vào như e-work, gọi là "Nhận nhiệm vụ";
+        // ngoài vùng chỉ khi có phiếu công tác, phiếu online đã duyệt thì không phải bấm (anh Trí chốt 25/11/2026). Chạy một lần, sau đó sửa trong Thiết lập.
+        {
+            const string key = "upgrade:1.10.16-nhan-nhiem-vu";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                if (db.Employees.Any(e => e.EworkId != null))
+                {
+                    var vs = VpSettings.Load(db);
+                    vs.InOnly = true; vs.Word = "Nhận nhiệm vụ"; vs.OutsideTripOnly = true;
+                    VpSettings.Save(db, vs, "he-thong");
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // 3) Phiên bản 1.1: chức năng Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026), chạy một lần
         CapXa(db);
 

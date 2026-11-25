@@ -65,14 +65,22 @@ public class VanPhongController : ApiControllerBase
                 .Where(r => VnTime.ToVn(r.FromAt!.Value).Year == year).Sum(r => r.Days ?? 0);
         var pending = await PendingForMe();
         var di = VnTime.Day(today, s);
+        // Bản 1.10.16: phiếu online/công tác/nghỉ của hôm nay (màn hình ẩn nút khi online cả ngày, báo đang công tác)
+        var dreq = me is null ? new List<Request>() : await DayRequests(me.Id, today, pending: true);
+        var (sAm, sPm) = VnTime.Sessions(today, s);
+        bool AllDay(Request x) => (!sAm || VnTime.Covers(x, today, true, s)) && (!sPm || VnTime.Covers(x, today, false, s)) && (sAm || sPm);
+        var onl = dreq.FirstOrDefault(x => x.Type == "Làm việc online" && x.Status == "Đã duyệt" && AllDay(x));
+        var trip = dreq.FirstOrDefault(x => x.Type == "Công tác" && (VnTime.Covers(x, today, true, s) || VnTime.Covers(x, today, false, s)));
+        var leaveAll = dreq.FirstOrDefault(x => VpCalc.LeaveTypes.Contains(x.Type) && x.Status == "Đã duyệt" && AllDay(x));
         var greet = di.Value > 0 ? s.GreetWork : (di.Kind == "holiday" && di.Name is { } hn ? hn + ". " : "") + s.GreetOff;
         return Ok(new
         {
-            day = new { value = di.Value, kind = di.Kind, name = di.Name, greeting = greet, canCheck = di.Value > 0 || att?.InAt != null },
+            day = new { value = di.Value, kind = di.Kind, name = di.Name, greeting = greet, canCheck = di.Value > 0 || att?.InAt != null,
+                online = onl is null ? null : new { onl.Code }, trip = trip is null ? null : new { trip.Code, trip.Status, trip.Place }, leave = leaveAll is null ? null : new { leaveAll.Code, leaveAll.Type } },
             payConfirm = me is null ? null : await LuongController.PendingConfirm(Db, me.Id),
             payFeedback = Uc.Can("luong", true) ? await Db.Payslips.CountAsync(x => x.FeedbackStatus == "Chờ xử lý") : 0,
             me = me is null ? null : Public(me), today = today.ToString("yyyy-MM-dd"), now = VnTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), attendance = att,
-            settings = new { s.CheckIn, s.CheckOut, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.SaturdayAnchor, s.AllowOutside,
+            settings = new { s.CheckIn, s.CheckOut, s.InOnly, s.Word, s.OutsideTripOnly, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.SaturdayAnchor, s.AllowOutside,
                 places = s.Places.Select(p => new { p.Name, p.Lat, p.Lng, p.Radius }), holidays = s.EffectiveHolidays(new[] { year - 1, year, year + 1 }), s.Workdays, s.AutoLegal, ipCount = s.Ips.Count, syncOn = s.SyncKeyHash != null, s.SyncFrom },
             leave = new { year, total = me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year), used, left = (me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year)) - used },
             perms = new { hr = Uc.Can("nhan-su"), hrEdit = Uc.Can("nhan-su", true), att = Uc.Can("diem-danh"), attEdit = Uc.Can("diem-danh", true),
@@ -254,53 +262,89 @@ public class VanPhongController : ApiControllerBase
 
     public record CheckRequest(string Kind, double? Lat, double? Lng, double? Accuracy, string? Mode, string? Note);
 
-    /// <summary>Điểm danh vào (Kind = "in") hoặc ra ("out"). Giờ lấy theo máy chủ, không theo máy người dùng.</summary>
+    /// <summary>Phiếu nghỉ, online, công tác của một người phủ ngày d. pending = tính cả phiếu đang chờ duyệt.</summary>
+    private async Task<List<Request>> DayRequests(string empId, DateOnly d, bool pending = false)
+    {
+        var f = VnTime.ToUtc(d.AddDays(1).ToDateTime(TimeOnly.MinValue)); var t = VnTime.ToUtc(d.AddDays(-1).ToDateTime(TimeOnly.MinValue));
+        var types = VpCalc.LeaveTypes.Concat(new[] { "Công tác", "Làm việc online" }).ToArray();
+        return (await Db.Requests.AsNoTracking().Where(x => x.EmployeeId == empId && x.FromAt != null && x.FromAt < f && types.Contains(x.Type)
+                && (x.Status == "Đã duyệt" || (pending && (x.Status == "Chờ duyệt" || x.Status == "Chờ kiểm tra")))).ToListAsync())
+            .Where(x => (x.ToAt ?? x.FromAt) >= t).ToList();
+    }
+
+    /// <summary>Bản 1.10.16: tính phút đi muộn của một lượt vào theo buổi phải làm (nghỉ sáng thì tính từ đầu ca chiều; công tác, online cả ngày thì không tính).</summary>
+    private async Task<int> LateOf(Employee emp, DateOnly d, DateTime inUtc, VpSettings s)
+    {
+        if (VnTime.WorkValue(d, s) == 0) return 0;
+        // Phiếu "Đi muộn, về sớm" đã duyệt cho ngày đó: không tính muộn
+        var dU = VnTime.ToUtc(d.ToDateTime(TimeOnly.MinValue)); var dU2 = VnTime.ToUtc(d.AddDays(1).ToDateTime(TimeOnly.MinValue));
+        if (await Db.Requests.AsNoTracking().AnyAsync(x => x.EmployeeId == emp.Id && x.Type == "Đi muộn, về sớm" && x.Status == "Đã duyệt" && x.FromAt >= dU && x.FromAt < dU2)) return 0;
+        var dept = emp.DepartmentId is null ? null : await Db.Departments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == emp.DepartmentId);
+        var allow = VnTime.LateFrom(d, s, dept?.CheckinTime, await DayRequests(emp.Id, d));
+        return allow is { } al ? Math.Max(0, (int)Math.Floor((VnTime.ToVn(inUtc).TimeOfDay - al).TotalMinutes)) : 0;
+    }
+
+    /// <summary>Điểm danh vào (Kind = "in") hoặc ra ("out"). Giờ lấy theo máy chủ, không theo máy người dùng.
+    /// Bản 1.10.16: chế độ "chỉ điểm danh vào" như e-work; chế độ "ngoài vùng chỉ khi có phiếu công tác": hình thức (online, công tác) lấy theo phiếu, không tự chọn.</summary>
     [HttpPost("check")]
     public async Task<IActionResult> Check([FromBody] CheckRequest r)
     {
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         var me = await Me(); if (me is null) return Error(400, "Tài khoản chưa gắn với hồ sơ nhân sự. Liên hệ người quản lý nhân sự.");
-        if (!me.Attendance) return Error(400, "Hồ sơ của bạn được thiết lập không điểm danh.");
-        var s = VpSettings.Load(Db);
+        var s = VpSettings.Load(Db); var w = s.Word;
+        if (!me.Attendance) return Error(400, $"Hồ sơ của bạn được thiết lập không cần {w.ToLower()}.");
+        if (r.Kind == "out" && s.InOnly) return Error(400, $"Chỉ {w.ToLower()} khi bắt đầu ngày làm việc, không cần bấm khi ra về.");
         var now = VnTime.Now; var today = DateOnly.FromDateTime(now);
-        var online = r.Mode == "online" || r.Mode == "congtac";
         var dOff = VnTime.Day(today, s);
         if (dOff.Value == 0 && !await Db.Attendances.AnyAsync(a => a.EmployeeId == me.Id && a.Date == today && a.InAt != null))
-            return Error(400, $"Hôm nay là ngày nghỉ{(dOff.Name is { } dn ? " (" + dn + ")" : "")}, không điểm danh. Có làm thêm giờ thì sau khi làm xong lập phiếu xác nhận tăng ca.");
+            return Error(400, $"Hôm nay là ngày nghỉ{(dOff.Name is { } dn ? " (" + dn + ")" : "")}, không {w.ToLower()}. Có làm thêm giờ thì sau khi làm xong lập phiếu xác nhận tăng ca.");
+        var mode = r.Mode;
+        if (s.OutsideTripOnly)
+        {
+            var reqs = await DayRequests(me.Id, today, pending: true);
+            var (am, pm) = VnTime.Sessions(today, s);
+            bool Cov(string type, bool approvedOnly) => reqs.Where(x => x.Type == type && (!approvedOnly || x.Status == "Đã duyệt"))
+                .Any(x => (!am || VnTime.Covers(x, today, true, s)) && (!pm || VnTime.Covers(x, today, false, s)));
+            if (r.Kind == "in" && Cov("Làm việc online", true))
+                return Error(400, $"Hôm nay bạn làm việc online theo phiếu đã duyệt, không cần {w.ToLower()}.");
+            mode = reqs.Any(x => x.Type == "Công tác" && (VnTime.Covers(x, today, true, s) || VnTime.Covers(x, today, false, s))) ? "congtac" : "office";
+        }
+        var online = mode == "online" || mode == "congtac";
         // Nơi điểm danh: theo IP mạng công ty hoặc khoảng cách tới địa điểm đã khai báo
         string place; string? site = null;
         var ip = Uc.Ip; var ipOk = s.Ips.Any(x => !string.IsNullOrWhiteSpace(x) && (ip == x.Trim() || ip.EndsWith(":" + x.Trim())));
         (VpSettings.Place p, double m)? near = null;
         if (r.Lat is { } la && r.Lng is { } ln)
             near = s.Places.Select(p => (p, m: VnTime.Meters(la, ln, p.Lat, p.Lng))).OrderBy(x => x.m).Cast<(VpSettings.Place, double)?>().FirstOrDefault();
-        if (online) place = r.Mode == "congtac" ? "Công tác" : "Làm việc online";
+        if (online) { place = mode == "congtac" ? "Công tác" : "Làm việc online"; site = near is { } nc ? $"Cách {nc.p.Name} {Math.Round(nc.m):0} m" : (r.Lat is null ? "Không có định vị" : null); }
         else if (near is { } n && n.m <= Math.Max(50, n.p.Radius)) { place = "Trong công ty"; site = n.p.Name; }
         else if (ipOk) { place = "Trong công ty"; site = "Mạng công ty"; }
         else
         {
+            if (s.OutsideTripOnly)
+                return Error(400, near is { } nf
+                    ? $"Bạn đang cách {nf.p.Name} {(nf.m >= 1000 ? (nf.m / 1000).ToString("0.0") + " km" : Math.Round(nf.m) + " m")}, ngoài vùng {w.ToLower()} (bán kính {Math.Max(50, nf.p.Radius)} m). Đi công tác thì lập phiếu công tác trước rồi {w.ToLower()}."
+                    : "Không xác định được vị trí. Bật định vị trên điện thoại và cho phép trình duyệt dùng vị trí, hoặc kết nối mạng của công ty, rồi bấm lại.");
             if (!s.AllowOutside) return Error(400, "Bạn đang ở ngoài phạm vi công ty. Bật định vị, hoặc kết nối mạng công ty rồi điểm danh lại.");
             place = "Ngoài công ty"; site = near is { } n2 ? $"Cách {n2.p.Name} {Math.Round(n2.m):0} m" : (r.Lat is null ? "Không có định vị" : null);
         }
-        if (online && r.Mode == "online")
+        if (mode == "online")
         {
             // Làm việc online cần đề xuất đã duyệt cho ngày hôm nay
-            var ok = (await Db.Requests.AsNoTracking().Where(x => x.EmployeeId == me.Id && x.Type == "Làm việc online" && x.Status == "Đã duyệt").ToListAsync())
-                .Any(x => x.FromAt is { } f && DateOnly.FromDateTime(VnTime.ToVn(f)) <= today && DateOnly.FromDateTime(VnTime.ToVn(x.ToAt ?? f)) >= today);
+            var ok = (await DayRequests(me.Id, today)).Any(x => x.Type == "Làm việc online");
             if (!ok) site = "Chưa có đề xuất làm việc online được duyệt";
         }
+        else if (mode == "congtac" && s.OutsideTripOnly && !(await DayRequests(me.Id, today)).Any(x => x.Type == "Công tác"))
+            site = (site is null ? "" : site + "; ") + "Phiếu công tác đang chờ duyệt";
         var a = await Db.Attendances.FirstOrDefaultAsync(x => x.EmployeeId == me.Id && x.Date == today);
-        var dept = me.DepartmentId is null ? null : await Db.Departments.AsNoTracking().FirstOrDefaultAsync(d => d.Id == me.DepartmentId);
         if (r.Kind == "in")
         {
-            if (a?.InAt is not null) return Error(409, $"Bạn đã điểm danh vào lúc {VnTime.ToVn(a.InAt.Value):HH:mm}.");
+            if (a?.InAt is not null) return Error(409, $"Bạn đã {w.ToLower()} lúc {VnTime.ToVn(a.InAt.Value):HH:mm}.");
             if (a is null) { a = new Attendance { Id = NewId("cc"), EmployeeId = me.Id, Date = today }; Db.Attendances.Add(a); }
             a.InAt = DateTime.UtcNow; a.InPlace = place; a.InLat = r.Lat; a.InLng = r.Lng; a.InIp = ip; a.Site = site; a.Note = r.Note;
-            var allow = VnTime.Hm(dept?.CheckinTime, s.CheckIn);
-            // Bản 1.10.4: ngày nghỉ (cuối tuần, lễ) đi làm thì không tính đi muộn; nghỉ sáng thì giờ vào là đầu ca chiều
-            var dv = VnTime.Day(today, s);
-            if (dv.Kind == "half" && s.Holidays.Select(VnTime.ParseDay).Any(x => x is not null && x.Date == today && x.Half == "s")) allow = VnTime.Hm(s.AfternoonStart, "13:30");
-            a.LateMinutes = dv.Value == 0 ? 0 : Math.Max(0, (int)Math.Floor((now.TimeOfDay - allow).TotalMinutes));
-            if (dv.Value == 0 && string.IsNullOrEmpty(a.Note)) a.Note = "Đi làm ngày nghỉ" + (dv.Name is { } nn ? " (" + nn + ")" : "");
+            // Bản 1.10.16: đi muộn tính từ đầu buổi phải có mặt (nghỉ sáng có phiếu thì từ đầu ca chiều); công tác không tính muộn
+            a.LateMinutes = place == "Công tác" ? 0 : await LateOf(me, today, a.InAt.Value, s);
+            if (dOff.Value == 0 && string.IsNullOrEmpty(a.Note)) a.Note = "Đi làm ngày nghỉ" + (dOff.Name is { } nn ? " (" + nn + ")" : "");
         }
         else if (r.Kind == "out")
         {
@@ -315,7 +359,14 @@ public class VanPhongController : ApiControllerBase
         }
         else return Error(400, "Dữ liệu không hợp lệ.");
         a.UpdatedAt = DateTime.UtcNow; a.UpdatedBy = Uc.User.Username;
-        await Db.SaveChangesAsync();
+        try { await Db.SaveChangesAsync(); }
+        catch (DbUpdateException)
+        {
+            // Bấm hai lần liền (mạng chậm): lượt trước đã ghi
+            var had = await Db.Attendances.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeId == me.Id && x.Date == today);
+            if (had?.InAt is { } hi) return Error(409, $"Bạn đã {w.ToLower()} lúc {VnTime.ToVn(hi):HH:mm}.");
+            throw;
+        }
         return Ok(a);
     }
 
@@ -348,10 +399,13 @@ public class VanPhongController : ApiControllerBase
         var a = await Db.Attendances.FirstOrDefaultAsync(x => x.EmployeeId == r.EmployeeId && x.Date == d);
         if (a is null) { a = new Attendance { Id = NewId("cc"), EmployeeId = r.EmployeeId, Date = d }; Db.Attendances.Add(a); }
         DateTime? T(string? hm) => TimeSpan.TryParse(hm, out var t) ? VnTime.ToUtc(d.ToDateTime(TimeOnly.FromTimeSpan(t))) : null;
-        a.InAt = T(r.In); a.OutAt = T(r.Out); a.InPlace = r.InPlace ?? a.InPlace ?? "Trong công ty";
-        var dept = emp.DepartmentId is null ? null : await Db.Departments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == emp.DepartmentId);
-        a.LateMinutes = a.InAt is { } i ? Math.Max(0, (int)(VnTime.ToVn(i).TimeOfDay - VnTime.Hm(dept?.CheckinTime, s.CheckIn)).TotalMinutes) : 0;
-        a.EarlyMinutes = a.OutAt is { } o ? Math.Max(0, (int)(VnTime.Hm(null, s.CheckOut) - VnTime.ToVn(o).TimeOfDay).TotalMinutes) : 0;
+        // Bản 1.10.16: ô để trống thì giữ giờ cũ (ghi "-" để xóa); cùng cách tính đi muộn với lúc điểm danh
+        if (r.In?.Trim() == "-") a.InAt = null; else if (T(r.In) is { } ni) a.InAt = ni;
+        if (r.Out?.Trim() == "-") a.OutAt = null; else if (T(r.Out) is { } no) a.OutAt = no;
+        a.InPlace = r.InPlace ?? a.InPlace ?? "Trong công ty";
+        a.LateMinutes = a.InAt is { } i && a.InPlace != "Công tác" ? await LateOf(emp, d, i, s) : 0;
+        a.EarlyMinutes = !s.InOnly && a.OutAt is { } o && VnTime.WorkValue(d, s) > 0
+            ? Math.Max(0, (int)(VnTime.Hm(VnTime.Sessions(d, s).Pm ? s.CheckOut : s.MorningEnd, "17:30") - VnTime.ToVn(o).TimeOfDay).TotalMinutes) : 0;
         a.Note = $"Điều chỉnh bởi {Uc.User.Name}: {r.Note}"; a.SyncedAt = null;
         a.UpdatedAt = DateTime.UtcNow; a.UpdatedBy = Uc.User.Username;
         Uc.Log("Điều chỉnh chấm công", "Điểm danh", $"{emp.Name} ngày {d:dd/MM/yyyy}: {r.Note}", "attendance", a.Id);
@@ -486,6 +540,37 @@ public class VanPhongController : ApiControllerBase
         return Ok(x);
     }
 
+    /// <summary>Bản 1.10.16: phiếu giải trình được duyệt thì tự sửa công: "Quên điểm danh" ghi giờ vào (giờ ra) theo phiếu,
+    /// "Đi muộn, về sớm" bỏ phút muộn/sớm của ngày đó, "Làm việc online" ghi các ngày online (để bảng công và e-work không tính vắng).</summary>
+    private async Task ApplyToAttendance(Request x)
+    {
+        if (x.FromAt is not { } f) return;
+        var s = VpSettings.Load(Db);
+        if (x.Type == "Làm việc online") { await VpCalc.EnsureOnlineDays(Db, s, x.EmployeeId); return; }
+        if (x.Type is not ("Quên điểm danh" or "Đi muộn, về sớm")) return;
+        var emp = await Db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == x.EmployeeId); if (emp is null) return;
+        var fv = VnTime.ToVn(f); var d = DateOnly.FromDateTime(fv);
+        var a = await Db.Attendances.FirstOrDefaultAsync(z => z.EmployeeId == x.EmployeeId && z.Date == d);
+        var note = $"Giải trình {x.Code} đã duyệt";
+        if (x.Type == "Quên điểm danh")
+        {
+            if (a is null) { a = new Attendance { Id = NewId("cc"), EmployeeId = x.EmployeeId, Date = d, InPlace = "Trong công ty" }; Db.Attendances.Add(a); }
+            if (a.InAt is null)
+                a.InAt = fv.TimeOfDay == TimeSpan.Zero ? VnTime.ToUtc(d.ToDateTime(TimeOnly.FromTimeSpan(VnTime.Hm(s.MorningStart, "08:00")))) : f;
+            if (!s.InOnly && a.OutAt is null && x.ToAt is { } t && t > a.InAt) a.OutAt = t;
+            a.InPlace ??= "Trong công ty";
+            a.LateMinutes = a.InPlace == "Công tác" ? 0 : await LateOf(emp, d, a.InAt.Value, s);
+        }
+        else
+        {
+            if (a is null) return;
+            a.LateMinutes = 0; a.EarlyMinutes = 0;
+        }
+        a.Note = string.IsNullOrEmpty(a.Note) ? note : a.Note.Contains(note) ? a.Note : a.Note + "; " + note;
+        a.SyncedAt = null; a.UpdatedAt = DateTime.UtcNow; a.UpdatedBy = Uc.User?.Username ?? "he-thong";
+        await Db.SaveChangesAsync();
+    }
+
     public record DecideRequest(string Action, string? Note);
 
     [HttpPost("requests/{id}/decide")]
@@ -507,6 +592,7 @@ public class VanPhongController : ApiControllerBase
             x.ApproverUserId = Uc.User.Id; x.ApproverName = Uc.User.Name;
         }
         x.DecidedAt = DateTime.UtcNow; x.DecisionNote = d.Note; x.UpdatedAt = DateTime.UtcNow; x.UpdatedBy = Uc.User.Username;
+        if (x.Status == "Đã duyệt" && d.Action == "approve") { await Db.SaveChangesAsync(); await ApplyToAttendance(x); }
         Uc.Log(x.Status == "Đã duyệt" ? "Duyệt đề xuất" : x.Status == "Từ chối" ? "Không duyệt đề xuất" : "Hủy đề xuất", "Đề xuất", $"{x.Code} {x.Type}", "requests", x.Id);
         await Db.SaveChangesAsync();
         return Ok(x);
@@ -579,6 +665,7 @@ public class VanPhongController : ApiControllerBase
     {
         var s = VpSettings.Load(Db); if (!SyncAuthorized(s)) return Error(403, "Sai khóa.");
         var from = DateOnly.TryParse(s.SyncFrom, out var f) ? f : DateOnly.FromDateTime(VnTime.Now);
+        await VpCalc.EnsureOnlineDays(Db, s, null, from);
         var list = await Db.Attendances.AsNoTracking().Where(a => a.Source == "QLDA" && a.InAt != null && a.SyncedAt == null && a.Date >= from).OrderBy(a => a.Date).Take(2000).ToListAsync();
         var emps = await Db.Employees.AsNoTracking().Where(e => e.EworkId != null).ToDictionaryAsync(e => e.Id);
         var users = await Db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);

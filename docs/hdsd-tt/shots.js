@@ -65,10 +65,15 @@ const VIEW = { width: 1366, height: 820 };
   const PM = prevMonth(), M = thisMonth(), D0 = today();
 
   { const _vs = await (await r.get(BASE + '/api/vp/settings', { headers: H })).json(); const _td = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
-    await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, workdays: [...(_vs.workdays || []), _td + ' Ngày kiểm thử'] } }); } // hôm nay luôn là ngày làm việc (ngày nghỉ không mở điểm danh)
+    // Bản 1.10.16: thiết lập như máy Tri Thức sau nâng cấp (Nhận nhiệm vụ, phép 12 ngày không cộng thâm niên)
+    await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, inOnly: true, word: 'Nhận nhiệm vụ', leaveSeniorityBonus: false, checkIn: '08:00', workdays: [...(_vs.workdays || []), _td + ' Ngày kiểm thử'] } }); } // hôm nay luôn là ngày làm việc
+  { const ks = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
+    await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks, auto: true, wWork: 70, wProject: 0, wAttendance: 30, wManager: 0, qualityFactors: [1, 1, 1, 1, 1], rankOn: true, rankCompany: true, rankTop: 2, rankMinGrade: 'C', public: true,
+      rankTables: (ks.rankTables && ks.rankTables.length) ? ks.rankTables : [{ from: '2026-01', amounts: [1000000, 500000] }] } }); }
   // điểm danh, đề xuất
-  await nv.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } });
   await gd.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } });
+  await tp.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'khac', note: 'Họp với khách hàng A tại trụ sở khách hàng' } });
+  await kt.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'online' } });
   const nd = D0.slice(0, 8) + '28';
   await nv.request.put(BASE + '/api/vp/requests/dx-hd1', { headers: H, data: { type: 'Nghỉ phép', fromAt: nd + 'T08:00:00+07:00', toAt: nd + 'T17:30:00+07:00', days: 1, reason: 'Việc gia đình' } });
   await nv.request.put(BASE + '/api/vp/requests/dx-hd2', { headers: H, data: { type: 'Xăng xe', fromAt: D0 + 'T08:00:00+07:00', toAt: D0 + 'T17:00:00+07:00', place: 'Khách hàng tại quận 3', km: 24, amount: 120000, reason: 'Triển khai phần mềm' } });
@@ -84,9 +89,15 @@ const VIEW = { width: 1366, height: 820 };
   await nv.request.post(BASE + `/api/vp/viec/${v1}/trang-thai`, { headers: H, data: { status: 'Hoàn thành', doneDate: D0, result: 'Đã cài đặt, nạp đủ dữ liệu' } });
   await nv.request.post(BASE + `/api/vp/viec/${v2}/trang-thai`, { headers: H, data: { status: 'Đang thực hiện' } });
   await nv.request.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Sửa lỗi in phiếu theo yêu cầu khách hàng', parentId: nvu, startDate: D0, due: M + '-27' } });
+  // nhân viên: chụp màn hình trước khi nhận nhiệm vụ (chọn nơi làm, việc được giao), rồi nhận nhiệm vụ và ghi kết quả
+  await (async () => { const pg = await nv.newPage(); await pg.goto(BASE + '/#van-phong'); await pg.waitForSelector('.vp-mode', { timeout: 30000 }); await pg.waitForTimeout(1500);
+    await pg.screenshot({ path: path.join(OUT, 'nhan-nhiem-vu.png') }); await pg.close(); })();
+  { const tks = await J(nv.request.get(BASE + '/api/vp/my-tasks', { headers: H }));
+    await nv.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office', taskIds: tks.slice(0, 2).map(x => x.id) } });
+    await nv.request.post(BASE + '/api/vp/check/today', { headers: H, data: { result: 'Đã cài máy chủ, nạp xong dữ liệu; hẹn khách hàng đào tạo thứ Sáu' } }); }
 
   // tháng trước: chấm KPI, chốt, chốt lương để nhân viên xem phiếu lương
-  for (const e of emps) await r.put(BASE + `/api/vp/kpi/${PM}/${e.id}`, { headers: H, data: { workScore: 85 + (emps.indexOf(e) % 3) * 5, projectScore: 80, rating: 4 } });
+  for (const e of emps) await r.put(BASE + `/api/vp/kpi/${PM}/${e.id}`, { headers: H, data: { workScore: 85 + (emps.indexOf(e) % 3) * 5 } });
   await r.post(BASE + `/api/vp/kpi/${PM}/chot`, { headers: H, data: { lock: true } });
   await r.post(BASE + `/api/vp/luong/${PM}/chot`, { headers: H, data: { lock: true } });
 
@@ -101,6 +112,8 @@ const VIEW = { width: 1366, height: 820 };
   { const cx = await b.newContext({ viewport: VIEW, deviceScaleFactor: 2, timezoneId: 'Asia/Ho_Chi_Minh' }); const pg = await cx.newPage(); await pg.goto(BASE + '/'); await pg.waitForSelector('#login'); await pg.waitForTimeout(800);
     await pg.screenshot({ path: path.join(OUT, 'dang-nhap.png') }); await cx.close(); }
   await shot(nv, 'diem-danh', 'van-phong', null, { full: true });
+  await shot(gd, 'hom-nay', 'diem-danh', `S.tab.dd='hom-nay'; render()`);
+  await shot(kt, 'tong-hop', 'diem-danh', `S.tab.dd='bang'; render()`);
   await shot(nv, 'de-xuat', 'de-xuat');
   await shot(nv, 'cong-viec', 'cong-viec');
   await shot(nv, 'kpi', 'kpi', `S.f.kpim='${PM}'; render()`);

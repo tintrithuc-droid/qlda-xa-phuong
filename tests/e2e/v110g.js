@@ -149,7 +149,7 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   await p.waitForFunction(() => typeof VP !== 'undefined' && VP.st, null, { timeout: 20000 });
   await p.evaluate(m => { S.f.plm = m; render(); }, PM); await p.waitForTimeout(1500);
   const ht = await p.textContent('#app'); ok(ht.includes('Đã duyệt chi') && ht.includes('Danh sách chuyển khoản ngân hàng') && ht.includes('Bảng lương kế toán (Excel)'), 'Trang lương thiếu trạng thái/nút: ' + ht.slice(0, 300));
-  let [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('[data-act="pay-bank"]')]);
+  let [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.evaluate(()=>document.querySelectorAll('details.xmenu').forEach(d=>d.open=true)).then(()=>p.click('[data-act="pay-bank"]'))]);
   const fb = path.join(tmp, 'bank.xlsx'); await dl.saveAs(fb);
   ok(dl.suggestedFilename() === `ChuyenLuong-T${PM.slice(5)}.${PM.slice(0, 4)}.xlsx`, 'Tên tệp chuyển khoản: ' + dl.suggestedFilename());
   const MM = PM.slice(5), YY = PM.slice(0, 4);
@@ -165,7 +165,7 @@ print(json.dumps({'title':ws['B1'].value,'merged':[str(x) for x in ws.merged_cel
     ok(rb && rb[1] === '0123456789' && bx.typeB === 'str' && rb[3] === 'MB Bank' && rb[4] === slipB.net && rb[5] === `TRI THUC THANH TOAN LUONG T${MM}.${YY}`, 'Dòng chuyển khoản sai: ' + JSON.stringify(bx.rows));
     ok(bx.rows.length === pay.rows.filter(x => x.locked && x.net > 0).length && !bx.rows.some(x => x[2] === 'TỔNG CỘNG'), 'Số dòng chuyển khoản sai / có dòng tổng: ' + bx.rows.length);
   }
-  [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('[data-act="pay-xlsx"]')]);
+  [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.evaluate(()=>document.querySelectorAll('details.xmenu').forEach(d=>d.open=true)).then(()=>p.click('[data-act="pay-xlsx"]'))]);
   const fa = path.join(tmp, 'acc.xlsx'); await dl.saveAs(fa);
   const ao = py(`import openpyxl,sys
 ws=openpyxl.load_workbook(sys.argv[1]).active

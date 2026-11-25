@@ -82,7 +82,7 @@ function totp(secret) {
   // Giao diện
   await p.evaluate(m => { vpReset(); S.f.plm = m; location.hash = 'luong'; }, M); await p.waitForSelector('#content >> text=Trần Thị B', { timeout: 15000 });
   await p.screenshot({ path: `${SHOTS}/v110c-bang-luong.png`, fullPage: true });
-  const [dx] = await Promise.all([p.waitForEvent('download'), p.click('[data-act="pay-xlsx"]')]); ok(/Bang_luong_2026-10\.xlsx$/.test(dx.suggestedFilename()), 'Không xuất Excel bảng lương');
+  const [dx] = await Promise.all([p.waitForEvent('download'), p.evaluate(()=>document.querySelectorAll('details.xmenu').forEach(d=>d.open=true)).then(()=>p.click('[data-act="pay-xlsx"]'))]); ok(/Bang_luong_2026-10\.xlsx$/.test(dx.suggestedFilename()), 'Không xuất Excel bảng lương');
   await p.click('#content tr.click >> text=Trần Thị B'); await p.waitForSelector('.mform >> text=THỰC LĨNH'); await p.screenshot({ path: `${SHOTS}/v110c-phieu.png` });
   await p.evaluate(() => { window._prt = null; const orig = document.body.appendChild.bind(document.body); document.body.appendChild = el => { if (el.tagName === 'IFRAME') setTimeout(() => { window._prt = el.contentDocument.documentElement.outerHTML; }, 100); return orig(el); }; });
   await p.click('.mform [data-act="pay-pdf"]'); await p.waitForTimeout(600);

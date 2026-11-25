@@ -66,7 +66,7 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   ok(k.autoLockAt === thisMonth() + '-01', 'autoLockAt sai: ' + k.autoLockAt);
   ok(k.settings.autoLock === true && k.settings.autoLockDay === 1, 'Thiết lập tự chốt mặc định sai');
   await p.goto(BASE + '/#kpi'); await p.waitForTimeout(1500);
-  ok((await p.textContent('body')).includes('tự chốt lúc 0 giờ ngày'), 'Trang KPI không ghi giờ tự chốt');
+  ok((await p.textContent('body')).includes('tự chốt 0 giờ ngày'), 'Trang KPI không ghi giờ tự chốt');
 
   // 3) Tự chốt (bước tác vụ nền chạy qua dòng lệnh)
   let a = cli(['--tu-chot-kpi']); ok(a.code === 0 && a.out.includes('Đã tự chốt KPI ' + PM), 'Tự chốt lỗi: ' + a.out);

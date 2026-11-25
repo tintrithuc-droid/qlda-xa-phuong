@@ -102,9 +102,9 @@ function totp(secret) {
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-act="mt-ics"]')]);
   const ics = fs.readFileSync(await dl.path(), 'utf8'); ok(/BEGIN:VEVENT[\s\S]*DTSTART:\d{8}T010000Z/.test(ics), 'Tệp .ics sai giờ: ' + ics.slice(0, 300));
   await p.click('[data-close]');
-  const [dx] = await Promise.all([p.waitForEvent('download'), p.click('[data-act="mt-xlsx"]')]); ok(/\.xlsx$/.test(dx.suggestedFilename()), 'Không xuất được Excel lịch tuần');
+  const [dx] = await Promise.all([p.waitForEvent('download'), p.evaluate(()=>document.querySelectorAll('details.xmenu').forEach(d=>d.open=true)).then(()=>p.click('[data-act="mt-xlsx"]'))]); ok(/\.xlsx$/.test(dx.suggestedFilename()), 'Không xuất được Excel lịch tuần');
   await p.evaluate(() => { window._prt = null; const orig = document.body.appendChild.bind(document.body); document.body.appendChild = el => { if (el.tagName === 'IFRAME') setTimeout(() => { window._prt = el.contentDocument.documentElement.outerHTML; }, 100); return orig(el); }; });
-  await p.click('[data-act="mt-pdf"]'); await p.waitForTimeout(600);
+  await p.evaluate(()=>document.querySelectorAll('details.xmenu').forEach(d=>d.open=true)).then(()=>p.click('[data-act="mt-pdf"]')); await p.waitForTimeout(600);
   const prt = await p.evaluate(() => window._prt || ''); ok(/LỊCH CÔNG TÁC TUẦN/.test(prt) && /Họp giao ban tuần/.test(prt) && /CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM/.test(prt), 'Bản in lịch tuần thiếu nội dung');
   fs.writeFileSync(`${SHOTS}/v110-lich-in.html`, prt);
   const pv = await ctx.newPage(); await pv.setContent(prt); await pv.screenshot({ path: `${SHOTS}/v110-lich-in.png`, fullPage: true }); await pv.close();

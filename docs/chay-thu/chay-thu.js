@@ -86,6 +86,14 @@ async function makeDoc(b, file, title, lines) {
   report.importFilesAgain = cli(['--nhap-tep-ework', FX, '--thu-muc', EW]).trim().split('\n').pop();
   console.log(report.import + '\n' + report.importFiles + '\nLần 2: ' + report.importFilesAgain);
 
+  // Bản 1.10.16: chạy lại bước nâng cấp một lần như lúc cài trên máy thật (đơn vị đã có dữ liệu e-work -> bật "Nhận nhiệm vụ", KPI tự động)
+  if (process.env.CHAY_THU_RESTART) {
+    spawnSync('psql', ['-h', '127.0.0.1', '-U', 'qlda', '-d', DB, '-c', `delete from "Settings" where "Key"='upgrade:1.10.16-nhan-nhiem-vu'`], { env: { ...process.env, PGPASSWORD: 'qlda' }, encoding: 'utf8' });
+    const rs = spawnSync('bash', [process.env.CHAY_THU_RESTART, DB], { encoding: 'utf8', timeout: 180000 }); console.log('Khởi động lại: ' + (rs.stdout || '').trim().split('\n').pop());
+    const vs = await J(r.get(BASE + '/api/vp/settings', { headers: H })); const ks = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
+    report.upgrade = { inOnly: vs.inOnly, word: vs.word, leaveBonus: vs.leaveSeniorityBonus, kpi: [ks.auto, ks.wWork, ks.wAttendance, ks.rankCompany, ks.rankTop, ks.public] };
+    console.log('Nâng cấp 1.10.16: ' + JSON.stringify(report.upgrade));
+  }
   const emps = await J(r.get(BASE + '/api/vp/employees', { headers: H })); const E = n => emps.find(e => e.name === n);
   for (const e of emps) await r.put(BASE + '/api/vp/luong-ho-so/' + e.id, { headers: H, data: { baseSalary: 12000000, insuranceSalary: 8000000, allowances: [{ name: 'Ăn trưa', amount: 730000 }] } });
   const login = async (u) => { const cx = await b.newContext({ viewport: VIEW, deviceScaleFactor: 1, locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' }); const q = cx.request;
@@ -96,7 +104,6 @@ async function makeDoc(b, file, title, lines) {
   const label = { 'nhan-vien': 'Nhân viên (Trần Thị B)', 'truong-phong': 'Trưởng phòng (Nguyễn Văn A)', 'ke-toan': 'Kế toán (Phạm Thu Hà)', 'giam-doc': 'Giám đốc (Đỗ Minh Quang)', 'quan-tri': 'Quản trị hệ thống' };
   { const _vs = await J(r.get(BASE + '/api/vp/settings', { headers: H })); await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, workdays: [...(_vs.workdays || []), today() + ' Ngày chạy thử'] } }); }
   const nv = roles['nhan-vien'], gd = roles['giam-doc'], tp = roles['truong-phong'];
-  await nv.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office' } });
   const nd = today().slice(0, 8) + '28';
   await nv.request.put(BASE + '/api/vp/requests/dx-ct1', { headers: H, data: { type: 'Nghỉ phép', fromAt: nd + 'T08:00:00+07:00', toAt: nd + 'T17:30:00+07:00', days: 1, reason: 'Việc gia đình' } });
   await r.put(BASE + '/api/data/projects/da-mau', { headers: H, data: { name: 'Phần mềm quản lý văn bản cho khách hàng A', code: 'PM-A' } });
@@ -104,6 +111,10 @@ async function makeDoc(b, file, title, lines) {
   const mk = async (q, data) => (await J(q.post(BASE + '/api/vp/viec', { headers: H, data }))).id;
   const nvu = await mk(gd.request, { name: 'Triển khai phần mềm cho khách hàng A', projectId: 'da-mau', assigneeUserId: E('Nguyễn Văn A').userId, level: 'Quan trọng', startDate: M + '-01', due: M + '-28' });
   await mk(tp.request, { name: 'Cài đặt máy chủ, nạp dữ liệu', parentId: nvu, assigneeUserId: E('Trần Thị B').userId, level: 'Quan trọng', startDate: M + '-03', due: today() });
+  { const tks = await J(nv.request.get(BASE + '/api/vp/my-tasks', { headers: H }));
+    await nv.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'office', taskIds: tks.map(x => x.id) } });
+    await nv.request.post(BASE + '/api/vp/check/today', { headers: H, data: { result: 'Đã cài máy chủ, nạp xong dữ liệu mẫu' } });
+    await tp.request.post(BASE + '/api/vp/check', { headers: H, data: { kind: 'in', mode: 'khac', note: 'Họp với khách hàng A tại trụ sở khách hàng' } }); }
   for (const e of emps) await r.put(BASE + `/api/vp/kpi/${PM}/${e.id}`, { headers: H, data: { workScore: 85, projectScore: 80, rating: 4 } });
 
   // ---- đi từng màn hình của từng vai trò
@@ -128,6 +139,22 @@ async function makeDoc(b, file, title, lines) {
     }
     await pg.close();
   }
+
+  // ---- Bản 1.10.16: nhận nhiệm vụ (nhân viên chưa bấm), hôm nay ai ở đâu, tổng hợp tháng, KPI công khai
+  const snap0 = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png'), fullPage: true });
+  { const kt = roles['ke-toan']; const pg = await kt.newPage(); const errs = []; pg.on('pageerror', e => errs.push(e.message));
+    try { await pg.goto(BASE + '/#van-phong'); await pg.waitForSelector('.vp-mode', { timeout: 20000 }); await pg.waitForTimeout(1200); await snap0(pg, 'nnv-01-ke-toan-truoc-khi-nhan');
+      await pg.check('input[name=vp_mode][value=online]'); await pg.click('[data-act="vp-check"][data-id="in"]'); await pg.waitForSelector('.vp-done', { timeout: 10000 }); await pg.waitForTimeout(600); await snap0(pg, 'nnv-02-ke-toan-da-nhan');
+    } catch (e) { errs.push('Lỗi luồng: ' + e.message); } report.flows.push({ name: 'Kế toán: nhận nhiệm vụ làm việc online', errs }); await pg.close(); }
+  for (const [role, n] of [['giam-doc', 'nnv-03-gd-hom-nay'], ['truong-phong', 'nnv-04-tp-hom-nay']]) {
+    const pg = await roles[role].newPage(); const errs = []; pg.on('pageerror', e => errs.push(e.message));
+    try { await pg.goto(BASE + '/#diem-danh'); await pg.waitForSelector('.tabs', { timeout: 20000 }); await pg.waitForTimeout(1500); await snap0(pg, n);
+      await pg.click('.tabs button[data-id=bang]'); await pg.waitForTimeout(1500); await snap0(pg, n.replace('hom-nay', 'tong-hop'));
+      await pg.goto(BASE + '/#kpi'); await pg.waitForTimeout(2000); await snap0(pg, n.replace('hom-nay', 'kpi'));
+    } catch (e) { errs.push('Lỗi luồng: ' + e.message); } report.flows.push({ name: role + ': hôm nay ai ở đâu, tổng hợp tháng, KPI', errs }); await pg.close(); }
+  { const pg = await nv.newPage(); const errs = []; pg.on('pageerror', e => errs.push(e.message));
+    try { await pg.goto(BASE + '/#kpi'); await pg.waitForSelector('#app'); await pg.waitForTimeout(2000); await snap0(pg, 'nnv-05-nv-kpi-cong-khai'); }
+    catch (e) { errs.push('Lỗi luồng: ' + e.message); } report.flows.push({ name: 'Nhân viên: KPI công khai', errs }); await pg.close(); }
 
   // ---- luồng hồ sơ nhân sự (bằng cấp): quản trị mở hồ sơ, xem bằng cấp đã chuyển, thêm bằng cấp kèm tệp; nhân viên tự xem và thêm
   const flow = async (cx, name, fn) => { const pg = await cx.newPage(); const errs = []; pg.on('pageerror', e => errs.push(e.message));

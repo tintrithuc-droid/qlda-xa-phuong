@@ -65,7 +65,7 @@ public static class Upgrades
                     k.Auto = true; k.WWork = 70; k.WProject = 0; k.WAttendance = 30; k.WManager = 0;
                     k.QualityFactors = new() { 1m, 1m, 1m, 1m, 1m };
                     // Công việc làm chung: chỉ 2 người điểm cao nhất toàn công ty được thưởng KPI (anh Trí chọn 25/11)
-                    k.RankOn = true; k.RankCompany = true; k.RankTop = 2;
+                    k.RankOn = true; k.RankCompany = true; k.RankTop = 2; k.Public = true;
                     k.Save(db, "he-thong");
                 }
                 db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });

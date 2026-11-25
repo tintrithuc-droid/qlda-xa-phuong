@@ -146,6 +146,12 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   const paid = kr.filter(z => z.rankBonus > 0);
   ok(paid.length >= 1 && paid.length <= 2 && paid.every(z => z.rank <= 2 && z.rankLabel.startsWith('Toàn công ty')), 'Thưởng 2 người đứng đầu: ' + JSON.stringify(kr.map(z => [z.name, z.total, z.rank, z.rankBonus])));
   ok(kr.filter(z => z.rank > 2).every(z => !z.rankBonus), 'Hạng 3 trở đi không được thưởng');
+  // KPI công khai: nhân viên A thấy điểm của B, không thấy tiền thưởng của B
+  const ks3 = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
+  await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks3, public: true } });
+  const ka = (await J(qa.get(BASE + '/api/vp/kpi?month=' + thisMonth(), { headers: H }))).rows;
+  const kaB = ka.find(z => z.employeeId === ttb.id);
+  ok(kaB && kaB.total != null && (stA.perms.managed.length || stA.perms.att || (kaB.rankBonus === 0 && kaB.bonus === 0)), 'KPI công khai: ' + JSON.stringify(kaB).slice(0, 200));
   // 7) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
   const vs1 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs1.leaveSeniorityBonus === false && vs1.inOnly === true, 'Thiết lập chưa lưu');
 

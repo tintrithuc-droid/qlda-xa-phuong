@@ -38,6 +38,8 @@ public class KpiSettings
     public List<RankTable> RankTables { get; set; } = new();
     /// <summary>Bản 1.10.16 (anh Trí 25/11): xếp hạng chung toàn công ty (không chia phòng) và chỉ RankTop người đứng đầu được thưởng (0 = theo bảng).</summary>
     public bool RankCompany { get; set; }
+    /// <summary>Bản 1.10.16 (anh Trí 25/11): công khai điểm KPI, xếp loại, hạng cho mọi người để cùng phấn đấu (số tiền thưởng của người khác vẫn ẩn).</summary>
+    public bool Public { get; set; }
     public int RankTop { get; set; }
     public decimal RankBonus(string month, int rank)
     {
@@ -230,18 +232,20 @@ public class KpiController : ApiControllerBase
         var calc = await Compute(Db, month, false); if (calc is null) return Error(400, "Tháng không hợp lệ.");
         var k = KpiSettings.Load(Db);
         var depts = await ManagedDepts(); var all = Uc.Can("kpi"); var edit = Uc.Can("kpi", true);
-        bool Visible(Employee e) => all || e.UserId == Uc.User.Id || (e.DepartmentId != null && depts.Contains(e.DepartmentId));
+        bool Full(Employee e) => all || e.UserId == Uc.User.Id || (e.DepartmentId != null && depts.Contains(e.DepartmentId));
+        bool Visible(Employee e) => k.Public || Full(e);
         var rows = calc.Where(c => Visible(c.E)).Select(c =>
         {
             var (e, sh, st) = (c.E, c.Sh, c.St);
             var canRate = !c.Locked && e.UserId != Uc.User.Id && (edit || (e.DepartmentId != null && depts.Contains(e.DepartmentId)));
+            var full = Full(e);
             return new
             {
                 employeeId = e.Id, e.Name, e.DepartmentId, work = c.Work, workAuto = c.Wd, workOverride = sh?.WorkScore, project = sh?.ProjectScore, attendance = c.Att,
                 attDetail = new { st.Late, st.LateMinutes, st.Early, st.NoOut, st.Absent, st.Worked, st.Standard },
-                rating = sh?.ManagerRating, ratingNote = sh?.ManagerNote, ratedBy = sh?.RatedBy, employeeNote = sh?.EmployeeNote,
-                total = c.Total, grade = c.Grade, estimate = !c.Locked && c.Work is null, bonus = k.Grades.FirstOrDefault(g => g.Name == c.Grade)?.Bonus ?? 0,
-                rank = c.Rank, rankBonus = c.RankBonus, rankLabel = c.RankLabel,
+                rating = sh?.ManagerRating, ratingNote = full ? sh?.ManagerNote : null, ratedBy = full ? sh?.RatedBy : null, employeeNote = full ? sh?.EmployeeNote : null,
+                total = c.Total, grade = c.Grade, estimate = !c.Locked && c.Work is null && !k.Auto, bonus = full ? k.Grades.FirstOrDefault(g => g.Name == c.Grade)?.Bonus ?? 0 : 0,
+                rank = c.Rank, rankBonus = full ? c.RankBonus : 0, rankLabel = c.RankLabel,
                 missing = c.Missing, locked = c.Locked, lockedAt = sh?.LockedAt, lockedBy = sh?.LockedAt != null ? sh.LockedBy : null, canRate, self = e.UserId == Uc.User.Id
             };
         }).ToList();

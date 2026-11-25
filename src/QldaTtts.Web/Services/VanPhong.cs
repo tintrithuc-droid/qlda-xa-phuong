@@ -19,6 +19,8 @@ public class VpSettings
     public string AfternoonEnd { get; set; } = "17:30";
     public decimal HoursPerDay { get; set; } = 8;
     public decimal LeavePerYear { get; set; } = 12;
+    /// <summary>Bản 1.10.16: cộng 1 ngày phép cho mỗi 5 năm thâm niên (Điều 114 BLLĐ). Tri Thức tắt để giống e-work: đủ năm là 12 ngày.</summary>
+    public bool LeaveSeniorityBonus { get; set; } = true;
     /// <summary>Làm việc thứ Bảy: "khong", "sang" (buổi sáng), "ca-ngay", "cach-tuan" (tuần làm cả ngày, tuần nghỉ, luân phiên).</summary>
     public string Saturday { get; set; } = "khong";
     /// <summary>Bản 1.10.4: một thứ Bảy có đi làm (yyyy-MM-dd) làm mốc cho chế độ "cach-tuan"; các thứ Bảy cách mốc số chẵn tuần là ngày làm.</summary>
@@ -33,7 +35,8 @@ public class VpSettings
     };
     /// <summary>Cho phép điểm danh ngoài công ty (ghi nhận "Ngoài công ty" để trưởng phòng xem).</summary>
     public bool AllowOutside { get; set; } = true;
-    /// <summary>Bản 1.10.16: chỉ điểm danh vào như e-work (không điểm danh ra, không tính về sớm, quên điểm danh ra).</summary>
+    /// <summary>Bản 1.10.16: "Nhận nhiệm vụ": chỉ một lượt vào mỗi ngày, tự chọn Ở công ty / online / công tác / khác, không lấy vị trí, không cần phiếu
+    /// (không điểm danh ra, không tính về sớm, quên điểm danh ra).</summary>
     public bool InOnly { get; set; }
     /// <summary>Bản 1.10.16: chữ hiện cho việc điểm danh (Tri Thức: "Nhận nhiệm vụ").</summary>
     public string Word { get; set; } = "Điểm danh";
@@ -159,7 +162,7 @@ public static class VnTime
         {
             if (sd.Year > year) return 0;
             var years = year - sd.Year - (new DateOnly(year, 12, 31) < sd.AddYears(year - sd.Year) ? 1 : 0);
-            baseDays += Math.Max(0, years / 5);
+            if (s.LeaveSeniorityBonus) baseDays += Math.Max(0, years / 5);
         }
         int fromM = e.StartDate is { } st && st.Year == year ? st.Month : 1;
         int toM = e.EndDate is { } en && en.Year == year ? en.Month : 12;
@@ -210,7 +213,7 @@ public static class VnTime
 public static class VpCalc
 {
     public record Row(string EmployeeId, string Name, string? DepartmentId, decimal Standard, decimal Worked, int Late, int LateMinutes, int Early,
-        int Outside, int Online, int NoOut, decimal Leave, decimal Trip, decimal Overtime, decimal Absent, decimal PrivateLeave = 0, decimal Unpaid = 0);
+        int Outside, int Online, int NoOut, decimal Leave, decimal Trip, decimal Overtime, decimal Absent, decimal PrivateLeave = 0, decimal Unpaid = 0, int Office = 0, int TripDays = 0, int Other = 0);
 
     /// <summary>Bản 1.10.4: các loại nghỉ có đề xuất được duyệt (không tính vắng không lý do).</summary>
     public static readonly string[] LeaveTypes = { "Nghỉ phép", "Nghỉ việc riêng có lương", "Nghỉ không lương", "Nghỉ ốm, thai sản (BHXH)" };
@@ -287,7 +290,8 @@ public static class VpCalc
             return new Row(e.Id, e.Name, e.DepartmentId, standard, worked, xs.Count(a => a.LateMinutes > 0), xs.Sum(a => a.LateMinutes), s.InOnly ? 0 : xs.Count(a => a.EarlyMinutes > 0),
                 xs.Count(a => a.InPlace == "Ngoài công ty"), xs.Count(a => a.InPlace == "Làm việc online"), s.InOnly ? 0 : xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today),
                 Days("Nghỉ phép"), Days("Công tác"), otByEmp.TryGetValue(e.Id, out var oth) ? oth : 0, absent,
-                Days("Nghỉ việc riêng có lương"), Days("Nghỉ không lương") + Days("Nghỉ ốm, thai sản (BHXH)"));
+                Days("Nghỉ việc riêng có lương"), Days("Nghỉ không lương") + Days("Nghỉ ốm, thai sản (BHXH)"),
+                xs.Count(a => a.InAt != null && a.InPlace == "Trong công ty"), xs.Count(a => a.InPlace == "Công tác"), xs.Count(a => a.InPlace == "Khác"));
         }).ToList();
         return (standard, rows);
     }

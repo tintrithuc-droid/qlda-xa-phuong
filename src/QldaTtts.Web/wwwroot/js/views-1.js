@@ -79,7 +79,7 @@ function renderNav(){
   const vpOn=['diem-danh','de-xuat','lich-hop','thong-bao','kpi','luong','nhan-su'].filter(k=>!modHidden(k));
   if(typeof VP!=='undefined' && vpOn.length){ if(!VP.st && !VP.loading && !VP.err) setTimeout(()=>vpLoad(),0);
     const pend=VP.st? VP.st.pending : 0, on=k=>vpOn.includes(k);
-    html+=`<div class="grp">Văn phòng</div>`+(on('diem-danh')? link('van-phong','Điểm danh','check') : '')+(on('de-xuat')? `<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>` : '')
+    html+=`<div class="grp">Văn phòng</div>`+(on('diem-danh')? link('van-phong',(typeof vpW==='function'?vpW():'Điểm danh'),'check') : '')+(on('de-xuat')? `<a href="#de-xuat" class="${S.route==='de-xuat'?'on':''}">${ic('doc')}<span>Đề xuất</span>${pend?`<span class="cnt">${pend}</span>`:''}</a>` : '')
       +(on('lich-hop')? link('lich-hop','Lịch công tác','cal') : '')+(!modHidden('cong-viec')? link('cong-viec','Công việc','gantt') : '')+(on('thong-bao')? `<a href="#thong-bao" class="${S.route==='thong-bao'?'on':''}">${ic('bell')}<span>Thông báo</span>${VP.ib&&VP.ib.unread?`<span class="cnt">${VP.ib.unread}</span>`:''}</a>` : '')
       +(on('diem-danh') && vpCanAttAll()? link('diem-danh','Bảng công, chấm công','cal') : '')+(on('kpi')? link('kpi','KPI','chart') : '')+(on('luong')? link('luong','Lương','coin') : '')+(can('nhan-su')? link('nhan-su','Nhân sự','user') : '')+(VP.st&&VP.st.me? `<a href="#ho-so" data-act="hs-me" class="${S.route==='ho-so'&&S.sel.hs===VP.st.me.id?'on':''}">${ic('user')}<span>Hồ sơ của tôi</span></a>` : ''); grp='Văn phòng'; }
   MODULES.filter(m=>can(m.key) && m.grp!=='Văn phòng').forEach(m=>{
@@ -97,7 +97,7 @@ function renderNav(){
   $('#brandmark').className='mark'+(BR.logo?' logo':''); $('#brandmark').innerHTML=brandMark(); $('#brand_org').textContent=BR.orgShort; $('#brand_app').textContent=BR.appName;
 }
 function renderTop(){
-  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':S.route==='van-phong'?'Điểm danh':S.route==='ework-cu'?'Dữ liệu e-work cũ':S.route==='ho-so'?'Hồ sơ nhân sự':'Danh mục chức năng';
+  const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const title=cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':S.route==='van-phong'?(typeof vpW==='function'?vpW():'Điểm danh'):S.route==='ework-cu'?'Dữ liệu e-work cũ':S.route==='ho-so'?'Hồ sơ nhân sự':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>
@@ -107,7 +107,7 @@ function renderTop(){
     <div class="who"><button class="btn ghost sm" data-act="account" title="Tài khoản"><span class="avatar">${esc(initials(S.user.name))}</span><span class="nm" style="text-align:left;line-height:1.2">${esc(S.user.name)}<br><span class="small muted">${esc(g?g.name:'')}</span></span></button></div>`;
 }
 function renderTabbar(){
-  const items=[['van-phong','check','Điểm danh'],['tong-quan','dash','Tổng quan'],['du-an','proj','Dự án'],['de-xuat','doc','Đề xuất']].filter(x=>can(x[0]));
+  const items=[['van-phong','check',(typeof vpW==='function'?vpW():'Điểm danh')],['tong-quan','dash','Tổng quan'],['du-an','proj','Dự án'],['de-xuat','doc','Đề xuất']].filter(x=>can(x[0]));
   $('#tabbar').innerHTML = items.map(([k,i,l])=>`<a href="#${k}" class="${S.route===k?'on':''}">${ic(i)}<span>${l}</span></a>`).join('') + `<a href="#" data-act="menu">${ic('menu')}<span>Menu</span></a>`;
   $('#tabbar').style.gridTemplateColumns=`repeat(${items.length+1},1fr)`;
 }

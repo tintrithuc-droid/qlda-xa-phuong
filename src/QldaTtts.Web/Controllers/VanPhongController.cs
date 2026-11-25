@@ -298,6 +298,30 @@ public class VanPhongController : ApiControllerBase
         var dOff = VnTime.Day(today, s);
         if (dOff.Value == 0 && !await Db.Attendances.AnyAsync(a => a.EmployeeId == me.Id && a.Date == today && a.InAt != null))
             return Error(400, $"Hôm nay là ngày nghỉ{(dOff.Name is { } dn ? " (" + dn + ")" : "")}, không {w.ToLower()}. Có làm thêm giờ thì sau khi làm xong lập phiếu xác nhận tăng ca.");
+        // Bản 1.10.16: "Nhận nhiệm vụ" (anh Trí chốt 25/11/2026): một lượt mỗi ngày, tự chọn Ở công ty / Làm việc online / Đi công tác / Khác (ghi nội dung);
+        // không lấy vị trí, không cần phiếu; cuối tháng xem bảng tổng hợp.
+        if (s.InOnly && r.Kind == "in")
+        {
+            var place0 = r.Mode switch { "online" => "Làm việc online", "congtac" => "Công tác", "khac" => "Khác", _ => "Trong công ty" };
+            var note0 = r.Note?.Trim();
+            if (place0 == "Khác" && string.IsNullOrWhiteSpace(note0)) return Error(400, "Chọn \"Khác\" thì ghi nội dung công việc hôm nay.");
+            var a0 = await Db.Attendances.FirstOrDefaultAsync(x => x.EmployeeId == me.Id && x.Date == today);
+            if (a0?.InAt is not null) return Error(409, $"Bạn đã {w.ToLower()} lúc {VnTime.ToVn(a0.InAt.Value):HH:mm}.");
+            if (a0 is null) { a0 = new Attendance { Id = NewId("cc"), EmployeeId = me.Id, Date = today }; Db.Attendances.Add(a0); }
+            a0.InAt = DateTime.UtcNow; a0.InPlace = place0; a0.InIp = Uc.Ip; a0.InLat = null; a0.InLng = null; a0.Site = null;
+            a0.Note = string.IsNullOrWhiteSpace(note0) ? null : note0.Length > 500 ? note0[..500] : note0;
+            a0.LateMinutes = place0 is "Trong công ty" or "Làm việc online" ? await LateOf(me, today, a0.InAt.Value, s) : 0;
+            if (dOff.Value == 0) a0.Note = (a0.Note is null ? "" : a0.Note + "; ") + "Đi làm ngày nghỉ" + (dOff.Name is { } nn0 ? " (" + nn0 + ")" : "");
+            a0.UpdatedAt = DateTime.UtcNow; a0.UpdatedBy = Uc.User.Username;
+            try { await Db.SaveChangesAsync(); }
+            catch (DbUpdateException)
+            {
+                var had = await Db.Attendances.AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeId == me.Id && x.Date == today);
+                if (had?.InAt is { } hi) return Error(409, $"Bạn đã {w.ToLower()} lúc {VnTime.ToVn(hi):HH:mm}.");
+                throw;
+            }
+            return Ok(a0);
+        }
         var mode = r.Mode;
         if (s.OutsideTripOnly)
         {
@@ -403,7 +427,7 @@ public class VanPhongController : ApiControllerBase
         if (r.In?.Trim() == "-") a.InAt = null; else if (T(r.In) is { } ni) a.InAt = ni;
         if (r.Out?.Trim() == "-") a.OutAt = null; else if (T(r.Out) is { } no) a.OutAt = no;
         a.InPlace = r.InPlace ?? a.InPlace ?? "Trong công ty";
-        a.LateMinutes = a.InAt is { } i && a.InPlace != "Công tác" ? await LateOf(emp, d, i, s) : 0;
+        a.LateMinutes = a.InAt is { } i && a.InPlace is not ("Công tác" or "Khác") ? await LateOf(emp, d, i, s) : 0;
         a.EarlyMinutes = !s.InOnly && a.OutAt is { } o && VnTime.WorkValue(d, s) > 0
             ? Math.Max(0, (int)(VnTime.Hm(VnTime.Sessions(d, s).Pm ? s.CheckOut : s.MorningEnd, "17:30") - VnTime.ToVn(o).TimeOfDay).TotalMinutes) : 0;
         a.Note = $"Điều chỉnh bởi {Uc.User.Name}: {r.Note}"; a.SyncedAt = null;

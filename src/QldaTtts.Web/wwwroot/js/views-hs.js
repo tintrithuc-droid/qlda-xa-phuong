@@ -47,16 +47,14 @@ VIEWS['ho-so']=()=>{
   return `<div class="head"><div class="grow">${back?`<a href="#nhan-su" class="small">← Danh sách nhân sự</a>`:''}
       <h1>${mine?'Hồ sơ của tôi':esc(e.name)}</h1><p>${[mine?e.name:'', e.position, vpDeptName(e.departmentId), e.status].filter(Boolean).map(esc).join(' · ')}</p></div>
       ${d.canEdit?`<div><button class="btn" data-act="vp-emp" data-id="${esc(id)}">Sửa thông tin chung</button></div>`:''}</div>
-    <div class="tabs hs-tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="hs" data-id="${k}">${esc(l)}${n!==''?` <span class="cnt${n?'':' zero'}">${n}</span>`:''}</button>`).join('')}</div>${body}`;
+    <div class="tabs hs-tabs">${tabs.map(([k,l,n])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="hs" data-id="${k}">${esc(l)}${n?` <span class="cnt">${n}</span>`:''}</button>`).join('')}</div>${body}`;
 };
 
 function hsGeneral(e, d, recs, kinds, files){
   const I=(l,v)=>v!=null&&v!==''?`<div class="fld"><label>${l}</label><div>${esc(String(v))}</div></div>`:'';
   const u=vpUser(e.userId);
-  const cards=kinds.map(x=>{ const l=recs.filter(r=>r.kind===x.k); const nf=l.reduce((a,r)=>a+r.files.length,0);
-    return `<button class="hs-sum" data-act="tab" data-g="hs" data-id="${x.k}"><b>${esc(x.tab)}</b><span>${l.length? `${l.length} mục · ${nf} tệp` : 'Chưa có'}</span>${l.length&&!nf?'<span class="small warn">Chưa đính kèm tệp</span>':''}</button>`; }).join('');
-  return `<div class="hs-sums">${cards}</div>
-    <div class="card" style="padding:16px;margin-top:12px"><h3 style="margin:0 0 10px">Lý lịch</h3><div class="fgrid">
+  /* Bản 1.10.17: bỏ hàng thẻ tóm tắt (trùng các thẻ chọn phía trên) */
+  return `<div class="card" style="padding:16px;margin-top:12px"><h3 style="margin:0 0 10px">Lý lịch</h3><div class="fgrid">
       ${I('Họ tên',e.name)}${I('Mã nhân viên',e.code)}${I('Phòng ban',vpDeptName(e.departmentId))}${I('Chức vụ',e.position)}${I('Trạng thái',e.status)}
       ${I('Tài khoản đăng nhập',u?u.username:'Chưa gắn')}${I('Điện thoại',e.phone)}${I('Thư điện tử',e.email)}${I('Ngày sinh',e.birthday&&fmtDate(e.birthday))}${I('Giới tính',e.gender)}
       ${I('Ngày vào làm',e.startDate&&fmtDate(e.startDate))}${I('Ngày nghỉ việc',e.endDate&&fmtDate(e.endDate))}${I('Trình độ',e.education)}${I('Chuyên ngành',e.major)}
@@ -65,7 +63,7 @@ function hsGeneral(e, d, recs, kinds, files){
       ${I('Hợp đồng',[e.contractType,e.contractNo,e.contractStart&&('từ '+fmtDate(e.contractStart)),e.contractEnd&&('đến '+fmtDate(e.contractEnd))].filter(Boolean).join(', '))}
       ${I('Số CCCD',e.idNumber)}${I('Ngày cấp CCCD',e.idDate&&fmtDate(e.idDate))}${I('Nơi cấp',e.idPlace)}${I('Mã số thuế',e.taxCode)}${I('Số sổ BHXH',e.insuranceNo)}
       ${I('Tài khoản ngân hàng',[e.bankAccount,e.bankName].filter(Boolean).join(' · '))}</div>
-      ${d.self&&!d.canEdit?`<p class="small muted" style="margin:10px 0 0">Thông tin sai? Báo bộ phận nhân sự để sửa. Bạn tự thêm được bằng cấp và giấy tờ của mình ở các thẻ phía trên.</p>`:''}</div>`;
+      ${d.self&&!d.canEdit?`<p class="small muted" style="margin:10px 0 0">Thông tin sai thì báo bộ phận nhân sự để sửa.</p>`:''}</div>`;
 }
 
 function hsFileRow(f, canDel){

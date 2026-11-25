@@ -189,6 +189,7 @@ tfoot td{font-weight:600; background:var(--panel2)}
 .kv{display:grid; grid-template-columns:minmax(120px,190px) minmax(0,1fr); gap:6px 14px; font-size:13.5px}
 .kv dt{color:var(--muted)} .kv dd{margin:0}
 .empty{padding:28px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:var(--r)}
+.cv-remind{display:grid!important; gap:4px}
 .alert{display:flex; gap:10px; padding:10px 14px; border-radius:var(--r-sm); border:1px solid color-mix(in srgb, var(--amber) 30%, transparent); background:var(--amber-soft); font-size:13px; align-items:flex-start}
 .alert.bad{border-color:color-mix(in srgb, var(--red) 30%, transparent); background:var(--red-soft)}
 .alert.info{border-color:color-mix(in srgb, var(--blue) 30%, transparent); background:var(--blue-soft)}
@@ -742,6 +743,8 @@ select:not([multiple]):not([size]):disabled{opacity:.6}
 .vp-big{min-height:54px; font-size:1.05rem; justify-content:center}
 .vp-types{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:8px}
 .vp-types .btn{justify-content:center; min-height:44px}
+.vp-tg{margin:14px 0 6px; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+.vp-tg:first-child{margin-top:0}
 @media (max-width:820px){ .vp-top{grid-template-columns:1fr!important} }
 /* Bản 1.10.1: trang đăng nhập trên điện thoại không bao giờ tràn ngang (tên đơn vị dài, mã kiểm tra, ảnh logo, cỡ chữ lớn) */
 @media (max-width:820px){
@@ -775,3 +778,14 @@ select:not([multiple]):not([size]):disabled{opacity:.6}
 .hs-nofile{padding:4px 0}
 .hs-add{cursor:pointer}
 @media (max-width:700px){ .hs-file{flex-wrap:wrap} .hs-fb{width:100%; justify-content:flex-end} .hs-ih{flex-wrap:wrap} }
+/* Bản 1.10.17: nút Xuất gộp */
+details.xmenu{position:relative; display:inline-block}
+details.xmenu>summary{list-style:none; cursor:pointer}
+details.xmenu>summary::-webkit-details-marker{display:none}
+details.xmenu>summary svg{width:15px; height:15px}
+.xmenu-list{position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:260px; display:grid; gap:2px; padding:6px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-sm); box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.xmenu-list .btn{justify-content:flex-start; width:100%; text-align:left}
+details.kpi-how{max-width:70ch}
+details.kpi-how>summary{cursor:pointer; color:var(--accent,inherit)}
+.month-sel{width:auto; min-width:150px}
+@media (max-width:640px){ .alert.vp-done{display:grid; gap:6px} }

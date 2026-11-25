@@ -73,6 +73,30 @@ public static class Upgrades
             }
         }
 
+        // Bản 1.10.17: đơn vị dùng "Nhận nhiệm vụ" mà dòng giới thiệu trang đăng nhập còn chữ "Điểm danh" thì đổi chữ (chạy một lần, giữ nguyên phần còn lại)
+        {
+            const string key = "upgrade:1.10.17-chu-dang-nhap";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                var vs = VpSettings.Load(db);
+                var br = db.Settings.FirstOrDefault(x => x.Key == QldaTtts.Web.Controllers.BrandingController.Key);
+                if (vs.InOnly && br?.Value is { } v)
+                {
+                    try
+                    {
+                        if (System.Text.Json.Nodes.JsonNode.Parse(v) is System.Text.Json.Nodes.JsonObject o && o["bannerText"]?.GetValue<string>() is { } t && t.Contains("Điểm danh"))
+                        {
+                            o["bannerText"] = t.Replace("Điểm danh", vs.Word ?? "Nhận nhiệm vụ");
+                            br.Value = o.ToJsonString(); br.UpdatedAt = DateTime.UtcNow; br.UpdatedBy = "he-thong";
+                        }
+                    }
+                    catch (System.Text.Json.JsonException) { }
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // 3) Phiên bản 1.1: chức năng Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026), chạy một lần
         CapXa(db);
 

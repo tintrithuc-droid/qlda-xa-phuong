@@ -1,5 +1,6 @@
 /* ===== Lõi: cấu hình phân hệ, lưu trữ, xác thực, tiện ích ===== */
 const ICON = {
+  download:'<path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/>',
   bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   dash:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
   proj:'<path d="M3 7h18v13H3zM8 7V4h8v3"/>',
@@ -83,7 +84,7 @@ const EXTRA_ROUTES = ['hien-truong','doi-chieu','huong-dan','trinh-duyet','canh-
 /* Menu Nghiệp vụ chia theo giai đoạn. Quyền vẫn theo phân hệ (MODULES); hai mục của giai đoạn chuẩn bị đầu tư dùng chung quyền
    với phân hệ tương ứng (ROUTE_PERM). Gói thầu thuộc một giai đoạn; hợp đồng và hồ sơ của hợp đồng theo giai đoạn của gói thầu. */
 const PHASES = {cb:'Chuẩn bị đầu tư', dt:'Thực hiện đầu tư'};
-const NAV_CB = [['cb-goi-thau','Gói thầu và hợp đồng','doc'],['cb-thanh-toan','Nghiệm thu, thanh toán','coin']];
+const NAV_CB = [['cb-goi-thau','Gói thầu chuẩn bị','doc'],['cb-thanh-toan','Thanh toán chuẩn bị','coin']];
 const ROUTE_PERM = {'ework-cu':'quan-tri', 'cb-goi-thau':'goi-thau', 'cb-thanh-toan':'thanh-toan', 'tv-thanh-toan':'thanh-toan', 'danh-muc-don-vi':'goi-thau'};
 const NAV_DM = ['danh-muc-don-vi','Danh mục nhà thầu, đơn vị giám sát','user'];
 /* Bản 1.8.7: hợp đồng tư vấn giai đoạn thực hiện đầu tư (quản lý dự án, lập và thẩm định HSMT, giám sát, kiểm thử…) nghiệm thu theo sản phẩm như ở chuẩn bị đầu tư */
@@ -146,6 +147,14 @@ const $ = (s,el=document)=>el.querySelector(s);
 const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
 const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad = n => String(n).padStart(2,'0');
+/* Bản 1.10.17: một nút "Xuất" mở danh sách tệp xuất (thay cho nhiều nút nằm ngang). items: [act, id, nhãn, khóa?] */
+function exportMenu(items){ return `<details class="xmenu"><summary class="btn sm">${ic('download')} Xuất</summary><div class="xmenu-list" role="menu">${items.map(([a,id,l,dis])=>`<button type="button" class="btn ghost sm" role="menuitem" data-act="${a}" data-id="${esc(id||'')}" ${dis?'disabled':''}>${esc(l)}</button>`).join('')}</div></details>`; }
+document.addEventListener('click', e=>{ document.querySelectorAll('details.xmenu[open]').forEach(d=>{ if(!d.contains(e.target) || e.target.closest('.xmenu-list button')) d.open=false; }); });
+/* Bản 1.10.17: ô chọn tháng ghi "Tháng 11/2026" (ô month của trình duyệt hiện theo ngôn ngữ máy, có máy ra tiếng Anh) */
+function monthSel(k, v, empty, label){ const now=new Date(), list=[];
+  for(let i=-1;i<36;i++){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1), val=d.getFullYear()+'-'+pad(d.getMonth()+1); list.push([val,'Tháng '+pad(d.getMonth()+1)+'/'+d.getFullYear()]); }
+  if(v && !list.some(x=>x[0]===v)) list.push([v,'Tháng '+String(v).slice(5)+'/'+String(v).slice(0,4)]);
+  return `<select data-f="${k}" data-nocombo class="month-sel" aria-label="${label||'Tháng'}">${opts(list, v, empty)}</select>`; }
 const isoLocal = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const TODAY = isoLocal(new Date());
 const fmtDate = d => d ? String(d).slice(0,10).split('-').reverse().join('/') : '—';

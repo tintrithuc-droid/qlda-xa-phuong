@@ -41,6 +41,7 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   fx.users.push({ ...base, Id: 'u6', UserName: 'giamdoc', Email: 'gd@tt.vn', FullName: 'Đỗ Giám Đốc', RoleName: 'GIAMDOC', PhongBan: 'pb-kd' });
   fx.users.push({ ...base, Id: 'u7', UserName: 'qtew', Email: 'qt@tt.vn', FullName: 'Quản Trị Cũ', RoleName: 'ADMIN', PhongBan: 'pb-kd' });
   fx.luutru.QuanLyCongViecs = [];
+  fx.thamso.push({ TenThamSo: 'GIO_CA_SANG', GiaTri: '8:00' }, { TenThamSo: 'GIO_HET_CA_SANG', GiaTri: '12:30' }, { TenThamSo: 'GIO_CA_CHIEU', GiaTri: '13:45' }, { TenThamSo: 'GIO_HET_CA_CHIEU', GiaTri: '17:40' });
   // 1.10.15: vai trò/chức vụ đúng như e-work Tri Thức (chức vụ có dấu tiếng Việt)
   const realRoles = [['gdthat', 'LANHDAOCOQUAN', 'Giám đốc', 'g-bgd'], ['doitruong', 'LANHDAOCOQUAN', 'Đội trưởng', 'g-nv'], ['tpketoan', 'LANHDAOPHONGKETOAN', 'Trưởng phòng', 'g-ketoan'],
     ['ketoan2', 'LANHDAOPHONGKETOAN', 'Kế toán', 'g-ketoan'], ['phogd', 'LANHDAOPHONGLAPTRINH', 'Phó giám đốc', 'g-bgd'], ['doanhnghiep', 'DOANHNGHIEP', 'Trưởng đại diện', 'g-nv'],
@@ -55,7 +56,7 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
   ok(/Thứ Bảy làm cách tuần/.test(c.out), 'Không nhận ra thứ Bảy cách tuần khi nạp');
   { const _vs = await (await r.get(BASE + '/api/vp/settings', { headers: H })).json(); const _td = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
     await r.put(BASE + '/api/vp/settings', { headers: H, data: { ..._vs, workdays: [...(_vs.workdays || []), _td + ' Ngày kiểm thử'] } }); } // hôm nay luôn là ngày làm việc (ngày nghỉ không mở điểm danh)
-  { const vs0 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs0.saturday === 'cach-tuan' && vs0.saturdayAnchor === '2027-01-02', 'Thiết lập thứ Bảy sau khi nạp: ' + vs0.saturday + ' ' + vs0.saturdayAnchor); }
+  { const vs0 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs0.morningStart === '08:00' && vs0.morningEnd === '12:30' && vs0.afternoonStart === '13:45' && vs0.afternoonEnd === '17:40' && vs0.checkOut === '17:40', 'Giờ ca e-work chưa nạp: ' + JSON.stringify([vs0.morningStart, vs0.morningEnd, vs0.afternoonStart, vs0.afternoonEnd, vs0.checkOut])); ok(vs0.saturday === 'cach-tuan' && vs0.saturdayAnchor === '2027-01-02', 'Thiết lập thứ Bảy sau khi nạp: ' + vs0.saturday + ' ' + vs0.saturdayAnchor); }
   const all = await J(r.get(BASE + '/api/data', { headers: H }));
   const grp = id => all.groups.find(g => g.id === id); const usr = u => all.users.find(x => x.username === u);
   ok(['g-nv', 'g-tp', 'g-ketoan', 'g-bgd'].every(grp), 'Thiếu nhóm vai trò: ' + all.groups.map(g => g.id).join(','));

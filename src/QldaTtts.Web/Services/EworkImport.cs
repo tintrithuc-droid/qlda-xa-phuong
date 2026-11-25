@@ -214,7 +214,14 @@ public static class EworkImport
         {
             var k = (S(p, "TenThamSo") ?? "").ToUpperInvariant(); var v = S(p, "GiaTri") ?? "";
             if (k.Contains("BAN_KINH") && int.TryParse(Regex.Match(v, @"\d+").Value, out var r)) radius = r;
-            if (k == "GIO_DIEM_DANH" && Regex.IsMatch(v, @"^\d{1,2}:\d{2}")) s.CheckIn = v[..5].PadLeft(5, '0');
+            // 1.10.15: lấy đủ giờ ca của e-work (trước chỉ lấy giờ điểm danh, ca sáng/chiều và giờ ra để mặc định 07:30-12:00, 13:00-17:00)
+            var hm = Regex.Match(v, @"^(\d{1,2}):(\d{2})"); var t = hm.Success ? hm.Groups[1].Value.PadLeft(2, '0') + ":" + hm.Groups[2].Value : null;
+            if (t is null) continue;
+            if (k == "GIO_DIEM_DANH") s.CheckIn = t;
+            else if (k == "GIO_CA_SANG") s.MorningStart = t;
+            else if (k == "GIO_HET_CA_SANG") s.MorningEnd = t;
+            else if (k == "GIO_CA_CHIEU") s.AfternoonStart = t;
+            else if (k == "GIO_HET_CA_CHIEU") { s.AfternoonEnd = t; s.CheckOut = t; }
         }
         if (s.Places.Count == 0)
             foreach (var p in Arr(root, "toado").Where(p => Bool(p, "Status", true)))

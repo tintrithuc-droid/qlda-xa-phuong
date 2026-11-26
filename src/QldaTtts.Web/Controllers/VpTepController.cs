@@ -22,7 +22,7 @@ public class VpTepController : ApiControllerBase
     {
         if (col != "vp-de-xuat" || uc.Can("de-xuat") || uc.IsAdmin) return null;
         var me = await db.Employees.AsNoTracking().Where(e => e.UserId == uc.User!.Id).Select(e => e.Id).FirstOrDefaultAsync();
-        var depts = await db.Departments.AsNoTracking().Where(d => d.ManagerUserId == uc.User!.Id).Select(d => d.Id).ToListAsync();
+        var depts = await db.Departments.AsNoTracking().Where(d => (d.ManagerUserId == uc.User!.Id || d.DeputyUserId == uc.User!.Id)).Select(d => d.Id).ToListAsync();
         var l = ids.ToList();
         var reqs = await db.Requests.AsNoTracking().Where(r => l.Contains(r.Id)).Select(r => new { r.Id, r.EmployeeId }).ToListAsync();
         var empDept = await db.Employees.AsNoTracking().Where(e => e.DepartmentId != null && depts.Contains(e.DepartmentId)).Select(e => e.Id).ToListAsync();

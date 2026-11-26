@@ -893,6 +893,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("DeputyUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("EworkId")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");

@@ -180,6 +180,18 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   ok(kr2.some(z => z.employeeId === ttb.id), 'Người đang làm phải còn KPI');
   await r.post(BASE + `/api/users/${uC.id}/active`, { headers: H, data: { active: true } });
   await r.put(BASE + `/api/vp/employees/${nva.id}`, { headers: H, data: { ...nvaFull } });
+  // 1.10.21: phòng có người cùng phụ trách: A trưởng phòng, B cùng phụ trách; đề xuất của A, B do Giám đốc (quản trị) duyệt, không duyệt chéo
+  { const dps = await J(r.get(BASE + '/api/vp/departments', { headers: H })); const dp = dps.find(x => x.id === nva.departmentId) || dps[0];
+    const sv = await r.put(BASE + '/api/vp/departments/' + dp.id, { headers: H, data: { ...dp, managerUserId: nva.userId, deputyUserId: ttb.userId } }); ok(sv.ok(), 'Lưu người cùng phụ trách lỗi ' + sv.status());
+    for (const e of [nva, ttb]) { const fe = (await J(r.get(BASE + '/api/vp/employees', { headers: H }))).find(x => x.id === e.id); await r.put(BASE + `/api/vp/employees/${e.id}`, { headers: H, data: { ...fe, departmentId: dp.id } }); }
+    const stB = await J(qb.get(BASE + '/api/vp/state', { headers: H })); ok(stB.perms.approve === true, 'Người cùng phụ trách phải duyệt được');
+    const F = addDays(D0, 20) + 'T08:00:00+07:00', Tt = addDays(D0, 20) + 'T17:00:00+07:00';
+    const mk = async (q, id) => { const x = await q.put(BASE + '/api/vp/requests/' + id, { headers: H, data: { type: 'Nghỉ không lương', fromAt: F, toAt: Tt, reason: 'Thử duyệt' } }); ok(x.ok(), 'Tạo đề xuất lỗi ' + x.status() + ' ' + (await x.text()).slice(0, 150)); };
+    await mk(qa, 'dx-dep-a'); await mk(qb, 'dx-dep-b');
+    ok(!(await qb.post(BASE + '/api/vp/requests/dx-dep-a/decide', { headers: H, data: { action: 'approve' } })).ok(), 'Người cùng phụ trách không được duyệt đề xuất của trưởng phòng');
+    ok(!(await qa.post(BASE + '/api/vp/requests/dx-dep-b/decide', { headers: H, data: { action: 'approve' } })).ok(), 'Trưởng phòng không được duyệt đề xuất của người cùng phụ trách');
+    ok((await r.post(BASE + '/api/vp/requests/dx-dep-a/decide', { headers: H, data: { action: 'reject', note: 'thử' } })).ok(), 'Giám đốc phải duyệt được đề xuất của trưởng phòng');
+    await r.post(BASE + '/api/vp/requests/dx-dep-b/decide', { headers: H, data: { action: 'reject', note: 'thử' } }); }
   // 7) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
   const vs1 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs1.leaveSeniorityBonus === false && vs1.inOnly === true, 'Thiết lập chưa lưu');
 

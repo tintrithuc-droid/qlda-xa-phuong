@@ -45,7 +45,7 @@ public class ViecController : ApiControllerBase
 
     private async Task Prepare()
     {
-        _managed = (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Me).Select(d => d.Id).ToListAsync()).ToHashSet();
+        _managed = (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Me || d.DeputyUserId == Me).Select(d => d.Id).ToListAsync()).ToHashSet();
         _empByUser = (await Db.Employees.AsNoTracking().Where(e => e.UserId != null).ToListAsync()).GroupBy(e => e.UserId!).ToDictionary(g => g.Key, g => g.First());
         var lockedU = await StaffFilter.LockedUsers(Db);
         _off = _empByUser.Values.Where(e => !StaffFilter.Working(e, lockedU)).Select(e => e.UserId!).Concat(lockedU).ToHashSet();

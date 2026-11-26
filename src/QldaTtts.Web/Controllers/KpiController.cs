@@ -112,7 +112,7 @@ public class KpiController : ApiControllerBase
     public KpiController(AppDbContext db, UserContext uc) : base(db, uc) { }
 
     private async Task<HashSet<string>> ManagedDepts() => Uc.User is null ? new() :
-        (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Uc.User.Id).Select(d => d.Id).ToListAsync()).ToHashSet();
+        (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Uc.User.Id || d.DeputyUserId == Uc.User.Id).Select(d => d.Id).ToListAsync()).ToHashSet();
     public static string Norm(string? s) => System.Text.RegularExpressions.Regex.Replace((s ?? "").Normalize(System.Text.NormalizationForm.FormC).Trim().ToLowerInvariant(), @"\s+", " ");
 
     public record WorkDetail(int Total, int OnTime, int Late, int Overdue, decimal Score, int Collab = 0);

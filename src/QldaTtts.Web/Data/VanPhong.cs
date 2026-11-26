@@ -13,6 +13,9 @@ public class Department : EntityBase
     [MaxLength(200)] public string Name { get; set; } = "";
     /// <summary>Tài khoản trưởng phòng: duyệt đề xuất, xem chấm công của phòng.</summary>
     [MaxLength(64)] public string? ManagerUserId { get; set; }
+    /// <summary>Bản 1.10.21 (anh Trí 26/11): người cùng phụ trách phòng, cùng duyệt đề xuất và xem chấm công của phòng như trưởng phòng.
+    /// Đề xuất của chính trưởng phòng, người cùng phụ trách thì Giám đốc (người có quyền duyệt mọi đề xuất) duyệt.</summary>
+    [MaxLength(64)] public string? DeputyUserId { get; set; }
     /// <summary>Giờ vào cho phép riêng của phòng (HH:mm); trống = theo thiết lập chung.</summary>
     [MaxLength(5)] public string? CheckinTime { get; set; }
     public int Order { get; set; }

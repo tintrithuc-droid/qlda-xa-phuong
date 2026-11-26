@@ -31,7 +31,7 @@ public class VanPhongController : ApiControllerBase
 
     private async Task<Employee?> Me() => Uc.User is null ? null : await Db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.UserId == Uc.User.Id);
     private async Task<HashSet<string>> ManagedDepts() => Uc.User is null ? new() :
-        (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Uc.User.Id).Select(d => d.Id).ToListAsync()).ToHashSet();
+        (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Uc.User.Id || d.DeputyUserId == Uc.User.Id).Select(d => d.Id).ToListAsync()).ToHashSet();
 
     /// <summary>Hồ sơ người dùng hiện tại được xem: null = tất cả.</summary>
     private async Task<HashSet<string>?> AttendanceScope(Employee? me)
@@ -114,7 +114,7 @@ public class VanPhongController : ApiControllerBase
         if (!ValidId(id) || string.IsNullOrWhiteSpace(d.Name)) return Error(400, "Nhập tên phòng ban.");
         var x = await Db.Departments.FindAsync(id);
         if (x is null) { x = new Department { Id = id }; Db.Departments.Add(x); }
-        x.Code = d.Code?.Trim() ?? ""; x.Name = d.Name.Trim(); x.ManagerUserId = d.ManagerUserId; x.CheckinTime = string.IsNullOrWhiteSpace(d.CheckinTime) ? null : d.CheckinTime; x.Order = d.Order;
+        x.Code = d.Code?.Trim() ?? ""; x.Name = d.Name.Trim(); x.ManagerUserId = d.ManagerUserId; x.DeputyUserId = string.IsNullOrEmpty(d.DeputyUserId) || d.DeputyUserId == d.ManagerUserId ? null : d.DeputyUserId; x.CheckinTime = string.IsNullOrWhiteSpace(d.CheckinTime) ? null : d.CheckinTime; x.Order = d.Order;
         x.UpdatedAt = DateTime.UtcNow; x.UpdatedBy = Uc.User.Username;
         Uc.Log("Cập nhật phòng ban", "Nhân sự", x.Name, "departments", x.Id);
         await Db.SaveChangesAsync();
@@ -591,7 +591,10 @@ public class VanPhongController : ApiControllerBase
         if (CanApproveAll) return true;
         if (emp?.DepartmentId is null) return false;
         var d = await Db.Departments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == emp.DepartmentId);
-        return d?.ManagerUserId == Uc.User.Id;
+        if (d is null) return false;
+        // Bản 1.10.21: Giám đốc duyệt cho trưởng bộ phận (cả người cùng phụ trách); trưởng bộ phận duyệt cho chuyên viên
+        if (emp.UserId != null && (emp.UserId == d.ManagerUserId || emp.UserId == d.DeputyUserId)) return false;
+        return d.ManagerUserId == Uc.User.Id || d.DeputyUserId == Uc.User.Id;
     }
 
     [HttpGet("requests")]

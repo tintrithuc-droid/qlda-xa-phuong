@@ -893,6 +893,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("DeputyUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("EworkId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");

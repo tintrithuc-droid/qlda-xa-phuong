@@ -484,7 +484,7 @@ VIEWS['nhan-su']=()=>{
   } else {
     body=`<div class="toolbar" style="margin:10px 0">${ed?`<button class="btn primary" data-act="vp-dept" data-id="">+ Thêm phòng ban</button>`:''}</div>`+table([
       {h:'Mã', k:'code'}, {h:'Phòng ban', f:d=>`<b style="font-weight:600">${esc(d.name)}</b>`},
-      {h:'Trưởng phòng (duyệt đề xuất)', f:d=>{ const u=D('users').find(x=>x.id===d.managerUserId); return u? esc(u.name) : '<span class="muted">Chưa chọn</span>'; }},
+      {h:'Trưởng phòng (duyệt đề xuất)', f:d=>{ const u=D('users').find(x=>x.id===d.managerUserId), v=D('users').find(x=>x.id===d.deputyUserId); return (u? esc(u.name) : '<span class="muted">Chưa chọn</span>')+(v?'<div class="small muted">Cùng phụ trách: '+esc(v.name)+'</div>':''); }},
       {h:'Giờ vào', f:d=>esc(d.checkinTime||VP.st.settings.checkIn)}, {h:'Số người', r:1, f:d=>VP.emps.filter(e=>e.departmentId===d.id && vpWorking(e)).length}],
       VP.depts, {empty:'Chưa có phòng ban.', pk:'pb', actions: ed? d=>`<button class="btn sm ghost" data-act="vp-dept" data-id="${esc(d.id)}">Sửa</button><button class="btn sm ghost danger" data-act="vp-dept-del" data-id="${esc(d.id)}">Xóa</button>` : null});
   }
@@ -525,6 +525,7 @@ const vpWorking = e => !!e && e.status!=='Nghỉ việc' && !(e.endDate && e.end
 ACT['vp-dept']=id=>{ const d=vpDept(id)||{order:VP.depts.length+1};
   openForm({title: id?'Sửa phòng ban':'Thêm phòng ban', narrow:true, value:d, fields:[{key:'name',label:'Tên phòng ban',req:true},{key:'code',label:'Mã'},
     {key:'managerUserId',label:'Trưởng phòng (duyệt đề xuất, xem bảng công của phòng)',type:'select',options:()=>D('users').filter(u=>u.active!==false).map(u=>[u.id,u.name+' ('+u.username+')'])},
+    {key:'deputyUserId',label:'Người cùng phụ trách (cùng duyệt đề xuất, xem bảng công của phòng)',type:'select',options:()=>D('users').filter(u=>u.active!==false).map(u=>[u.id,u.name+' ('+u.username+')']),hint:'Đề xuất của trưởng phòng và người cùng phụ trách do Giám đốc duyệt.'},
     {key:'checkinTime',label:'Giờ vào riêng của phòng (để trống: theo giờ chung)',ph:'07:45'},{key:'order',label:'Thứ tự',type:'number'}],
     onSave:async v=>{ if(v.checkinTime && !/^\d{2}:\d{2}$/.test(v.checkinTime)) throw new Error('Giờ ghi dạng 07:45.'); const r=await api('PUT','/api/vp/departments/'+encodeURIComponent(id||uid('pb')), {...d, ...v, managerUserId:v.managerUserId||null, order:N(v.order)}); await vpLoad(true); return r; }}); };
 ACT['vp-dept-del']=async id=>{ const d=vpDept(id); if(!d||!await confirmBox(`Xóa phòng ban <b>${esc(d.name)}</b>?`)) return; await api('DELETE','/api/vp/departments/'+encodeURIComponent(id)); await vpLoad(true); toast('Đã xóa'); };

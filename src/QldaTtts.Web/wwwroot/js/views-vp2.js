@@ -414,6 +414,9 @@ VIEWS['luong']=()=>{
   else if(!d.all) body = d.rows.length? paySlipHTML(d.rows[0], m) + payConfirmHTML(d.rows[0], m) + `<div class="toolbar" style="margin-top:10px"><button class="btn" data-act="pay-pdf" data-id="${esc(d.rows[0].employeeId)}">In, lưu PDF phiếu lương</button></div>`
       : emptyBox(`Chưa có phiếu lương tháng ${m.slice(5)}/${m.slice(0,4)}.`);
   else {
+    // Bản 1.10.21: trưởng phòng xem bảng lương của phòng; phiếu của chính mình vẫn tự xác nhận như mọi người
+    const myE=d.dept && VP.st.me && d.rows.find(r=>r.employeeId===VP.st.me.id);
+    if(d.dept) body = `<div class="alert info" style="margin-bottom:10px"><div>Bảng lương của phòng bạn phụ trách (chỉ xem).</div></div>` + (myE&&myE.locked? payConfirmHTML(myE, m) : '');
     const rows=d.rows.filter(r=>!dep||r.departmentId===dep).map(r=>({...r,id:r.employeeId}));
     const noProf=rows.filter(r=>!r.hasProfile).length, sum=k=>rows.reduce((s,r)=>s+(r[k]||0),0);
     body=`<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">

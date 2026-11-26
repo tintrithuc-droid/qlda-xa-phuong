@@ -192,6 +192,9 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
     ok(!(await qa.post(BASE + '/api/vp/requests/dx-dep-b/decide', { headers: H, data: { action: 'approve' } })).ok(), 'Trưởng phòng không được duyệt đề xuất của người cùng phụ trách');
     ok((await r.post(BASE + '/api/vp/requests/dx-dep-a/decide', { headers: H, data: { action: 'reject', note: 'thử' } })).ok(), 'Giám đốc phải duyệt được đề xuất của trưởng phòng');
     await r.post(BASE + '/api/vp/requests/dx-dep-b/decide', { headers: H, data: { action: 'reject', note: 'thử' } }); }
+  // 1.10.21: trưởng phòng, người cùng phụ trách xem bảng lương phòng mình (chỉ xem, không tài khoản ngân hàng)
+  { const pl = await J(qb.get(BASE + '/api/vp/luong?month=' + PM, { headers: H }));
+    ok(pl.all === true && pl.dept === true && pl.canEdit === false && !pl.bank && pl.rows.some(x => x.employeeId === nva.id) && pl.rows.every(x => [nva.id, ttb.id].includes(x.employeeId) || (E2 => E2 && E2.departmentId === nva.departmentId)((emps.find(e => e.id === x.employeeId)))), 'Bảng lương phòng cho người cùng phụ trách sai: ' + JSON.stringify({ all: pl.all, dept: pl.dept, n: (pl.rows || []).length })); }
   // 7) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
   const vs1 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs1.leaveSeniorityBonus === false && vs1.inOnly === true, 'Thiết lập chưa lưu');
 

@@ -316,6 +316,14 @@ public class LuongController : ApiControllerBase
         var all = Uc.Can("luong"); var emps = await Staff(from);
         if (!all)
         {
+            // Bản 1.10.21 (anh Trí 26/11: "không gì phải giấu để biết cân đối lương"): trưởng phòng, người cùng phụ trách xem bảng lương của phòng mình (chỉ xem)
+            var uid = Uc.User.Id;
+            var mgd = (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == uid || d.DeputyUserId == uid).Select(d => d.Id).ToListAsync()).ToHashSet();
+            if (mgd.Count > 0)
+            {
+                var dEmps = emps.Where(e => e.UserId == uid || (e.DepartmentId != null && mgd.Contains(e.DepartmentId))).ToList();
+                return Ok(new { month, canEdit = false, canApprove = false, all = true, dept = true, settings = PaySettings.Load(Db), rows = await Compute(month, dEmps), bank = (object?)null });
+            }
             // Người lao động: chỉ phiếu lương của mình, khi tháng đã chốt
             var me = emps.Where(e => e.UserId == Uc.User.Id).ToList();
             var mine = me.Count == 0 ? new List<Slip>() : (await Compute(month, me)).Where(s => s.Locked).ToList();

@@ -119,7 +119,7 @@ function mtForm(src, copy){
     {key:'title',label:'Nội dung',req:true,full:true,ph:'Ví dụ: Họp giao ban tuần'},
     {key:'place',label:'Địa điểm, phòng họp',suggest:()=>['Phòng họp tầng 1','Phòng họp tầng 2',...past('place')]},{key:'chair',label:'Chủ trì',suggest:()=>['Giám đốc','Phó Giám đốc',...past('chair')]},
     {key:'participants',label:'Thành phần (in trên lịch)',full:true,suggest:()=>['Toàn thể cán bộ, nhân viên','Ban Giám đốc, trưởng các phòng',...past('participants')]},
-    {key:'att',label:'Mời người tham dự (hiện ở "Lịch của tôi" của từng người)',type:'checks',options:()=>VP.emps.filter(vpPickable).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||String(a.name).localeCompare(String(b.name),'vi')).map(e=>[e.id, e.name+(e.departmentId?' · '+vpDeptName(e.departmentId):'')])},
+    {key:'att',label:'Mời người tham dự (hiện ở "Lịch của tôi" của từng người)',type:'checks',options:()=>VP.emps.filter(vpPickable).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||String(a.name).localeCompare(String(b.name),'vi')).map(e=>[e.id, e.name])},
     {key:'onlineLink',label:'Đường dẫn họp trực tuyến (nếu có)',ph:'https://meet.google.com/…'},{key:'preparer',label:'Đơn vị, người chuẩn bị'},
     {key:'content',label:'Nội dung chi tiết, tài liệu',type:'textarea',keepLines:true}];
   if(edit) F.push({key:'status',label:'Trạng thái',type:'select',req:true,options:['Đã lên lịch','Đã hoãn','Đã hủy']},{key:'conclusion',label:'Kết luận cuộc họp',type:'textarea',rows:4,keepLines:true});

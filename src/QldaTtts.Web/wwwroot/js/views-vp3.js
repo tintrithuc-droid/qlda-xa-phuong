@@ -146,7 +146,7 @@ ACT['cv-add']=x=>{ const [p,k]=String(x||'|').split('|'); ACT['cv-new'](null,nul
 function cvAssignees(d){
   const pm=d.perms||{}; const me=VP.st.me;
   const list=VP.emps.filter(e=>e.userId && vpPickable(e) && (!me||e.userId!==me.userId) && (pm.boss || (pm.assignable||[]).includes(e.userId)));
-  return list.map(e=>[e.userId, e.name+(e.departmentId?' · '+vpDeptName(e.departmentId):'')]);
+  return list.map(e=>[e.userId, e.name]);
 }
 ACT['cv-new']=async (mode, el, ev, base, preset)=>{
   const d=VP.cv[cvKey()] || await api('GET','/api/vp/viec?scope=my&status=open');

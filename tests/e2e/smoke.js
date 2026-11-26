@@ -199,6 +199,9 @@ async function login(p, u, pw = PW) {
   await p.click('[data-g=proj][data-id=legal]'); await p.waitForTimeout(200); await p.click('[data-act=add-legal]'); await p.waitForTimeout(200);
   await p.selectOption('#f_type', 'Giấy phép xây dựng'); await p.fill('#f_number', 'GPXD-TEST'); await p.fill('#f_date_t', '01/01/2026'); await p.fill('#f_title', 'Giấy phép thử');
   await p.fill('#f_validUntil', await p.evaluate(() => addDays(TODAY, 20))); await putFiles('att', [pdf, pdf2, img]); await submit();
+  // tệp tải lên sau khi biểu mẫu đóng: chờ đủ 3 tệp (tối đa 10 giây), như bước A1
+  await p.waitForFunction(() => { const l = Store.data.legal.find(x => x.number === 'GPXD-TEST');
+    return l && Store.data.attachments.filter(a => a.collection === 'legal' && a.recordId === l.id).length >= 3; }, null, { timeout: 10000 }).catch(() => {});
   const gp = await p.evaluate(() => Store.data.legal.find(l => l.number === 'GPXD-TEST'));
   if (await attOf('legal', gp.id) !== 3) errs.push('A0: hồ sơ pháp lý không nhận 3 tệp');
   // A3: hạng mục

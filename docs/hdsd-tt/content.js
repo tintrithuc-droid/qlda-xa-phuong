@@ -109,8 +109,14 @@ exports.CHAPTERS = [
   { id: 'lich-thong-bao', title: 'Lịch công tác, thông báo, thông tin dự án', roles: ALL, html: `
 <ul><li><b>Lịch công tác</b>: xem theo tuần, chọn <i>Chỉ lịch của tôi</i>; bấm <b>Thêm</b> để tải tệp lịch vào điện thoại, Outlook, Google Calendar; <b>Xuất → Lịch tuần (PDF/Excel)</b> để in.</li>
 <li><b>Thông báo nội bộ</b>: thông báo mới có chấm đỏ trên chuông; mở là được ghi nhận đã xem.</li>
-<li><b>Dự án</b>: mọi người được xem thông tin dự án, tiến độ, gói thầu, hợp đồng để nắm bắt công việc. Chỉ Ban giám đốc và người được giao mới sửa.</li>
 <li><b>Hướng dẫn sử dụng</b>: menu Tiện ích → Hướng dẫn sử dụng, có tài liệu này.</li></ul>` },
+
+  { id: 'dieu-hanh-nghiep-vu', title: 'Xem dự án: mục Điều hành và Nghiệp vụ', roles: ALL, html: `
+<p>Mọi người được <b>xem</b> toàn bộ thông tin dự án để nắm bắt công việc ("không gì phải giấu"). Chỉ Ban giám đốc và người được giao mới thêm, sửa.</p>
+<ul><li><b>Điều hành</b>: <b>Tổng quan</b> (số dự án, vốn, giải ngân, việc quá hạn), <b>Quản lý dự án</b> (hồ sơ từng dự án, gói thầu, tab Công việc), <b>Trình duyệt hồ sơ</b>, <b>Trung tâm cảnh báo</b> (hạn hợp đồng, bảo lãnh, tiến độ chậm), <b>Kế hoạch vốn, giải ngân</b>, <b>Danh mục nhà thầu, đơn vị giám sát</b>.</li>
+<li><b>Nghiệp vụ</b>: theo từng giai đoạn dự án: gói thầu chuẩn bị, thanh toán chuẩn bị; gói thầu và hợp đồng, nghiệm thu, thanh toán tư vấn; quản lý tiến độ, nhật ký, khối lượng; nghiệm thu, vận hành thử, bảo hành; quản lý thanh toán, quyết toán; báo cáo, thống kê.</li>
+<li>Các trang có ô tìm kiếm, lọc theo dự án; bấm một dòng để xem chi tiết và tệp đính kèm.</li>
+<li>Việc của mình trong dự án vẫn làm ở mục <b>Công việc</b>; tab Công việc của dự án và mục Công việc là cùng một dữ liệu.</li></ul>` },
 
   // ---------------- trưởng phòng
   { id: 'tp-giao-viec', title: 'Giao việc, duyệt gia hạn, nghiệm thu', roles: ['tp', 'gd'], shot: 'giao-viec', html: `

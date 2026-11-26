@@ -2230,6 +2230,10 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<DateOnly?>("OriginalDue")
                         .HasColumnType("date");
 
+                    b.Property<string>("PackageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("ParentId")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
@@ -2237,6 +2241,9 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<string>("Priority")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("int");
 
                     b.Property<string>("ProjectId")
                         .HasMaxLength(64)
@@ -2247,6 +2254,9 @@ namespace QldaTtts.Web.Data.Migrations
 
                     b.Property<int>("ReopenCount")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReportedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateOnly?>("StartDate")
                         .HasColumnType("date");
@@ -2261,6 +2271,10 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Watchers")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.HasKey("Id");
 
@@ -2516,6 +2530,71 @@ namespace QldaTtts.Web.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("StoredFiles");
+                });
+
+            modelBuilder.Entity("QldaTtts.Web.Data.TaskLog", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecidedByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EworkId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateOnly?>("NewDue")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("Progress")
+                        .HasColumnType("int");
+
+                    b.Property<string>("State")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TaskId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskLogs");
                 });
 
             modelBuilder.Entity("QldaTtts.Web.Data.UserGroup", b =>

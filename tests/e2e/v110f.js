@@ -72,16 +72,17 @@ const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x
   const KR = (d, e) => d.rows.find(x => x.employeeId === e.id);
   ok(KR(k, ttb).workAuto && KR(k, ttb).workAuto.total === 3 && KR(k, ttb).workAuto.overdue === 1 && KR(k, ttb).workAuto.late === 1 && KR(k, ttb).workAuto.score === 66.9, 'Điểm công việc tháng 10 sai: ' + JSON.stringify(KR(k, ttb).workAuto));
   ok(KR(k, lvc).workAuto && KR(k, lvc).workAuto.collab === 1 && KR(k, lvc).workAuto.score === 100, 'Điểm phối hợp sai: ' + JSON.stringify(KR(k, lvc).workAuto));
-  { const rr = await r.post(BASE + '/api/vp/viec/cv-ew-cv4/nghiem-thu', { headers: H, data: { quality: 3 } }); ok(rr.ok(), 'Nghiệm thu lỗi: ' + await rr.text()); }
+  // Bản 1.10.17: việc báo xong quá 3 ngày làm việc chưa nghiệm thu thì tự Đạt, không nghiệm thu lại được (cv4 xong 15/10)
+  { const rr = await r.post(BASE + '/api/vp/viec/cv-ew-cv4/nghiem-thu', { headers: H, data: { quality: 3 } }); ok(rr.status() === 409 && (await rr.text()).includes('tự Đạt'), 'Nghiệm thu việc đã tự Đạt phải bị chặn: ' + rr.status()); }
   k = await J(r.get(BASE + '/api/vp/kpi?month=2026-10', { headers: H }));
-  ok(KR(k, ttb).workAuto.score === 55.8 && KR(k, lvc).workAuto.score === 75, 'Hệ số chất lượng chưa vào KPI: ' + JSON.stringify([KR(k, ttb).workAuto, KR(k, lvc).workAuto]));
+  ok(KR(k, ttb).workAuto.score === 66.9 && KR(k, lvc).workAuto.score === 100, 'Việc tự Đạt phải tính như Đạt: ' + JSON.stringify([KR(k, ttb).workAuto, KR(k, lvc).workAuto]));
   // thiết lập động
   const ks = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
   ok(ks.levels.length === 3 && ks.lateSteps.length === 3 && ks.qualityFactors.length === 5 && ks.collabFactor === 0.3, 'Thiết lập KPI công việc mặc định sai: ' + JSON.stringify(ks));
   ok((await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks, qualityFactors: [1, 1, 1, 1] } })).status() === 400, 'Nhận hệ số chất lượng thiếu mức');
   ok((await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks, levels: [{ name: 'Bình thường', weight: 1 }, { name: 'Khẩn cấp', weight: 3 }], collabFactor: 0.5 } })).ok(), 'Lưu thiết lập KPI công việc lỗi');
   k = await J(r.get(BASE + '/api/vp/kpi?month=2026-10', { headers: H }));
-  ok(KR(k, ttb).workAuto.score === 58.5 && KR(k, lvc).workAuto.score === 75, 'KPI chưa theo hệ số mới ((0,675+2,25)/5): ' + JSON.stringify(KR(k, ttb).workAuto));
+  ok(KR(k, ttb).workAuto.score === 73.5 && KR(k, lvc).workAuto.score === 100, 'KPI chưa theo hệ số mới ((0,675+3)/5): ' + JSON.stringify(KR(k, ttb).workAuto));
   await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: ks });
 
   // 2) Giao việc, việc phát sinh, gia hạn, hoàn thành, nghiệm thu, mở lại (trưởng phòng nva, nhân viên ttb, lvc phòng khác)
@@ -95,16 +96,17 @@ const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x
   ok(res.ok(), 'Trưởng phòng giao việc lỗi: ' + await res.text()); const G = (await res.json()).id;
   ok((await qa.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'x', assigneeUserId: lvc.userId, due: D0 } })).status() === 403, 'Trưởng phòng giao được cho người phòng khác');
   ok((await qb.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'x', assigneeUserId: nva.userId, due: D0 } })).status() === 403, 'Nhân viên giao được việc');
-  ok((await qb.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Phát sinh không cha', due: D0 } })).status() === 400, 'Việc phát sinh không cần việc cha');
+  // Bản 1.10.17: "Việc của tôi" không cần việc cha; nhân viên tự tạo thì chờ trưởng phòng xác nhận
+  { const rr = await qb.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Phát sinh không cha', due: D0 } }); ok(rr.ok() && (await rr.json()).arising === true, 'Việc của tôi không cần việc cha, phải chờ xác nhận: ' + rr.status()); }
   res = await qb.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Chụp màn hình minh họa', parentId: G, due: D0 } });
   const P = (await res.json()).id; ok(res.ok() && P, 'Tạo việc phát sinh lỗi');
   let mine = await J(qb.get(BASE + '/api/vp/viec?scope=my&status=all', { headers: H }));
   const pr = mine.rows.find(x => x.id === P); ok(pr && pr.arising && !pr.arisingConfirmed && pr.projectId === 'da-ew-da1' && !pr.canConfirm && pr.canEdit, 'Việc phát sinh chưa kế thừa dự án / quyền: ' + JSON.stringify(pr));
   let rm = await J(qb.get(BASE + '/api/vp/viec/nhac', { headers: H }));
-  ok(rm.soon.some(x => x.id === G) && rm.myPending === 1 && rm.kpi && rm.kpi.target === 'B', 'Nhắc việc nhân viên sai: ' + JSON.stringify(rm));
+  ok(rm.soon.some(x => x.id === G) && rm.myPending === 2 && rm.kpi && rm.kpi.target === 'B', 'Nhắc việc nhân viên sai: ' + JSON.stringify(rm));
   ok((await qb.post(BASE + `/api/vp/viec/${P}/xac-nhan`, { headers: H, data: { accept: true } })).status() === 403, 'Tự xác nhận việc phát sinh');
   let ra = await J(qa.get(BASE + '/api/vp/viec/nhac', { headers: H }));
-  ok(ra.team && ra.team.confirm === 1, 'Trưởng phòng không được nhắc xác nhận việc phát sinh: ' + JSON.stringify(ra.team));
+  ok(ra.team && ra.team.confirm === 2, 'Trưởng phòng không được nhắc xác nhận việc phát sinh: ' + JSON.stringify(ra.team));
   ok((await qa.post(BASE + `/api/vp/viec/${P}/xac-nhan`, { headers: H, data: { accept: true } })).ok(), 'Trưởng phòng xác nhận lỗi');
   ok((await qa.put(BASE + `/api/vp/viec/${G}`, { headers: H, data: { due: addDays(D0, 4) } })).ok(), 'Gia hạn lỗi');
   let g = (await J(qa.get(BASE + '/api/vp/viec?scope=giao&status=all', { headers: H }))).rows.find(x => x.id === G);
@@ -119,11 +121,13 @@ const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x
   const p2 = mine.rows.find(x => x.id === P);
   ok(p2.status === 'Hoàn thành' && p2.quality === 5 && p2.reopenCount === 1 && p2.note.includes('Thiếu ảnh bước 3') && p2.note.includes('Đã chụp 12 ảnh'), 'Nghiệm thu / mở lại sai: ' + JSON.stringify(p2));
   ok((await qa.delete(BASE + `/api/vp/viec/${G}`, { headers: H })).status() === 409, 'Xóa được nhiệm vụ còn việc con');
-  const cs = await J(qc.get(BASE + '/api/vp/viec?scope=my&status=all', { headers: H }));
-  ok(cs.rows.some(x => x.id === G) && !cs.rows.some(x => x.id === P), 'Người phối hợp không thấy việc / thấy việc không liên quan');
+  // Bản 1.10.17: việc phối hợp nằm ở thẻ "Được giao", không ở "Việc của tôi"
+  const cs = await J(qc.get(BASE + '/api/vp/viec?scope=duoc&status=all', { headers: H })), cm = await J(qc.get(BASE + '/api/vp/viec?scope=my&status=all', { headers: H }));
+  ok(cs.rows.some(x => x.id === G && x.role === 'phoi-hop') && !cs.rows.some(x => x.id === P) && !cm.rows.some(x => x.id === G), 'Người phối hợp không thấy việc ở Được giao / thấy việc không liên quan');
   ok((await qc.put(BASE + `/api/vp/viec/${G}`, { headers: H, data: { name: 'sửa' } })).status() === 403, 'Người phối hợp sửa được việc');
   const ca = await J(qc.get(BASE + '/api/vp/viec?scope=all&status=all', { headers: H }));
-  ok(!ca.rows.some(x => x.id === 'cv-ew-cv1'), 'Nhân viên phòng khác thấy việc không liên quan');
+  // Bản 1.10.17: việc thuộc dự án mở xem cho người có quyền xem dự án (như tab Công việc của dự án), nhưng không làm/sửa/nghiệm thu được
+  { const x = ca.rows.find(x => x.id === 'cv-ew-cv1'); ok(!x || (!x.canEdit && !x.canWork && !x.canReview && !x.canUpdate), 'Nhân viên phòng khác thao tác được việc không liên quan: ' + JSON.stringify(x)); }
   ok((await qb.get(BASE + '/api/vp/viec?scope=dept', { headers: H })).ok(), 'Lọc phòng lỗi');
 
   // 3) Giao diện: trang Công việc, nhắc việc trên Điểm danh, thiết lập KPI

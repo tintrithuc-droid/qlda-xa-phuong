@@ -43,6 +43,7 @@ public class AppDbContext : DbContext
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Attendance> Attendances => Set<Attendance>();
+    public DbSet<TaskLog> TaskLogs => Set<TaskLog>();
     public DbSet<Request> Requests => Set<Request>();
     public DbSet<Meeting> Meetings => Set<Meeting>();
     public DbSet<Notice> Notices => Set<Notice>();
@@ -83,6 +84,7 @@ public class AppDbContext : DbContext
         b.Entity<AppUser>().HasIndex(x => x.Username).IsUnique();
         b.Entity<Project>().HasIndex(x => x.Code);
         b.Entity<Package>().HasIndex(x => x.ProjectId);
+        b.Entity<TaskLog>().HasIndex(x => x.TaskId);
         b.Entity<Contract>().HasIndex(x => x.PackageId);
         b.Entity<ScheduleItem>().HasIndex(x => x.PackageId);
         b.Entity<Diary>().HasIndex(x => new { x.PackageId, x.Date });

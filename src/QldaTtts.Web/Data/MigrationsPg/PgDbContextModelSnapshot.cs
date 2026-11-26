@@ -2230,6 +2230,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<DateOnly?>("OriginalDue")
                         .HasColumnType("date");
 
+                    b.Property<string>("PackageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("ParentId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -2237,6 +2241,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<string>("Priority")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ProjectId")
                         .HasMaxLength(64)
@@ -2247,6 +2254,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
 
                     b.Property<int>("ReopenCount")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ReportedAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateOnly?>("StartDate")
                         .HasColumnType("date");
@@ -2261,6 +2271,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<string>("UpdatedBy")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Watchers")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.HasKey("Id");
 
@@ -2516,6 +2530,71 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.HasKey("Id");
 
                     b.ToTable("StoredFiles");
+                });
+
+            modelBuilder.Entity("QldaTtts.Web.Data.TaskLog", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("DecidedByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EworkId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateOnly?>("NewDue")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("Progress")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("State")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TaskId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskLogs");
                 });
 
             modelBuilder.Entity("QldaTtts.Web.Data.UserGroup", b =>

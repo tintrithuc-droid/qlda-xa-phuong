@@ -122,13 +122,9 @@ public class KpiController : ApiControllerBase
     public static bool Countable(ProjectTask t, HashSet<string> parents) => t.Due != null && !parents.Contains(t.Id) && t.Status != "Đã hủy" && t.Status != "Tạm dừng" && (!t.Arising || t.ArisingConfirmedAt != null);
     public static List<string> CollabIds(ProjectTask t) => (t.Collaborators ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
-    /// <summary>Người phụ trách của việc: theo tài khoản (việc giao trên Văn phòng, chuyển từ e-work), không có thì theo họ tên, tên đăng nhập ghi ở công việc dự án.</summary>
-    public static bool IsAssignee(ProjectTask t, Employee e, string? username)
-    {
-        if (t.AssigneeUserId is not null) return e.UserId is not null && t.AssigneeUserId == e.UserId;
-        var name = Norm(e.Name); var un = Norm(username); var a = Norm(t.Assignee);
-        return a.Length > 0 && (a == name || a == un || a.Split(new[] { ',', ';' }).Select(x => x.Trim()).Any(x => x == name || (un.Length > 0 && x == un)));
-    }
+    /// <summary>Người phụ trách của việc: chỉ theo tài khoản (bản 1.10.17 bỏ cách đoán theo họ tên gõ tay, vì việc gõ tay không hiện ở "Việc của tôi"
+    /// nên người bị tính không thấy việc để làm; việc cũ ghi tên được gán tài khoản một lần khi nâng cấp).</summary>
+    public static bool IsAssignee(ProjectTask t, Employee e, string? username) => t.AssigneeUserId is not null && e.UserId is not null && t.AssigneeUserId == e.UserId;
 
     /// <summary>Điểm công việc của tháng: việc có hạn hoặc ngày xong rơi vào tháng; việc chưa đến hạn chưa tính.</summary>
     public static WorkDetail? WorkOf(Employee e, string? username, List<ProjectTask> tasks, HashSet<string> parents, DateOnly from, DateOnly to, VpSettings vs, KpiSettings k, DateOnly? asOf = null)

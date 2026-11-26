@@ -295,3 +295,24 @@ public class Payslip : EntityBase
     public DateTime? ApprovedAt { get; set; }
     [MaxLength(200)] public string? ApprovedBy { get; set; }
 }
+
+/// <summary>Bản 1.10.17: nhật ký công việc (như e-work TaskCapNhats, TaskGiaHans, TaskMoLais): giao việc, cập nhật tiến độ, xin/duyệt gia hạn,
+/// báo xong, nghiệm thu, mở lại. Tệp kèm từng lần cập nhật là Attachments "tasks" với Ref = mã dòng nhật ký.</summary>
+[Table("TaskLogs")]
+public class TaskLog : EntityBase
+{
+    [MaxLength(64)] public string TaskId { get; set; } = "";
+    /// <summary>giao | cap-nhat | xin-gia-han | gia-han | bao-xong | nghiem-thu | mo-lai | xac-nhan | huy</summary>
+    [MaxLength(30)] public string Kind { get; set; } = "";
+    public string? Content { get; set; }
+    public int? Progress { get; set; }
+    public DateOnly? NewDue { get; set; }
+    /// <summary>Xin gia hạn: Chờ duyệt / Đã duyệt / Từ chối.</summary>
+    [MaxLength(30)] public string? State { get; set; }
+    [MaxLength(64)] public string? ByUserId { get; set; }
+    [MaxLength(200)] public string? ByName { get; set; }
+    public DateTime At { get; set; }
+    [MaxLength(64)] public string? DecidedByUserId { get; set; }
+    public DateTime? DecidedAt { get; set; }
+    [MaxLength(64)] public string? EworkId { get; set; }
+}

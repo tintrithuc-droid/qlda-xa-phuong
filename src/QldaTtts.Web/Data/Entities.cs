@@ -78,6 +78,15 @@ public class ProjectTask : EntityBase, IHasProject
     public int? Quality { get; set; }
     public int ReopenCount { get; set; }
     [MaxLength(64)] public string? EworkId { get; set; }
+    // ---- bản 1.10.17: cây Dự án → Gói thầu → Công việc (anh Trí 26/11/2026); báo xong chờ nghiệm thu, quá 3 ngày làm việc tự Đạt
+    /// <summary>Gói thầu của dự án mà việc thuộc về (trống = việc chung của dự án). Việc con kế thừa gói thầu của việc cha.</summary>
+    [MaxLength(64)] public string? PackageId { get; set; }
+    /// <summary>Lúc người làm bấm báo xong (tính hạn tự nghiệm thu Đạt sau 3 ngày làm việc).</summary>
+    public DateTime? ReportedAt { get; set; }
+    /// <summary>Tiến độ 0–100% do người làm cập nhật (như e-work TienDo); báo xong là 100.</summary>
+    public int Progress { get; set; }
+    /// <summary>Người theo dõi (như e-work ThongTinTheoDoi): xem, nhận nhắc, không tính KPI. Mã tài khoản, cách nhau dấu phẩy.</summary>
+    [MaxLength(1000)] public string? Watchers { get; set; }
 }
 
 [Table("LegalDocuments")]

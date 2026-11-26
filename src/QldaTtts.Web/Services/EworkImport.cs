@@ -563,6 +563,7 @@ public static class EworkImport
                 rep.Archive[name] = i;
             }
         rep.Warnings.AddRange(await TripRatesFromArchive(db) is var tr && tr > 0 ? new[] { $"Mức công tác phí riêng từ bảng lương e-work: {tr} người" } : Array.Empty<string>());
+        if (await TaskHistory(db) is var th && th > 0) rep.Warnings.Add($"Nhật ký công việc e-work (cập nhật tiến độ, gia hạn, mở lại): {th} dòng");
         return rep;
     }
 
@@ -604,6 +605,58 @@ public static class EworkImport
                 }
         await db.SaveChangesAsync();
     }
+
+    /// <summary>Bản 1.10.17: lịch sử công việc e-work từ kho lưu trữ nguyên vẹn (EworkArchive), không cần xuất lại: cập nhật tiến độ (TaskCapNhats),
+    /// gia hạn (TaskGiaHans), mở lại (TaskMoLais) thành nhật ký công việc; tiến độ % (TienDo) và người theo dõi (ThongTinTheoDoi) vào công việc.
+    /// Chạy lại không trùng (khóa theo mã e-work). Trả về số dòng nhật ký thêm mới.</summary>
+    public static async Task<int> TaskHistory(AppDbContext db)
+    {
+        var tasks = await db.Tasks.Where(t => t.EworkId != null && t.EworkId.StartsWith("cv:")).ToListAsync();
+        if (tasks.Count == 0) return 0;
+        var byEw = tasks.ToDictionary(t => t.EworkId![3..]);
+        var emps = await db.Employees.AsNoTracking().Where(e => e.EworkId != null && e.UserId != null).ToListAsync();
+        var userOf = emps.GroupBy(e => e.EworkId!).ToDictionary(g => g.Key, g => g.First());
+        async Task<List<JsonElement>> Rows(string table) => (await db.EworkArchive.AsNoTracking().Where(r => r.TableName == table).Select(r => r.Data).ToListAsync())
+            .Select(d => { try { return JsonDocument.Parse(d).RootElement.Clone(); } catch (JsonException) { return default; } }).Where(e => e.ValueKind == JsonValueKind.Object).ToList();
+        foreach (var c in await Rows("QuanLyCongViecs"))
+        {
+            if (S(c, "Id") is not { } id || !byEw.TryGetValue(id, out var t)) continue;
+            if (t.Progress == 0 && Num(c, "TienDo") is { } td && td > 0) t.Progress = (int)Math.Clamp(Math.Round(td), 0, 100);
+            if (t.Status == "Hoàn thành") t.Progress = 100;
+            if (t.Watchers is null)
+            {
+                var w = Regex.Split(S(c, "ThongTinTheoDoi") ?? "", "[^A-Za-z0-9-]+").Where(x => x.Length > 0 && userOf.ContainsKey(x)).Select(x => userOf[x].UserId!)
+                    .Where(x => x != t.AssigneeUserId).Distinct().ToList();
+                if (w.Count > 0) t.Watchers = Cut(string.Join(",", w), 1000);
+            }
+        }
+        var have = (await db.TaskLogs.AsNoTracking().Where(l => l.EworkId != null).Select(l => l.EworkId!).ToListAsync()).ToHashSet();
+        var now = DateTime.UtcNow; var n = 0;
+        void Add(JsonElement x, string prefix, string kind, Func<JsonElement, (string? content, int? progress, DateOnly? due, string? state)> f)
+        {
+            if (S(x, "Id") is not { } id || S(x, "RefId") is not { } rid || !byEw.TryGetValue(rid, out var t)) return;
+            var key = Cut(prefix + id, 64)!; if (!have.Add(key)) return;
+            var (content, progress, due, state) = f(x);
+            var by = S(x, "CreatedBy") is { } cb && userOf.TryGetValue(cb, out var e) ? e : null;
+            var at = Dt(S(x, "CreatedDate")) is { } cd ? VnTime.ToUtc(cd) : now;
+            var dec = S(x, "NguoiDuyet") is { } nd && userOf.TryGetValue(nd, out var de) ? de.UserId : null;
+            db.TaskLogs.Add(new TaskLog { Id = "tl-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..20].ToLowerInvariant(), TaskId = t.Id, Kind = kind,
+                Content = content, Progress = progress, NewDue = due, State = state, ByUserId = by?.UserId, ByName = by?.Name, At = at, DecidedByUserId = dec,
+                DecidedAt = dec is null ? null : (Dt(S(x, "ModifiedDate")) is { } md ? VnTime.ToUtc(md) : at), EworkId = key, UpdatedAt = now, UpdatedBy = "e-work" });
+            n++;
+        }
+        string? Txt(JsonElement x) => Plain(S(x, "NoiDung")) is { Length: > 0 } p ? Cut(p, 4000) : null;
+        foreach (var x in await Rows("TaskCapNhats"))
+            Add(x, "cn:", "cap-nhat", r => (Txt(r) ?? "Cập nhật", Num(r, "TrongSo") is { } ts && ts >= 0 && ts <= 100 ? (int)Math.Round(ts) : null, null, null));
+        foreach (var x in await Rows("TaskGiaHans"))
+            Add(x, "gh:", "xin-gia-han", r => (Txt(r) ?? "Xin gia hạn", null, Date(S(r, "GiaHanDen")),
+                Regex.IsMatch(KpiNorm(S(r, "RefTenTrangThaiXuLy")), "từ chối|không duyệt") ? "Từ chối" : Regex.IsMatch(KpiNorm(S(r, "RefTenTrangThaiXuLy")), "chờ") ? "Chờ duyệt" : "Đã duyệt"));
+        foreach (var x in await Rows("TaskMoLais"))
+            Add(x, "ml:", "mo-lai", r => (Txt(r) ?? "Mở lại", null, Date(S(r, "MoLaiDen")), null));
+        await db.SaveChangesAsync();
+        return n;
+    }
+    private static string KpiNorm(string? s) => (s ?? "").Normalize(NormalizationForm.FormC).Trim().ToLowerInvariant();
 
     private static string? Cut(string? s, int n) => s is null ? null : s.Length <= n ? s : s[..n];
     /// <summary>Bỏ thẻ HTML (nội dung e-work soạn bằng trình soạn thảo), giữ xuống dòng.</summary>

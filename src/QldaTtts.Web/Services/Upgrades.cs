@@ -73,6 +73,40 @@ public static class Upgrades
             }
         }
 
+        // Bản 1.10.17: công việc một nguồn (anh Trí duyệt 26/11/2026). Việc nhập ở tab dự án ghi người làm bằng chữ: khớp đúng họ tên hoặc tên đăng nhập
+        // của một người thì gán tài khoản (KPI từ nay chỉ tính theo tài khoản); không khớp để trống cho người giao chọn lại.
+        // Mức ưu tiên cũ Cao/Trung bình/Thấp đổi sang thang mức độ KPI: Cao -> mức thứ hai, còn lại -> mức đầu. Chạy một lần.
+        {
+            const string key = "upgrade:1.10.17-cong-viec-mot-nguon";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                if (QldaTtts.Web.Controllers.ViecController.Unified(db).GetAwaiter().GetResult())
+                {
+                    string N(string? x) => QldaTtts.Web.Controllers.KpiController.Norm(x);
+                    var emps = db.Employees.Where(e => e.UserId != null).ToList();
+                    var users = db.Users.ToList().ToDictionary(u => u.Id);
+                    var byKey = new Dictionary<string, List<string>>();
+                    foreach (var e in emps)
+                        foreach (var kx in new[] { N(e.Name), users.TryGetValue(e.UserId!, out var u) ? N(u.Username) : "" }.Where(x => x.Length > 0).Distinct())
+                            (byKey.TryGetValue(kx, out var l) ? l : byKey[kx] = new()).Add(e.UserId!);
+                    var k = QldaTtts.Web.Controllers.KpiSettings.Load(db);
+                    var names = k.Levels.Select(l => l.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    string? lv0 = k.Levels.ElementAtOrDefault(0)?.Name, lv1 = k.Levels.ElementAtOrDefault(1)?.Name ?? lv0;
+                    foreach (var t in db.Tasks.ToList())
+                    {
+                        if (t.AssigneeUserId is null && N(t.Assignee) is { Length: > 0 } a && byKey.TryGetValue(a, out var ids) && ids.Distinct().Count() == 1)
+                            t.AssigneeUserId = ids[0];
+                        if (lv0 is not null && !names.Contains(t.Priority ?? ""))
+                            t.Priority = (t.Priority ?? "").Trim() == "Cao" ? lv1 : lv0;
+                    }
+                }
+                // lịch sử công việc e-work (cập nhật tiến độ, gia hạn, mở lại, tiến độ %, người theo dõi) từ kho lưu trữ e-work đã nạp
+                QldaTtts.Web.Services.EworkImport.TaskHistory(db).GetAwaiter().GetResult();
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // 3) Phiên bản 1.1: chức năng Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026), chạy một lần
         CapXa(db);
 

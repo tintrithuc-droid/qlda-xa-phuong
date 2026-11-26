@@ -117,6 +117,7 @@ public class DataController : ApiControllerBase
         var def = Collections.Find(collection);
         if (def is null || !ValidId(id)) return Error(400, "Dữ liệu không hợp lệ.");
         if (!Uc.Can(def.Module, true)) return Denied();
+        if (collection == "tasks" && await ViecController.Unified(Db)) return Denied("Công việc giao, sửa, báo xong trong mục Công việc (để tính đúng người làm, gia hạn, nghiệm thu, KPI).");
         EntityBase obj;
         try { obj = (EntityBase)JsonSerializer.Deserialize(body.GetRawText(), def.Type, JsonConfig.Options)!; }
         catch (JsonException ex) { return Error(400, "Dữ liệu không hợp lệ: " + ex.Message); }
@@ -182,6 +183,7 @@ public class DataController : ApiControllerBase
         var def = Collections.Find(collection);
         if (def is null) return Error(400, "Dữ liệu không hợp lệ.");
         if (!Uc.Can(def.Module, true)) return Denied();
+        if (collection == "tasks" && await ViecController.Unified(Db)) return Denied("Xóa công việc trong mục Công việc.");
         var existing = (EntityBase?)await Db.FindAsync(def.Type, id);
         if (existing is null) return Error(404, "Bản ghi không còn tồn tại.");
         if (Scoped(existing) && !Uc.InScope(await ProjectOf(existing))) return Denied("Dự án này nằm ngoài phạm vi dữ liệu được giao.");

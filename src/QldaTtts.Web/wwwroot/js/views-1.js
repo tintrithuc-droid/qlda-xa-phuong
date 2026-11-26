@@ -100,7 +100,7 @@ function renderNav(){
 }
 function renderTop(){
   const cb=NAV_CB.find(x=>x[0]===S.route), m=MODULES.find(x=>x.key===S.route); const VPT={'diem-danh':vpBangCongLabel(),'lich-hop':'Lịch công tác','cong-viec':'Công việc','thong-bao':'Thông báo','kpi':'KPI','luong':'Lương','de-xuat':'Đề xuất','nhan-su':'Nhân sự'};
-  const title=VPT[S.route]? VPT[S.route] : cb? cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':S.route==='van-phong'?(typeof vpW==='function'?vpW():'Điểm danh'):S.route==='ework-cu'?'Dữ liệu e-work cũ':S.route==='ho-so'?'Hồ sơ nhân sự':'Danh mục chức năng';
+  const title=VPT[S.route]? VPT[S.route] : cb? PHASES.cb+' › '+cb[1] : S.route===NAV_TV[0]? PHASES.dt+' › '+NAV_TV[1] : S.route===NAV_DM[0]? NAV_DM[1] : m? (['goi-thau','thanh-toan'].includes(m.key)? PHASES.dt+' › ':'')+m.label: S.route==='hien-truong'?'Hiện trường':S.route==='huong-dan'?'Hướng dẫn sử dụng':S.route==='trinh-duyet'?'Trình duyệt hồ sơ':S.route==='canh-bao'?'Trung tâm cảnh báo':S.route==='van-phong'?(typeof vpW==='function'?vpW():'Điểm danh'):S.route==='ework-cu'?'Dữ liệu e-work cũ':S.route==='ho-so'?'Hồ sơ nhân sự':'Danh mục chức năng';
   const g=myGroup();
   $('#top').innerHTML=`<button class="btn ghost sm menu-btn" data-act="menu" aria-label="Mở menu">${ic('menu').replace('<svg','<svg width="18" height="18"')}</button>
     <div class="title">${esc(title)}</div><div class="sp"></div>

@@ -284,6 +284,8 @@ public static class VpCalc
                 if (d == today && nowVn.TimeOfDay < VnTime.Hm(s.AfternoonEnd, "17:30")) continue;
                 var wv = VnTime.WorkValue(d, s); if (wv == 0 || xs.Any(a => a.Date == d)) continue;
                 var (am, pm) = VnTime.Sessions(d, s);
+                // Bản 1.10.18 (như e-work): ngày có phiếu nghỉ/công tác/online cho một buổi thì buổi còn lại tự tính đi làm, không đòi điểm danh
+                if (cover.Any(r => (am && VnTime.Covers(r, d, true, s)) || (pm && VnTime.Covers(r, d, false, s)))) continue;
                 var miss = 0m;
                 if (am && !cover.Any(r => VnTime.Covers(r, d, true, s))) miss += 0.5m;
                 if (pm && !cover.Any(r => VnTime.Covers(r, d, false, s))) miss += 0.5m;

@@ -117,6 +117,8 @@ public class LuongController : ApiControllerBase
     private static readonly JsonSerializerOptions Opts = new(JsonSerializerDefaults.Web);
 
     public class Allowance { public string Name { get; set; } = ""; public decimal Amount { get; set; } public decimal Exempt { get; set; } }
+    /// <summary>1.10.18: phụ cấp không tính vào đơn giá tăng ca (như e-work): tên có "BHXH" hoặc "bảo hiểm xã hội".</summary>
+    public static bool OtExcluded(string? name) { var n = (name ?? "").ToLowerInvariant(); return n.Contains("bhxh") || n.Contains("bảo hiểm xã hội"); }
     public static List<Allowance> Allow(string? json) { try { return string.IsNullOrEmpty(json) ? new() : JsonSerializer.Deserialize<List<Allowance>>(json, Opts) ?? new(); } catch { return new(); } }
 
     public record Line(string Code, string Label, decimal Amount, string? Note = null);
@@ -248,7 +250,8 @@ public class LuongController : ApiControllerBase
             foreach (var a in al) { s.AllowanceLines.Add(new Line("pc", a.Name, a.Amount, a.Exempt > 0 ? $"không tính thuế {a.Exempt:#,0}" : null)); exempt += Math.Min(a.Amount, a.Exempt); }
             s.Allowances = al.Sum(a => a.Amount);
             var hourly = standard > 0 ? s.BaseSalary / standard / 8 : 0;
-            if (ps.OtWithAllowances && standard > 0) hourly = (s.BaseSalary + s.Allowances) / standard / 8;
+            // 1.10.18 (như e-work: LuongKhongBHXH = lương cơ bản + phụ cấp − phụ cấp BHXH): phụ cấp mang tên BHXH không tính vào đơn giá tăng ca
+            if (ps.OtWithAllowances && standard > 0) hourly = (s.BaseSalary + al.Where(a => !OtExcluded(a.Name)).Sum(a => a.Amount)) / standard / 8;
             var ots = otReqs.TryGetValue(e.Id, out var ol) ? ol : new();
             var otH = ots.Sum(r => r.Hours ?? 0);
             string OtKind(Request r) => VnTime.Day(DateOnly.FromDateTime(VnTime.ToVn(r.FromAt!.Value)), vs).Kind;

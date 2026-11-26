@@ -113,6 +113,10 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [{ name: 'Phụ cấp trách nhiệm', amount: 2000000, exempt: 0 }], noInsurance: false, flatTax: false } });
   const a3 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
   ok(a3.otPay === Math.round(22000000 / a3.standard / 8 * 2 * 2), 'Tăng ca chưa tính trên lương gồm phụ cấp: ' + JSON.stringify({ p: a3.otPay, e: Math.round(22000000 / a3.standard / 8 * 4) }));
+  // 1.10.18: phụ cấp BHXH không tính vào đơn giá tăng ca (e-work: LuongKhongBHXH = lương + phụ cấp − PC BHXH)
+  await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [{ name: 'Phụ cấp trách nhiệm', amount: 2000000, exempt: 0 }, { name: 'PC BHXH', amount: 1500000, exempt: 0 }], noInsurance: false, flatTax: false } });
+  const a3b = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  ok(a3b.otPay === Math.round(22000000 / a3b.standard / 8 * 2 * 2) && a3b.allowances === 3500000, 'Phụ cấp BHXH không được tính vào đơn giá tăng ca: ' + JSON.stringify({ p: a3b.otPay, a: a3b.allowances }));
   await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, otByApproval: false, otWithAllowances: false } });
   const a4 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
   ok(a4.otPay === Math.round(20000000 / a4.standard / 8 * 2 * 2), 'Tùy chọn tăng ca chỉ trên lương chính sai: ' + a4.otPay);

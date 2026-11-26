@@ -44,6 +44,13 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   fx.users.forEach(u => { if (u.Id === 'u4') { u.Status = true; u.IsLock = false; } });
   fx.luutru.QuanLyCongViecs = []; // việc e-work kiểm thử riêng ở v110f
   fx.luutru.ChuyenLuongs = [{ Id: 'cl1', UserId: 'u2', SoTien: 1, NoiDung: 'TRI THUC THANH TOAN LUONG T09.2026', Thang: 9, Nam: 2026 }, { Id: 'cl2', UserId: 'u2', SoTien: 1, NoiDung: 'TRI THUC THANH TOAN LUONG T10.2026', Thang: 10, Nam: 2026 }];
+  // 1.10.18: tháng trước Trần Thị B nhận nhiệm vụ mọi ngày trừ ngày HD; ngày HD nghỉ phép buổi sáng: buổi chiều tự tính đi làm (như e-work), không tính vắng
+  const pmDays = []; { const d = new Date(PM + '-01T00:00:00Z'); while (d.toISOString().slice(0, 7) === PM) { pmDays.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); } }
+  const HD = pmDays.find(x => x.slice(8) >= '05' && ![0, 6].includes(new Date(x + 'T00:00:00Z').getUTCDay()));
+  pmDays.filter(x => x !== HD).forEach((x, i) => fx.chamcong.push({ Id: 'cc-pm' + i, UserId: 'u2', NgayChamCong: x + 'T08:00:00', ViTriDiemDanh: 'Trong công ty' }));
+  // (cùng lý do, điểm danh các ngày đã qua của tháng này để chuyên cần KPI không bị tính vắng từ tháng trước)
+  for (let d = thisMonth() + '-01', i = 0; d < D0; d = addDays(d, 1), i++) fx.chamcong.push({ Id: 'cc-tm' + i, UserId: 'u2', NgayChamCong: d + 'T08:00:00', ViTriDiemDanh: 'Trong công ty' });
+  fx.dexuat.push({ Id: 'dx-nua', TenDeXuat: 'Đề xuất nghỉ phép', JsonDeXuat: JSON.stringify({ ThoiGianBatDau: HD + 'T08:00:00', ThoiGianKetThuc: HD + 'T12:00:00', SoNgay: 0.5 }), LyDo: 'Nửa ngày', TenTrangThaiXuLy: 'Đã duyệt', CreatedBy: 'u2', CreatedDate: HD + 'T07:00:00' });
   const FX = path.join(tmp, 'ew.json'); fs.writeFileSync(FX, JSON.stringify(fx));
   const c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: 'TriThuc2026' });
   ok(c.code === 0 && c.out.includes('TRI THUC THANH TOAN LUONG T{thang}.{nam}'), 'Nạp e-work / nội dung chuyển khoản lỗi: ' + c.out);
@@ -123,6 +130,10 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   const th2 = await p.$$eval('table th', l => l.map(x => x.textContent.trim())); ok(!th2.includes('Giờ ra'), 'Chi tiết còn Giờ ra');
   await p.screenshot({ path: path.join(tmp, '4-chi-tiet.png'), fullPage: true });
   const menu = await p.textContent('nav, .side, body'); ok(menu.includes('Nhận nhiệm vụ'), 'Menu chưa đổi chữ');
+
+  const tsPm = await J(r.get(BASE + '/api/vp/timesheet?month=' + PM, { headers: H }));
+  const pB = tsPm.rows.find(z => z.employeeId === ttb.id);
+  ok(pB && pB.absent === 0 && pB.leave === 0.5, 'Nghỉ phép nửa ngày: buổi còn lại phải tính đi làm, không vắng (' + HD + '): ' + JSON.stringify(pB && { a: pB.absent, l: pB.leave }));
 
   // 5) Hôm nay ai ở đâu
   const bd = await J(r.get(BASE + '/api/vp/today', { headers: H }));

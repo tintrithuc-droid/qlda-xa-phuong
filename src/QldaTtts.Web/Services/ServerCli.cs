@@ -171,6 +171,8 @@ public static class ServerCli
                 ("BHTN người lao động", "BHTN_NLD", s => s.Bhtn), ("Thuế TNCN", "ThueTNCN", s => s.Pit), ("Tạm ứng", "TamUng", s => s.Advance), ("Thực lĩnh", "LuongThucNhan", s => s.Net)
             };
             string C(string? v) => "\"" + (v ?? "").Replace("\"", "\"\"") + "\"";
+            // 1.10.18: số viết dấu chấm thập phân (máy chủ tiếng Việt viết 23,5 làm tách cột CSV)
+            string F(decimal v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
             var sb = new StringBuilder("Họ tên,Mục," + "e-work,QLDA,Chênh lệch\r\n");
             int lech = 0, khop = 0, thieu = 0;
             foreach (var o in ew)
@@ -183,7 +185,7 @@ public static class ServerCli
                 {
                     var a = (decimal)ek.Split('+').Sum(k => Num(o, k) ?? 0); var b = q(sl); // 1.10.12: e-work tách ngày phép có lương khỏi NgayCongThucTe
                     var diff = b - a; var tol = cn.StartsWith("Công") ? 0.01m : 1000m; // lệch dưới 1.000 đồng do làm tròn bỏ qua
-                    if (Math.Abs(diff) > tol) { any = true; sb.Append($"{C(name)},{C(cn)},{a:0.##},{b:0.##},{diff:0.##}\r\n"); }
+                    if (Math.Abs(diff) > tol) { any = true; sb.Append($"{C(name)},{C(cn)},{F(a)},{F(b)},{F(diff)}\r\n"); }
                 }
                 if (any && e is not null)
                 {

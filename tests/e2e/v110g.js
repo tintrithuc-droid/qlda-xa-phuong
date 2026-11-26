@@ -109,6 +109,12 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   ok((await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, otByApproval: false } })).ok(), 'Lưu tùy chọn tăng ca lỗi');
   const after2 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
   ok(after2.otHours === 2 && after2.otPay === Math.round(hourly * 2 * 2), 'Tăng ca chủ nhật chưa tính 200%: ' + JSON.stringify({ h: after2.otHours, p: after2.otPay, e: Math.round(hourly * 4) }));
+  // 1.10.18: e-work ghi cả Chủ nhật vào danh sách ngày nghỉ ("Chủ Nhật"): vẫn là nghỉ hằng tuần (200%), không phải ngày lễ (300%)
+  const vsg = await J(r.get(BASE + '/api/vp/settings', { headers: H }));
+  await r.put(BASE + '/api/vp/settings', { headers: H, data: { ...vsg, holidays: [...(vsg.holidays || []), sun + ' Chủ Nhật'] } });
+  const after2b = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  ok(after2b.otRest === 2 && after2b.otHoliday === 0 && after2b.otPay === after2.otPay, 'Chủ nhật trong danh sách ngày nghỉ bị tính tăng ca ngày lễ: ' + JSON.stringify({ r: after2b.otRest, h: after2b.otHoliday, p: after2b.otPay }));
+  await r.put(BASE + '/api/vp/settings', { headers: H, data: vsg });
   // 1.10.11: đơn giá giờ tăng ca tính trên lương chính + phụ cấp (như e-work); tùy chọn chỉ lương chính
   await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [{ name: 'Phụ cấp trách nhiệm', amount: 2000000, exempt: 0 }], noInsurance: false, flatTax: false } });
   const a3 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);

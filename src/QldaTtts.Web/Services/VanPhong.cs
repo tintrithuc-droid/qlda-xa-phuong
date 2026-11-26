@@ -201,7 +201,8 @@ public static class VnTime
         var hol = s.Holidays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
         if (hol is null && s.AutoLegal && s.LegalOf(d.Year).TryGetValue(d, out var lname)) return new DayInfo(0, "holiday", lname);
         // Bản 1.10.4: thứ Bảy nghỉ luân phiên ghi trong danh sách ngày nghỉ (e-work ghi từng ngày) là nghỉ hằng tuần, không phải ngày lễ (tăng ca 200%, không 300%)
-        if (hol is not null && d.DayOfWeek == DayOfWeek.Saturday && hol.Half is null && WeekendNote(hol.Name)) return new DayInfo(0, "off", hol.Name);
+        // Bản 1.10.18: Chủ nhật e-work cũng ghi vào danh sách ngày nghỉ ("Chủ Nhật") là nghỉ hằng tuần (tăng ca theo mức ngày nghỉ, không phải 300% ngày lễ)
+        if (hol is not null && (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) && hol.Half is null && WeekendNote(hol.Name)) return new DayInfo(0, "off", hol.Name);
         if (hol is not null)
         {
             if (hol.Half is null || v == 0) return new DayInfo(0, "holiday", hol.Name ?? "Nghỉ lễ");

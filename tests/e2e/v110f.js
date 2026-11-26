@@ -150,7 +150,11 @@ const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x
   ok(JSON.stringify(ks2.levels) === JSON.stringify(ks.levels) && JSON.stringify(ks2.qualityFactors) === JSON.stringify(ks.qualityFactors) && ks2.lateSteps.length === 3, 'Lưu thiết lập KPI qua giao diện làm đổi hệ số: ' + JSON.stringify(ks2));
   const pb = await cB.newPage(); pb.on('pageerror', e => errs.push('PAGEERR-B ' + e.message));
   await pb.goto(BASE + '/#van-phong'); await pb.waitForSelector('.cv-remind', { timeout: 20000 });
-  ok((await pb.textContent('.cv-remind')).includes('KPI tạm tính tháng này'), 'Điểm danh không có nhắc việc / KPI tạm tính');
+  // Bản 1.10.17 (tinh gọn giao diện): trang Nhận nhiệm vụ chỉ nhắc việc, KPI tạm tính xem ở trang Công việc
+  ok(!(await pb.textContent('.cv-remind')).includes('KPI tạm tính tháng này'), 'Trang Nhận nhiệm vụ không còn hiện KPI tạm tính');
+  await pb.goto(BASE + '/#cong-viec'); await pb.reload(); await pb.waitForSelector('.cv-remind', { timeout: 20000 });
+  ok((await pb.textContent('.cv-remind')).includes('KPI tạm tính tháng này'), 'Trang Công việc không có nhắc việc / KPI tạm tính');
+
 
   await b.close();
   if (errs.length) { console.log('v110f: LỖI\n- ' + errs.join('\n- ')); process.exit(1); }

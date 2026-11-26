@@ -275,6 +275,8 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
     const kp = await J(r.get(BASE + '/api/vp/kpi?month=' + TM, { headers: H }));
     const ra = kp.rows.find(x => x.employeeId === nva.id), rb = kp.rows.find(x => x.employeeId === ttb.id);
     ok(ra && ra.work == null, 'Đang làm sản phẩm dài mà vẫn bị tính điểm công việc: ' + JSON.stringify(ra && ra.work));
+    ok(ra && typeof ra.interact === 'number' && ra.interactDays >= 1, 'Chưa tính chiều Tương tác: ' + JSON.stringify(ra && [ra.interact, ra.interactDays]));
+    ok(ra && Math.abs(ra.total - Math.round((ra.attendance * 20 + ra.interact * 20) / 40 * 10) / 10) < 0.11, 'Tổng KPI 60/20/20 sai: ' + JSON.stringify(ra && [ra.total, ra.attendance, ra.interact]));
     ok(!rb || rb.workAuto != null || rb.work === 0, 'Cả tháng không có sản phẩm mà phần công việc không phải 0: ' + JSON.stringify(rb && { w: rb.work, a: rb.workAuto }));
     await r.post(BASE + `/api/vp/kpi/${TM}/chot`, { headers: H, data: { lock: false } });
     // ngày nộp là ngày thật

@@ -91,6 +91,12 @@ public class KpiSettings
     public decimal PassFactor { get; set; } = 0.85m;
     /// <summary>Theo dõi tiến độ % trên từng việc (mặc định tắt ở chế độ theo kết quả).</summary>
     public bool TrackProgress { get; set; }
+    /// <summary>Bản 1.10.24 (anh Trí chọn 60/20/20): tỷ trọng các tháng theo kết quả: sản phẩm / chuyên cần / tương tác (tự đếm từ thao tác trên phần mềm).</summary>
+    public decimal RWork { get; set; } = 60;
+    public decimal RAttendance { get; set; } = 20;
+    public decimal RInteract { get; set; } = 20;
+    /// <summary>Tương tác đủ 100 điểm khi số ngày làm việc có cập nhật trên phần mềm đạt tỷ lệ này so với số ngày đi làm (0,6 = khoảng 3 ngày mỗi tuần).</summary>
+    public decimal InteractTarget { get; set; } = 0.6m;
     public bool ResultMode => !string.IsNullOrWhiteSpace(ResultFrom);
     public bool ResultFor(DateOnly monthStart) => ResultMode && string.CompareOrdinal(monthStart.ToString("yyyy-MM"), ResultFrom!.Trim()) >= 0;
     public decimal ResultQuality(int? q) => q is >= 4 ? GoodFactor : PassFactor;
@@ -214,7 +220,7 @@ public class KpiController : ApiControllerBase
 
     /// <summary>Kết quả tính KPI một người trong tháng (dùng chung cho xem, chốt tay, tự chốt).</summary>
     public record Calc(Employee E, KpiSheet? Sh, VpCalc.Row St, WorkDetail? Wd, decimal? Work, decimal? Att, decimal? Mgr, decimal Total, string Grade,
-        int? Rank, decimal RankBonus, string? RankLabel, bool Locked, List<string> Missing);
+        int? Rank, decimal RankBonus, string? RankLabel, bool Locked, List<string> Missing, decimal? Inter = null, int InterDays = 0);
 
     /// <summary>Tính KPI cả công ty của tháng. strict = true khi chốt: phần chưa có điểm tính 0.</summary>
     public static async Task<List<Calc>?> Compute(AppDbContext db, string month, bool strict)
@@ -237,6 +243,9 @@ public class KpiController : ApiControllerBase
         // bản 1.10.24: sản phẩm dài (hạn sau tháng này) đang làm trong tháng: tháng đó không bị tính 0 điểm công việc vì "không có sản phẩm"
         var longOpen = k.ResultFor(from) ? await db.Tasks.AsNoTracking().Where(t => t.Due != null && t.Due >= to && t.Status != "Đã hủy" && (t.StartDate == null || t.StartDate < to) && (t.DoneDate == null || t.DoneDate >= to)).ToListAsync() : new List<ProjectTask>();
         var users = await db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);
+        // bản 1.10.24: chiều Tương tác tự đếm số ngày làm việc có cập nhật trên phần mềm (mỗi ngày tính 1 lần, bấm nhiều không cộng thêm)
+        var rmode = k.Auto && k.ResultFor(from) && k.RInteract > 0;
+        var actDays = rmode ? await InteractDays(db, from, to, vs) : new Dictionary<string, int>();
         var pre = emps.Select(e =>
         {
             sheets.TryGetValue(e.Id, out var sh); var locked = sh?.LockedAt != null;
@@ -248,9 +257,12 @@ public class KpiController : ApiControllerBase
             if (!locked && work is null && strict && k.Auto && k.ResultFor(from)
                 && !longOpen.Any(t => IsAssignee(t, e, e.UserId != null && users.TryGetValue(e.UserId, out var u2) ? u2 : null) || (e.UserId is not null && CollabIds(t).Contains(e.UserId)))) work = 0m;
             var att = locked ? sh!.AttendanceFinal : e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
+            var iDays = e.UserId is not null ? actDays.GetValueOrDefault(e.UserId) : 0;
+            decimal? inter = !rmode ? null : locked ? sh!.ProjectScore : e.UserId is null ? null
+                : Math.Min(100m, Math.Round(100m * iDays / Math.Max(1m, (st.Worked > 0 ? st.Worked : st.Standard) * Math.Clamp(k.InteractTarget, 0.1m, 1m)), 1));
             var mgr = sh?.ManagerRating is { } mr ? mr * 20m : (decimal?)null;
-            var total = locked ? sh!.Total ?? 0 : Total(k, work, sh?.ProjectScore, att, mgr, strict);
-            return (e, sh, st, wd, work, att, mgr, total, locked);
+            var total = locked ? sh!.Total ?? 0 : rmode ? TotalR(k, work, att, inter) : Total(k, work, sh?.ProjectScore, att, mgr, strict);
+            return (e, sh, st, wd, work, att, mgr, total, locked, inter, iDays);
         }).ToList();
         // Hạng trong phòng (tạm tính khi chưa chốt; đã chốt thì dùng hạng lưu cố định)
         var minG = k.Grades.FirstOrDefault(g => g.Name == k.RankMinGrade)?.Min ?? 0;
@@ -271,14 +283,14 @@ public class KpiController : ApiControllerBase
             }
         return pre.Select(x =>
         {
-            var (e, sh, st, wd, work, att, mgr, total, locked) = x;
+            var (e, sh, st, wd, work, att, mgr, total, locked, inter, iDays) = x;
             var missing = new List<string>();
             if (!k.Auto) { if (work is null) missing.Add("Công việc"); if (k.WProject > 0 && sh?.ProjectScore is null) missing.Add("Kết quả dự án"); if (k.WManager > 0 && sh?.ManagerRating is null) missing.Add("Đánh giá quản lý"); }
             var grade = locked ? sh!.Grade ?? "" : (k.Auto ? work is null && att is null : work is null) && !strict ? "Chưa đủ dữ liệu" : k.GradeOf(total);
             int? rank = locked ? sh!.Rank : rankOf.TryGetValue(e.Id, out var rk) ? rk : null;
             var rb = locked ? sh!.RankBonus ?? 0 : rank is int r0 ? k.RankBonus(month, r0) : 0;
             var label = rank is int rr && rb > 0 ? (k.RankCompany ? $"Toàn công ty - Hạng {rr}" : $"{(e.DepartmentId != null && deptNames.TryGetValue(e.DepartmentId, out var dn) ? dn : "")} - Hạng {rr}") : null;
-            return new Calc(e, sh, st, wd, work, att, mgr, total, grade, rank, rb, label, locked, missing);
+            return new Calc(e, sh, st, wd, work, att, mgr, total, grade, rank, rb, label, locked, missing, inter, iDays);
         }).ToList();
     }
 
@@ -298,7 +310,7 @@ public class KpiController : ApiControllerBase
             var full = Full(e);
             return new
             {
-                employeeId = e.Id, e.Name, e.DepartmentId, work = c.Work, workAuto = c.Wd, workOverride = sh?.WorkScore, project = sh?.ProjectScore, attendance = c.Att,
+                employeeId = e.Id, e.Name, e.DepartmentId, work = c.Work, workAuto = c.Wd, workOverride = sh?.WorkScore, project = sh?.ProjectScore, interact = c.Inter, interactDays = c.InterDays, attendance = c.Att,
                 attDetail = new { st.Late, st.LateMinutes, st.Early, st.NoOut, st.Absent, st.Worked, st.Standard },
                 rating = sh?.ManagerRating, ratingNote = full ? sh?.ManagerNote : null, ratedBy = full ? sh?.RatedBy : null, employeeNote = full ? sh?.EmployeeNote : null,
                 total = c.Total, grade = c.Grade, estimate = !c.Locked && c.Work is null && !k.Auto, bonus = full ? k.Grades.FirstOrDefault(g => g.Name == c.Grade)?.Bonus ?? 0 : 0,
@@ -311,6 +323,29 @@ public class KpiController : ApiControllerBase
 
     /// <summary>Bản 1.10.12: true khi chốt KPI: phần chưa có điểm tính 0 (như trước). Khi xem tạm tính, chỉ tính trên các phần đã có điểm
     /// (giữa tháng chưa chấm dự án, chưa đánh giá thì không còn ra loại D cho mọi người).</summary>
+    /// <summary>Tháng theo kết quả: sản phẩm / chuyên cần / tương tác theo RWork/RAttendance/RInteract; người không chấm công thì phần chuyên cần chia cho hai phần còn lại.</summary>
+    private static decimal TotalR(KpiSettings k, decimal? work, decimal? att, decimal? inter)
+    {
+        decimal aw = 0, av = 0;
+        if (work is { } w0) { aw += k.RWork; av += w0 * k.RWork; }
+        if (att is { } a0) { aw += k.RAttendance; av += a0 * k.RAttendance; }
+        if (inter is { } i0) { aw += k.RInteract; av += i0 * k.RInteract; }
+        return aw <= 0 ? 0 : Math.Round(av / aw, 1);
+    }
+
+    /// <summary>Số ngày làm việc trong tháng mỗi tài khoản có thao tác cập nhật (công việc, dự án, đề xuất, lịch, thông báo, xác nhận lương…).
+    /// Không tính đăng nhập, đổi mật khẩu, nhận nhiệm vụ (đã ở chuyên cần), thao tác quản trị, sao lưu.</summary>
+    public static async Task<Dictionary<string, int>> InteractDays(AppDbContext db, DateOnly from, DateOnly to, VpSettings vs)
+    {
+        var f = from.ToDateTime(TimeOnly.MinValue).AddHours(-7); var t2 = to.ToDateTime(TimeOnly.MinValue).AddHours(-7);
+        var skipMods = new[] { "Người dùng", "Hệ thống", "Kho tệp", "Quản trị hệ thống", "Điểm danh", "Quy trình duyệt" };
+        var logs = await db.Logs.AsNoTracking().Where(l => l.Ts >= f && l.Ts < t2 && l.UserId != null && !skipMods.Contains(l.Module!))
+            .Select(l => new { l.UserId, l.Ts, l.Action }).ToListAsync();
+        return logs.Where(l => l.Action is null || !(l.Action.Contains("Đăng nhập") || l.Action.Contains("Đăng xuất") || l.Action.Contains("thiết lập")))
+            .Select(l => new { l.UserId, d = DateOnly.FromDateTime(l.Ts.AddHours(7)) }).Where(x => VnTime.WorkValue(x.d, vs) > 0)
+            .Distinct().GroupBy(x => x.UserId!).ToDictionary(g => g.Key, g => g.Count());
+    }
+
     private static decimal Total(KpiSettings k, decimal? work, decimal? project, decimal? att, decimal? mgr, bool strict = true)
     {
         if (k.Auto)
@@ -405,7 +440,7 @@ public class KpiController : ApiControllerBase
                 ?? db.KpiSheets.Local.FirstOrDefault(x => x.Month == month && x.EmployeeId == r.E.Id);
             if (sh is null) { if (!lck) continue; sh = new KpiSheet { Id = "kpi-" + Guid.NewGuid().ToString("N")[..20], Month = month, EmployeeId = r.E.Id }; db.KpiSheets.Add(sh); }
             if (lck && sh.LockedAt == null)
-            { sh.WorkFinal = r.Work; sh.AttendanceFinal = r.Att; sh.Total = r.Total; sh.Grade = r.Grade; sh.Rank = r.Rank; sh.RankBonus = r.RankBonus; sh.LockedAt = DateTime.UtcNow; sh.LockedBy = by; n++; }
+            { sh.WorkFinal = r.Work; sh.AttendanceFinal = r.Att; if (r.Inter is not null) sh.ProjectScore = r.Inter; sh.Total = r.Total; sh.Grade = r.Grade; sh.Rank = r.Rank; sh.RankBonus = r.RankBonus; sh.LockedAt = DateTime.UtcNow; sh.LockedBy = by; n++; }
             else if (!lck && sh.LockedAt != null) { sh.LockedAt = null; sh.LockedBy = "Mở chốt: " + by; n++; } // dấu vết để tác vụ tự chốt không chốt lại
         }
         return n;
@@ -451,6 +486,8 @@ public class KpiController : ApiControllerBase
         k.ResultFrom = string.IsNullOrWhiteSpace(k.ResultFrom) ? null : k.ResultFrom.Trim();
         if (k.ResultFrom is not null && !System.Text.RegularExpressions.Regex.IsMatch(k.ResultFrom, @"^\d{4}-\d{2}$")) return Error(400, "Quản lý theo kết quả: tháng áp dụng dạng 2026-12, hoặc để trống để tắt.");
         if (k.GoodFactor is < 0 or > 1.5m || k.PassFactor is < 0 or > 1.5m) return Error(400, "Hệ số Đạt tốt, Đạt từ 0 đến 1,5.");
+        if (k.RWork < 0 || k.RAttendance < 0 || k.RInteract < 0 || k.RWork + k.RAttendance + k.RInteract != 100) return Error(400, "Tỷ trọng sản phẩm, chuyên cần, tương tác phải cộng bằng 100.");
+        if (k.InteractTarget is < 0.1m or > 1m) return Error(400, "Mức tương tác đủ điểm từ 0,1 đến 1.");
         k.Save(Db, Uc.User.Username);
         Uc.Log("Cập nhật thiết lập KPI", "KPI", $"Trọng số {k.WWork}/{k.WProject}/{k.WAttendance}/{k.WManager}");
         await Db.SaveChangesAsync(); return Ok(new { ok = true });

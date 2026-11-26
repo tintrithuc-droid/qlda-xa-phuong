@@ -12,7 +12,7 @@ using QldaTtts.Web.Data;
 namespace QldaTtts.Web.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261125233953_CongViecMotNguon")]
+    [Migration("20261126003604_CongViecMotNguon")]
     partial class CongViecMotNguon
     {
         /// <inheritdoc />
@@ -2205,6 +2205,9 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("CollabState")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Collaborators")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -2267,6 +2270,10 @@ namespace QldaTtts.Web.Data.Migrations
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TaskType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -2348,6 +2355,10 @@ namespace QldaTtts.Web.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TaskId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("Title")
                         .HasMaxLength(300)

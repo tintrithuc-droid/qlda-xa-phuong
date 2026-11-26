@@ -605,7 +605,14 @@ public class VanPhongController : ApiControllerBase
             _ => Uc.Can("de-xuat") || CanApproveAll ? all
                 : all.Where(r => (me is not null && r.EmployeeId == me.Id) || (deptOf.TryGetValue(r.EmployeeId, out var d) && d is not null && depts.Contains(d)))
         };
-        return Ok(res.Take(2000));
+        var outList = res.Take(2000).ToList();
+        var tids = outList.Where(r => r.TaskId != null).Select(r => r.TaskId!).Distinct().ToList();
+        if (tids.Count > 0)
+        {
+            var names = await Db.Tasks.AsNoTracking().Where(t => tids.Contains(t.Id)).ToDictionaryAsync(t => t.Id, t => t.Name);
+            foreach (var r in outList) if (r.TaskId is not null) r.TaskName = names.GetValueOrDefault(r.TaskId);
+        }
+        return Ok(outList);
     }
 
     [HttpPut("requests/{id}")]
@@ -631,6 +638,14 @@ public class VanPhongController : ApiControllerBase
             var max = Urgent(r.Title) || others.Any(q => Urgent(q.Title)) ? pset.OtMaxUrgent : pset.OtMaxPerDay;
             if (max > 0 && other + r.Hours > max) return Error(400, $"Một ngày tăng ca không quá {max:0.#} giờ" + (other > 0 ? $" (ngày {od:dd/MM} đã ghi {other:0.#} giờ)." : "."));
         }
+        // Bản 1.10.17: phiếu tăng ca chọn việc đang làm (việc mình làm chính hoặc phối hợp)
+        string? taskId = null;
+        if (r.Type == "Tăng ca" && !string.IsNullOrEmpty(r.TaskId))
+        {
+            var tk = ValidId(r.TaskId) ? await Db.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == r.TaskId) : null;
+            if (tk is null || me.UserId is null || (tk.AssigneeUserId != me.UserId && !KpiController.CollabIds(tk).Contains(me.UserId))) return Error(400, "Chọn công việc mình làm chính hoặc phối hợp.");
+            taskId = tk.Id;
+        }
         var x = await Db.Requests.FindAsync(id);
         if (x is null)
         {
@@ -640,7 +655,7 @@ public class VanPhongController : ApiControllerBase
             Db.Requests.Add(x);
         }
         else if (x.EmployeeId != me.Id || x.Status != "Chờ duyệt") return Denied("Chỉ sửa được đề xuất của mình khi chưa duyệt.");
-        x.Type = r.Type; x.Title = r.Title; x.FromAt = r.FromAt; x.ToAt = r.ToAt; x.Days = r.Days; x.Hours = r.Hours; x.Amount = r.Amount; x.Place = r.Place; x.Reason = r.Reason;
+        x.Type = r.Type; x.Title = r.Title; x.FromAt = r.FromAt; x.ToAt = r.ToAt; x.Days = r.Days; x.Hours = r.Hours; x.Amount = r.Amount; x.Place = r.Place; x.Reason = r.Reason; x.TaskId = taskId;
         x.Status = "Chờ duyệt"; x.UpdatedAt = DateTime.UtcNow; x.UpdatedBy = Uc.User.Username;
         Uc.Log("Gửi đề xuất", "Đề xuất", $"{x.Code} {x.Type}", "requests", x.Id);
         await Db.SaveChangesAsync();

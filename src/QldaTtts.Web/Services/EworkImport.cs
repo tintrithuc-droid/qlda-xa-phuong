@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using QldaTtts.Web.Controllers;
 using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
@@ -623,6 +624,7 @@ public static class EworkImport
             if (S(c, "Id") is not { } id || !byEw.TryGetValue(id, out var t)) continue;
             if (t.Progress == 0 && Num(c, "TienDo") is { } td && td > 0) t.Progress = (int)Math.Clamp(Math.Round(td), 0, 100);
             if (t.Status == "Hoàn thành") t.Progress = 100;
+            if (t.TaskType is null && (S(c, "TenLoaiCongViec") ?? "").Trim() is { Length: > 0 } lcv) t.TaskType = Cut(lcv, 100);
             if (t.Watchers is null)
             {
                 var w = Regex.Split(S(c, "ThongTinTheoDoi") ?? "", "[^A-Za-z0-9-]+").Where(x => x.Length > 0 && userOf.ContainsKey(x)).Select(x => userOf[x].UserId!)
@@ -630,6 +632,24 @@ public static class EworkImport
                 if (w.Count > 0) t.Watchers = Cut(string.Join(",", w), 1000);
             }
         }
+        // trạng thái riêng của từng người phối hợp (TaskAssignments: một dòng cho mỗi người xử lý một việc)
+        foreach (var x in await Rows("TaskAssignments"))
+        {
+            if (S(x, "RefId") is not { } rid || !byEw.TryGetValue(rid, out var t) || S(x, "NguoiXuLy") is not { } nx || !userOf.TryGetValue(nx, out var ue)) continue;
+            var uid = ue.UserId!; if (uid == t.AssigneeUserId || !KpiController.CollabIds(t).Contains(uid)) continue;
+            var cs = ViecController.CollabStates(t); if (cs.ContainsKey(uid)) continue;
+            var st = KpiNorm(S(x, "TenTrangThaiXuLy"));
+            var done = Regex.IsMatch(st, "hoàn thành|đã xử lý|kết thúc|đã duyệt|chờ duyệt|chờ nghiệm thu");
+            cs[uid] = new ViecController.CollabSt { S = done ? "Hoàn thành" : Regex.IsMatch(st, "đang") ? "Đang thực hiện" : "Chưa bắt đầu", P = done ? 100 : 0,
+                D = done ? Date(S(x, "NgayKetThucXuLy")) : null, R = Plain(S(x, "KetQuaXuLy")) is { Length: > 0 } kq ? Cut(kq, 1000) : null };
+            ViecController.SaveCollab(t, cs);
+        }
+        // phiếu tăng ca e-work (TaskTangCas, RefId = công việc) đã nạp thành đề xuất "tc-<Id>": gắn với công việc
+        var tcTask = (await Rows("TaskTangCas")).Where(x => S(x, "Id") is not null && S(x, "RefId") is { } r && byEw.ContainsKey(r))
+            .GroupBy(x => Cut("tc-" + S(x, "Id"), 64)!).ToDictionary(g => g.Key, g => byEw[S(g.First(), "RefId")!].Id);
+        if (tcTask.Count > 0)
+            foreach (var q in await db.Requests.Where(q => q.TaskId == null && q.EworkId != null && q.EworkId.StartsWith("tc-")).ToListAsync())
+                if (tcTask.TryGetValue(q.EworkId!, out var tid)) q.TaskId = tid;
         var have = (await db.TaskLogs.AsNoTracking().Where(l => l.EworkId != null).Select(l => l.EworkId!).ToListAsync()).ToHashSet();
         var now = DateTime.UtcNow; var n = 0;
         void Add(JsonElement x, string prefix, string kind, Func<JsonElement, (string? content, int? progress, DateOnly? due, string? state)> f)

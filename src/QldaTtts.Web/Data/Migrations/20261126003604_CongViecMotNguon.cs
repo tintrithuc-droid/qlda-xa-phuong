@@ -12,6 +12,19 @@ namespace QldaTtts.Web.Data.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
+                name: "TaskId",
+                table: "Requests",
+                type: "nvarchar(64)",
+                maxLength: 64,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "CollabState",
+                table: "ProjectTasks",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
                 name: "PackageId",
                 table: "ProjectTasks",
                 type: "nvarchar(64)",
@@ -29,6 +42,13 @@ namespace QldaTtts.Web.Data.Migrations
                 name: "ReportedAt",
                 table: "ProjectTasks",
                 type: "datetime2",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "TaskType",
+                table: "ProjectTasks",
+                type: "nvarchar(100)",
+                maxLength: 100,
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
@@ -76,6 +96,14 @@ namespace QldaTtts.Web.Data.Migrations
                 name: "TaskLogs");
 
             migrationBuilder.DropColumn(
+                name: "TaskId",
+                table: "Requests");
+
+            migrationBuilder.DropColumn(
+                name: "CollabState",
+                table: "ProjectTasks");
+
+            migrationBuilder.DropColumn(
                 name: "PackageId",
                 table: "ProjectTasks");
 
@@ -85,6 +113,10 @@ namespace QldaTtts.Web.Data.Migrations
 
             migrationBuilder.DropColumn(
                 name: "ReportedAt",
+                table: "ProjectTasks");
+
+            migrationBuilder.DropColumn(
+                name: "TaskType",
                 table: "ProjectTasks");
 
             migrationBuilder.DropColumn(

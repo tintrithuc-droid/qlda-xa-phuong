@@ -146,6 +146,10 @@ public class Request : EntityBase
     [MaxLength(64)] public string? EworkId { get; set; }
     /// <summary>Bản 1.10.4: đưa đề xuất (tạm ứng, xăng xe) vào bảng lương: null = theo thiết lập lương, true/false = Ban giám đốc, kế toán quyết định riêng.</summary>
     public bool? Payroll { get; set; }
+    /// <summary>Bản 1.10.17: phiếu tăng ca gắn với công việc đang làm (như e-work TaskTangCas).</summary>
+    [MaxLength(64)] public string? TaskId { get; set; }
+    /// <summary>Tên công việc của phiếu tăng ca (chỉ để hiển thị, không lưu).</summary>
+    [NotMapped] public string? TaskName { get; set; }
 }
 
 /* Bản 1.10: lịch công tác, lịch họp và thông báo nội bộ. */

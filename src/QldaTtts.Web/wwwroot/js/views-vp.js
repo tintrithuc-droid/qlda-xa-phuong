@@ -177,14 +177,17 @@ ACT['vp-req-new']=()=>{
   openModal(`<div class="mform"><header><h3>Tạo đề xuất</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header>
     <div style="padding:16px"><p class="small muted" style="margin-top:0">Chọn loại đề xuất:</p><div class="vp-types">${VP.st.types.map(t=>`<button class="btn" data-act="vp-req-form" data-id="${esc(t)}">${esc(t)}</button>`).join('')}</div></div></div>`);
 };
-ACT['vp-req-form']=(type, el, ev, rec)=>{
-  const r=rec||{type}; const fs=VP_REQ_FIELDS[type]||['title','range','reason']; const st=VP.st.settings;
+ACT['vp-req-form']=async (type, el, ev, rec)=>{
+  const r=rec||{type};
+  /* Bản 1.10.17 (như e-work): phiếu tăng ca chọn công việc đang làm */
+  let otTasks=[]; if(type==='Tăng ca'){ try{ otTasks=await api('GET','/api/vp/viec/chon'); }catch(_){ otTasks=[]; } } const fs=VP_REQ_FIELDS[type]||['title','range','reason']; const st=VP.st.settings;
   const [fd,ft]=vpSplit(r.fromAt), [td,tt]=vpSplit(r.toAt);
   const F=[];
   if(fs.includes('title')) F.push({key:'title', label: type==='Gia hạn công việc'||type==='Mở lại công việc'?'Công việc':'Nội dung', req:true, full:true});
   if(fs.includes('range')) F.push({key:'fd',label:'Từ ngày',type:'date',req:true},{key:'ft',label:'Từ giờ',ph:st.morningStart||'08:00',def:st.morningStart||'08:00'},{key:'td',label:'Đến ngày',type:'date',req:true},{key:'tt',label:'Đến giờ',ph:st.afternoonEnd||'17:30',def:st.afternoonEnd||'17:30'});
   if(fs.includes('otkind')){ F.push({key:'title',label:'Loại tăng ca',type:'select',req:true,full:true,def:VP_OT_KINDS[0],options:VP_OT_KINDS});
-    F.unshift({key:'_i',type:'html',html:`<div class="fld full small muted">Phiếu xác nhận tăng ca lập <b>sau khi đã làm</b>, mỗi phiếu một ngày: bình thường tối đa ${fmtN(VP.st.otMax?.normal??3,1)} giờ, theo yêu cầu gấp tối đa ${fmtN(VP.st.otMax?.urgent??4,1)} giờ. Trưởng bộ phận hoặc Giám đốc duyệt; duyệt trong tháng nào tính vào lương tháng đó (ngày thường 150%, ngày nghỉ 200%, ngày lễ 300%).</div>`}); }
+    F.unshift({key:'_i',type:'html',html:`<div class="fld full small muted"><span>Phiếu xác nhận tăng ca lập <b>sau khi đã làm</b>, mỗi phiếu một ngày: bình thường tối đa ${fmtN(VP.st.otMax?.normal??3,1)} giờ, theo yêu cầu gấp tối đa ${fmtN(VP.st.otMax?.urgent??4,1)} giờ. Trưởng bộ phận hoặc Giám đốc duyệt; duyệt trong tháng nào tính vào lương tháng đó (hệ số ngày thường, ngày nghỉ, ngày lễ theo thiết lập lương của công ty).</span></div>`}); }
+  if(type==='Tăng ca' && otTasks.length) F.push({key:'taskId',label:'Tăng ca cho công việc',type:'select',full:true,options:otTasks.map(t=>[t.id,(t.projectName?t.projectName+' › ':'')+t.name+(t.status==='Hoàn thành'?' (đã xong)':'')]),hint:'Việc bạn làm chính hoặc phối hợp; giờ tăng ca hiện trong chi tiết công việc.'});
   if(fs.includes('day')) F.push({key:'fd',label: type==='Tăng ca'?'Ngày đã tăng ca':'Ngày',type:'date',req:true,def:TODAY});
   if(fs.includes('times')) F.push({key:'ft',label:'Từ giờ',ph:'17:30'},{key:'tt',label:'Đến giờ',ph:'20:00'});
   if(fs.includes('due')) F.push({key:'td',label:'Hạn mới',type:'date',req:true});
@@ -200,7 +203,7 @@ ACT['vp-req-form']=(type, el, ev, rec)=>{
   openForm({title:(r.id?'Sửa đề xuất: ':'Đề xuất ')+type.toLowerCase(), fields:F, value:{...r, fd, ft:ft||undefined, td, tt:tt||undefined}, submit: r.id?'Lưu':'Gửi đề xuất',
     onSave:async v=>{
       const tm=x=>!x||/^\d{1,2}:\d{2}$/.test(x); if(!tm(v.ft)||!tm(v.tt)){ throw new Error('Giờ ghi dạng 08:00.'); }
-      const o={id:r.id||uid('dx'), type, title:v.title||null, place:v.place||null, reason:v.reason||null, amount:v.amount??null};
+      const o={id:r.id||uid('dx'), type, title:v.title||null, place:v.place||null, reason:v.reason||null, amount:v.amount??null, taskId:v.taskId||null};
       if(fs.includes('range')){ o.fromAt=vpIso(v.fd,v.ft||st.morningStart); o.toAt=vpIso(v.td,v.tt||st.afternoonEnd); }
       if(fs.includes('day')){ o.fromAt=vpIso(v.fd, v.ft||'08:00'); o.toAt=v.tt? vpIso(v.fd, v.tt) : null; }
       if(fs.includes('due')) o.toAt=vpIso(v.td,'17:30');
@@ -237,7 +240,7 @@ VIEWS['de-xuat']=()=>{
     {h:'Loại', f:r=>`<b style="font-weight:600">${esc(r.type)}</b>${r.title?`<div class="small">${esc(r.title)}</div>`:''}`},
     {h:'Thời gian', f:r=>vpRange(r)+(r.days!=null?`<div class="small muted">${fmtN(r.days,1)} ngày</div>`:'')+(r.hours!=null?`<div class="small muted">${fmtN(r.hours,1)} ${r.type==='Xăng xe'?'km':'giờ'}</div>`:'')},
     {h:'Số tiền', r:1, f:r=>r.amount!=null? fmtN(r.amount) : ''},
-    {h:'Lý do', f:r=>esc(r.reason||'')+(r.place?`<div class="small muted">${esc(r.place)}</div>`:'')},
+    {h:'Lý do', f:r=>(r.taskName?`<div class="small"><span class="muted">Việc:</span> ${esc(r.taskName)}</div>`:'')+esc(r.reason||'')+(r.place?`<div class="small muted">${esc(r.place)}</div>`:'')},
     {h:'Trạng thái', f:r=>vpStatus(r.status)+(r.approverName?`<div class="small muted">${esc(r.approverName)}${r.decidedAt?' · '+fmtDT(r.decidedAt):''}</div>`:'')+(r.decisionNote?`<div class="small">${esc(r.decisionNote)}</div>`:'')}],
     (typeof vptCount==='function'&&!VPT.cnt['vp-de-xuat']&&setTimeout(()=>vptCount('vp-de-xuat'),0), rows), {empty: t==='approve'?'Không có đề xuất nào chờ bạn duyệt.':'Chưa có đề xuất.', pk:'dx'+t, actions:r=>{
       let h=''; const nf=(typeof VPT!=='undefined'&&VPT.cnt['vp-de-xuat']||{})[r.id]; if(nf) h+=`<button class="btn sm ghost" data-act="vpt-req" data-id="${esc(r.id)}">${AICO.clip} ${nf} tệp</button>`;

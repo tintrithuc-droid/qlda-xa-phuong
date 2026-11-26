@@ -25,6 +25,18 @@ public class ViecController : ApiControllerBase
     private HashSet<string> _managed = new();
     private HashSet<string> _pendingExt = new();
     private Dictionary<string, Employee> _empByUser = new();
+    private Dictionary<string, decimal> _otHours = new();
+
+    /// <summary>Bản 1.10.17: trạng thái riêng của một người phối hợp (như e-work TaskAssignments): S trạng thái, P tiến độ %, D ngày xong, R kết quả.</summary>
+    public class CollabSt { public string S { get; set; } = "Chưa bắt đầu"; public int P { get; set; } public DateOnly? D { get; set; } public string? R { get; set; } }
+    public static Dictionary<string, CollabSt> CollabStates(ProjectTask t)
+    {
+        if (string.IsNullOrWhiteSpace(t.CollabState)) return new();
+        try { return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, CollabSt>>(t.CollabState) ?? new(); } catch (System.Text.Json.JsonException) { return new(); }
+    }
+    public static void SaveCollab(ProjectTask t, Dictionary<string, CollabSt> st) => t.CollabState = st.Count == 0 ? null : System.Text.Json.JsonSerializer.Serialize(st);
+    /// <summary>Loại công việc gợi ý sẵn cho công ty CNTT; danh sách thực tế cộng thêm các loại đã dùng (kể cả lấy từ e-work).</summary>
+    public static readonly string[] DefaultTypes = { "Khảo sát, tư vấn", "Phân tích, thiết kế", "Lập trình", "Kiểm thử", "Triển khai, cài đặt", "Đào tạo, chuyển giao", "Hỗ trợ, bảo hành", "Hồ sơ, thủ tục dự án", "Hành chính, văn phòng", "Kinh doanh" };
     /// <summary>Quyền "cong-viec": xem = xem mọi công việc; sửa = giao việc cho mọi người. Người quản lý KPI, dự án (quyền sửa) cũng giao được.</summary>
     private bool Boss => Uc.IsAdmin || Uc.Can("cong-viec", true) || Uc.Can("kpi", true) || Uc.Can("du-an", true);
     private bool SeeAll => Boss || Uc.Can("cong-viec") || Uc.Can("kpi");
@@ -35,6 +47,8 @@ public class ViecController : ApiControllerBase
         _managed = (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Me).Select(d => d.Id).ToListAsync()).ToHashSet();
         _empByUser = (await Db.Employees.AsNoTracking().Where(e => e.UserId != null).ToListAsync()).GroupBy(e => e.UserId!).ToDictionary(g => g.Key, g => g.First());
         _pendingExt = (await Db.TaskLogs.AsNoTracking().Where(l => l.Kind == "xin-gia-han" && l.State == "Chờ duyệt").Select(l => l.TaskId).ToListAsync()).ToHashSet();
+        _otHours = (await Db.Requests.AsNoTracking().Where(r => r.TaskId != null && r.Type == "Tăng ca" && r.Status != "Từ chối" && r.Status != "Đã hủy").Select(r => new { r.TaskId, r.Hours }).ToListAsync())
+            .GroupBy(r => r.TaskId!).ToDictionary(g => g.Key, g => g.Sum(r => r.Hours ?? 0));
     }
     private bool ManagerOf(string? userId) => userId is not null && _empByUser.TryGetValue(userId, out var e) && e.DepartmentId is not null && _managed.Contains(e.DepartmentId);
     private bool CanAssignTo(string userId) => Boss || ManagerOf(userId);
@@ -91,7 +105,8 @@ public class ViecController : ApiControllerBase
         var auto = AutoAccepted(t, today, vs);
         byId.TryGetValue(t.ParentId ?? "", out var parent);
         var open = Open.Contains(t.Status ?? "Chưa bắt đầu");
-        var col = KpiController.CollabIds(t); var wat = WatchIds(t);
+        var col = KpiController.CollabIds(t); var wat = WatchIds(t); var cst = CollabStates(t);
+        CollabSt St(string u) => cst.TryGetValue(u, out var x) ? x : new CollabSt();
         return new
         {
             t.Id, t.Name, t.ProjectId, projectName = t.ProjectId is not null && projects.TryGetValue(t.ProjectId, out var pn) ? pn : null,
@@ -99,6 +114,8 @@ public class ViecController : ApiControllerBase
             t.ParentId, parentName = parent?.Name, hasChildren = parents.Contains(t.Id), autoAccepted = auto, pendingReview = PendingReview(t, today, vs),
             t.AssigneeUserId, assignee = t.AssigneeUserId is not null && NameOf(t.AssigneeUserId) is { Length: > 0 } an ? an : t.Assignee,
             collaborators = col, collabNames = col.Select(NameOf).Where(x => x.Length > 0).ToList(), watchers = wat, watcherNames = wat.Select(NameOf).Where(x => x.Length > 0).ToList(),
+            collabStates = col.Select(u => { var x = St(u); return new { userId = u, name = NameOf(u), status = x.S, progress = x.P, doneDate = x.D, result = x.R }; }).ToList(),
+            collabOpen = col.Count(u => St(u).S != Done), taskType = t.TaskType, overtimeHours = _otHours.GetValueOrDefault(t.Id),
             t.Progress, role = t.AssigneeUserId == Me ? (SelfMade(t) ? "tu-lam" : "chinh") : col.Contains(Me) ? "phoi-hop" : wat.Contains(Me) ? "theo-doi" : t.AssignedByUserId == Me ? "giao" : "",
             extendPending = _pendingExt.Contains(t.Id),
             t.AssignedByUserId, assignedBy = NameOf(t.AssignedByUserId),
@@ -108,6 +125,7 @@ public class ViecController : ApiControllerBase
             canEdit = CanManage(t) || (t.AssigneeUserId == Me && t.Arising && t.ArisingConfirmedAt is null),
             canWork = open && t.AssigneeUserId == Me,
             canUpdate = open && (t.AssigneeUserId == Me || col.Contains(Me)),
+            canCollabDone = open && col.Contains(Me) && St(Me).S != Done,
             canAskExtend = open && t.AssigneeUserId == Me && !_pendingExt.Contains(t.Id) && t.Due != null,
             canReview = CanManage(t) && PendingReview(t, today, vs),
             canConfirm = CanConfirm(t, parent)
@@ -115,7 +133,7 @@ public class ViecController : ApiControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] string? scope, [FromQuery] string? status, [FromQuery] string? project, [FromQuery] string? q, [FromQuery] string? month, [FromQuery] string? package)
+    public async Task<IActionResult> List([FromQuery] string? scope, [FromQuery] string? status, [FromQuery] string? project, [FromQuery] string? q, [FromQuery] string? month, [FromQuery] string? package, [FromQuery] string? type)
     {
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         await Prepare();
@@ -141,6 +159,7 @@ public class ViecController : ApiControllerBase
         };
         if (!string.IsNullOrEmpty(project)) list = project == "-" ? list.Where(t => t.ProjectId == null) : list.Where(t => t.ProjectId == project);
         if (!string.IsNullOrEmpty(package)) list = package == "-" ? list.Where(t => t.PackageId == null) : list.Where(t => t.PackageId == package);
+        if (!string.IsNullOrEmpty(type)) list = list.Where(t => (t.TaskType ?? "") == (type == "-" ? "" : type));
         if (!string.IsNullOrEmpty(month) && DateOnly.TryParse(month + "-01", out var mf))
         { var mt = mf.AddMonths(1); list = list.Where(t => (t.Due >= mf && t.Due < mt) || (t.DoneDate >= mf && t.DoneDate < mt)); }
         if (!string.IsNullOrWhiteSpace(q)) { var nq = KpiController.Norm(q); list = list.Where(t => KpiController.Norm(t.Name).Contains(nq) || KpiController.Norm(t.Assignee).Contains(nq)); }
@@ -170,7 +189,8 @@ public class ViecController : ApiControllerBase
         {
             counts = new { my = all.Count(t => SelfMade(t) && Open.Contains(t.Status ?? "Chưa bắt đầu")), duoc = all.Count(t => Given(t) && Open.Contains(t.Status ?? "Chưa bắt đầu")),
                 giao = all.Count(t => GaveOut(t) && (Open.Contains(t.Status ?? "Chưa bắt đầu") || PendingReview(t, today, vs))) },
-            unified = await Unified(Db), scope, rows, total = rows.Count, parents = parentOpts, levels = k.Levels.Select(l => l.Name), summary, reviewDays = ReviewDays,
+            unified = await Unified(Db), scope, rows, total = rows.Count, parents = parentOpts, levels = k.Levels.Select(l => l.Name), summary,
+            types = DefaultTypes.Concat(all.Where(t => !string.IsNullOrWhiteSpace(t.TaskType)).Select(t => t.TaskType!.Trim())).Distinct().OrderBy(x => x).ToList(), reviewDays = ReviewDays,
             packages = pkgs.Where(p => p.ProjectId != null && Uc.InScope(p.ProjectId)).OrderBy(p => p.Code).ThenBy(p => p.Name).Select(p => new { id = p.Id, p.ProjectId, name = packages[p.Id] }),
             projects = projects.Where(p => Uc.InScope(p.Key)).OrderBy(p => p.Value).Select(p => new { id = p.Key, name = p.Value }),
             perms = new { boss = Boss, seeAll = SeeAll, managed = _managed, assignable = Boss ? null : _empByUser.Values.Where(e => e.DepartmentId != null && _managed.Contains(e.DepartmentId)).Select(e => e.UserId).ToList() }
@@ -178,7 +198,7 @@ public class ViecController : ApiControllerBase
     }
 
     public record TaskBody(string? Name, string? Note, string? ProjectId, string? ParentId, string? AssigneeUserId, List<string>? Collaborators, string? Level,
-        DateOnly? StartDate, DateOnly? Due, bool Correct = false, string? PackageId = null, List<string>? Watchers = null);
+        DateOnly? StartDate, DateOnly? Due, bool Correct = false, string? PackageId = null, List<string>? Watchers = null, string? TaskType = null);
 
     /// <summary>Gói thầu phải thuộc đúng dự án của việc; trống = việc chung của dự án.</summary>
     private async Task<(string? id, string? err)> CheckPackage(string? packageId, string? projectId)
@@ -199,6 +219,7 @@ public class ViecController : ApiControllerBase
         for (var x = p; selfId is not null && x?.ParentId is not null;) { if (x.ParentId == selfId) return (null, "Việc cha không được là việc con của chính việc này."); x = await Db.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == x.ParentId); }
         return (p, null);
     }
+    private static string? Type(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().Length > 100 ? s.Trim()[..100] : s.Trim();
     private string? Collab(List<string>? ids, string? assignee) => ids is null ? null :
         string.Join(",", ids.Where(i => i != assignee && _empByUser.ContainsKey(i)).Distinct().Take(20)) is { Length: > 0 } s ? s : null;
 
@@ -225,7 +246,7 @@ public class ViecController : ApiControllerBase
             Id = "cv-" + Guid.NewGuid().ToString("N")[..20], Name = name.Length > 500 ? name[..500] : name, Note = b.Note?.Trim(), ProjectId = projectId, PackageId = packageId, ParentId = parent?.Id,
             AssigneeUserId = assignee, Assignee = NameOf(assignee), Collaborators = Collab(b.Collaborators, assignee), Watchers = Collab(b.Watchers, assignee), AssignedByUserId = Me,
             Priority = string.IsNullOrWhiteSpace(b.Level) ? KpiSettings.Load(Db).Levels.FirstOrDefault()?.Name : b.Level.Trim(), StartDate = b.StartDate ?? DateOnly.FromDateTime(VnTime.Now), Due = b.Due,
-            Status = "Chưa bắt đầu", Arising = self, UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
+            TaskType = Type(b.TaskType), Status = "Chưa bắt đầu", Arising = self, UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
         };
         Db.Tasks.Add(t);
         AddLog(t, "giao", assignee == Me ? "Tạo việc của tôi" : $"Giao cho {t.Assignee}, hạn {t.Due:dd/MM/yyyy}");
@@ -254,8 +275,15 @@ public class ViecController : ApiControllerBase
         if (!string.IsNullOrWhiteSpace(b.Name)) t.Name = b.Name.Trim().Length > 500 ? b.Name.Trim()[..500] : b.Name.Trim();
         if (b.Note is not null) t.Note = b.Note.Trim();
         if (b.Level is not null) t.Priority = b.Level.Trim();
+        if (b.TaskType is not null) t.TaskType = Type(b.TaskType);
         if (b.StartDate is not null) t.StartDate = b.StartDate;
-        if (b.Collaborators is not null) t.Collaborators = Collab(b.Collaborators, t.AssigneeUserId);
+        if (b.Collaborators is not null)
+        {
+            t.Collaborators = Collab(b.Collaborators, t.AssigneeUserId);
+            var cs = CollabStates(t); var keep = KpiController.CollabIds(t);
+            foreach (var u in cs.Keys.Where(u => !keep.Contains(u)).ToList()) cs.Remove(u);
+            SaveCollab(t, cs);
+        }
         if (b.Watchers is not null) t.Watchers = Collab(b.Watchers, t.AssigneeUserId);
         if (!string.IsNullOrEmpty(b.AssigneeUserId) && b.AssigneeUserId != t.AssigneeUserId)
         {
@@ -311,7 +339,9 @@ public class ViecController : ApiControllerBase
             if (parentHasOpenChildren(t.Id)) return Error(409, "Còn việc con chưa xong.");
             var dd = b.DoneDate ?? today; if (dd > today) return Error(400, "Ngày hoàn thành không được sau hôm nay.");
             t.DoneDate = dd; t.ReportedAt = DateTime.UtcNow; t.Progress = 100;
-            AddLog(t, "bao-xong", string.IsNullOrWhiteSpace(b.Result) ? $"Báo xong ngày {dd:dd/MM/yyyy}" : b.Result.Trim(), 100);
+            var cs0 = CollabStates(t); var notDone = KpiController.CollabIds(t).Where(u => !(cs0.TryGetValue(u, out var x) && x.S == Done)).Select(NameOf).Where(n => n.Length > 0).ToList();
+            AddLog(t, "bao-xong", (string.IsNullOrWhiteSpace(b.Result) ? $"Báo xong ngày {dd:dd/MM/yyyy}" : b.Result.Trim())
+                + (notDone.Count > 0 ? $"\n(Người phối hợp chưa báo xong phần mình: {string.Join(", ", notDone)})" : ""), 100);
             if (!string.IsNullOrWhiteSpace(b.Result)) t.Note = string.Join("\n", new[] { t.Note, $"Kết quả ({dd:dd/MM/yyyy}): {b.Result.Trim()}" }.Where(x => !string.IsNullOrEmpty(x)));
         }
         else { t.DoneDate = null; t.ReportedAt = null; if (st != t.Status) AddLog(t, "cap-nhat", "Chuyển sang " + st.ToLower()); }
@@ -392,12 +422,15 @@ public class ViecController : ApiControllerBase
         var logs = await Db.TaskLogs.AsNoTracking().Where(l => l.TaskId == t!.Id).OrderBy(l => l.At).ToListAsync();
         var files = await Db.Attachments.AsNoTracking().Where(a => a.Collection == "tasks" && a.RecordId == t!.Id && a.DeletedAt == null).OrderBy(a => a.UploadedAt)
             .Select(a => new { a.Id, a.FileId, a.FileName, a.Size, a.Kind, a.Ref, a.UploadedBy, a.UploadedAt }).ToListAsync();
+        var ot = await Db.Requests.AsNoTracking().Where(r => r.TaskId == t!.Id && r.Type == "Tăng ca").OrderBy(r => r.FromAt).ToListAsync();
+        var empName = await Db.Employees.AsNoTracking().Where(e => ot.Select(r => r.EmployeeId).Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.Name);
         var children = all.Where(x => x.ParentId == t!.Id).OrderBy(x => x.Due).Select(x => new { x.Id, x.Name, x.Status, x.Due, assignee = NameOf(x.AssigneeUserId) is { Length: > 0 } n ? n : x.Assignee }).ToList();
         return Ok(new
         {
             row = Row(t!, projects, packages, byId, parents, today, k.RemindDays, vs), children,
             logs = logs.Select(l => new { l.Id, l.Kind, l.Content, l.Progress, l.NewDue, l.State, l.ByName, l.At, decidedBy = NameOf(l.DecidedByUserId), l.DecidedAt,
                 canDecide = l.Kind == "xin-gia-han" && l.State == "Chờ duyệt" && CanManage(t!) }),
+            overtime = ot.Select(r => new { r.Id, r.Code, name = empName.GetValueOrDefault(r.EmployeeId), r.FromAt, r.Hours, r.Status, r.Reason }),
             files, canAttach = Mine(t!) || CanManage(t!) || t!.AssignedByUserId == Me
         });
     }
@@ -415,10 +448,45 @@ public class ViecController : ApiControllerBase
         if (b.Progress is { } pg && (pg < 0 || pg > 99)) return Error(400, "Tiến độ từ 0 đến 99% (xong hẳn thì bấm Báo xong).");
         if (b.Progress is { } p2 && t.AssigneeUserId == Me) t.Progress = p2;
         if ((t.Status ?? "Chưa bắt đầu") == "Chưa bắt đầu" && t.AssigneeUserId == Me) t.Status = "Đang thực hiện";
+        if (t.AssigneeUserId != Me)
+        {
+            // người phối hợp: tiến độ phần việc của riêng mình
+            var cs = CollabStates(t); var x = cs.TryGetValue(Me, out var o) ? o : new CollabSt();
+            x.S = "Đang thực hiện"; x.D = null; if (b.Progress is { } p3) x.P = p3; cs[Me] = x; SaveCollab(t, cs);
+        }
         var l = AddLog(t, "cap-nhat", c.Length > 4000 ? c[..4000] : c, b.Progress);
         Touch(t); Uc.Log("Cập nhật tiến độ công việc", "Công việc", t.Name, "tasks", t.Id);
         await Db.SaveChangesAsync();
         return Ok(new { ok = true, logId = l.Id });
+    }
+
+    public record CollabDoneBody(string? Result);
+
+    /// <summary>Bản 1.10.17 (như e-work TaskAssignments): người phối hợp báo xong phần việc của mình; người làm chính thấy ai đã xong, ai chưa.</summary>
+    [HttpPost("{id}/phoi-hop-xong")]
+    public async Task<IActionResult> CollabDone(string id, [FromBody] CollabDoneBody b)
+    {
+        var (t, err) = await Load(id); if (err is not null) return err;
+        if (!KpiController.CollabIds(t!).Contains(Me)) return Denied("Chỉ người phối hợp báo xong phần việc phối hợp.");
+        if (!Open.Contains(t!.Status ?? "Chưa bắt đầu")) return Error(409, "Việc không còn đang làm.");
+        var r = (b.Result ?? "").Trim();
+        var cs = CollabStates(t); cs[Me] = new CollabSt { S = Done, P = 100, D = DateOnly.FromDateTime(VnTime.Now), R = r.Length == 0 ? null : r.Length > 1000 ? r[..1000] : r }; SaveCollab(t, cs);
+        var l = AddLog(t, "phoi-hop-xong", r.Length == 0 ? "Xong phần việc phối hợp" : r.Length > 4000 ? r[..4000] : r, 100);
+        Touch(t); Uc.Log("Xong phần phối hợp", "Công việc", t.Name, "tasks", t.Id);
+        await Db.SaveChangesAsync();
+        return Ok(new { ok = true, logId = l.Id });
+    }
+
+    /// <summary>Bản 1.10.17: việc để chọn khi lập phiếu tăng ca: việc tôi làm chính hoặc phối hợp, đang mở hoặc xong trong 30 ngày qua.</summary>
+    [HttpGet("chon")]
+    public async Task<IActionResult> Pick()
+    {
+        await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
+        var from = DateOnly.FromDateTime(VnTime.Now).AddDays(-30);
+        var list = (await Db.Tasks.AsNoTracking().Where(t => t.Status != Cancelled && (t.Status != Done || t.DoneDate >= from)).ToListAsync())
+            .Where(Mine).OrderBy(t => t.Status == Done ? 1 : 0).ThenBy(t => t.Due).Take(300).ToList();
+        var projects = await Db.Projects.AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.Name);
+        return Ok(list.Select(t => new { t.Id, t.Name, projectName = t.ProjectId is null ? null : projects.GetValueOrDefault(t.ProjectId), status = t.Status ?? "Chưa bắt đầu" }));
     }
 
     public record ExtendBody(DateOnly? NewDue, string? Reason);

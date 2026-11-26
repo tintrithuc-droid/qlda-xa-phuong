@@ -12,7 +12,7 @@ using QldaTtts.Web.Data;
 namespace QldaTtts.Web.Data.MigrationsPg
 {
     [DbContext(typeof(PgDbContext))]
-    [Migration("20261125234007_CongViecMotNguon")]
+    [Migration("20261126003616_CongViecMotNguon")]
     partial class CongViecMotNguon
     {
         /// <inheritdoc />
@@ -2205,6 +2205,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("CollabState")
+                        .HasColumnType("text");
+
                     b.Property<string>("Collaborators")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
@@ -2267,6 +2270,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("TaskType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -2348,6 +2355,10 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TaskId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Title")
                         .HasMaxLength(300)

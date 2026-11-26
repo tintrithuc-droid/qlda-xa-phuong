@@ -87,6 +87,10 @@ public class ProjectTask : EntityBase, IHasProject
     public int Progress { get; set; }
     /// <summary>Người theo dõi (như e-work ThongTinTheoDoi): xem, nhận nhắc, không tính KPI. Mã tài khoản, cách nhau dấu phẩy.</summary>
     [MaxLength(1000)] public string? Watchers { get; set; }
+    /// <summary>Loại công việc (như e-work LoaiCongViec): khảo sát, lập trình, triển khai, đào tạo… dùng để lọc, thống kê.</summary>
+    [MaxLength(100)] public string? TaskType { get; set; }
+    /// <summary>Trạng thái riêng của từng người phối hợp (như e-work TaskAssignments): JSON {mã tài khoản: {s, p, d, r}}.</summary>
+    public string? CollabState { get; set; }
 }
 
 [Table("LegalDocuments")]

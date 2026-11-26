@@ -57,6 +57,8 @@ public class UserContext
 
     public bool IsAdmin => Group?.Admin == true;
 
+    /// <summary>Bản 1.10.24 (anh Trí 26/11: "Bỏ quyền xóa của nhân viên"): nhóm có quyền cập nhật nhưng đánh dấu "&lt;phân hệ&gt;:khongxoa" thì thêm, sửa được, không xóa được.</summary>
+    public bool CanDelete(string module) => Can(module, true) && (Group!.Admin || !(Group.Perms.TryGetValue(module + ":khongxoa", out var v) && v == "1"));
     public bool Can(string module, bool edit = false)
     {
         if (User is null || Group is null) return false;

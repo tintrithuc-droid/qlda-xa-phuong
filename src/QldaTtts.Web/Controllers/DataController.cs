@@ -183,6 +183,7 @@ public class DataController : ApiControllerBase
         var def = Collections.Find(collection);
         if (def is null) return Error(400, "Dữ liệu không hợp lệ.");
         if (!Uc.Can(def.Module, true)) return Denied();
+        if (!Uc.CanDelete(def.Module)) return Denied("Nhóm của bạn được thêm, sửa nhưng không được xóa dữ liệu phân hệ này. Liên hệ trưởng phòng hoặc Giám đốc.");
         if (collection == "tasks" && await ViecController.Unified(Db)) return Denied("Xóa công việc trong mục Công việc.");
         var existing = (EntityBase?)await Db.FindAsync(def.Type, id);
         if (existing is null) return Error(404, "Bản ghi không còn tồn tại.");

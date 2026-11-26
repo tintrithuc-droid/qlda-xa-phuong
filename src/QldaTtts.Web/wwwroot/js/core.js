@@ -256,6 +256,8 @@ function pwOk(pw){ return pw.length>=8 && /[A-Za-z]/.test(pw) && /\d/.test(pw); 
 
 /* --- phân quyền --- */
 function myGroup(){ return S.user ? get('groups', S.user.groupId) : null; }
+/* Bản 1.10.24: nhóm có quyền cập nhật nhưng đánh dấu "<phân hệ>:khongxoa" thì không xóa được */
+function canDel(mod){ const m=ROUTE_PERM[mod]||mod, g=myGroup(); return can(mod,'edit') && (!g || g.admin || (g.perms||{})[m+':khongxoa']!=='1'); }
 function can(mod, lvl='view'){
   mod=ROUTE_PERM[mod]||mod;
   if(isIT() && IT_HIDE.has(mod)) return false;
@@ -642,7 +644,7 @@ function table(cols, rows, o={}){
   const foot = o.foot? `<tfoot><tr>${o.foot.map((f,i)=>`<td class="${cols[i]&&cols[i].r?'r':''}"${i&&cols[i]?` data-label="${esc(cols[i].h)}"`:''}>${f??''}</td>`).join('')}${o.actions?'<td></td>':''}</tr></tfoot>`:'';
   return `<div class="tw rt"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>${pg}`;
 }
-const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button><button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>` : extra;
+const editBtns = (mod, col, id, extra='') => can(mod,'edit') ? `${extra}<button class="btn sm ghost" data-act="edit-${col}" data-id="${esc(id)}">Sửa</button>${canDel(mod)?`<button class="btn sm ghost danger" data-act="del" data-col="${col}" data-id="${esc(id)}">Xóa</button>`:''}` : extra;
 
 /* Hộp thoại biểu mẫu */
 /* Ô chữ có danh sách gợi ý (datalist + thẻ chọn nhanh 1 chạm); vẫn cho gõ giá trị mới */

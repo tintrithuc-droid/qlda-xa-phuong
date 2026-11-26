@@ -157,7 +157,7 @@ const DEPS = {projects:[['packages','projectId'],['tasks','projectId'],['legal',
 const COL_MOD = {projects:'du-an',tasks:'du-an',legal:'du-an',items:'mo-hinh',models:'mo-hinh',packages:'goi-thau',orgs:'goi-thau',contracts:'goi-thau',addenda:'goi-thau',schedule:'tien-do',diaries:'nhat-ky',boq:'khoi-luong',volumes:'khoi-luong',payplans:'thanh-toan',payments:'thanh-toan',capitals:'von',acceptances:'nghiem-thu',settlements:'quyet-toan',clearances:'gpmb',users:'quan-tri',groups:'quan-tri',catalogs:'quan-tri'};
 ACT.del=async(id,el)=>{
   const col=el.dataset.col; const o=get(col,id); if(!o) return;
-  if(!can(COL_MOD[col]||'quan-tri','edit')) return toast('Bạn không có quyền xóa dữ liệu này.','err');
+  if(!canDel(COL_MOD[col]||'quan-tri')) return toast('Bạn không có quyền xóa dữ liệu này.','err');
   for(const [dc,fk] of (DEPS[col]||[])){ const n=D(dc).filter(x=>x[fk]===id).length; if(n) return toast(`Không xóa được: còn ${n} bản ghi "${COL_LABEL[dc]}" liên quan. Hãy xử lý các bản ghi đó trước.`,'err'); }
   if(col==='users' && id===S.user.id) return toast('Không thể xóa tài khoản đang đăng nhập.','err');
   const label=o.name||o.code||o.number||o.value||o.username||o.date||id;

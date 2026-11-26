@@ -4,10 +4,10 @@ const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const { ROLES, CHAPTERS } = require('./content');
 const OUT = process.argv[2] || path.join(__dirname, 'out'); fs.mkdirSync(OUT, { recursive: true });
-const SHOTS = path.join(__dirname, 'shots'), VER = '1.10.23', DATE = '26/11/2026';
-const CAP = { 'dang-nhap': 'Trang đăng nhập', 'diem-danh': 'Trang Nhận nhiệm vụ sau khi nhận: nơi làm, việc chọn làm hôm nay, nhắc việc, KPI tạm tính, phép còn lại',
-  'de-xuat': 'Trang Đề xuất', 'cong-viec': 'Công việc: ba thẻ Việc của tôi, Được giao, Tôi giao; cây Dự án › Gói thầu › Việc; nhắc việc, KPI tạm tính', 'kpi': 'KPI tháng: Cách tính, nút Xuất',
-  'phieu-luong': 'Phiếu lương, xác nhận hoặc gửi kiến nghị', 'giao-viec': 'Thẻ Tôi giao: việc đã giao, chờ nghiệm thu, xin gia hạn', 'chi-tiet-viec': 'Chi tiết việc: trạng thái từng người phối hợp, loại công việc, giờ tăng ca, nhật ký', 'tang-ca': 'Phiếu xác nhận tăng ca: chọn công việc làm thêm giờ', 'nhan-nhiem-vu': 'Nhận nhiệm vụ: chọn nơi làm, chọn việc làm hôm nay', 'hom-nay': 'Bảng công: Hôm nay ai ở đâu', 'duyet': 'Đề xuất chờ tôi duyệt',
+const SHOTS = path.join(__dirname, 'shots'), VER = '1.10.24', DATE = '26/11/2026';
+const CAP = { 'dang-nhap': 'Trang đăng nhập', 'diem-danh': 'Trang Nhận nhiệm vụ sau khi nhận: nơi làm, nhắc việc, KPI tạm tính, phép còn lại',
+  'de-xuat': 'Trang Đề xuất', 'cong-viec': 'Công việc: ba thẻ Việc của tôi, Được giao, Tôi giao; cột Sản phẩm bàn giao; x/y sản phẩm đã nghiệm thu', 'kpi': 'KPI tháng: Cách tính, nút Xuất',
+  'phieu-luong': 'Phiếu lương, xác nhận hoặc gửi kiến nghị', 'giao-viec': 'Thẻ Tôi giao: sản phẩm chờ nghiệm thu lên đầu, xin gia hạn', 'chi-tiet-viec': 'Chi tiết việc: sản phẩm bàn giao, tiêu chí đạt, sản phẩm đã nộp, người phối hợp, nhật ký', 'nop-san-pham': 'Nộp sản phẩm: đính kèm tệp hoặc dán đường dẫn, ghi chú nơi kiểm tra', 'nghiem-thu': 'Nghiệm thu: Đạt tốt, Đạt, hoặc Chưa đạt (trả lại sửa, ghi rõ cần sửa gì)', 'tang-ca': 'Phiếu xác nhận tăng ca: chọn công việc làm thêm giờ', 'nhan-nhiem-vu': 'Nhận nhiệm vụ: chọn nơi làm, bấm một lần mỗi sáng', 'hom-nay': 'Bảng công: Hôm nay ai ở đâu', 'duyet': 'Đề xuất chờ tôi duyệt',
   'nhan-su': 'Hồ sơ nhân sự', 'bang-luong': 'Bảng lương tháng: chốt, duyệt chi, nút Xuất', 'duyet-chi': 'Bảng lương đã duyệt chi: xuất danh sách chuyển khoản ngân hàng',
   'qt-nguoi-dung': 'Quản trị hệ thống' };
 const img = id => { const f = path.join(SHOTS, id + '.png'); return fs.existsSync(f) ? 'data:image/png;base64,' + fs.readFileSync(f).toString('base64') : null; };

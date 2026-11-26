@@ -107,6 +107,23 @@ public static class Upgrades
             }
         }
 
+        // Bản 1.10.18 (anh Trí 26/11/2026): quản lý Công việc theo kết quả sản phẩm cho đơn vị đã chuyển từ e-work; KPI áp dụng từ tháng 12/2026.
+        // Chất lượng nghiệm thu tính vào điểm (anh chọn): Đạt tốt 100%, Đạt 85%. Bỏ tiến độ %, bỏ chọn việc khi nhận nhiệm vụ.
+        {
+            const string key = "upgrade:1.10.24-cong-viec-ket-qua";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                if (db.Employees.Any(e => e.EworkId != null))
+                {
+                    var k = QldaTtts.Web.Controllers.KpiSettings.Load(db);
+                    if (string.IsNullOrWhiteSpace(k.ResultFrom)) { k.ResultFrom = "2026-12"; k.GoodFactor = 1m; k.PassFactor = 0.85m; k.TrackProgress = false; k.Save(db, "he-thong"); }
+                    var vs = VpSettings.Load(db); vs.DailyTasks = false; VpSettings.Save(db, vs, "he-thong");
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // Bản 1.10.17: đơn vị dùng "Nhận nhiệm vụ" mà dòng giới thiệu trang đăng nhập còn chữ "Điểm danh" thì đổi chữ (chạy một lần, giữ nguyên phần còn lại)
         {
             const string key = "upgrade:1.10.17-chu-dang-nhap";

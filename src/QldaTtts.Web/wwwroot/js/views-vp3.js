@@ -7,9 +7,15 @@ const cvData = () => vpFetch(VP.cv, cvKey(), cvUrl());
 function cvReset(){ VP.cv={}; VP.cvn={}; VP.kpi={}; VP.pj={}; }
 const cvRow = id => { for(const k in VP.cv){ const d=VP.cv[k]; const r=d&&d.rows&&d.rows.find(x=>x.id===id); if(r) return r; } return null; };
 const cvStars = q => q? '★'.repeat(q)+'☆'.repeat(5-q) : '';
+/* Bản 1.10.18 (anh Trí 26/11/2026): quản lý theo kết quả sản phẩm (bật trong Thiết lập KPI): giao sản phẩm, nộp sản phẩm, nghiệm thu Đạt tốt / Đạt / Chưa đạt */
+const cvMode = key => { for(const k in VP.cv){ const d=VP.cv[k]; if(d&&d[key]!=null) return !!d[key]; } return null; };
+const cvRM = () => cvMode('resultMode')===true;
+const cvTP = () => cvMode('trackProgress')!==false;
+const cvQual = q => q==null? '' : cvRM()&&q===5? 'Đạt tốt' : cvRM()&&q===3? 'Đạt' : cvStars(q);
 function cvStatus(r){
   if(r.arising && !r.arisingConfirmed && r.status!=='Đã hủy') return pill('Tự tạo, chờ xác nhận','warn');
-  if(r.pendingReview) return pill('Chờ nghiệm thu','warn')+`<div class="small muted">quá 3 ngày làm việc tự Đạt</div>`;
+  if(r.pendingReview) return pill('Chờ nghiệm thu','warn')+`<div class="small muted">${cvRM()?'đã nộp sản phẩm; ':''}quá 3 ngày làm việc tự Đạt</div>`;
+  if(r.status==='Hoàn thành' && cvRM() && (r.quality==null||r.quality===5||r.quality===3)) return pill(r.quality===5?'Đạt tốt':'Đạt','ok')+(r.autoAccepted?'<div class="small muted">tự Đạt (không nghiệm thu)</div>':'');
   if(r.status==='Hoàn thành') return pill('Hoàn thành','ok')+(r.quality?` <span class="small" title="Nghiệm thu ${r.quality} sao">${cvStars(r.quality)}</span>`:r.autoAccepted?'<div class="small muted">tự Đạt (không nghiệm thu)</div>':'');
   if(r.status==='Đã hủy') return pill('Đã hủy','bad');
   if(r.overdue) return pill('Quá hạn','bad');
@@ -19,10 +25,10 @@ function cvStatus(r){
 function cvActs(r, full){
   const b=[];
   if(r.canConfirm) b.push(`<button class="btn sm primary" data-act="cv-confirm" data-id="${esc(r.id)}|1">Xác nhận</button><button class="btn sm ghost" data-act="cv-confirm" data-id="${esc(r.id)}|0">Không nhận</button>`);
-  if(r.canUpdate && !r.hasChildren) b.push(`<button class="btn sm ghost" data-act="cv-upd" data-id="${esc(r.id)}">Cập nhật</button>`);
+  if(r.canUpdate && !r.hasChildren) b.push(`<button class="btn sm ghost" data-act="cv-upd" data-id="${esc(r.id)}">${cvRM()&&!cvTP()?'Trao đổi':'Cập nhật'}</button>`);
   if(full && r.canAskExtend) b.push(`<button class="btn sm ghost" data-act="cv-ext" data-id="${esc(r.id)}">Xin gia hạn</button>`);
   if(r.canCollabDone) b.push(`<button class="btn sm" data-act="cv-cdone" data-id="${esc(r.id)}">Xong phần tôi</button>`);
-  if(r.canWork && !r.hasChildren && r.role!=='phoi-hop') b.push(`<button class="btn sm" data-act="cv-done" data-id="${esc(r.id)}">Báo xong</button>`);
+  if(r.canWork && !r.hasChildren && r.role!=='phoi-hop') b.push(`<button class="btn sm" data-act="cv-done" data-id="${esc(r.id)}">${cvRM()?'Nộp sản phẩm':'Báo xong'}</button>`);
   if(r.canReview) b.push(`<button class="btn sm primary" data-act="cv-review" data-id="${esc(r.id)}">Nghiệm thu</button>`);
   if(!full && r.extendPending) b.push(`<span class="pill warn" title="Có đề nghị gia hạn chờ duyệt">Xin gia hạn</span>`);
   return b.join(' ');
@@ -61,14 +67,14 @@ VIEWS['van-phong']=()=>{
    Mỗi dự án, mỗi gói thầu có dòng tổng hợp; thêm việc ngay ở dự án hoặc ở gói thầu; "Việc của tôi" hay "Giao cho người khác" chọn rõ trên biểu mẫu. */
 /* Bản 1.10.17 (như e-work): trạng thái riêng từng người phối hợp */
 const cvCollab = r => (r.collabStates||[]).map(c=>esc(c.name)+(c.status==='Hoàn thành'?' <span style="color:var(--green,#16a34a)" title="Đã xong phần phối hợp">✓</span>':c.status==='Đang thực hiện'?` <span class="muted">(đang làm${c.progress?' '+c.progress+'%':''})</span>`:' <span class="muted">(chưa làm)</span>')).join(', ');
-const cvChips = s => !s? '' : `<span class="cv-sum"><b>${s.total}</b> việc · ${s.done} xong (${s.pct}%)${s.overdue?` · <span style="color:var(--red)">${s.overdue} quá hạn</span>`:''}${s.review?` · ${s.review} chờ nghiệm thu`:''}</span>`;
+const cvChips = s => !s? '' : cvRM()? `<span class="cv-sum"><b>${s.accepted!=null?s.accepted:s.done}/${s.total}</b> sản phẩm đã nghiệm thu${s.overdue?` · <span style="color:var(--red)">${s.overdue} quá hạn</span>`:''}${s.review?` · ${s.review} chờ nghiệm thu`:''}</span>` : `<span class="cv-sum"><b>${s.total}</b> việc · ${s.done} xong (${s.pct}%)${s.overdue?` · <span style="color:var(--red)">${s.overdue} quá hạn</span>`:''}${s.review?` · ${s.review} chờ nghiệm thu`:''}</span>`;
 function cvTask(r, lvl){
   const pad=12+lvl*22;
-  return `<tr class="click" data-act="cv-view" data-id="${esc(r.id)}"><td data-label="Công việc" style="padding-left:${pad}px">${r.parentId&&lvl>0&&r._child?'<span class="muted">↳ </span>':''}<b style="font-weight:600">${esc(r.name)}</b>${r.taskType?` <span class="small muted">· ${esc(r.taskType)}</span>`:''}${r.role==='phoi-hop'?' <span class="pill">Phối hợp</span>':r.role==='theo-doi'?' <span class="pill">Theo dõi</span>':''}${r.hasChildren?' <span class="pill info" title="Đã chia việc con: KPI tính theo việc con">Có việc con</span>':''}${r.parentName&&!r._child?`<div class="small muted">thuộc: ${esc(r.parentName)}</div>`:''}</td>
+  return `<tr class="click" data-act="cv-view" data-id="${esc(r.id)}"><td data-label="Công việc" style="padding-left:${pad}px">${r.parentId&&lvl>0&&r._child?'<span class="muted">↳ </span>':''}<b style="font-weight:600">${esc(r.name)}</b>${r.taskType?` <span class="small muted">· ${esc(r.taskType)}</span>`:''}${r.role==='phoi-hop'?' <span class="pill">Phối hợp</span>':r.role==='theo-doi'?' <span class="pill">Theo dõi</span>':''}${r.hasChildren?(cvRM()?' <span class="pill info" title="Đã chia sản phẩm thành phần: KPI tính theo từng sản phẩm thành phần">Có sản phẩm thành phần</span>':' <span class="pill info" title="Đã chia việc con: KPI tính theo việc con">Có việc con</span>'):''}${r.parentName&&!r._child?`<div class="small muted">thuộc: ${esc(r.parentName)}</div>`:''}</td>
     <td data-label="Người làm">${esc(r.assignee||'—')}${(r.collabStates||[]).length?`<div class="small muted">Phối hợp: ${cvCollab(r)}</div>`:''}</td>
-    <td data-label="Mức độ">${esc(r.level||'')}</td>
+    ${cvRM()? `<td data-label="Sản phẩm bàn giao">${r.deliverable?esc(r.deliverable):'<span class="small muted">chưa ghi</span>'}${r.level&&r.level!=='Bình thường'?` <span class="pill warn">${esc(r.level)}</span>`:''}</td>` : `<td data-label="Mức độ">${esc(r.level||'')}</td>`}
     <td data-label="Hạn"><span class="num" style="${r.overdue?'color:var(--red);font-weight:600':''}">${fmtDate(r.due)}</span>${r.extendCount?`<div class="small muted" title="Hạn ban đầu ${fmtDate(r.originalDue)}">gia hạn ${r.extendCount} lần</div>`:''}${r.doneDate?`<div class="small muted">xong ${fmtDate(r.doneDate)}</div>`:''}</td>
-    <td data-label="Trạng thái">${cvStatus(r)}${r.status!=='Hoàn thành'&&r.status!=='Đã hủy'&&r.progress?`<div>${cvBar(r.progress)}</div>`:''}${r.reopenCount?`<div class="small muted">mở lại ${r.reopenCount} lần</div>`:''}</td>
+    <td data-label="Trạng thái">${cvStatus(r)}${cvTP()&&r.status!=='Hoàn thành'&&r.status!=='Đã hủy'&&r.progress?`<div>${cvBar(r.progress)}</div>`:''}${r.reopenCount?`<div class="small muted">${cvRM()?'trả lại sửa':'mở lại'} ${r.reopenCount} lần</div>`:''}</td>
     <td class="acts">${cvActs(r)}</td></tr>`;
 }
 /* rows: các việc đã lọc; summary: tổng hợp của máy chủ; o.packages: gói thầu cần hiện cả khi chưa có việc (tab dự án); o.add: có nút thêm việc */
@@ -99,7 +105,7 @@ function cvTree(rows, summary, o={}){
     } else { if(!xs.length) body+=`<tr><td colspan="6" class="small muted" style="padding-left:24px">Chưa có việc.</td></tr>`; list(xs).forEach(([r,l])=>body+=cvTask(r,pid?l+1:l+1)); }
   }
   if(!body) return emptyBox(o.empty||'Không có công việc.');
-  return `<div class="tw rt cv-tree"><table><thead><tr><th>Công việc</th><th>Người làm</th><th>Mức độ</th><th>Hạn</th><th>Trạng thái</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="tw rt cv-tree"><table><thead><tr><th>Công việc</th><th>Người làm</th><th>${cvRM()?'Sản phẩm bàn giao':'Mức độ'}</th><th>Hạn</th><th>Trạng thái</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
 }
 function cvPkgName(k, pk, o){ const r=(pk.get(k)||[])[0]; return r&&r.packageName || ((o.packages||[]).find(x=>x.id===k)||{}).name || 'Gói thầu'; }
 
@@ -122,7 +128,7 @@ VIEWS['cong-viec']=()=>{
     <div class="toolbar"><button class="btn primary" data-act="cv-add" data-id="|">+ Thêm việc</button></div></div>
   ${cvRemindHTML(cvRemind(), true)}
   <div class="tabs">${tabs.map(([k,l])=>`<button class="${sc===k?'on':''}" data-act="cv-tab" data-id="${k}">${l}</button>`).join('')}</div>
-  <p class="small muted" style="margin:6px 0 0">${{my:'Việc tôi tự tạo và tự làm.',duoc:'Việc người khác giao cho tôi: làm chính, phối hợp hoặc theo dõi.',giao:'Việc tôi giao cho người khác: theo dõi tiến độ, duyệt gia hạn, nghiệm thu.',dept:'Việc của người trong phòng tôi phụ trách.',all:'Mọi việc trong phạm vi được xem.'}[sc]||''}</p>
+  <p class="small muted" style="margin:6px 0 0">${{my:'Việc tôi tự tạo và tự làm.',duoc:'Việc người khác giao cho tôi: làm chính, phối hợp hoặc theo dõi.',giao:cvRM()?'Việc tôi giao cho người khác: sản phẩm chờ nghiệm thu ở đầu, duyệt gia hạn.':'Việc tôi giao cho người khác: theo dõi tiến độ, duyệt gia hạn, nghiệm thu.',dept:'Việc của người trong phòng tôi phụ trách.',all:'Mọi việc trong phạm vi được xem.'}[sc]||''}</p>
   <div class="toolbar" style="margin:8px 0 10px"><select data-f="cvt" aria-label="Trạng thái">${opts(CV_ST, st)}</select>
     <select data-f="cvp" aria-label="Dự án">${opts([['-','Việc nội bộ (không thuộc dự án)']].concat(((d&&d.projects)||[]).map(p=>[p.id,p.name])), S.f.cvp||'', 'Tất cả dự án')}</select>
     ${S.f.cvp&&S.f.cvp!=='-'&&pkOpts.length?`<select data-f="cvk" aria-label="Gói thầu">${opts([['-','Việc chung của dự án']].concat(pkOpts.map(k=>[k.id,k.name])), S.f.cvk||'', 'Mọi gói thầu')}</select>`:''}
@@ -132,6 +138,8 @@ VIEWS['cong-viec']=()=>{
     <span style="flex:1"></span><button class="btn sm ghost" data-act="cv-xlsx">Xuất Excel</button></div>${body}`;
 };
 ACT['cv-tab']=k=>{ S.f.cvs=k; render(); };
+/* Bản 1.10.18: ô ít dùng (more:true) ẩn sau nút "Thêm chi tiết" của biểu mẫu */
+ACT['form-more']=(x,el)=>{ const f=el&&el.closest('form'); if(f){ f.classList.add('show-more'); el.closest('.fld').remove(); } };
 ACT['cv-add']=x=>{ const [p,k]=String(x||'|').split('|'); ACT['cv-new'](null,null,null,null,{projectId:p||'', packageId:k||''}); };
 
 function cvAssignees(d){
@@ -148,28 +156,37 @@ ACT['cv-new']=async (mode, el, ev, base, preset)=>{
   const projOpts=[['-','Việc nội bộ (không thuộc dự án)']].concat((d.projects||[]).map(p=>[p.id,p.name]));
   const pkFor=pid=> !pid||pid==='-'? [['','— (việc nội bộ không có gói thầu)']] : [['','Việc chung của dự án (không chọn gói thầu)']].concat((d.packages||[]).filter(k=>k.projectId===pid).map(k=>[k.id,k.name]));
   const parFor=pid=> d.parents.filter(p=>(!r||p.id!==r.id) && (p.projectId||'-')===(pid||'-')).map(p=>[p.id,(p.packageName?p.packageName+' › ':'')+p.name]);
-  const fields=[
-    {key:'projectId',label:'Dự án (cấp cha)',type:'select',options:projOpts,req:true},
-    {key:'packageId',label:'Gói thầu (cấp con)',type:'select',options:pkFor,dep:'projectId',req:true,hint:'Dự án chưa có gói thầu hoặc việc chung của dự án thì để "Việc chung của dự án".'},
-    {key:'name',label:'Tên công việc',req:true,full:true},
-    {key:'who',label:'Ai làm',type:'select',req:true,options:[hasMe&&['me','Việc của tôi (tôi tự làm)'], canGive&&['give','Giao cho người khác']].filter(Boolean)},
-    {key:'assigneeUserId',label:'Người thực hiện',type:'select',dep:'who',options:w=>w==='give'? others : [['', (me&&me.name)||'Tôi']]},
-    {key:'parentId',label:'Là việc con của (không bắt buộc)',type:'select',options:parFor,dep:'projectId',full:true,hint:'Việc con theo dự án, gói thầu của việc cha.'},
-    {key:'level',label:'Mức độ',type:'select',options:d.levels||['Bình thường','Quan trọng','Khẩn cấp'],req:true},
-    {key:'taskType',label:'Loại công việc',suggest:d.types||[],ph:'Chọn hoặc gõ loại mới'},
-    {key:'startDate',label:'Ngày bắt đầu',type:'date'},{key:'due',label:'Hạn hoàn thành',type:'date',req:true},
-    {key:'collaborators',label:'Người phối hợp',type:'checks',options:VP.emps.filter(e=>e.userId&&vpWorking(e)).map(e=>[e.userId,e.name])},
-    {key:'watchers',label:'Người theo dõi (xem, nhận nhắc, không tính KPI)',type:'checks',options:VP.emps.filter(e=>e.userId&&vpWorking(e)).map(e=>[e.userId,e.name])},
-    {key:'note',label:'Nội dung, yêu cầu, sản phẩm cần có',type:'textarea',keepLines:true}];
-  if(!r) fields.push({key:'files',label:'Tệp đính kèm (văn bản giao việc, tài liệu)',type:'files',multiple:true});
+  const rm=!!d.resultMode, emps=VP.emps.filter(e=>e.userId&&vpWorking(e)).map(e=>[e.userId,e.name]);
+  const F={
+    projectId:{key:'projectId',label:'Dự án (cấp cha)',type:'select',options:projOpts,req:true},
+    packageId:{key:'packageId',label:'Gói thầu (cấp con)',type:'select',options:pkFor,dep:'projectId',req:true,hint:'Dự án chưa có gói thầu hoặc việc chung của dự án thì để "Việc chung của dự án".'},
+    name:{key:'name',label:rm?'Tên việc':'Tên công việc',req:true,full:true},
+    deliverable:{key:'deliverable',label:'Sản phẩm bàn giao',req:rm&&!(r&&!r.deliverable),full:true,ph:'Ví dụ: Biên bản nghiệm thu có chữ ký của khách hàng (bản PDF)',hint:'Bàn giao cái gì, để người giao kiểm được khi nghiệm thu.'},
+    criteria:{key:'criteria',label:'Tiêu chí đạt (không bắt buộc)',type:'textarea',rows:2,keepLines:true,ph:'Ví dụ: đủ chức năng theo hợp đồng; khách hàng ký, đóng dấu'},
+    who:{key:'who',label:'Ai làm',type:'select',req:true,options:[hasMe&&['me','Việc của tôi (tôi tự làm)'], canGive&&['give','Giao cho người khác']].filter(Boolean)},
+    assigneeUserId:{key:'assigneeUserId',label:'Người thực hiện',type:'select',dep:'who',options:w=>w==='give'? others : [['', (me&&me.name)||'Tôi']]},
+    parentId:{key:'parentId',label:rm?'Là sản phẩm thành phần của (không bắt buộc)':'Là việc con của (không bắt buộc)',type:'select',options:parFor,dep:'projectId',full:true,hint:rm?'Chỉ chia khi phần này có sản phẩm riêng, người làm riêng.':'Việc con theo dự án, gói thầu của việc cha.'},
+    level:{key:'level',label:'Mức độ',type:'select',options:d.levels||['Bình thường','Quan trọng','Khẩn cấp'],req:true},
+    taskType:{key:'taskType',label:'Loại công việc',suggest:d.types||[],ph:'Chọn hoặc gõ loại mới'},
+    startDate:{key:'startDate',label:'Ngày bắt đầu',type:'date'}, due:{key:'due',label:rm?'Hạn bàn giao':'Hạn hoàn thành',type:'date',req:true},
+    collaborators:{key:'collaborators',label:'Người phối hợp',type:'checks',options:emps},
+    watchers:{key:'watchers',label:'Người theo dõi (xem, nhận nhắc, không tính KPI)',type:'checks',options:emps},
+    note:{key:'note',label:rm?'Ghi chú':'Nội dung, yêu cầu, sản phẩm cần có',type:'textarea',keepLines:true}};
+  /* Bản 1.10.18 (theo kết quả): các ô chính trước; ô ít dùng thu vào "Thêm chi tiết" */
+  const fields= rm
+    ? [F.projectId,F.packageId,F.name,F.deliverable,F.criteria,F.who,F.assigneeUserId,F.due,F.level,
+       {key:'_more',type:'html',full:true,html:'<div class="fld full"><a href="#" data-act="form-more">+ Thêm chi tiết (phối hợp, theo dõi, sản phẩm thành phần, loại công việc, ghi chú)</a></div>'},
+       ...[F.parentId,F.taskType,F.startDate,F.collaborators,F.watchers,F.note].map(f=>({...f,more:true}))]
+    : [F.projectId,F.packageId,F.name,F.who,F.assigneeUserId,F.parentId,F.level,F.taskType,F.startDate,F.due,F.collaborators,F.watchers,F.note];
+  if(!r) fields.push({key:'files',label:'Tệp đính kèm (văn bản giao việc, tài liệu)',type:'files',multiple:true,more:rm});
   if(r && r.canEdit && d.perms && d.perms.boss) fields.push({key:'correct',label:'Đổi hạn',type:'select',options:[['0','Gia hạn (đếm số lần gia hạn)'],['1','Sửa nhầm hạn (không tính gia hạn)']]});
   const mine=r? r.assigneeUserId===(me&&me.userId) : true;
-  const value=r? {projectId:r.projectId||'-', packageId:r.packageId||'', name:r.name, who:mine?'me':'give', assigneeUserId:mine?'':r.assigneeUserId, parentId:r.parentId||'', level:r.level||'', taskType:r.taskType||'', startDate:r.startDate||'', due:r.due||'', collaborators:r.collaborators, watchers:r.watchers||[], note:r.note||'', correct:'0'}
+  const value=r? {projectId:r.projectId||'-', packageId:r.packageId||'', name:r.name, who:mine?'me':'give', assigneeUserId:mine?'':r.assigneeUserId, parentId:r.parentId||'', level:r.level||'', taskType:r.taskType||'', deliverable:r.deliverable||'', criteria:r.criteria||'', startDate:r.startDate||'', due:r.due||'', collaborators:r.collaborators, watchers:r.watchers||[], note:r.note||'', correct:'0'}
     : {projectId:pre.projectId||'-', packageId:pre.packageId||'', who:(mode==='give'&&canGive)||!hasMe?'give':'me', level:(d.levels||[])[0]||'', startDate:TODAY, collaborators:[], watchers:[]};
   openForm({title:r?'Sửa công việc':'Thêm việc', value, fields,
     onSave:async v=>{ const pid=v.projectId==='-'?'':v.projectId;
       if(v.who==='give' && !v.assigneeUserId) throw new Error('Chọn người thực hiện.');
-      const body={name:v.name, parentId:v.parentId||'', projectId:v.parentId?null:pid, packageId:v.parentId?null:(v.packageId||''), assigneeUserId:v.who==='give'?v.assigneeUserId:(me&&me.userId), level:v.level, startDate:v.startDate||null, due:v.due, taskType:v.taskType||'', collaborators:v.collaborators||[], watchers:v.watchers||[], note:v.note||'', correct:v.correct==='1'};
+      const body={name:v.name, parentId:v.parentId||'', projectId:v.parentId?null:pid, packageId:v.parentId?null:(v.packageId||''), assigneeUserId:v.who==='give'?v.assigneeUserId:(me&&me.userId), level:v.level, startDate:v.startDate||null, due:v.due, taskType:v.taskType||'', deliverable:v.deliverable||'', criteria:v.criteria||'', collaborators:v.collaborators||[], watchers:v.watchers||[], note:v.note||'', correct:v.correct==='1'};
       const res= r? await api('PUT','/api/vp/viec/'+encodeURIComponent(r.id), body) : await api('POST','/api/vp/viec', body);
       if(!r && v.files && v.files.length) await cvUpload(res.id, v.files, null, 'Văn bản giao việc');
       cvReset(); if(!r && res.arising) setTimeout(()=>toast('Đã tạo việc của bạn: trưởng phòng hoặc Ban giám đốc xác nhận thì việc được tính KPI'),400); return {id:res.id||r.id}; }});
@@ -179,6 +196,16 @@ async function cvPost(id, path, body, msg){ await api('POST',`/api/vp/viec/${enc
 ACT['cv-start']=id=>cvPost(id,'trang-thai',{status:'Đang thực hiện'},'Đã chuyển sang đang thực hiện').catch(ex=>toast(errText(ex),'err'));
 ACT['cv-done']=id=>{ const r=cvRow(id)||VP.cvd&&VP.cvd.row; if(!r) return;
   const left=(r.collabStates||[]).filter(c=>c.status!=='Hoàn thành').map(c=>c.name);
+  if(cvRM()) return openForm({title:'Nộp sản phẩm: '+r.name, narrow:true, submit:'Nộp sản phẩm', value:{doneDate:TODAY},
+    fields:[{key:'_p',type:'html',full:true,html:`<div class="fld full"><label>Sản phẩm cần bàn giao</label><div>${r.deliverable?esc(r.deliverable):'<span class="muted">chưa ghi</span>'}</div>${r.criteria?`<div class="small muted" style="white-space:pre-wrap">Tiêu chí đạt: ${esc(r.criteria)}</div>`:''}</div>`},
+      ...(left.length?[{key:'_i',type:'html',html:`<div class="fld full small" style="color:var(--amber,#b45309)">Người phối hợp chưa báo xong phần mình: ${esc(left.join(', '))}. Vẫn nộp được; nhật ký sẽ ghi lại.</div>`}]:[]),
+      {key:'files',label:'Tệp sản phẩm',type:'files',multiple:true},{key:'link',label:'Hoặc đường dẫn, nơi kiểm tra',full:true,ph:'Ví dụ: https://… hoặc "đã chạy trên máy chủ khách hàng A"',hint:'Cần có tệp, hoặc đường dẫn, hoặc nơi kiểm tra.'},
+      {key:'result',label:'Ghi chú cho người nghiệm thu',type:'textarea',rows:2,keepLines:true},{key:'doneDate',label:'Ngày nộp',type:'date',req:true}],
+    onSave:async v=>{ const fs=[...(v.files||[])];
+      if(!fs.length && !String(v.link||'').trim()) throw new Error('Đính kèm tệp sản phẩm, hoặc ghi đường dẫn, nơi kiểm tra.');
+      const res=[fs.length?'Tệp: '+fs.map(f=>f.name).join(', '):'', String(v.link||'').trim(), String(v.result||'').trim()].filter(Boolean).join('\n');
+      await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/trang-thai`,{status:'Hoàn thành', doneDate:v.doneDate, result:res}); await cvUpload(id, fs, null, 'Sản phẩm');
+      setTimeout(()=>cvAfter(id, r.role==='tu-lam'?'Đã nộp sản phẩm':'Đã nộp sản phẩm: chờ người giao nghiệm thu'),50); return {id}; }});
   openForm({title:'Báo xong: '+r.name, narrow:true, submit:'Báo xong', value:{doneDate:TODAY},
     fields:[...(left.length?[{key:'_i',type:'html',html:`<div class="fld full small" style="color:var(--amber,#b45309)">Người phối hợp chưa báo xong phần mình: ${esc(left.join(', '))}. Vẫn báo xong được; nhật ký sẽ ghi lại.</div>`}]:[]),{key:'doneDate',label:'Ngày hoàn thành',type:'date',req:true,full:true},{key:'result',label:'Kết quả, sản phẩm',type:'textarea',keepLines:true},{key:'files',label:'Tệp kết quả (nếu có)',type:'files',multiple:true}],
     onSave:async v=>{ await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/trang-thai`,{status:'Hoàn thành', doneDate:v.doneDate, result:v.result||''}); await cvUpload(id, v.files, null, 'Kết quả'); setTimeout(()=>cvAfter(id, r.role==='tu-lam'?'Đã báo xong':'Đã báo xong: chờ người giao nghiệm thu'),50); return {id}; }}); };
@@ -187,6 +214,12 @@ ACT['cv-cdone']=id=>{ const r=cvRow(id)||VP.cvd&&VP.cvd.row; if(!r) return;
     fields:[{key:'_i',type:'html',html:`<div class="fld full small">Người làm chính ${esc(r.assignee||'')} thấy bạn đã xong phần mình. Việc vẫn do người làm chính báo xong.</div>`},{key:'result',label:'Đã làm được gì',type:'textarea',keepLines:true,full:true},{key:'files',label:'Tệp kèm (nếu có)',type:'files',multiple:true}],
     onSave:async v=>{ const res=await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/phoi-hop-xong`,{result:v.result||''}); await cvUpload(id, v.files, res.logId, 'Phối hợp'); setTimeout(()=>cvAfter(id,'Đã báo xong phần phối hợp'),50); return {id}; }}); };
 ACT['cv-review']=id=>{ const r=cvRow(id)||VP.cvd&&VP.cvd.row; if(!r) return;
+  if(cvRM()) return openForm({title:'Nghiệm thu: '+r.name, narrow:true, submit:'Xác nhận', value:{kind:'5', newDue:''},
+    fields:[{key:'_i',type:'html',full:true,html:`<div class="fld full"><label>Sản phẩm</label><div>${r.deliverable?esc(r.deliverable):'<span class="muted">chưa ghi</span>'}</div>${r.criteria?`<div class="small muted" style="white-space:pre-wrap">Tiêu chí đạt: ${esc(r.criteria)}</div>`:''}<div class="small muted">${esc(r.assignee||'')} nộp ${fmtDate(r.doneDate)} (hạn ${fmtDate(r.due)}). Tệp, đường dẫn xem trong nhật ký của việc.</div></div>`},
+      {key:'kind',label:'Kết quả nghiệm thu',type:'select',req:true,full:true,options:[['5','Đạt tốt: đúng tiêu chí, không cần sửa'],['3','Đạt: dùng được, còn điểm nhỏ'],['reopen','Chưa đạt: trả lại sửa']]},
+      {key:'newDue',label:'Hạn sửa (khi chưa đạt)',type:'date'},{key:'note',label:'Nhận xét (chưa đạt thì ghi rõ cần sửa gì)',type:'textarea',keepLines:true}],
+    onSave:async v=>{ if(v.kind==='reopen' && !String(v.note||'').trim()) throw new Error('Chưa đạt: ghi rõ cần sửa gì.');
+      await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/nghiem-thu`, v.kind==='reopen'? {reopen:true, newDue:v.newDue||null, note:v.note||''} : {quality:+v.kind, note:v.note||''}); setTimeout(()=>cvAfter(id, v.kind==='reopen'?'Đã trả lại sửa':'Đã nghiệm thu'),50); return {id}; }});
   openForm({title:'Nghiệm thu: '+r.name, narrow:true, value:{kind:'5', newDue:''},
     fields:[{key:'_i',type:'html',html:`<div class="fld full small">${esc(r.assignee||'')} báo xong ${fmtDate(r.doneDate)} (hạn ${fmtDate(r.due)}).</div>`},
       {key:'kind',label:'Kết quả nghiệm thu',type:'select',req:true,full:true,options:[['5','5 sao: xuất sắc'],['4','4 sao: tốt'],['3','3 sao: đạt'],['2','2 sao: cần sửa nhỏ'],['1','1 sao: chưa đạt'],['reopen','Mở lại: yêu cầu làm lại']]},
@@ -198,26 +231,28 @@ ACT['cv-confirm']=async x=>{ const [id,a]=x.split('|');
 ACT['cv-del']=async id=>{ if(!await confirmBox('Xóa công việc này?')) return; await api('DELETE','/api/vp/viec/'+encodeURIComponent(id)); closeModal(); cvReset(); render(); toast('Đã xóa'); };
 /* Chi tiết việc (bản 1.10.17): thông tin, việc con, tệp, nhật ký (giao, cập nhật tiến độ, gia hạn, báo xong, nghiệm thu, mở lại) và các nút xử lý */
 const CV_LOG={giao:'Giao việc','cap-nhat':'Cập nhật tiến độ','xin-gia-han':'Xin gia hạn','gia-han':'Gia hạn','bao-xong':'Báo xong','nghiem-thu':'Nghiệm thu','mo-lai':'Mở lại','xac-nhan':'Xác nhận việc','huy':'Không xác nhận','phoi-hop-xong':'Xong phần phối hợp'};
+const CV_LOG_RM={'cap-nhat':'Trao đổi','bao-xong':'Nộp sản phẩm','mo-lai':'Chưa đạt, trả lại sửa'};
 const cvBar = p => `<span class="cv-bar" title="Tiến độ ${p||0}%"><i style="width:${Math.max(0,Math.min(100,p||0))}%"></i></span><span class="small muted">${p||0}%</span>`;
 async function cvUpload(id, files, ref, kind){ for(const f of files||[]){ const fd=new FormData(); fd.append('file',f); if(ref) fd.append('ref',ref); if(kind) fd.append('kind',kind); await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/tep`, fd); } }
 ACT['cv-view']=async (id,el,ev)=>{ if(ev&&ev.preventDefault) ev.preventDefault(); if(ev&&ev.target&&ev.target.closest&&ev.target.closest('button')) return;
   let d; try{ d=await api('GET','/api/vp/viec/'+encodeURIComponent(id)); }catch(ex){ return toast(errText(ex),'err'); }
-  const r=d.row; VP.cvd=d; VP.cv['_d|'+r.id]={rows:[r]};
+  const r=d.row; VP.cvd=d; VP.cv['_d|'+r.id]={rows:[r], resultMode:d.resultMode, trackProgress:d.trackProgress};
   const li=(k,v)=>v?`<div class="fld"><label>${k}</label><div>${v}</div></div>`:'';
   const fileRow=f=>`<div class="cv-file"><a href="/api/files/${esc(f.fileId)}" target="_blank" rel="noopener">${esc(f.fileName)}</a> <span class="small muted">${fmtSize(f.size)} · ${esc(f.uploadedBy||'')} · ${fmtDT(f.uploadedAt)}</span></div>`;
   const logFiles=lid=>d.files.filter(f=>f.ref===lid).map(fileRow).join('');
-  const logs=d.logs.slice().reverse().map(l=>`<li><div><b>${esc(CV_LOG[l.kind]||l.kind)}</b>${l.progress!=null&&l.kind==='cap-nhat'?` · ${l.progress}%`:''}${l.newDue?` · hạn mới ${fmtDate(l.newDue)}`:''}${l.state?` · ${pill(l.state, l.state==='Đã duyệt'?'ok':l.state==='Từ chối'?'bad':'warn')}`:''}
+  const logs=d.logs.slice().reverse().map(l=>`<li><div><b>${esc((cvRM()&&CV_LOG_RM[l.kind])||CV_LOG[l.kind]||l.kind)}</b>${l.progress!=null&&l.kind==='cap-nhat'?` · ${l.progress}%`:''}${l.newDue?` · hạn mới ${fmtDate(l.newDue)}`:''}${l.state?` · ${pill(l.state, l.state==='Đã duyệt'?'ok':l.state==='Từ chối'?'bad':'warn')}`:''}
       <span class="small muted"> · ${esc(l.byName||'')} · ${fmtDT(l.at)}${l.decidedBy?` · duyệt: ${esc(l.decidedBy)}`:''}</span></div>${l.content?`<div style="white-space:pre-wrap">${esc(l.content)}</div>`:''}${logFiles(l.id)}
       ${l.canDecide?`<div style="margin-top:4px"><button class="btn sm primary" data-act="cv-ext-ok" data-id="${esc(r.id+'|'+l.id+'|1')}">Duyệt gia hạn</button> <button class="btn sm ghost" data-act="cv-ext-ok" data-id="${esc(r.id+'|'+l.id+'|0')}">Từ chối</button></div>`:''}</li>`).join('');
   const gen=d.files.filter(f=>!f.ref);
   openModal(`<div class="mform wide"><header><h3>${esc(r.name)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header>
     <div style="padding:16px;max-height:calc(100vh - 200px);overflow:auto;display:grid;gap:14px">
-    <div class="fgrid" style="padding:0">${li('Dự án', esc(r.projectName||'Việc nội bộ'))}${r.projectId?li('Gói thầu', esc(r.packageName||'Việc chung của dự án')):''}${li('Là việc con của', r.parentName?esc(r.parentName):'')}
+    ${cvRM()?`<div class="cv-prod"><div class="eyebrow">Sản phẩm bàn giao</div><div style="font-weight:600">${r.deliverable?esc(r.deliverable):'<span class="muted">chưa ghi</span>'}</div>${r.criteria?`<div class="small" style="white-space:pre-wrap;margin-top:2px"><span class="muted">Tiêu chí đạt:</span> ${esc(r.criteria)}</div>`:''}</div>`:''}
+    <div class="fgrid" style="padding:0">${li('Dự án', esc(r.projectName||'Việc nội bộ'))}${r.projectId?li('Gói thầu', esc(r.packageName||'Việc chung của dự án')):''}${li(cvRM()?'Là sản phẩm thành phần của':'Là việc con của', r.parentName?esc(r.parentName):'')}
     ${li('Người làm', esc(r.assignee||''))}${li('Người giao', esc(r.assignedBy||'')+(r.role==='tu-lam'?' (việc của tôi)':''))}${li('Phối hợp', cvCollab(r))}${li('Theo dõi', esc((r.watcherNames||[]).join(', ')))}
     ${li('Mức độ', esc(r.level||''))}${li('Loại công việc', esc(r.taskType||''))}${li('Thời gian', `${fmtDate(r.startDate)} → ${fmtDate(r.due)}${r.extendCount?` (hạn ban đầu ${fmtDate(r.originalDue)}, gia hạn ${r.extendCount} lần)`:''}`)}
-    ${li('Trạng thái', cvStatus(r)+(r.doneDate?' xong '+fmtDate(r.doneDate):'')+(r.reopenCount?`, mở lại ${r.reopenCount} lần`:'')+(r.fromEwork?' <span class="small muted">· chuyển từ e-work</span>':''))}${li('Tiến độ', cvBar(r.progress))}</div>
-    ${r.note?`<div><div class="eyebrow">Nội dung, yêu cầu</div><div style="white-space:pre-wrap">${esc(r.note)}</div></div>`:''}
-    ${d.children.length?`<div><div class="eyebrow">Việc con (${d.children.length})</div>${d.children.map(c=>`<div><a href="#" data-act="cv-view" data-id="${esc(c.id)}">${esc(c.name)}</a> <span class="small muted">· ${esc(c.assignee||'')} · hạn ${fmtDate(c.due)} · ${esc(c.status||'')}</span></div>`).join('')}</div>`:''}
+    ${li('Trạng thái', cvStatus(r)+(r.doneDate?' xong '+fmtDate(r.doneDate):'')+(r.reopenCount?`, ${cvRM()?'trả lại sửa':'mở lại'} ${r.reopenCount} lần`:'')+(r.fromEwork?' <span class="small muted">· chuyển từ e-work</span>':''))}${cvTP()?li('Tiến độ', cvBar(r.progress)):''}</div>
+    ${r.note?`<div><div class="eyebrow">${cvRM()?'Ghi chú, kết quả':'Nội dung, yêu cầu'}</div><div style="white-space:pre-wrap">${esc(r.note)}</div></div>`:''}
+    ${d.children.length?`<div><div class="eyebrow">${cvRM()?'Sản phẩm thành phần':'Việc con'} (${d.children.length})</div>${d.children.map(c=>`<div><a href="#" data-act="cv-view" data-id="${esc(c.id)}">${esc(c.name)}</a> <span class="small muted">· ${esc(c.assignee||'')} · hạn ${fmtDate(c.due)} · ${esc(c.status||'')}</span></div>`).join('')}</div>`:''}
     ${(d.overtime||[]).length?`<div><div class="eyebrow">Tăng ca cho việc này (${fmtN(r.overtimeHours,1)} giờ)</div>${d.overtime.map(o=>`<div>${esc(o.code)} · ${esc(o.name||'')} · ${fmtDT(o.fromAt)} · <b>${fmtN(o.hours,1)} giờ</b> · ${vpStatus(o.status)}${o.reason?` <span class="small muted">${esc(o.reason)}</span>`:''}</div>`).join('')}</div>`:''}
     <div><div class="eyebrow">Tệp đính kèm</div>${gen.length?gen.map(fileRow).join(''):'<div class="small muted">Chưa có tệp.</div>'}${d.canAttach?`<label class="btn sm ghost" style="margin-top:6px">+ Thêm tệp<input type="file" multiple hidden data-cvfile="${esc(r.id)}"></label>`:''}</div>
     <div><div class="eyebrow">Nhật ký xử lý</div>${logs?`<ul class="cv-log">${logs}</ul>`:'<div class="small muted">Chưa có.</div>'}</div></div>
@@ -226,6 +261,9 @@ ACT['cv-view']=async (id,el,ev)=>{ if(ev&&ev.preventDefault) ev.preventDefault()
 };
 async function cvAfter(id, msg){ cvReset(); render(); if(msg) toast(msg); if(!$('#ov').hidden && VP.cvd && VP.cvd.row.id===id) ACT['cv-view'](id); }
 ACT['cv-upd']=id=>{ const r=cvRow(id)||VP.cvd&&VP.cvd.row; if(!r) return;
+  if(!cvTP()) return openForm({title:'Trao đổi: '+r.name, narrow:true, submit:'Gửi', value:{},
+    fields:[{key:'content',label:'Nội dung',type:'textarea',req:true,full:true,keepLines:true,ph:'Hỏi, báo vướng mắc, gửi tài liệu tham khảo… (không bắt buộc báo tiến độ)'},{key:'files',label:'Tệp kèm (nếu có)',type:'files',multiple:true}],
+    onSave:async v=>{ const res=await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/cap-nhat`,{content:v.content, progress:null}); await cvUpload(id, v.files, res.logId, 'Trao đổi'); setTimeout(()=>cvAfter(id),50); return {id}; }});
   openForm({title:'Cập nhật tiến độ: '+r.name, narrow:true, submit:'Lưu cập nhật', value:{progress:r.progress||0},
     fields:[{key:'content',label:'Đã làm được gì',type:'textarea',req:true,full:true,keepLines:true},{key:'progress',label:'Tiến độ (%)',type:'number',hint:'0–99; xong hẳn thì bấm Báo xong.'},{key:'files',label:'Tệp kèm (nếu có)',type:'files',multiple:true}],
     onSave:async v=>{ const res=await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/cap-nhat`,{content:v.content, progress:v.progress==null?null:Math.round(v.progress)}); await cvUpload(id, v.files, res.logId, 'Cập nhật tiến độ'); setTimeout(()=>cvAfter(id),50); return {id}; }}); };
@@ -236,9 +274,9 @@ ACT['cv-ext']=id=>{ const r=cvRow(id)||VP.cvd&&VP.cvd.row; if(!r) return;
 ACT['cv-ext-ok']=async x=>{ const [id,lid,a]=x.split('|'); try{ await api('POST',`/api/vp/viec/${encodeURIComponent(id)}/duyet-gia-han`,{logId:lid, accept:a==='1'}); cvAfter(id, a==='1'?'Đã duyệt gia hạn':'Đã từ chối gia hạn'); }catch(ex){ toast(errText(ex),'err'); } };
 ACT['cv-xlsx']=()=>{ const d=VP.cv[cvKey()]; if(!d||!d.rows) return;
   const rows=d.rows.map((r,i)=>[i+1, r.projectName||'Việc nội bộ', r.projectId?(r.packageName||'Việc chung'):'', r.parentName||'', r.name, r.taskType||'', r.assignee||'', (r.collabStates||[]).map(c=>c.name+(c.status==='Hoàn thành'?' (xong)':'')).join(', '), r.level||'', r.startDate?fmtDate(r.startDate):'', r.due?fmtDate(r.due):'', r.originalDue?fmtDate(r.originalDue):'', r.extendCount||'', r.doneDate?fmtDate(r.doneDate):'',
-    r.arising&&!r.arisingConfirmed&&r.status!=='Đã hủy'?'Tự tạo, chờ xác nhận':r.pendingReview?'Chờ nghiệm thu':r.overdue?'Quá hạn':r.status, r.quality||'', r.reopenCount||'', r.overtimeHours||'']);
+    r.arising&&!r.arisingConfirmed&&r.status!=='Đã hủy'?'Tự tạo, chờ xác nhận':r.pendingReview?'Chờ nghiệm thu':r.overdue?'Quá hạn':r.status, r.quality?(cvRM()&&(r.quality===5||r.quality===3)?cvQual(r.quality):r.quality+' sao'):(r.status==='Hoàn thành'&&!r.pendingReview&&cvRM()?'Đạt':''), r.reopenCount||'', r.overtimeHours||'', r.deliverable||'', r.criteria||'']);
   exportXlsx(`CongViec_${TODAY}.xlsx`, [{name:'Công việc', title:'DANH SÁCH CÔNG VIỆC', sub:'Ngày xuất '+fmtDate(TODAY),
-    head:['STT','Dự án','Gói thầu','Thuộc việc','Công việc','Loại công việc','Người thực hiện','Phối hợp','Mức độ','Bắt đầu','Hạn','Hạn ban đầu','Số lần gia hạn','Ngày xong','Trạng thái','Chất lượng (sao)','Số lần mở lại','Tăng ca (giờ)'], rows}]); };
+    head:['STT','Dự án','Gói thầu','Thuộc việc','Công việc','Loại công việc','Người thực hiện','Phối hợp','Mức độ','Bắt đầu','Hạn','Hạn ban đầu','Số lần gia hạn','Ngày xong','Trạng thái','Kết quả nghiệm thu','Số lần mở lại, trả lại','Tăng ca (giờ)','Sản phẩm bàn giao','Tiêu chí đạt'], rows}]); };
 
 /* Bản 1.10.17: đơn vị dùng Văn phòng thì tab Công việc của dự án là cây Gói thầu › Công việc lấy từ mục Công việc (một nguồn, cùng biểu mẫu, cùng nút báo xong, nghiệm thu) */
 VP.pj={};

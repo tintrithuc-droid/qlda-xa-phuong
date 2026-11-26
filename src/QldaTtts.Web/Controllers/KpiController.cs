@@ -152,6 +152,7 @@ public class KpiController : ApiControllerBase
         foreach (var t in tasks)
         {
             if (!Countable(t, parents)) continue;
+            if (rm && t.Scale is null) continue; // anh Trí 26/11: cách tính theo sản phẩm chỉ cho việc giao từ 27/11 (bản 1.10.24); việc cũ không tính
             var mineMain = IsAssignee(t, e, username);
             var mineCo = !mineMain && e.UserId is not null && CollabIds(t).Contains(e.UserId);
             if (!mineMain && !mineCo) continue;
@@ -241,7 +242,7 @@ public class KpiController : ApiControllerBase
         var (tasks, parents) = await TasksFor(db, from, to);
         var factor = k.ResultFor(from) ? await MilestoneFactors(db, tasks, parents) : null;
         // bản 1.10.24: sản phẩm dài (hạn sau tháng này) đang làm trong tháng: tháng đó không bị tính 0 điểm công việc vì "không có sản phẩm"
-        var longOpen = k.ResultFor(from) ? await db.Tasks.AsNoTracking().Where(t => t.Due != null && t.Due >= to && t.Status != "Đã hủy" && (t.StartDate == null || t.StartDate < to) && (t.DoneDate == null || t.DoneDate >= to)).ToListAsync() : new List<ProjectTask>();
+        var longOpen = k.ResultFor(from) ? await db.Tasks.AsNoTracking().Where(t => t.Scale != null && t.Due != null && t.Due >= to && t.Status != "Đã hủy" && (t.StartDate == null || t.StartDate < to) && (t.DoneDate == null || t.DoneDate >= to)).ToListAsync() : new List<ProjectTask>();
         var users = await db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);
         // bản 1.10.24: chiều Tương tác tự đếm số ngày làm việc có cập nhật trên phần mềm (mỗi ngày tính 1 lần, bấm nhiều không cộng thêm)
         var rmode = k.Auto && k.ResultFor(from) && k.RInteract > 0;

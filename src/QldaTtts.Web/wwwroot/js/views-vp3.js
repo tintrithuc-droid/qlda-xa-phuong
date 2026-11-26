@@ -41,6 +41,7 @@ function cvRemindHTML(n, full, home){
   if(n.soon.length) parts.push(`<div><b>Sắp đến hạn (${n.remindDays} ngày tới) ${n.soon.length} việc:</b> ${n.soon.slice(0,full?20:3).map(it).join(' · ')}${!full&&n.soon.length>3?' …':''}</div>`);
   if(n.myPending) parts.push(`<div class="small muted">${n.myPending} việc tự tạo của bạn đang chờ xác nhận (chưa tính KPI).</div>`);
   if(n.kpi && n.kpi.estimate && !home) parts.push(`<div class="small muted">KPI tháng này: chưa có điểm công việc nên chưa xếp loại (chuyên cần tạm tính ${fmtN(n.kpi.total,1)}).</div>`);
+  else if(n.kpi && !home && n.kpi.grade==='Chưa đủ dữ liệu') parts.push(`<div class="small muted">KPI tháng này: chưa có dữ liệu để tính (không chấm công và chưa có sản phẩm).</div>`);
   else if(n.kpi && !home){ const k=n.kpi, ok=k.total>=k.targetMin;
     parts.push(`<div>KPI tạm tính tháng này: <b>${fmtN(k.total,1)}</b> điểm${k.grade?' ('+esc(k.grade)+')':''}, ${ok?`<span style="color:var(--green,#16a34a)">đạt mức ${esc(k.target)} (từ ${fmtN(k.targetMin)})</span>`:`<span style="color:var(--red)">dưới mức ${esc(k.target)} (cần từ ${fmtN(k.targetMin)})</span>`}${k.missing&&k.missing.length?` <span class="small muted">· chưa có: ${esc(k.missing.join(', '))}</span>`:''}</div>`); }
   const t=n.team;

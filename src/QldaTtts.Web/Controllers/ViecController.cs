@@ -258,7 +258,7 @@ public class ViecController : ApiControllerBase
             Priority = string.IsNullOrWhiteSpace(b.Level) ? KpiSettings.Load(Db).Levels.FirstOrDefault()?.Name : b.Level.Trim(), StartDate = b.StartDate ?? DateOnly.FromDateTime(VnTime.Now), Due = b.Due,
             TaskType = Type(b.TaskType), Deliverable = Cut(b.Deliverable, 500), Criteria = Cut(b.Criteria, 1000), Status = "Chưa bắt đầu", Arising = self, UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
         };
-        if (parent is null) t.Scale = b.Scale is 2 or 4 ? b.Scale : 1;
+        t.Scale = parent is null && b.Scale is 2 or 4 ? b.Scale : 1; // có Scale = việc giao từ bản 1.10.24, được tính KPI theo sản phẩm
         Db.Tasks.Add(t);
         AddLog(t, "giao", assignee == Me ? "Tạo việc của tôi" : $"Giao cho {t.Assignee}, hạn {t.Due:dd/MM/yyyy}");
         // Bản 1.10.24 (anh Trí 26/11/2026: "tự động, không phải nhập gì, chỉ xác định ban đầu"): sản phẩm cần phê duyệt thì phần mềm tự chia 3 mốc kết quả
@@ -279,7 +279,7 @@ public class ViecController : ApiControllerBase
                 {
                     Id = "cv-" + Guid.NewGuid().ToString("N")[..20], Name = Cut($"{t.Name} – {m.n}", 500)!, ProjectId = t.ProjectId, PackageId = t.PackageId, ParentId = t.Id,
                     AssigneeUserId = t.AssigneeUserId, Assignee = t.Assignee, Collaborators = t.Collaborators, Watchers = t.Watchers, AssignedByUserId = Me, Priority = t.Priority,
-                    StartDate = i == 0 ? st0 : ms[i - 1].due, Due = m.due, TaskType = t.TaskType, Deliverable = Cut(m.dl, 500), Share = m.sh, Status = "Chưa bắt đầu", Arising = self,
+                    StartDate = i == 0 ? st0 : ms[i - 1].due, Due = m.due, TaskType = t.TaskType, Deliverable = Cut(m.dl, 500), Share = m.sh, Scale = 1, Status = "Chưa bắt đầu", Arising = self,
                     UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
                 };
                 Db.Tasks.Add(c); AddLog(c, "giao", $"Mốc kết quả tự chia ({m.sh}%), hạn {c.Due:dd/MM/yyyy}"); i++;
@@ -651,7 +651,7 @@ public class ViecController : ApiControllerBase
             foreach (dynamic r in (System.Collections.IEnumerable)((dynamic)res.Value).rows)
             {
                 if ((bool)r.self) kpi = new { total = (decimal)r.total, grade = (string)r.grade, estimate = (bool)r.estimate, target = minName, targetMin = min, work = (decimal?)r.work, missing = r.missing };
-                else if ((decimal)r.total < min && !(bool)r.locked && !(bool)r.estimate) low.Add(new { name = (string)r.Name, total = (decimal)r.total, grade = (string)r.grade });
+                else if ((decimal)r.total < min && !(bool)r.locked && !(bool)r.estimate && (string)r.grade != "Chưa đủ dữ liệu") low.Add(new { name = (string)r.Name, total = (decimal)r.total, grade = (string)r.grade });
             }
         }
         object? team = null;

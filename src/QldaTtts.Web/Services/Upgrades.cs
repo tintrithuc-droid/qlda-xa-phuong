@@ -107,6 +107,21 @@ public static class Upgrades
             }
         }
 
+        // Bản 1.10.24 (anh Trí 26/11/2026 "Phần dự án đã qua rồi thì cho nghiệm thu hết", "chỉ tính từ ngày mai cho phần mới"):
+        // việc đã báo xong mà chưa nghiệm thu trước bản này thì nghiệm thu Đạt hàng loạt; việc cũ không tính KPI theo sản phẩm (chỉ việc có Scale).
+        {
+            const string key = "upgrade:1.10.24-nghiem-thu-viec-cu";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                var olds = db.Tasks.Where(t => t.Status == "Hoàn thành" && t.Quality == null).ToList();
+                foreach (var t in olds) { t.Quality = 3; t.UpdatedAt = DateTime.UtcNow; t.UpdatedBy = "he-thong"; }
+                foreach (var t in db.Tasks.Where(t => t.Assignee != null && t.Assignee.StartsWith("Đang tải")).ToList()) t.Assignee = null;
+                db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, Username = "he-thong", Fullname = "Hệ thống", Action = "Nghiệm thu hàng loạt việc cũ (Đạt)", Module = "Công việc", Target = $"{olds.Count} việc đã báo xong trước bản 1.10.24" });
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // Bản 1.10.24 (anh Trí 26/11/2026 "Bỏ quyền xóa của nhân viên"): nhóm Nhân viên (g-nv) được thêm, sửa phần Dự án (Điều hành, Nghiệp vụ) nhưng không xóa;
         // Trưởng phòng, Giám đốc, Quản trị vẫn xóa được. Chỉ đặt cho phân hệ nhóm đang có quyền sửa.
         {

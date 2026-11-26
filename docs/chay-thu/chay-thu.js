@@ -88,7 +88,7 @@ async function makeDoc(b, file, title, lines) {
 
   // Bản 1.10.16: chạy lại bước nâng cấp một lần như lúc cài trên máy thật (đơn vị đã có dữ liệu e-work -> bật "Nhận nhiệm vụ", KPI tự động)
   if (process.env.CHAY_THU_RESTART) {
-    spawnSync('psql', ['-h', '127.0.0.1', '-U', 'qlda', '-d', DB, '-c', `delete from "Settings" where "Key"='upgrade:1.10.16-nhan-nhiem-vu'`], { env: { ...process.env, PGPASSWORD: 'qlda' }, encoding: 'utf8' });
+    spawnSync('psql', ['-h', '127.0.0.1', '-U', 'qlda', '-d', DB, '-c', `delete from "Settings" where "Key" in ('upgrade:1.10.16-nhan-nhiem-vu','upgrade:1.10.17-cong-viec-mot-nguon','upgrade:1.10.17-chu-dang-nhap')`], { env: { ...process.env, PGPASSWORD: 'qlda' }, encoding: 'utf8' });
     const rs = spawnSync('bash', [process.env.CHAY_THU_RESTART, DB], { encoding: 'utf8', timeout: 180000 }); console.log('Khởi động lại: ' + (rs.stdout || '').trim().split('\n').pop());
     const vs = await J(r.get(BASE + '/api/vp/settings', { headers: H })); const ks = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
     report.upgrade = { inOnly: vs.inOnly, word: vs.word, leaveBonus: vs.leaveSeniorityBonus, kpi: [ks.auto, ks.wWork, ks.wAttendance, ks.rankCompany, ks.rankTop, ks.public] };

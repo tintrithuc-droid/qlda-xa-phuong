@@ -4,17 +4,18 @@ const D = require('docx');
 const { Document, Packer, Paragraph, TextRun, ImageRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle,
   ShadingType, HeadingLevel, LevelFormat, Header, Footer, PageNumber, PositionalTab, PositionalTabAlignment, PositionalTabLeader,
   PositionalTabRelativeTo, Bookmark, InternalHyperlink, VerticalAlign, TableLayoutType, PageBreak } = D;
-const { ROLES, build } = require('./content');
+let { ROLES, build } = require('./content');
+if (process.env.HD_VARIANT === 'tt') ({ ROLES, build } = require('./variant-tt')(ROLES, build));
 
-const DIR = __dirname, SHOTS = path.join(DIR, 'shots'), OUT = path.join(DIR, 'out');
+const DIR = __dirname, SHOTS = process.env.HD_SHOTS || path.join(DIR, 'shots'), OUT = process.env.HD_OUT || path.join(DIR, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 const FONT = 'Times New Roman', NAVY = '0D2A57', RED = 'C8102E', GREY = 'BFC5CE', TXT = 9071; // vùng chữ 16 cm ≈ 9070 DXA
-const DATE = '03.11.2026', DATE_VN = '03/11/2026', MONTH = 'tháng 11 năm 2026';
+const DATE = '18.11.2026', DATE_VN = '18/11/2026', MONTH = 'tháng 11 năm 2026';
 const TT = 'Công ty CP Tin học Tri Thức';
 // Lịch sử thay đổi theo vai trò: [ngày, nội dung]; phiên bản tài liệu = dòng cuối, số V trong tên tệp = số dòng
 const hist = role => role.hist.map((h, i) => [h[2] || '1.' + i, h[0], h[1]]);
 const verNo = role => hist(role).slice(-1)[0][0];
-const vFile = role => 'V' + role.hist.length;
+const vFile = role => 'V' + (role.v || role.hist.length);
 
 const pngSize = f => { const b = fs.readFileSync(f); return { w: b.readUInt32BE(16), h: b.readUInt32BE(20), buf: b }; };
 const cm2px = cm => Math.round(cm * 37.795);
@@ -132,6 +133,12 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
       b.table.rows.forEach((r, ri) => rows.push(new TableRow({ cantSplit: true, children: r.map((v, i) => cell([cp(String(v), { align: W[i] <= 900 ? AlignmentType.CENTER : AlignmentType.LEFT })], W[i], { fill: ri % 2 ? 'F3F5F9' : undefined })) })));
       body.push(table(W, rows));
       body.push(P([new TextRun({ text: '', size: 12 })], { spacing: { before: 0, after: 80, line: 160 } }));
+    } else if (b.code) {
+      // khối lệnh: chữ đơn cách trên nền xám, mỗi dòng một đoạn
+      const cb = { style: BorderStyle.SINGLE, size: 4, color: 'C9D1DE' };
+      const lines = b.code.split('\n').map((l, i, a) => P([new TextRun({ text: l || ' ', font: 'Consolas', size: 21 })], { spacing: { before: 0, after: 0, line: 260 }, keepNext: i < a.length - 1 }));
+      body.push(table([TXT], [new TableRow({ cantSplit: true, children: [cell(lines, TXT, { fill: 'F4F6FA', borders: { top: cb, bottom: cb, left: cb, right: cb }, margins: { top: 80, bottom: 80, left: 160, right: 120 } })] })]));
+      body.push(P([new TextRun({ text: '', size: 12 })], { spacing: { before: 0, after: 80, line: 160 } }));
     } else if (b.note) {
       const nb = { style: BorderStyle.SINGLE, size: 6, color: '9DB4DA' };
       body.push(P([new TextRun({ text: '', size: 12 })], { spacing: { before: 0, after: 40, line: 160 }, keepNext: true }));
@@ -141,21 +148,23 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   });
 
   // ===== Bìa =====
+  const cust = k !== 'ns';
   const drum = fs.readFileSync(path.join(DIR, 'drum.png'));
   const cv = (text, o = {}) => P([new TextRun({ text, bold: o.bold, size: o.size || 26, color: o.color, italics: o.italics })], { alignment: AlignmentType.CENTER, spacing: { before: o.before || 0, after: o.after || 0 } });
   const cover = [
-    cv('ỦY BAN NHÂN DÂN XÃ/PHƯỜNG', { size: 26 }),
-    cv('BAN QUẢN LÝ DỰ ÁN', { bold: true, size: 26 }),
+    cv(role.top ? role.top[0] : 'ỦY BAN NHÂN DÂN XÃ/PHƯỜNG', { size: 26 }),
+    cv(role.top ? role.top[1] : 'BAN QUẢN LÝ DỰ ÁN', { bold: true, size: 26 }),
     P([new TextRun({ text: '', size: 8 })], { alignment: AlignmentType.CENTER, indent: { left: 3600, right: 3600 }, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 1 } }, spacing: { after: 0 } }),
     P([new ImageRun({ type: 'png', data: drum, transformation: { width: cm2px(5.2), height: cm2px(5.2) }, altText: { title: 'Trống đồng', description: 'Hoa văn mặt trống đồng', name: 'drum' } })], { alignment: AlignmentType.CENTER, spacing: { before: 1300, after: 900 } }),
     cv('TÀI LIỆU', { bold: true, size: 32, color: NAVY }),
     cv('HƯỚNG DẪN SỬ DỤNG', { bold: true, size: 40, color: NAVY, after: 240 }),
-    cv('PHẦN MỀM QUẢN LÝ DỰ ÁN ĐẦU TƯ XÂY DỰNG', { bold: true, size: 28 }),
-    cv('BẢN DÙNG CHUNG CHO CÁC XÃ, PHƯỜNG', { size: 26, after: 600 }),
+    cv(role.product || 'PHẦN MỀM QUẢN LÝ DỰ ÁN ĐẦU TƯ XÂY DỰNG', { bold: true, size: 28 }),
+    cv(role.coverSub || 'BẢN DÙNG CHUNG CHO CÁC XÃ, PHƯỜNG', { size: 26, after: 600 }),
     P([new TextRun({ text: role.cover ? '' : 'Dành cho: ', size: 28 }), new TextRun({ text: role.cover || role.name.toUpperCase(), bold: true, size: 28, color: RED })], { alignment: AlignmentType.CENTER, spacing: { after: 120 } }),
-    cv('Phiên bản ' + verNo(role), { italics: true, size: 26, after: 2000 }),
+    // Tài liệu cho khách hàng không ghi phiên bản, ngày ban hành
+    ...(cust ? [P([], { spacing: { after: 2400 } })] : [cv('Phiên bản ' + verNo(role), { italics: true, size: 26, after: 2000 })]),
     cv('Đơn vị thực hiện: Công ty Cổ phần Tin học Tri Thức', { size: 24 }),
-    cv('Cần Thơ, ' + MONTH, { bold: true, size: 26, before: 200 }),
+    ...(cust ? [] : [cv('Cần Thơ, ' + MONTH, { bold: true, size: 26, before: 200 })]),
   ];
 
   // ===== Thông tin tài liệu =====
@@ -166,16 +175,16 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
   const sub = t => P([new TextRun({ text: t, bold: true, size: 26 })], { spacing: { before: 280, after: 120 } });
   const info = [
     title('THÔNG TIN TÀI LIỆU'),
-    kv([['Tên tài liệu', role.audience ? `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – ${role.name.toLowerCase()}` : `Hướng dẫn sử dụng Phần mềm quản lý dự án đầu tư xây dựng – dành cho ${role.name}`],
-      ['Mã tài liệu', `HDSD-QLDA-XP-${k.toUpperCase()}`], ['Phiên bản', verNo(role)], ['Ngày ban hành', DATE_VN],
+    kv([['Tên tài liệu', role.audience ? `Hướng dẫn sử dụng ${role.product ? 'Phần mềm quản lý dự án tư vấn' : 'Phần mềm quản lý dự án đầu tư xây dựng'} – ${role.name.toLowerCase()}` : `Hướng dẫn sử dụng ${role.product ? 'Phần mềm quản lý dự án tư vấn' : 'Phần mềm quản lý dự án đầu tư xây dựng'} – dành cho ${role.name}`],
+      ['Mã tài liệu', `${role.code || 'HDSD-QLDA-XP-'}${k.toUpperCase()}`], ...(cust ? [] : [['Phiên bản', verNo(role)], ['Ngày ban hành', DATE_VN]]),
       ['Đối tượng sử dụng', role.audience || `Cán bộ thuộc nhóm người dùng «${role.name}»`],
-      ['Cơ quan sử dụng', 'Ban Quản lý dự án đầu tư xây dựng xã/phường'],
+      ['Cơ quan sử dụng', role.org || 'Ban Quản lý dự án đầu tư xây dựng xã/phường'],
       ['Đơn vị soạn thảo', 'Công ty Cổ phần Tin học Tri Thức']]),
-    sub('Lịch sử thay đổi'),
-    hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], hist(role).map(([v, d, t]) => [v, d, t, TT])),
+    ...(cust ? [] : [sub('Lịch sử thay đổi'),
+      hdr([1300, 1700, 4000, 2000], ['Phiên bản', 'Ngày', 'Nội dung thay đổi', 'Người thực hiện'], hist(role).map(([v, d, t]) => [v, d, t, TT]))]),
     sub('Thuật ngữ và từ viết tắt'),
-    hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [['BQLDA', 'Ban Quản lý dự án đầu tư xây dựng xã/phường'], ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
-      ['GPMB', 'Giải phóng mặt bằng'], ['KBNN', 'Kho bạc Nhà nước'], ['TVGS', 'Tư vấn giám sát'], ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian']]),
+    hdr([2000, 7000], ['Từ viết tắt', 'Ý nghĩa'], [...(role.glossary ? role.glossary.slice(0, 1) : [['BQLDA', 'Ban Quản lý dự án đầu tư xây dựng xã/phường']]), ['QLDA', 'Quản lý dự án'], ['HDSD', 'Hướng dẫn sử dụng'],
+      ['GPMB', 'Giải phóng mặt bằng'], ['KBNN', 'Kho bạc Nhà nước'], ...(role.glossary ? role.glossary.slice(1) : [['TVGS', 'Tư vấn giám sát']]), ['BOQ', 'Bảng khối lượng hợp đồng (Bill of Quantities)'], ['QTHT', 'Quản trị hệ thống'], ['Gantt', 'Biểu đồ tiến độ dạng thanh ngang theo thời gian'], ...(role.terms || [])]),
   ];
 
   // ===== Mục lục tĩnh (số trang từ lượt 1) =====
@@ -185,14 +194,14 @@ function makeDoc(k, pages, FIT = {}, FIGS = []) {
       new TextRun({ text: '\t' + String(pages[t.id] || 0), bold: t.lvl === 1, size: 25 })] })],
     { tabStops: [{ type: D.TabStopType.RIGHT, position: 9060, leader: 'dot' }], indent: { left: t.lvl === 1 ? 0 : 400, right: 0 }, spacing: { before: t.lvl === 1 ? 100 : 0, after: 20, line: 264 } })));
 
-  const header = new Header({ children: [P([new TextRun({ text: `HDSD Phần mềm QLDA đầu tư xây dựng – ${role.name}`, italics: true, size: 20, color: '5A6474' })],
+  const header = new Header({ children: [P([new TextRun({ text: `HDSD ${role.prefix ? 'Phần mềm QLDA Tri Thức' : 'Phần mềm QLDA đầu tư xây dựng'} – ${role.name}`, italics: true, size: 20, color: '5A6474' })],
     { alignment: AlignmentType.RIGHT, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY, space: 2 } } })] });
   const footer = new Footer({ children: [P([new TextRun({ children: [PageNumber.CURRENT], size: 22 })], { alignment: AlignmentType.CENTER })] });
   const margin = { top: 1134, bottom: 1134, left: 1701, right: 1134, header: 567, footer: 567 };
   const dbl = { style: BorderStyle.DOUBLE, size: 12, color: NAVY, space: 24 };
 
   return new Document({
-    creator: 'Công ty Cổ phần Tin học Tri Thức', title: `HDSD Phần mềm QLDA đầu tư xây dựng – ${role.name}`,
+    creator: 'Công ty Cổ phần Tin học Tri Thức', title: `HDSD ${role.prefix ? 'Phần mềm QLDA Tri Thức' : 'Phần mềm QLDA đầu tư xây dựng'} – ${role.name}`,
     styles: {
       default: { document: { run: { font: FONT, size: 26 } } },
       paragraphStyles: [
@@ -239,7 +248,7 @@ function tocOf(k) {
 (async () => {
   const keys = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ROLES).filter(k => k !== 'dt');
   for (const k of keys) {
-    const fn = path.join(OUT, `${DATE} - HDSD Phan mem QLDA Xa Phuong - ${ROLES[k].file} - ${vFile(ROLES[k])}.docx`);
+    const fn = path.join(OUT, `${DATE} - ${ROLES[k].prefix || 'HDSD Phan mem QLDA Xa Phuong'} - ${ROLES[k].file} - ${vFile(ROLES[k])}.docx`);
     const toc = tocOf(k), FIT = {}, log = [];
     let pages = {}, rep;
     // dàn trang: thu nhỏ hình bị đẩy sang trang sau (mỗi lượt sửa hình sớm nhất) cho tới khi không còn

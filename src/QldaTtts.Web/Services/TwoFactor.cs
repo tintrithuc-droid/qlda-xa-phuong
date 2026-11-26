@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
@@ -21,16 +21,19 @@ public class TwoFactor
     private readonly IDataProtector _secret, _ticket;
     private readonly IConfiguration _cfg;
 
-    public TwoFactor(IDataProtectionProvider dp, IConfiguration cfg)
+    private readonly TenantContext _tc;
+    public TwoFactor(IDataProtectionProvider dp, IConfiguration cfg, TenantContext tc)
     {
-        _secret = dp.CreateProtector("QldaTtts.TwoFactor.Secret");
-        _ticket = dp.CreateProtector("QldaTtts.TwoFactor.Ticket");
-        _cfg = cfg;
+        // Chế độ cho thuê: mỗi xã một khóa con riêng (khóa 2 lớp, phiếu đăng nhập của xã này không giải mã được ở xã khác)
+        _secret = dp.CreateProtector(tc.Purpose("QldaTtts.TwoFactor.Secret"));
+        _ticket = dp.CreateProtector(tc.Purpose("QldaTtts.TwoFactor.Ticket"));
+        _cfg = cfg; _tc = tc;
     }
 
     /// <summary>Bắt buộc xác thực 2 lớp với nhóm có toàn quyền (mặc định bật).</summary>
     public bool RequiredForAdmins => _cfg.GetValue("Security:RequireTwoFactorForAdmins", true);
-    public string Issuer => _cfg["Security:TwoFactorIssuer"] is { Length: > 0 } s ? s : "QLDA Xa Phuong";
+    public string Issuer => _cfg["Security:TwoFactorIssuer"] is { Length: > 0 } s ? s
+        : _tc.Current is { } t ? "QLDA " + t.Name : _tc.Portal ? "QLDA Quan tri nen tang" : "QLDA Xa Phuong";
 
     public bool Required(AppUser u, UserGroup? g) => u.TotpSecret is not null || (RequiredForAdmins && g?.Admin == true);
 

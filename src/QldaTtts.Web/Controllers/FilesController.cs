@@ -32,6 +32,21 @@ public class FilesController : ApiControllerBase
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         var sf = await Db.Files.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
         if (sf is null) return Error(404, "Tệp không còn tồn tại.");
+        // Bản 1.10.4: tệp đính kèm hồ sơ nhân sự (bằng cấp, CCCD, hợp đồng): chỉ người quản lý nhân sự và chính người đó
+        // Bản 1.10.12: tệp hồ sơ nhân sự (một tệp cũ trên mục, hoặc nhiều tệp ở Attachments "ho-so-ns"): người quản lý nhân sự, chính người đó;
+        // người xem nhân sự chỉ xem được tệp bằng cấp, hợp đồng, công tác, khen thưởng (không xem kỷ luật, giấy tờ riêng)
+        var hrOwner = await HoSoNhanSuController.OwnerOfFile(Db, id);
+        if (hrOwner is not null && sf.UploadedBy != Uc.User.Username && !Uc.Can("nhan-su", true)
+            && !await Db.Employees.AsNoTracking().AnyAsync(e => e.Id == hrOwner && e.UserId == Uc.User.Id))
+        {
+            var kinds = await Db.EmployeeRecords.AsNoTracking().Where(r => r.FileId == id).Select(r => r.Kind)
+                .Concat(Db.Attachments.AsNoTracking().Where(a => a.FileId == id && a.Collection == HoSoNhanSuController.Col).Select(a => a.Kind ?? "")).ToListAsync();
+            if (!Uc.Can("nhan-su") || kinds.Any(k => k is "ky-luat" or "giay-to" or "")) return Denied("Tệp thuộc hồ sơ nhân sự riêng.");
+        }
+        // Bản 1.10.12: tệp của đề xuất (nghỉ phép, thanh toán…) chỉ người gửi, trưởng phòng, người xem mọi đề xuất
+        var reqIds = await Db.Attachments.AsNoTracking().Where(a => a.FileId == id && a.Collection == "vp-de-xuat").Select(a => a.RecordId).ToListAsync();
+        if (reqIds.Count > 0 && sf.UploadedBy != Uc.User.Username && await VpTepController.Visible(Db, Uc, "vp-de-xuat", reqIds) is { } vis && vis.Count == 0)
+            return Denied("Tệp thuộc đề xuất của người khác.");
         var guideIds = await Db.Attachments.AsNoTracking().Where(a => a.FileId == id && a.Collection == "guides").Select(a => a.RecordId).ToListAsync();
         if (guideIds.Count > 0)
         {

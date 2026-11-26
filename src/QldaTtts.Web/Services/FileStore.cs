@@ -3,7 +3,7 @@ using QldaTtts.Web.Data;
 
 namespace QldaTtts.Web.Services;
 
-/// <summary>Kho tệp vật lý trên máy chủ (mặc định App_Data/files, cấu hình Storage:FilesPath).</summary>
+/// <summary>Kho tệp vật lý trên máy chủ (mặc định App_Data/files, cấu hình Storage:FilesPath; chế độ cho thuê: thư mục riêng của từng xã).</summary>
 public class FileStore
 {
     public const long MaxBytes = 500L * 1024 * 1024;
@@ -13,9 +13,9 @@ public class FileStore
 
     public string Root { get; }
 
-    public FileStore(IConfiguration cfg, IWebHostEnvironment env)
+    public FileStore(TenantContext tc)
     {
-        Root = Path.GetFullPath(cfg["Storage:FilesPath"] is { Length: > 0 } p ? p : Path.Combine(env.ContentRootPath, "App_Data", "files"));
+        Root = Path.GetFullPath(tc.FilesPath);
     }
 
     /// <summary>Trả về thông báo lỗi nếu tệp không được phép tải lên, ngược lại null.</summary>

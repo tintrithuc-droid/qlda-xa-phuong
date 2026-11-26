@@ -35,11 +35,16 @@ async function login(p, u, pw = PW) {
   await p.goto(BASE + '/'); await p.waitForSelector('#login, #setup', { timeout: 15000 });
   if (await p.$('#setup')) {
     await p.fill('#su_name', 'Nguyễn Quản Trị'); await p.fill('#su_pw', PW); await p.fill('#su_pw2', PW);
+    // Chế độ cho thuê (hoặc máy chủ đặt Setup:Token): nhập mã khởi tạo, lấy từ biến SETUP_TOKEN
+    if (await p.$('#su_token')) await p.fill('#su_token', process.env.SETUP_TOKEN || '');
+    // Xã thuê bao mặc định không nạp dữ liệu mẫu; kiểm thử cần dữ liệu mẫu nên đánh dấu rõ
+    await p.check('#su_sample');
     await p.click('#setup button[type=submit]');
   } else throw new Error('Cần cơ sở dữ liệu trống');
   // Tài khoản quản trị bắt buộc thiết lập xác thực 2 lớp ngay sau khởi tạo
   await p.waitForSelector('#mfa .qr svg', { timeout: 30000 }); await p.screenshot({ path: `${SHOTS}/mfa-enroll.png` });
   const secret = await p.evaluate(() => S.mfaStep.secret);
+  fs.writeFileSync(path.join(SHOTS, 'admin-totp.txt'), secret); // cho các kiểm thử chạy sau (v15.js) đăng nhập quản trị
   p._expectFail = true; await p.fill('#mf_code', '000000'); await p.click('#mfa button[type=submit]'); await p.waitForTimeout(400); p._expectFail = false;
   if (!(await p.textContent('#mf_err')).trim()) errs.push('Không báo lỗi khi nhập sai mã 2 lớp');
   await p.fill('#mf_code', totp(secret)); await p.click('#mfa button[type=submit]');
@@ -75,8 +80,10 @@ async function login(p, u, pw = PW) {
   else { const r = await p.request.get(BASE + diary.photos[0].url); if (r.status() !== 200) errs.push('Không tải lại được ảnh ' + r.status()); }
 
   // Tiến độ, khối lượng, thanh toán
-  await go(p, 'tien-do'); await p.click('[data-act=upd-sched]'); await p.fill('#f_progress', '90'); await p.click('#mform [type=submit]'); await p.waitForTimeout(500);
-  await go(p, 'khoi-luong'); await p.click('[data-act=add-vol]'); await p.selectOption('#f_boqId', { index: 0 }); await p.fill('#f_doneQty', '10'); await p.fill('#f_acceptedQty', '5'); await p.click('#mform [type=submit]'); await p.waitForTimeout(500);
+  await go(p, 'tien-do'); await p.click('[data-act=upd-sched]'); await p.fill('#f_progress', '90'); await p.click('#mform [type=submit]'); await p.waitForSelector('#mform', { state: 'detached', timeout: 15000 }).catch(async () => console.log('Hộp thoại tiến độ còn mở:', await p.evaluate(() => document.querySelector('#mform_err')?.textContent || '')));
+  await go(p, 'khoi-luong'); await p.click('[data-act=vb-new]'); await p.fill('.vb-grid tbody tr:first-child [data-k=d]', '10'); await p.fill('.vb-grid tbody tr:first-child [data-k=a]', '5'); await p.click('#mform [type=submit]'); await p.waitForSelector('#mform', { state: 'detached', timeout: 20000 }).catch(() => {}); await p.waitForFunction(() => Store.data.vbatches.some(b => b.status === 'Soạn thảo'), null, { timeout: 10000 }).catch(() => {});
+  { const nb = await p.evaluate(() => Store.data.vbatches.filter(b => b.status === 'Soạn thảo').length); if (nb !== 1) errs.push('Không lập được đợt nghiệm thu: ' + nb + ' ' + (await p.evaluate(() => document.querySelector('#mform_err')?.textContent || ''))); }
+  if (await p.$('#ov:not([hidden])')) { const t = await p.evaluate(() => (document.querySelector('#ov')?.innerText || '').replace(/\s+/g, ' ').slice(0, 300)); errs.push('Hộp thoại còn mở sau khi lưu đợt khối lượng: ' + t); await p.evaluate(() => closeModal()); }
   for (const t of ['nt', 'th']) { await p.click(`[data-g=kl][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'thanh-toan'); for (const t of ['kh', 'hs', 'th']) { await p.click(`[data-g=tt][data-id=${t}]`); await p.waitForTimeout(200); }
   await go(p, 'bao-cao'); for (const v of ['tiendo', 'hopdong', 'khoiluong', 'thoigian']) { await p.selectOption('[data-f=bct]', v); await p.waitForTimeout(250); }
@@ -126,7 +133,10 @@ async function login(p, u, pw = PW) {
     await p.fill('#f_householdsPaid', '2'); await submit();
     await go(p, 'nghiem-thu');
     await p.evaluate(() => ACT['add-acceptances']()); await p.waitForTimeout(200);
-    await p.selectOption('#f_projectId', 'p2'); await p.selectOption('#f_packageId', 'k1'); await p.selectOption('#f_kind', 'Nghiệm thu giai đoạn thi công');
+    await p.selectOption('#f_projectId', 'p2');
+    /* 1.8.8: danh sách gói thầu lọc theo dự án đã chọn; vẫn kiểm tra chặn khi gói khác dự án lọt vào (gửi thẳng giá trị) */
+    if (await p.evaluate(() => [...document.querySelectorAll('#f_packageId option')].some(o => o.value === 'k1'))) errs.push('C4: danh sách gói thầu chưa lọc theo dự án');
+    await p.evaluate(() => { const s = document.querySelector('#f_packageId'); s.add(new Option('k1', 'k1')); s.value = 'k1'; }); await p.selectOption('#f_kind', 'Nghiệm thu giai đoạn thi công');
     await p.click('#mform [type=submit]'); await p.waitForTimeout(300);
     if (!(await p.textContent('#mform_err')).includes('không thuộc')) errs.push('C4: không chặn gói thầu khác dự án');
     await p.selectOption('#f_packageId', 'k4'); await p.fill('#f_warrantyMonths', '12'); await submit();
@@ -163,6 +173,8 @@ async function login(p, u, pw = PW) {
   await openP('p1'); await p.click('[data-act=edit-projects]'); await p.waitForTimeout(200);
   if (!(await p.inputValue('#f_decNo')).includes('215/QĐ')) errs.push('A1: không nạp số QĐ phê duyệt hiện có');
   await p.fill('#f_decDate_t', '20/01/2025'); await putFiles('decAtt', [pdf]); await submit();
+  // tệp tải lên sau khi biểu mẫu đóng, máy CI chậm cần chờ đến khi gắn xong (tối đa 10 giây)
+  await p.waitForFunction(() => Store.data.attachments.some(a => a.collection === 'legal' && a.recordId === 'l2') && document.querySelector('#content').textContent.includes('QD-phe-duyet.pdf'), null, { timeout: 10000 }).catch(() => {});
   if (await attOf('legal', 'l2') !== 1) errs.push('A1: tệp QĐ phê duyệt chưa gắn vào hồ sơ pháp lý l2');
   if (!(await p.textContent('#content')).includes('QD-phe-duyet.pdf')) errs.push('A1: Thông tin chung chưa hiện tệp QĐ');
   await p.screenshot({ path: `${SHOTS}/dot1-du-an-thong-tin.png`, fullPage: true });
@@ -170,6 +182,9 @@ async function login(p, u, pw = PW) {
   await p.evaluate(() => ACT['add-project']()); await p.waitForTimeout(200);
   await p.fill('#f_code', 'DA-TEST'); await p.fill('#f_name', 'Dự án kiểm thử đính kèm'); await p.fill('#f_tmdt', '1000000000');
   await p.fill('#f_decNo', '99/QĐ-UBND'); await p.fill('#f_decDate_t', '01/10/2026'); await putFiles('decAtt', [pdf, img]); await submit();
+  // như bước trên: tệp tải lên sau khi biểu mẫu đóng, chờ đến khi hồ sơ pháp lý mới có đủ 2 tệp (tối đa 10 giây)
+  await p.waitForFunction(() => { const pr = Store.data.projects.find(x => x.code === 'DA-TEST'); const l = pr && Store.data.legal.find(x => x.projectId === pr.id && x.type === 'Quyết định phê duyệt dự án');
+    return l && Store.data.attachments.filter(a => a.collection === 'legal' && a.recordId === l.id).length >= 2; }, null, { timeout: 10000 }).catch(() => {});
   const newP = await p.evaluate(() => Store.data.projects.find(x => x.code === 'DA-TEST'));
   const newL = await p.evaluate(id => Store.data.legal.find(l => l.projectId === id && l.type === 'Quyết định phê duyệt dự án'), newP && newP.id);
   if (!newL || await attOf('legal', newL.id) !== 2 || !newP.decision.includes('99/QĐ-UBND')) errs.push('A1: dự án mới không tạo được QĐ phê duyệt kèm 2 tệp');
@@ -210,10 +225,12 @@ async function login(p, u, pw = PW) {
   if (await attOf('addenda', ad.id) !== 1) errs.push('A6: phụ lục chưa có tệp');
   await p.screenshot({ path: `${SHOTS}/dot1-hop-dong.png`, fullPage: true });
   // A7, A8: tiến độ được duyệt + ảnh cập nhật tiến độ
-  await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100).id);
+  await go(p, 'tien-do'); const sid = await p.evaluate(() => Store.data.schedule.find(s => s.progress < 100 && (!s.status || s.status === 'Đã duyệt')).id);
   await p.evaluate(id => ACT['edit-schedule'](id), sid); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   await p.evaluate(id => ACT['upd-sched'](id), sid); await p.waitForTimeout(200); await p.fill('#f_progress', '55'); await putFiles('att', [img]); await submit();
-  if (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1) errs.push('A7/A8: tệp tiến độ chưa gắn');
+  // Tệp gắn xong thì dữ liệu mới nạp lại sau khoảng 1 giây: chờ tối đa 8 giây thay vì đọc ngay (lúc chạy chậm trên CI dễ đọc hụt)
+  for (let i = 0; i < 16 && (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1); i++) { await p.evaluate(() => Store.load().catch(() => {})); await p.waitForTimeout(500); }
+  if (await attOf('schedule', sid, 'Kế hoạch tiến độ') !== 1 || await attOf('schedule', sid, 'Cập nhật tiến độ') !== 1) errs.push('A7/A8: tệp tiến độ chưa gắn: ' + JSON.stringify(await p.evaluate(i => Store.data.attachments.filter(a => a.collection === 'schedule' && a.recordId === i).map(a => a.kind), sid)));
   const today = await p.evaluate(() => TODAY);
   if ((await p.evaluate(id => Store.data.attachments.find(a => a.recordId === id && a.kind === 'Cập nhật tiến độ').ref, sid)) !== today) errs.push('A8: ảnh cập nhật chưa gắn theo ngày');
   // A9: nhật ký: trang đã ký + chú thích ảnh, bỏ ảnh
@@ -226,16 +243,20 @@ async function login(p, u, pw = PW) {
   // A10, A11: bảng khối lượng gốc + biên bản nghiệm thu theo đợt
   await p.evaluate(() => { S.tab.kl = 'hd'; }); await go(p, 'khoi-luong'); const kcid = await p.evaluate(() => pickContract('klc'));
   await p.click('[data-act=att-boq]'); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
-  await p.click('[data-act=add-vol]'); await p.waitForTimeout(200); await p.selectOption('#f_boqId', { index: 0 }); await p.fill('#f_period', 'Đợt thử'); await p.fill('#f_doneQty', '1'); await putFiles('att', [pdf]); await submit();
+  await p.click('[data-act=vb-new]'); await p.waitForTimeout(200); await p.fill('#f_name', 'Đợt thử'); await p.fill('.vb-grid tbody tr:first-child [data-k=d]', '1'); await putFiles('att', [pdf]); await submit();
   if (await attOf('contracts', kcid, 'Bảng khối lượng hợp đồng') !== 1) errs.push('A10: bảng khối lượng gốc chưa gắn');
-  if ((await p.evaluate(c => Store.data.attachments.filter(a => a.recordId === c && a.kind === 'Biên bản nghiệm thu' && a.ref === 'Đợt thử').length, kcid)) !== 1) errs.push('A11: biên bản nghiệm thu đợt chưa gắn');
+  if ((await p.evaluate(c => { const b = Store.data.vbatches.find(x => x.contractId === c && x.name === 'Đợt thử'); return b ? Store.data.attachments.filter(a => a.collection === 'vbatches' && a.recordId === b.id && a.kind === 'Biên bản nghiệm thu').length : 0; }, kcid)) !== 1) errs.push('A11: biên bản nghiệm thu đợt chưa gắn');
   // A12, A13: kế hoạch thanh toán, hồ sơ thanh toán nhiều tệp, chứng từ Kho bạc khi xác nhận đã chi
   await go(p, 'thanh-toan'); await p.click('[data-g=tt][data-id=kh]'); await p.waitForTimeout(200);
   const pp = await p.evaluate(() => Store.data.payplans[0].id);
   await p.evaluate(id => ACT['edit-payplans'](id), pp); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   await p.click('[data-g=tt][data-id=hs]'); await p.waitForTimeout(200);
-  await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); await p.selectOption('#f_contractId', await p.evaluate(() => Store.data.contracts.find(c => contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
+  await p.click('[data-act=add-pay]'); await p.waitForTimeout(200); // chọn trong các hợp đồng đang có trên biểu mẫu (giai đoạn Thực hiện đầu tư); thứ tự bản ghi khác nhau giữa các CSDL
+  await p.selectOption('#f_contractId', await p.evaluate(() => [...document.querySelectorAll('#f_contractId option')].map(o => o.value).filter(Boolean).map(id => get('contracts', id)).find(c => c && contractValue(c) - sum(Store.data.payments.filter(x => x.contractId === c.id && x.status !== 'Từ chối'), 'amount') > 1e6).id)); await p.fill('#f_number', 'TT-TEST'); await p.fill('#f_amount', '1000'); await putFiles('att', [pdf, pdf2]); await submit();
+  await p.waitForFunction(() => Store.data.payments.some(x => x.number === 'TT-TEST'), null, { timeout: 10000 }).catch(async () => { throw new Error('Không lưu được hồ sơ thanh toán TT-TEST: ' + await p.evaluate(() => (document.querySelector('#mform_err') || {}).textContent)); });
   const pay = await p.evaluate(() => Store.data.payments.find(x => x.number === 'TT-TEST'));
+  // Bản 1.7: trạng thái chỉ đổi qua trình duyệt; trình, duyệt xong (Đang trình KBNN) mới xác nhận đã chi
+  await p.evaluate(async id => { for (const a of ['submit', 'approve']) { const r = await api('POST', '/api/approvals', { collection: 'payments', id, action: a, note: '' }); Store.setLocal('payments', r.record); } }, pay.id);
   await p.evaluate(id => ACT['pay-done'](id), pay.id); await p.waitForTimeout(200); await putFiles('att', [pdf]); await submit();
   if (await attOf('payplans', pp) !== 1 || await attOf('payments', pay.id, 'Hồ sơ đề nghị thanh toán') !== 2 || await attOf('payments', pay.id, 'Chứng từ Kho bạc') !== 1) errs.push('A12/A13: tệp thanh toán chưa đủ');
   if ((await p.evaluate(id => Store.data.payments.find(x => x.id === id).status, pay.id)) !== 'Đã thanh toán') errs.push('A13: chưa chuyển Đã thanh toán');
@@ -406,7 +427,13 @@ async function login(p, u, pw = PW) {
     // Mỗi vai trò chỉ thấy hướng dẫn của mình
     const roleView = async (u, pw = PW) => { const c = await b.newContext(); const r = c.request;
       await r.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: u, password: pw } });
-      const d = await (await r.get(BASE + '/api/data')).json(); return { c, r, d }; };
+      let res = await r.get(BASE + '/api/data');
+      // Bản 1.8: mật khẩu do quản trị đặt lại phải đổi ở lần đăng nhập đầu, chưa đổi thì máy chủ chặn dữ liệu (403 pwchange)
+      if (res.status() === 403 && (await res.json()).pwchange) {
+        const np = pw + 'X'; const cp = await r.post(BASE + '/api/auth/change-password', { headers: { 'X-QLDA': '1' }, data: { old: pw, password: np } });
+        if (cp.status() !== 200) errs.push('Đổi mật khẩu lần đầu lỗi ' + cp.status()); console.log('Đổi mật khẩu lần đầu (' + u + '):', cp.status());
+        res = await r.get(BASE + '/api/data'); }
+      const d = await res.json(); return { c, r, d }; };
     const gs = await roleView('giamsat', 'Moi2026abc'), ke = await roleView('ketoan');
     const gsT = gs.d.guides.map(g => g.title), keT = ke.d.guides.map(g => g.title);
     console.log('TVGS thấy:', gsT.length, '| Kế toán thấy:', keT.length);
@@ -435,7 +462,10 @@ async function login(p, u, pw = PW) {
   let last;
   for (let i = 0; i < 6; i++) last = await q.request.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'ketoan', password: 'sai' + i } });
   console.log('Sau 6 lần sai:', last.status());
-  if (last.status() !== 423) errs.push('Không tạm khóa khi nhập sai nhiều lần');
+  // Bản 1.8: sai từ lần thứ 3 phải nhập mã kiểm tra (428), không khóa tài khoản (người khác đoán sai không làm khóa tài khoản thật)
+  if (last.status() !== 428 || !(await last.json()).captcha) errs.push('Không yêu cầu mã kiểm tra khi nhập sai nhiều lần');
+  const okLogin = await (await b.newContext()).request.post(BASE + '/api/auth/login', { headers: { 'X-QLDA': '1' }, data: { username: 'ketoan', password: PW } });
+  console.log('Đăng nhập đúng từ máy khác sau khi bị đoán sai:', okLogin.status());
 
   // Đăng xuất
   await p.click('[data-act=account]').catch(() => {}); await p.waitForTimeout(200);

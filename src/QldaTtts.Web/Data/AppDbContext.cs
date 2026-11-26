@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<Diary> Diaries => Set<Diary>();
     public DbSet<BoqItem> Boq => Set<BoqItem>();
     public DbSet<VolumeEntry> Volumes => Set<VolumeEntry>();
+    public DbSet<VolumeBatch> VolumeBatches => Set<VolumeBatch>();
     public DbSet<PayPlan> PayPlans => Set<PayPlan>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<CapitalPlan> CapitalPlans => Set<CapitalPlan>();
@@ -38,6 +39,20 @@ public class AppDbContext : DbContext
     public DbSet<Guide> Guides => Set<Guide>();
     public DbSet<AppSetting> Settings => Set<AppSetting>();
     public DbSet<ApprovalLog> ApprovalLogs => Set<ApprovalLog>();
+    public DbSet<Organization> Organizations => Set<Organization>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<Attendance> Attendances => Set<Attendance>();
+    public DbSet<TaskLog> TaskLogs => Set<TaskLog>();
+    public DbSet<Request> Requests => Set<Request>();
+    public DbSet<Meeting> Meetings => Set<Meeting>();
+    public DbSet<Notice> Notices => Set<Notice>();
+    public DbSet<NoticeRead> NoticeReads => Set<NoticeRead>();
+    public DbSet<KpiSheet> KpiSheets => Set<KpiSheet>();
+    public DbSet<PayProfile> PayProfiles => Set<PayProfile>();
+    public DbSet<Payslip> Payslips => Set<Payslip>();
+    public DbSet<EmployeeRecord> EmployeeRecords => Set<EmployeeRecord>();
+    public DbSet<EworkRow> EworkArchive => Set<EworkRow>();
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -60,26 +75,48 @@ public class AppDbContext : DbContext
         JsonColumn<Diary, List<Photo>>(b, x => x.Photos);
         JsonColumn<UserGroup, Dictionary<string, string>>(b, x => x.Perms);
         JsonColumn<UserGroup, List<string>>(b, x => x.Scope);
+        JsonColumn<Project, List<string>>(b, x => x.ViewerIds);
         JsonColumn<Guide, List<string>>(b, x => x.Groups);
+        JsonColumn<Package, List<string>>(b, x => x.ContractorIds);
+        JsonColumn<Package, Dictionary<string, decimal>>(b, x => x.ContractorShares);
+        JsonColumn<Package, List<string>>(b, x => x.SupervisorIds);
 
         b.Entity<AppUser>().HasIndex(x => x.Username).IsUnique();
         b.Entity<Project>().HasIndex(x => x.Code);
         b.Entity<Package>().HasIndex(x => x.ProjectId);
+        b.Entity<TaskLog>().HasIndex(x => x.TaskId);
         b.Entity<Contract>().HasIndex(x => x.PackageId);
         b.Entity<ScheduleItem>().HasIndex(x => x.PackageId);
         b.Entity<Diary>().HasIndex(x => new { x.PackageId, x.Date });
         b.Entity<BoqItem>().HasIndex(x => x.ContractId);
         b.Entity<VolumeEntry>().HasIndex(x => x.BoqId);
+        b.Entity<VolumeEntry>().HasIndex(x => x.BatchId);
+        b.Entity<VolumeBatch>().HasIndex(x => x.ContractId);
         b.Entity<Payment>().HasIndex(x => x.ContractId);
         b.Entity<CapitalPlan>().HasIndex(x => new { x.ProjectId, x.Year });
         b.Entity<Acceptance>().HasIndex(x => x.ProjectId);
         b.Entity<Settlement>().HasIndex(x => x.ProjectId);
         b.Entity<Clearance>().HasIndex(x => x.ProjectId);
         b.Entity<AuditLog>().HasIndex(x => x.Ts);
+        b.Entity<AuditLog>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Catalog>().HasIndex(x => x.Type);
         b.Entity<Attachment>().HasIndex(x => new { x.Collection, x.RecordId });
         b.Entity<Attachment>().HasIndex(x => x.FileId);
         b.Entity<ApprovalLog>().HasIndex(x => new { x.Collection, x.RecordId });
+        b.Entity<Employee>().HasIndex(x => x.UserId);
+        b.Entity<Attendance>().HasIndex(x => new { x.EmployeeId, x.Date }).IsUnique();
+        b.Entity<Attendance>().HasIndex(x => x.Date);
+        b.Entity<Request>().HasIndex(x => x.EmployeeId);
+        b.Entity<Request>().HasIndex(x => x.Status);
+        b.Entity<Meeting>().HasIndex(x => x.StartAt);
+        b.Entity<Notice>().HasIndex(x => x.PublishedAt);
+        b.Entity<NoticeRead>().HasIndex(x => new { x.NoticeId, x.UserId }).IsUnique();
+        b.Entity<KpiSheet>().HasIndex(x => new { x.Month, x.EmployeeId }).IsUnique();
+        b.Entity<PayProfile>().HasIndex(x => x.EmployeeId).IsUnique();
+        b.Entity<Payslip>().HasIndex(x => new { x.Month, x.EmployeeId }).IsUnique();
+        b.Entity<EmployeeRecord>().HasIndex(x => x.EmployeeId);
+        b.Entity<EworkRow>().HasIndex(x => new { x.TableName, x.RowKey });
+        b.Entity<EworkRow>().HasIndex(x => x.EworkUserId);
     }
 }
 

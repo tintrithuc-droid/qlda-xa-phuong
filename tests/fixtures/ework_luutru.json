@@ -1,0 +1,366 @@
+{
+ "phongbans": [
+  {
+   "Id": "pb-kt",
+   "Code": "KT",
+   "Name": "Phòng Kỹ thuật",
+   "Sort": 1
+  },
+  {
+   "Id": "pb-kd",
+   "Code": "KD",
+   "Name": "Phòng Kinh doanh",
+   "Sort": 2
+  }
+ ],
+ "users": [
+  {
+   "Id": "u1",
+   "UserName": "nva",
+   "Email": "nva@x.vn",
+   "PhoneNumber": "0901",
+   "FullName": "Nguyễn Văn A",
+   "PhongBan": "pb-kt",
+   "TenChucVu": "Trưởng phòng",
+   "Status": true,
+   "IsLock": false,
+   "IsChamCong": true,
+   "RoleName": "LANHDAOPHONGKYTHUAT"
+  },
+  {
+   "Id": "u2",
+   "UserName": "ttb",
+   "Email": "ttb@x.vn",
+   "FullName": "Trần Thị B",
+   "PhongBan": "pb-kt",
+   "TenChucVu": "Nhân viên",
+   "Status": true,
+   "IsLock": false,
+   "IsChamCong": true,
+   "RoleName": "NHANVIENKYTHUAT"
+  },
+  {
+   "Id": "u3",
+   "UserName": "api",
+   "FullName": "Kết nối",
+   "Status": true,
+   "RoleName": "TAIKHOANKETNOIAPI"
+  },
+  {
+   "Id": "u4",
+   "UserName": "lvc",
+   "FullName": "Lê Văn C",
+   "PhongBan": "pb-kd",
+   "Status": false,
+   "IsLock": true,
+   "IsChamCong": false,
+   "RoleName": "NHANVIENKINHDOANH"
+  }
+ ],
+ "hoso": [
+  {
+   "UserId": "u2",
+   "CCCD": "092000000001",
+   "NgaySinh": "1995-05-01T00:00:00",
+   "TenGioiTinh": "Nữ",
+   "TaiKhoanNH": "0123",
+   "TenNganHang": "VCB",
+   "NgayLamChinhThuc": "2023-01-02T00:00:00",
+   "CreatedDate": "2024-01-01T00:00:00"
+  }
+ ],
+ "chamcong": [
+  {
+   "Id": "cc1",
+   "UserId": "u2",
+   "NgayChamCong": "2026-11-20T08:20:00",
+   "SoPhutDiMuon": 5,
+   "ViTriDiemDanh": "Trong công ty",
+   "IPDiemDanh": "1.2.3.4",
+   "KinhDo": 105.7,
+   "ViDo": 10.03
+  },
+  {
+   "Id": "cc2",
+   "UserId": "u2",
+   "NgayChamCong": "2026-11-20T08:25:00",
+   "SoPhutDiMuon": 10
+  },
+  {
+   "Id": "cc3",
+   "UserId": "u1",
+   "NgayChamCong": "2026-11-21T07:40:00",
+   "SoPhutDiMuon": 0,
+   "TrangThaiDiemDanh": "Làm việc Online"
+  }
+ ],
+ "ngaynghi": [
+  {
+   "Ngay": "2026-09-02T00:00:00",
+   "MoTa": "Quốc khánh",
+   "Buoi": 1
+  },
+  {
+   "Ngay": "2026-12-31T00:00:00",
+   "MoTa": "Cuối năm",
+   "Buoi": 0.5
+  }
+ ],
+ "toado": [
+  {
+   "Description": "Văn phòng Cần Thơ",
+   "KinhDo": 105.7469,
+   "ViDo": 10.0342,
+   "Status": true
+  }
+ ],
+ "ip": [
+  {
+   "IPCongTy": "127.0.0.1",
+   "Status": true
+  }
+ ],
+ "thamso": [
+  {
+   "TenThamSo": "BAN_KINH_CHAM_CONG",
+   "GiaTri": "500"
+  },
+  {
+   "TenThamSo": "GIO_DIEM_DANH",
+   "GiaTri": "08:15"
+  }
+ ],
+ "dexuat": [
+  {
+   "Id": "dx1",
+   "TenDeXuat": "Đề xuất nghỉ phép",
+   "JsonDeXuat": "{\"ThoiGianBatDau\":\"2026-11-25T08:00:00\",\"ThoiGianKetThuc\":\"2026-11-25T17:30:00\",\"SoNgay\":1.0}",
+   "LyDo": "Việc gia đình",
+   "TenTrangThaiXuLy": "Đã duyệt",
+   "TenNguoiDuyet": "Nguyễn Văn A",
+   "CreatedBy": "u2",
+   "CreatedDate": "2026-11-19T09:00:00"
+  },
+  {
+   "Id": "dx2",
+   "TenDeXuat": "Đề xuất tăng ca",
+   "JsonDeXuat": "{}",
+   "LyDo": "Cũ",
+   "TenTrangThaiXuLy": "Chờ duyệt",
+   "CreatedBy": "ttb",
+   "CreatedDate": "2026-01-01T09:00:00"
+  },
+  {
+   "Id": "dx-tc1",
+   "TenDeXuat": "Đề xuất tăng ca",
+   "JsonDeXuat": "{\"ThoiGianBatDau\":\"2025-10-10T18:00:00\",\"SoGio\":4}",
+   "LyDo": "Đăng ký trước",
+   "TenTrangThaiXuLy": "Phê duyệt",
+   "TenNguoiDuyet": "Nguyễn Văn A",
+   "CreatedBy": "u2",
+   "CreatedDate": "2025-10-09T09:00:00",
+   "NgayHoanThanh": "2025-10-09T10:00:00"
+  },
+  {
+   "Id": "dx-np-ngoai",
+   "TenDeXuat": "Đề xuất nghỉ phép",
+   "JsonDeXuat": "{\"ThoiGianBatDau\":\"2025-10-07T08:00:00\",\"ThoiGianKetThuc\":\"2025-10-08T17:30:00\",\"SoNgay\":2,\"LoaiNghiPhep\":\"NghiNgoaiPhep\",\"TenLoaiNghiPhep\":\"Nghỉ ngoài phép\"}",
+   "LyDo": "Việc nhà",
+   "TenTrangThaiXuLy": "Phê duyệt",
+   "TenNguoiDuyet": "Nguyễn Văn A",
+   "CreatedBy": "u2",
+   "CreatedDate": "2025-10-06T09:00:00",
+   "NgayHoanThanh": "2025-10-06T10:00:00"
+  }
+ ],
+ "luutru": {
+  "LichHops": [
+   {
+    "Id": "lh-a1",
+    "NgayBatDau": "2026-10-05T08:00:00",
+    "NgayKetThuc": "2026-10-05T09:30:00",
+    "PhongHop": "ph1",
+    "NoiDung": "<p>Họp giao ban tháng 10</p><p>Rà soát tiến độ <b>dự án A</b></p>",
+    "TenNguoiChuTri": "Nguyễn Văn A",
+    "ThanhPhanThamDu": "u1,u2",
+    "TenThanhPhanThamDu": "Nguyễn Văn A, Trần Thị B",
+    "TenThuKy": "Trần Thị B",
+    "KetQuaCuocHop": "<p>Thống nhất kế hoạch</p>",
+    "TenTrangThaiXuLy": "Hoàn thành",
+    "CreatedBy": "u1",
+    "CreatedDate": "2026-10-01T10:00:00"
+   }
+  ],
+  "KetQuaLichHops": [
+   {
+    "Id": "kq1",
+    "RefId": "lh-a1",
+    "NoiDung": "Giao phòng Kỹ thuật hoàn thành trước 15/10",
+    "Sort": 1
+   }
+  ],
+  "PhongHops": [
+   {
+    "Id": "ph1",
+    "Ten": "Phòng họp lớn",
+    "Status": true
+   }
+  ],
+  "ThongBaos": [
+   {
+    "Id": "tb-a1",
+    "TieuDe": "Lịch nghỉ lễ 2/9",
+    "NoiDung": "<p>Công ty nghỉ lễ ngày 02/09.</p><p>Chúc mọi người &amp; gia đình vui vẻ</p>",
+    "PhamViThongBao": "pb-kt",
+    "TenNguoiNhap": "Nguyễn Văn A",
+    "CreatedBy": "u1",
+    "CreatedDate": "2026-08-28T09:00:00"
+   }
+  ],
+  "BangKPIs": [
+   {
+    "Id": "k1",
+    "UserId": "u2",
+    "FullName": "Trần Thị B",
+    "TongDiemKPI": 92.5,
+    "Thang": 10,
+    "Nam": 2026
+   },
+   {
+    "Id": "k2",
+    "UserId": "u2",
+    "FullName": "Trần Thị B",
+    "TongDiemKPI": 80,
+    "Thang": 9,
+    "Nam": 2026
+   },
+   {
+    "Id": "k3",
+    "UserId": "u1",
+    "FullName": "Nguyễn Văn A",
+    "TongDiemKPI": 88,
+    "Thang": 10,
+    "Nam": 2026
+   }
+  ],
+  "BangLuongs": [
+   {
+    "Id": "l1",
+    "UserId": "u2",
+    "FullName": "Trần Thị B",
+    "LuongCoBan": 9000000,
+    "TongLuongThucTe": 10500000,
+    "Thang": 10,
+    "Nam": 2026
+   }
+  ],
+  "QuanLyCongViecs": [
+   {
+    "Id": "cv1",
+    "TenCongViec": "Lập hồ sơ mời thầu",
+    "NoiDung": "Gói thầu số 3",
+    "HanXuLy": "2026-10-20T00:00:00",
+    "TenNguoiXuLy": "Trần Thị B",
+    "NguoiXuLy": "u2",
+    "CreatedDate": "2026-10-01T08:00:00"
+   }
+  ],
+  "NgayNghis": [
+   {
+    "Ngay": "2026-09-02T00:00:00",
+    "MoTa": "Quốc khánh"
+   }
+  ],
+  "BangLuongCoBans": [
+   {
+    "Id": "hs1",
+    "UserId": "u2",
+    "FullName": "Trần Thị B"
+   }
+  ],
+  "RefBangLuongCoBans": [
+   {
+    "Id": "r1",
+    "RefId": "hs1",
+    "RefTableName": "BangLuongCoBans",
+    "LuongCoBan": 8000000,
+    "NgayApDung": "2025-01-01T00:00:00"
+   },
+   {
+    "Id": "r2",
+    "RefId": "hs1",
+    "RefTableName": "BangLuongCoBans",
+    "LuongCoBan": 10000000,
+    "NgayApDung": "2026-06-01T00:00:00"
+   }
+  ],
+  "RefPhuCaps": [
+   {
+    "Id": "p1",
+    "RefId": "hs1",
+    "TenPhuCap": "Ăn trưa",
+    "SoTien": 730000,
+    "SoTienTruThue": 730000,
+    "NgayApDung": "2026-01-01T00:00:00"
+   },
+   {
+    "Id": "p2",
+    "RefId": "hs1",
+    "TenPhuCap": "Điện thoại",
+    "SoTien": 300000,
+    "SoTienTruThue": 0,
+    "NgayApDung": "2026-01-01T00:00:00"
+   }
+  ],
+  "RefGiamTruGiaCanhs": [
+   {
+    "Id": "g1",
+    "RefId": "hs1",
+    "TenGiamTru": "Giảm trừ người phụ thuộc",
+    "SoLuong": 1,
+    "NgayApDung": "2026-01-01T00:00:00"
+   }
+  ],
+  "TaskTangCas": [
+   {
+    "Id": "tc1",
+    "CreatedBy": "u2",
+    "NgayTangCa": "2025-10-11T00:00:00",
+    "ThoiGianBatDau": "2025-10-11T08:00:00",
+    "ThoiGianKetThuc": "2025-10-11T11:00:00",
+    "SoGio": 3,
+    "NoiDung": "<p>Triển khai hệ thống</p>",
+    "LoaiTangCa": "l1",
+    "TenLoaiTangCa": "Tăng ca bình thường",
+    "RefTenTrangThaiXuLy": "Phê duyệt",
+    "NguoiDuyet": "u1",
+    "CreatedDate": "2025-10-12T09:00:00",
+    "ModifiedDate": "2025-11-02T09:00:00"
+   },
+   {
+    "Id": "tc2",
+    "CreatedBy": "u2",
+    "NgayTangCa": "2025-10-14T00:00:00",
+    "ThoiGianBatDau": "1900-01-01T18:00:00",
+    "ThoiGianKetThuc": "1900-01-01T20:00:00",
+    "SoGio": 2,
+    "NoiDung": "Sửa lỗi gấp",
+    "LoaiTangCa": "l2",
+    "TenLoaiTangCa": "Tăng ca theo yêu cầu (gấp)",
+    "RefTenTrangThaiXuLy": "Được duyệt",
+    "NguoiDuyet": "u1",
+    "CreatedDate": "2025-10-15T09:00:00",
+    "NgayDuyet": "2025-10-20T09:00:00"
+   },
+   {
+    "Id": "tc3",
+    "CreatedBy": "u2",
+    "NgayTangCa": "2026-01-05T00:00:00",
+    "SoGio": 1,
+    "NoiDung": "Cũ",
+    "RefTenTrangThaiXuLy": "Trình duyệt",
+    "CreatedDate": "2026-01-05T20:00:00"
+   }
+  ]
+ }
+}

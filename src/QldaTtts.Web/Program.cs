@@ -16,9 +16,27 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 builder.Services.AddWindowsService(o => o.ServiceName = "QLDA");
 var cfg = builder.Configuration;
 
+// Chế độ cho thuê nhiều xã/phường (Tenancy:Enabled): mỗi xã một CSDL PostgreSQL riêng, chọn theo tên miền truy cập
+var tenancy = cfg.GetSection("Tenancy").Get<TenancyOptions>() ?? new TenancyOptions();
+builder.Services.AddSingleton(tenancy);
+builder.Services.AddScoped<TenantContext>();
+builder.Services.AddScoped<SetupGuard>();
+
 // Cơ sở dữ liệu: PostgreSQL (máy chủ Linux/Docker, chi phí thấp), SQL Server (máy chủ Windows) hoặc SQLite (bản demo, đơn vị rất nhỏ)
-var provider = cfg["Database:Provider"] ?? "SqlServer";
-if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+var provider = tenancy.Enabled ? "PostgreSQL" : cfg["Database:Provider"] ?? "SqlServer";
+if (tenancy.Enabled)
+{
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    // CSDL nền tảng: danh sách xã, quản trị nền tảng (chuỗi kết nối PostgreSQL trong cấu hình, tài khoản có quyền tạo CSDL)
+    builder.Services.AddDbContextFactory<PlatformDbContext>(o => o.UseNpgsql(cfg.GetConnectionString("PostgreSQL")));
+    builder.Services.AddSingleton<TenantRegistry>();
+    builder.Services.AddSingleton<TenantOps>();
+    builder.Services.AddHostedService<TenantStartup>();
+    // CSDL nghiệp vụ: của xã đang được truy cập (TenantContext do TenantMiddleware hoặc tác vụ nền đặt)
+    builder.Services.AddDbContext<AppDbContext, PgDbContext>((sp, o) =>
+        o.UseNpgsql(sp.GetRequiredService<TenantContext>().ConnectionString, n => n.EnableRetryOnFailure()));
+}
+else if (provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase) || provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
 {
     // Giữ cách lưu DateTime như SQL Server/SQLite (timestamp không múi giờ); đặt trước khi Npgsql nạp
     AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -36,13 +54,16 @@ else
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<UserContext>();
-builder.Services.AddSingleton<TwoFactor>();
-builder.Services.AddSingleton<FileStore>();
-builder.Services.AddSingleton<BackupService>();
+builder.Services.AddScoped<TwoFactor>();
+builder.Services.AddSingleton<LoginGuard>();
+builder.Services.AddScoped<FileStore>();
+builder.Services.AddScoped<BackupService>();
 builder.Services.AddHostedService<MaintenanceService>();
-builder.Services.AddControllersWithViews().AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
+builder.Services.AddControllersWithViews(o => o.Filters.Add<QldaTtts.Web.Services.PasswordChangeFilter>()).AddJsonOptions(o => JsonConfig.Apply(o.JsonSerializerOptions));
+// Trang dựng ở máy chủ giữ nguyên chữ tiếng Việt có dấu (không đổi sang mã &#x...;)
+builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(o => o.TextEncoderSettings = new System.Text.Encodings.Web.TextEncoderSettings(System.Text.Unicode.UnicodeRanges.All));
 
-var keysDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
+var keysDir = cfg["Storage:KeysPath"] is { Length: > 0 } kp ? kp : Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys");
 Directory.CreateDirectory(keysDir);
 builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keysDir)).SetApplicationName("QldaTtts");
 
@@ -57,6 +78,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     o.Events.OnRedirectToLogin = c => { c.Response.StatusCode = 401; return Task.CompletedTask; };
     o.Events.OnRedirectToAccessDenied = c => { c.Response.StatusCode = 403; return Task.CompletedTask; };
 });
+// Chế độ cho thuê: phiếu đăng nhập mã hóa bằng khóa con riêng của từng xã
+if (tenancy.Enabled)
+    builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
+        .Configure<IHttpContextAccessor, IDataProtectionProvider>((o, h, dp) => o.TicketDataFormat = new TenantTicketFormat(h, dp));
 builder.Services.AddAuthorization();
 
 builder.Services.Configure<FormOptions>(o => o.MultipartBodyLengthLimit = FilesController.MaxBytes + 1024 * 1024);
@@ -64,8 +89,13 @@ builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = FilesControl
 
 var app = builder.Build();
 
-// Khởi tạo/cập nhật lược đồ cơ sở dữ liệu
-using (var scope = app.Services.CreateScope())
+// Chế độ cho thuê: CSDL nền tảng, lệnh quản trị trên máy chủ; CSDL của từng xã do TenantStartup nâng cấp lần lượt
+if (tenancy.Enabled)
+{
+    if (await PlatformCli.RunAsync(app, args)) return;
+}
+// Chế độ một đơn vị: khởi tạo/cập nhật lược đồ cơ sở dữ liệu
+else using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     // Gỡ hẳn một xã khỏi máy chủ (go-cai-dat.ps1 -XoaDuLieu): QldaTtts.Web.exe --xoa-csdl
@@ -90,8 +120,13 @@ using (var scope = app.Services.CreateScope())
         }
         foreach (var (table, col, type) in new[] {
             ("Users", "TotpSecret", "TEXT NULL"), ("Users", "TotpLastStep", "INTEGER NOT NULL DEFAULT 0"), ("Users", "RecoveryCodes", "TEXT NULL"),
-            ("LegalDocuments", "ValidUntil", "TEXT NULL"), ("Contracts", "GuaranteeUntil", "TEXT NULL"), ("Contracts", "AdvanceGuaranteeUntil", "TEXT NULL") })
+            ("LegalDocuments", "ValidUntil", "TEXT NULL"), ("Contracts", "GuaranteeUntil", "TEXT NULL"), ("Contracts", "AdvanceGuaranteeUntil", "TEXT NULL"),
+            ("Users", "MustChangePassword", "INTEGER NOT NULL DEFAULT 0"),
+            ("Packages", "ContractorIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "SupervisorIds", "TEXT NOT NULL DEFAULT '[]'"),
+            ("Projects", "ViewerIds", "TEXT NOT NULL DEFAULT '[]'"), ("Packages", "ContractorShares", "TEXT NOT NULL DEFAULT '{}'"), ("UserGroups", "AssignedOnly", "INTEGER NOT NULL DEFAULT 0"), ("Projects", "Field", "TEXT NULL") })
             if (!Cols(table).Contains(col)) db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {col} {type}");
+        // Bản 1.8.3: đơn vị thành viên hệ sinh thái (bảng Organizations có từ bản 1.8; CSDL cũ hơn thì bảng được tạo đủ cột ở bước dưới)
+        if (Cols("Organizations") is { Count: > 0 } oc && !oc.Contains("Member")) db.Database.ExecuteSqlRaw("ALTER TABLE Organizations ADD COLUMN Member INTEGER NOT NULL DEFAULT 0");
         if (Cols("Attachments").Count == 0)
         {
             db.Database.ExecuteSqlRaw(@"CREATE TABLE Attachments (Id TEXT NOT NULL PRIMARY KEY, Collection TEXT NOT NULL, RecordId TEXT NOT NULL, ProjectId TEXT NULL,
@@ -131,6 +166,9 @@ using (var scope = app.Services.CreateScope())
     Upgrades.Run(db);
     GuideSeed.Run(db, scope.ServiceProvider.GetRequiredService<FileStore>(), Path.Combine(app.Environment.ContentRootPath, "hdsd"));
 
+    // Bản 1.10.2: lệnh thiết lập trên máy chủ (nạp e-work, thông tin đơn vị, khóa chép chấm công)
+    if (await ServerCli.RunAsync(db, args, scope.ServiceProvider.GetRequiredService<FileStore>())) return;
+
     // Lệnh khẩn cấp khi quản trị duy nhất mất điện thoại: QldaTtts.Web.exe --reset-2fa <tên đăng nhập>
     var i = Array.IndexOf(args, "--reset-2fa");
     if (i >= 0)
@@ -144,6 +182,14 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"Đã đặt lại xác thực 2 lớp cho '{un}'. Lần đăng nhập sau sẽ thiết lập lại bằng ứng dụng xác thực.");
         return;
     }
+}
+
+// Chạy sau cổng vào (Caddy/Nginx): nhận đúng địa chỉ IP người dùng và giao thức HTTPS (cookie Secure)
+if (cfg.GetValue("ReverseProxy:Enabled", false))
+{
+    var fo = new Microsoft.AspNetCore.Builder.ForwardedHeadersOptions { ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto };
+    fo.KnownNetworks.Clear(); fo.KnownProxies.Clear(); // chỉ bật khi cổng phần mềm không mở trực tiếp ra ngoài
+    app.UseForwardedHeaders(fo);
 }
 
 if (!app.Environment.IsDevelopment())
@@ -174,13 +220,21 @@ app.Use(async (c, next) =>
     await next();
 });
 
+if (tenancy.Enabled) app.UseMiddleware<TenantMiddleware>();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/api/health", async (AppDbContext db) =>
-    Results.Ok(new { status = "ok", db = await db.Database.CanConnectAsync() ? "ok" : "error", time = DateTime.UtcNow }));
+app.MapGet("/api/health", async (HttpContext c) =>
+{
+    // Trang quản lý thuê bao: kiểm tra CSDL nền tảng; trang của xã: kiểm tra CSDL của xã
+    var tc = c.RequestServices.GetRequiredService<TenantContext>();
+    bool ok;
+    if (tc.Portal) { await using var p = await c.RequestServices.GetRequiredService<IDbContextFactory<PlatformDbContext>>().CreateDbContextAsync(); ok = await p.Database.CanConnectAsync(); }
+    else ok = await c.RequestServices.GetRequiredService<AppDbContext>().Database.CanConnectAsync();
+    return Results.Ok(new { status = "ok", db = ok ? "ok" : "error", xa = tc.Code, version = TenantOps.AppVersion, time = DateTime.UtcNow });
+});
 app.MapControllers();
 app.MapFallback("/api/{**rest}", () => Results.NotFound(new { code = 404, message = "Không tìm thấy." }));
 

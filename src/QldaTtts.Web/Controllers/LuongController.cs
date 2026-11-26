@@ -310,8 +310,10 @@ public class LuongController : ApiControllerBase
     private async Task<List<Employee>> Staff(DateOnly from)
     {
         var came = await StaffFilter.AttendedIn(Db, from, from.AddMonths(1));
+        // Bản 1.10.26: ai đã có phiếu lương chốt trong tháng (kể cả phiếu nạp từ e-work cũ của người đã nghỉ) thì luôn hiện trong bảng lương tháng đó
+        var m = from.ToString("yyyy-MM"); var lockedIds = (await Db.Payslips.AsNoTracking().Where(x => x.Month == m && x.LockedAt != null).Select(x => x.EmployeeId).ToListAsync()).ToHashSet();
         return (await Db.Employees.AsNoTracking().OrderBy(e => e.Name).ToListAsync())
-            .Where(e => !(e.EndDate is { } end && end < from) && (e.Status != "Nghỉ việc" || e.EndDate >= from || came.Contains(e.Id))).ToList();
+            .Where(e => lockedIds.Contains(e.Id) || (!(e.EndDate is { } end && end < from) && (e.Status != "Nghỉ việc" || e.EndDate >= from || came.Contains(e.Id)))).ToList();
         // Bản 1.10.23: đã ghi ngày nghỉ việc trước tháng thì không vào bảng lương, kể cả còn lượt chấm công (tài khoản cũ bị dùng lại trên e-work: Phong, Giàu T11)
     }
 

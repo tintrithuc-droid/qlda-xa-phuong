@@ -17,6 +17,7 @@ namespace QldaTtts.Web.Services;
 ///   --tao-khoa-chep &lt;tệp khóa&gt; [--tu-ngay yyyy-MM-dd]   tạo khóa chép chấm công sang e-work, ghi thẳng ra tệp (không in ra màn hình)
 ///   --doi-chieu-luong &lt;yyyy-MM&gt; [--ra &lt;tệp csv&gt;]        bản 1.10.4: đối chiếu bảng lương QLDA tính với bảng lương e-work đã chuyển (BangLuongs), ghi tệp CSV; màn hình chỉ in số người lệch
 ///   --tu-chot-kpi                                        bản 1.10.13: chạy ngay bước tự chốt KPI tháng trước (tác vụ nền vẫn tự chạy)
+///   --nhap-phieu-luong-ework --tu yyyy-MM --den yyyy-MM [--thu]   bản 1.10.26: nạp phiếu lương đã trả trên e-work (BangLuongs) thành phiếu đã chốt, đã duyệt chi, khóa sửa; ghi đè phiếu cũ cùng tháng (không nhận tháng hiện tại)
 ///   --nhap-tep-ework &lt;tệp json&gt; --thu-muc &lt;thư mục site e-work&gt; [--thu]   bản 1.10.12: chép tệp đính kèm e-work (bằng cấp, CCCD, lịch họp…); --thu: chỉ đếm, không chép
 /// </summary>
 public static class ServerCli
@@ -158,6 +159,50 @@ public static class ServerCli
             if (done is null) { Console.WriteLine("Không có tháng cần tự chốt lương (đã chốt, đã mở chốt để sửa, tắt tự chốt, chưa đến ngày, hoặc tháng có bảng lương e-work)."); return true; }
             Log("Tự chốt bảng lương tháng (dòng lệnh trên máy chủ)", "Lương", done); await db.SaveChangesAsync();
             Console.WriteLine("Đã tự chốt bảng lương " + done); return true;
+        }
+        // Bản 1.10.26 (anh Trí 26/11): các tháng đã trả lương trên e-work cũ chốt đúng số đã trả: nạp BangLuongs thành phiếu đã chốt, đã duyệt chi
+        if (args.Contains("--nhap-phieu-luong-ework"))
+        {
+            var tu = Arg("--tu"); var den = Arg("--den"); var thu = args.Contains("--thu");
+            bool Ok(string? v) => v is not null && System.Text.RegularExpressions.Regex.IsMatch(v, @"^\d{4}-\d{2}$");
+            if (!Ok(tu) || !Ok(den)) { Fail("Cần --tu yyyy-MM --den yyyy-MM"); return true; }
+            var curM = VnTime.Now.ToString("yyyy-MM");
+            if (string.CompareOrdinal(den, curM) >= 0) { Fail($"Không nạp tháng hiện tại hoặc sau ({curM}); tháng này tính trên phần mềm mới."); return true; }
+            var emps = (await db.Employees.AsNoTracking().Where(e => e.EworkId != null).ToListAsync()).GroupBy(e => e.EworkId!).ToDictionary(g => g.Key, g => g.First());
+            var rows = (await db.EworkArchive.AsNoTracking().Where(r => r.TableName == "BangLuongs").ToListAsync())
+                .Select(r => JsonNode.Parse(r.Data) as JsonObject).Where(o => o is not null && Num(o!, "Nam") is { } y && Num(o!, "Thang") is { } m)
+                .Select(o => (o: o!, month: $"{(int)Num(o!, "Nam")!:0000}-{(int)Num(o!, "Thang")!:00}"))
+                .Where(x => string.CompareOrdinal(x.month, tu) >= 0 && string.CompareOrdinal(x.month, den) <= 0).ToList();
+            decimal D(JsonObject o, params string[] ks) => (decimal)ks.Sum(k => Num(o, k) ?? 0);
+            var now = DateTime.UtcNow; int add = 0, upd = 0, miss = 0; var missNames = new HashSet<string>(); var perMonth = new SortedDictionary<string, int>();
+            var existing = await db.Payslips.Where(x => string.Compare(x.Month, tu!) >= 0 && string.Compare(x.Month, den!) <= 0).ToListAsync();
+            foreach (var (o, month) in rows)
+            {
+                var uid = o["UserId"]?.ToString();
+                if (uid is null || !emps.TryGetValue(uid, out var e)) { miss++; missNames.Add(o["FullName"]?.ToString() ?? uid ?? "?"); continue; }
+                var s = new LuongController.Slip
+                {
+                    EmployeeId = e.Id, Name = e.Name, DepartmentId = e.DepartmentId, Position = e.Position, HasProfile = true, Dependents = e.Dependents,
+                    Standard = D(o, "NgayCongChuan"), Paid = D(o, "NgayCongThucTe", "NgayNghiCoPhep"), LeaveDays = D(o, "NgayNghiCoPhep"), TripDays = D(o, "NgayCongTac"),
+                    Absent = D(o, "NgayNghiKhongPhep"), UnpaidDays = D(o, "NgayNghiNgoaiPhep"),
+                    BaseSalary = D(o, "LuongCoBan"), Allowances = D(o, "TongPhuCap"), OtPay = D(o, "TienTangCa"), TripPay = D(o, "CongTacPhi"), Bonus = D(o, "Thuong"),
+                    Bhxh = D(o, "BHXH_NLD"), Bhyt = D(o, "BHYT_NLD"), Bhtn = D(o, "BHTN_NLD"), Pit = D(o, "ThueTNCN"), Advance = D(o, "TamUng"), Net = D(o, "LuongThucNhan"),
+                    Note = "Đã trả trên e-work cũ (nạp nguyên số liệu bảng lương e-work)", Locked = true, LockedAt = now
+                };
+                s.Insurance = s.Bhxh + s.Bhyt + s.Bhtn; s.Gross = s.Net + s.Insurance + s.Pit + s.Advance;
+                s.TimePay = s.Gross - s.Allowances - s.OtPay - s.TripPay - s.Bonus;
+                var data = JsonSerializer.Serialize(s, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                var sl = existing.FirstOrDefault(x => x.EmployeeId == e.Id && x.Month == month);
+                if (sl is null) { sl = new Payslip { Id = "pl-" + Guid.NewGuid().ToString("N")[..20], EmployeeId = e.Id, Month = month }; if (!thu) db.Payslips.Add(sl); existing.Add(sl); add++; } else upd++;
+                sl.Data = data; sl.Net = s.Net; sl.Bonus = 0; sl.Deduction = 0; sl.Note = s.Note;
+                sl.LockedAt = now; sl.LockedBy = "Nạp từ e-work cũ"; sl.ApprovedAt = now; sl.ApprovedBy = "Đã trả trên e-work cũ"; sl.ConfirmedAt ??= now;
+                perMonth[month] = perMonth.GetValueOrDefault(month) + 1;
+            }
+            var summary = $"{tu}..{den}: {add} phiếu mới, {upd} phiếu ghi đè, {miss} dòng e-work không có hồ sơ QLDA" + (missNames.Count > 0 ? $" ({string.Join(", ", missNames.Take(20))})" : "");
+            if (thu) { db.ChangeTracker.Clear(); Console.WriteLine("THỬ (không ghi): " + summary); }
+            else { Log("Nạp phiếu lương đã trả từ e-work (dòng lệnh trên máy chủ)", "Lương", summary); await db.SaveChangesAsync(); Console.WriteLine("Đã nạp: " + summary); }
+            foreach (var (m, n) in perMonth) Console.WriteLine($"  {m}: {n} phiếu");
+            return true;
         }
         if (args.Contains("--doi-chieu-luong"))
         {

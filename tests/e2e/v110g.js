@@ -45,6 +45,7 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   fx.users.forEach(u => { if (u.Id === 'u4') { u.Status = true; u.IsLock = false; } });
   fx.luutru.QuanLyCongViecs = []; // việc e-work kiểm thử riêng ở v110f
   fx.luutru.ChuyenLuongs = [{ Id: 'cl1', UserId: 'u2', SoTien: 1, NoiDung: 'TRI THUC THANH TOAN LUONG T09.2026', Thang: 9, Nam: 2026 }, { Id: 'cl2', UserId: 'u2', SoTien: 1, NoiDung: 'TRI THUC THANH TOAN LUONG T10.2026', Thang: 10, Nam: 2026 }];
+  (fx.luutru.BangLuongs || []).forEach(x => { x.LuongThucNhan = 8765000; x.NgayCongChuan = 24; x.NgayCongThucTe = 23; x.BHXH_NLD = 720000; }); // 1.10.26: nạp phiếu lương đã trả
   const FX = path.join(tmp, 'ew.json'); fs.writeFileSync(FX, JSON.stringify(fx));
   const c = cli(['--nhap-ework', FX, '--tai-khoan-ra', path.join(tmp, 'tk.csv')], { QLDA_MAT_KHAU_CHUNG: 'TriThuc2026' });
   ok(c.code === 0 && c.out.includes('TRI THUC THANH TOAN LUONG T{thang}.{nam}'), 'Nạp e-work / nội dung chuyển khoản lỗi: ' + c.out);
@@ -195,6 +196,15 @@ print('|'.join(str(c.value) for r in ws.iter_rows(max_row=6) for c in r if c.val
   const dcsv = fs.existsSync(path.join(tmp, 'dc.csv')) ? fs.readFileSync(path.join(tmp, 'dc.csv'), 'utf8') : '';
   ok(dc.code === 0 && dc.out.includes('1 người trên e-work, 0 khớp, 1 có lệch') && dcsv.includes('Trần Thị B') && dcsv.includes('Lương cơ bản'), 'Đối chiếu lương e-work lỗi: ' + dc.out + dcsv.slice(0, 200));
   ok(cli(['--doi-chieu-luong', '2020-01']).code === 1, 'Đối chiếu tháng không có dữ liệu vẫn chạy');
+
+  // 10) Bản 1.10.26: nạp phiếu lương đã trả trên e-work thành phiếu đã chốt, đã duyệt chi (tháng hiện tại không nhận)
+  const nt = cli(['--nhap-phieu-luong-ework', '--tu', PM, '--den', PM, '--thu']);
+  ok(nt.code === 0 && nt.out.includes('THỬ') && /1 phiếu/.test(nt.out), 'Nạp phiếu lương thử lỗi: ' + nt.out);
+  const n1 = cli(['--nhap-phieu-luong-ework', '--tu', PM, '--den', PM]);
+  ok(n1.code === 0 && n1.out.includes('Đã nạp'), 'Nạp phiếu lương lỗi: ' + n1.out);
+  const rowE = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
+  ok(rowE && rowE.locked && rowE.net === 8765000 && rowE.approvedAt && rowE.bhxh === 720000 && rowE.standard === 24, 'Phiếu nạp từ e-work sai: ' + JSON.stringify(rowE || {}).slice(0, 300));
+  ok(cli(['--nhap-phieu-luong-ework', '--tu', PM, '--den', thisMonth()]).code === 1, 'Không được nạp tháng hiện tại');
 
   await b.close();
   if (errs.length) { console.log('v110g: LỖI\n- ' + errs.join('\n- ')); process.exit(1); }

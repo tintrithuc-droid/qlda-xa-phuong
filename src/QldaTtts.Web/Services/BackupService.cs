@@ -165,6 +165,13 @@ public class MaintenanceService : BackgroundService
             _log.LogInformation("Đã tự chốt KPI {M}", locked);
         }
 
+        // Bản 1.10.21: tự chốt bảng lương tháng trước (sau KPI), mở cho người lao động tự xác nhận
+        if (await Controllers.LuongController.AutoLockTick(db, VnTime.Now) is { } paid)
+        {
+            Log(db, "Tự chốt bảng lương tháng", paid); await db.SaveChangesAsync(ct);
+            _log.LogInformation("Đã tự chốt bảng lương {M}", paid);
+        }
+
         // Bản 1.10.21: hết ngày nghỉ việc thì tự khóa tài khoản
         if (await StaffFilter.AutoLockLeavers(db) is { Count: > 0 } gone)
         {

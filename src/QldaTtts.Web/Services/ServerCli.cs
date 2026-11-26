@@ -151,6 +151,14 @@ public static class ServerCli
             Log("Tự chốt KPI tháng (dòng lệnh trên máy chủ)", "KPI", done); await db.SaveChangesAsync();
             Console.WriteLine("Đã tự chốt KPI " + done); return true;
         }
+        if (args.Contains("--tu-chot-luong"))
+        {
+            // 1.10.21: chạy ngay bước tự chốt bảng lương tháng trước (bình thường tác vụ nền tự chạy mỗi 15 phút)
+            var done = await LuongController.AutoLockTick(db, VnTime.Now);
+            if (done is null) { Console.WriteLine("Không có tháng cần tự chốt lương (đã chốt, đã mở chốt để sửa, tắt tự chốt, chưa đến ngày, hoặc tháng có bảng lương e-work)."); return true; }
+            Log("Tự chốt bảng lương tháng (dòng lệnh trên máy chủ)", "Lương", done); await db.SaveChangesAsync();
+            Console.WriteLine("Đã tự chốt bảng lương " + done); return true;
+        }
         if (args.Contains("--doi-chieu-luong"))
         {
             var month = Arg("--doi-chieu-luong");

@@ -53,6 +53,9 @@ public class PaySettings
     public bool PayUnusedLeave { get; set; } = true;
     /// <summary>Mặc định đưa đề xuất xăng xe (cộng, không tính thuế) và tạm ứng (trừ) đã duyệt vào lương; từng đề xuất có thể chọn khác.</summary>
     public bool FuelToPayroll { get; set; } = true; public bool AdvanceToPayroll { get; set; }
+    /// <summary>Bản 1.10.21 (anh Trí 26/11: bỏ bước Kế toán bấm chốt): 0 giờ ngày AutoLockDay tháng sau tự chốt bảng lương tháng trước (sau khi KPI tự chốt),
+    /// mở cho người lao động tự xác nhận. Kế toán mở chốt để sửa thì không tự chốt lại.</summary>
+    public bool AutoLock { get; set; } = true; public int AutoLockDay { get; set; } = 1;
     /// <summary>Hạn xác nhận lương của tháng: từ ngày ConfirmFrom tháng sau; nếu chốt muộn hơn thì mở từ ngày chốt và kéo dài đủ số ngày.</summary>
     public (DateOnly from, DateOnly to) ConfirmWindow(string month, DateTime? lockedAtUtc)
     {
@@ -360,19 +363,40 @@ public class LuongController : ApiControllerBase
         await Uc.LoadAsync(); if (Uc.User is null) return NotSignedIn();
         if (!Uc.Can("luong", true)) return Denied("Chỉ người quản lý lương được chốt.");
         if (!DateOnly.TryParse(month + "-01", out var from)) return Error(400, "Tháng không hợp lệ.");
-        var emps = await Staff(from); var rows = b.Lock ? await Compute(month, emps) : new();
+        if (!b.Lock && await Db.Payslips.AnyAsync(x => x.Month == month && x.ApprovedAt != null)) return Error(409, "Bảng lương đã duyệt chi: Giám đốc hoặc Kế toán hủy duyệt trước khi mở chốt.");
+        var n = await LockMonth(month, from, b.Lock, Uc.User.Name);
+        Uc.Log(b.Lock ? "Chốt bảng lương" : "Mở chốt bảng lương", "Lương", $"Tháng {month}: {n} người");
+        await Db.SaveChangesAsync(); return Ok(new { ok = true, n });
+    }
+
+    private async Task<int> LockMonth(string month, DateOnly from, bool lck, string by)
+    {
+        var emps = await Staff(from); var rows = lck ? await Compute(month, emps) : new();
         var slips = await Db.Payslips.Where(x => x.Month == month).ToListAsync(); var n = 0;
-        if (!b.Lock && slips.Any(x => x.ApprovedAt != null)) return Error(409, "Bảng lương đã duyệt chi: Giám đốc hoặc Kế toán hủy duyệt trước khi mở chốt.");
-        if (b.Lock)
+        if (lck)
             foreach (var s in rows.Where(r => !r.Locked && r.HasProfile))
             {
                 var sl = slips.FirstOrDefault(x => x.EmployeeId == s.EmployeeId);
                 if (sl is null) { sl = new Payslip { Id = "pl-" + Guid.NewGuid().ToString("N")[..20], Month = month, EmployeeId = s.EmployeeId }; Db.Payslips.Add(sl); }
-                sl.Data = JsonSerializer.Serialize(s, Opts); sl.Net = s.Net; sl.LockedAt = DateTime.UtcNow; sl.LockedBy = Uc.User.Name; sl.ConfirmedAt = s.NoAttendance ? DateTime.UtcNow : null; n++;
+                sl.Data = JsonSerializer.Serialize(s, Opts); sl.Net = s.Net; sl.LockedAt = DateTime.UtcNow; sl.LockedBy = by; sl.ConfirmedAt = s.NoAttendance ? DateTime.UtcNow : null; n++;
             }
-        else foreach (var sl in slips.Where(x => x.LockedAt != null)) { sl.LockedAt = null; sl.LockedBy = null; sl.Data = null; sl.Net = null; n++; }
-        Uc.Log(b.Lock ? "Chốt bảng lương" : "Mở chốt bảng lương", "Lương", $"Tháng {month}: {n} người");
-        await Db.SaveChangesAsync(); return Ok(new { ok = true, n });
+        else foreach (var sl in slips.Where(x => x.LockedAt != null)) { sl.LockedAt = null; sl.LockedBy = "Mở chốt: " + by; sl.Data = null; sl.Net = null; n++; } // dấu vết để tác vụ tự chốt không chốt lại
+        return n;
+    }
+
+    /// <summary>Bản 1.10.21: tác vụ nền gọi mỗi 15 phút, sau bước tự chốt KPI. Từ 0 giờ ngày AutoLockDay tự chốt bảng lương tháng trước một lần;
+    /// tháng đã chốt, đã có người mở chốt, hoặc tháng còn tính lương trên e-work (có bảng lương e-work) thì bỏ qua.</summary>
+    public static async Task<string?> AutoLockTick(AppDbContext db, DateTime nowVn)
+    {
+        var ps = PaySettings.Load(db); if (!ps.AutoLock) return null;
+        if (nowVn.Day < Math.Clamp(ps.AutoLockDay, 1, 28)) return null;
+        var from = new DateOnly(nowVn.Year, nowVn.Month, 1).AddMonths(-1); var month = from.ToString("yyyy-MM");
+        if (await db.Payslips.AsNoTracking().AnyAsync(x => x.Month == month && (x.LockedAt != null || x.LockedBy != null))) return null;
+        if (await db.EworkArchive.AsNoTracking().AnyAsync(r => r.TableName == "BangLuongs" && r.Period == month)) return null;
+        if (!await db.PayProfiles.AsNoTracking().AnyAsync()) return null;
+        var c = new LuongController(db, null!);
+        var n = await c.LockMonth(month, from, true, "Hệ thống (tự chốt)");
+        return n > 0 ? month + ": " + n + " người" : null;
     }
 
     /// <summary>Quyền duyệt chi lương (Giám đốc hoặc Kế toán): nhóm có "Duyệt hồ sơ" ở phân hệ Lương.</summary>

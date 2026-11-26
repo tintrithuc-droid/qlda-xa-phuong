@@ -311,7 +311,8 @@ public class LuongController : ApiControllerBase
     {
         var came = await StaffFilter.AttendedIn(Db, from, from.AddMonths(1));
         return (await Db.Employees.AsNoTracking().OrderBy(e => e.Name).ToListAsync())
-            .Where(e => e.Status != "Nghỉ việc" || e.EndDate >= from || came.Contains(e.Id)).ToList();
+            .Where(e => !(e.EndDate is { } end && end < from) && (e.Status != "Nghỉ việc" || e.EndDate >= from || came.Contains(e.Id))).ToList();
+        // Bản 1.10.23: đã ghi ngày nghỉ việc trước tháng thì không vào bảng lương, kể cả còn lượt chấm công (tài khoản cũ bị dùng lại trên e-work: Phong, Giàu T11)
     }
 
     [HttpGet("luong")]
@@ -334,8 +335,18 @@ public class LuongController : ApiControllerBase
             }
             // Người lao động: chỉ phiếu lương của mình, khi tháng đã chốt
             var me = emps.Where(e => e.UserId == Uc.User.Id).ToList();
-            var mine = me.Count == 0 ? new List<Slip>() : (await Compute(month, me)).Where(s => s.Locked).ToList();
-            return Ok(new { month, canEdit = false, all = false, settings = (object?)null, rows = mine });
+            var calc = me.Count == 0 ? new List<Slip>() : await Compute(month, me);
+            var mine = calc.Where(s => s.Locked).ToList();
+            // Bản 1.10.23 (anh Trí 26/11: "Cho nhân viên xem phiếu lương tạm tính"): tháng chưa chốt thì người lao động xem phiếu tạm tính của mình
+            // (chỉ xem, không xác nhận); chỉ tháng hiện tại và tháng trước, bỏ qua tháng trả lương trên e-work cũ.
+            var provisional = false;
+            if (mine.Count == 0 && calc.Count > 0)
+            {
+                var cur = DateOnly.FromDateTime(VnTime.Now); var curM = new DateOnly(cur.Year, cur.Month, 1);
+                if ((from == curM || from == curM.AddMonths(-1)) && !await Db.EworkArchive.AsNoTracking().AnyAsync(r => r.TableName == "BangLuongs" && r.Period == month))
+                { mine = calc.Where(s => s.HasProfile).ToList(); provisional = mine.Count > 0; }
+            }
+            return Ok(new { month, canEdit = false, all = false, provisional, settings = (object?)null, rows = mine });
         }
         var rows = await Compute(month, emps);
         // tài khoản nhận lương: chỉ người quản lý lương, người duyệt chi (để lập danh sách chuyển khoản)

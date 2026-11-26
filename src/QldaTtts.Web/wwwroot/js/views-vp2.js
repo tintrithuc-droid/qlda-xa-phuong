@@ -411,21 +411,24 @@ VIEWS['luong']=()=>{
   let body;
   if(d===null) body='<div class="empty">Đang tải…</div>';
   else if(d.error) body=emptyBox(esc(d.error));
-  else if(!d.all) body = d.rows.length? paySlipHTML(d.rows[0], m) + payConfirmHTML(d.rows[0], m) + `<div class="toolbar" style="margin-top:10px"><button class="btn" data-act="pay-pdf" data-id="${esc(d.rows[0].employeeId)}">In, lưu PDF phiếu lương</button></div>`
+  else if(!d.all) body = d.rows.length&&d.provisional? `<div class="alert warn" style="max-width:640px;margin-bottom:10px">Phiếu tạm tính theo nhận nhiệm vụ, đề xuất, tăng ca đã duyệt tới hôm nay; số còn thay đổi tới khi bảng lương tự chốt đầu tháng sau. Thưởng KPI cộng khi chốt. Thấy thiếu ngày công thì lập đề xuất ngay để kịp sửa.</div>`+paySlipHTML(d.rows[0], m)
+    : d.rows.length? paySlipHTML(d.rows[0], m) + payConfirmHTML(d.rows[0], m) + `<div class="toolbar" style="margin-top:10px"><button class="btn" data-act="pay-pdf" data-id="${esc(d.rows[0].employeeId)}">In, lưu PDF phiếu lương</button></div>`
       : emptyBox(`Chưa có phiếu lương tháng ${m.slice(5)}/${m.slice(0,4)}.`);
   else {
     // Bản 1.10.21: trưởng phòng xem bảng lương của phòng; phiếu của chính mình vẫn tự xác nhận như mọi người
     const myE=d.dept && VP.st.me && d.rows.find(r=>r.employeeId===VP.st.me.id);
     body=''; if(d.dept) body = `<div class="alert info" style="margin-bottom:10px"><div>Bảng lương của phòng bạn phụ trách (chỉ xem).</div></div>` + (myE&&myE.locked? payConfirmHTML(myE, m) : '');
-    const rows=d.rows.filter(r=>!dep||r.departmentId===dep).map(r=>({...r,id:r.employeeId}));
-    const noProf=rows.filter(r=>!r.hasProfile).length, sum=k=>rows.reduce((s,r)=>s+(r[k]||0),0);
+    // Bản 1.10.23 (anh Trí 26/11): bảng lương chỉ liệt kê người có hồ sơ lương; tài khoản quản trị, người chưa có hồ sơ lương chỉ ghi tên ở dòng nhắc
+    const all=d.rows.filter(r=>!dep||r.departmentId===dep), npl=all.filter(r=>!r.hasProfile);
+    const rows=all.filter(r=>r.hasProfile).map(r=>({...r,id:r.employeeId}));
+    const noProf=npl.length, sum=k=>rows.reduce((s,r)=>s+(r[k]||0),0);
     body+=`<div class="kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
       <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Tổng thu nhập</div><b>${vnd(sum('gross'))}</b></div>
       <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Thực lĩnh</div><b>${vnd(sum('net'))}</b></div>
       <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Bảo hiểm (NLĐ + DN)</div><b>${vnd(sum('insurance')+sum('employerIns'))}</b></div>
       <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Thuế TNCN</div><b>${vnd(sum('pit'))}</b></div>
       <div class="card" style="padding:10px 14px;margin:0"><div class="small muted">Chi phí công ty</div><b>${vnd(sum('cost'))}</b></div></div>`
-    + (noProf?`<div class="alert info" style="margin-bottom:10px">${noProf} người chưa có hồ sơ lương (lương chính 0, không đưa vào khi chốt). Bấm <b>Hồ sơ lương</b> để nhập.</div>`:'')
+    + (noProf?`<div class="alert info" style="margin-bottom:10px">Không hiện trong bảng (chưa có hồ sơ lương, không đưa vào khi chốt): ${npl.map(r=>esc(r.name)).join(', ')}.${d.canEdit?' Người cần trả lương thì bấm <b>Hồ sơ lương</b> để nhập.':''}</div>`:'')
     + table([
       {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>${r.noAttendance?pill('Không chấm công','info'):''}`},
       {h:'Công', r:1, f:r=>`${fmtN(r.paid,1)}/${fmtN(r.standard,1)}${r.absent?`<div class="small muted">vắng ${fmtN(r.absent,1)}</div>`:''}`},
@@ -440,8 +443,8 @@ VIEWS['luong']=()=>{
   }
   const ed=d&&d.canEdit, locked=d&&d.all&&d.rows.some(r=>r.locked), appr=d&&d.all&&d.rows.some(r=>r.locked&&r.approvedAt), ap=d&&d.canApprove;
   const ar=appr&&d.rows.find(r=>r.approvedAt);
-  return `<div class="head"><div class="grow"><h1>${d&&!d.all?'Phiếu lương':(d&&d.all&&!locked&&!appr?'Lương tạm tính':'Bảng lương')} tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${d&&d.all?(appr?pill('Đã duyệt chi','ok')+` <span class="small muted">${esc(ar.approvedBy||'')}, ${fmtDate(String(ar.approvedAt).slice(0,10))}</span>`:locked?pill('Đã chốt, chờ duyệt chi','info'):pill('Tạm tính đến hôm nay, chưa chốt','warn')+` <span class="small muted">${(d.settings||{}).autoLock!==false?`Máy tự chốt 0 giờ ngày ${esc(String((d.settings||{}).autoLockDay||1))}/${m.slice(5)==='12'?'01':String(+m.slice(5)+1).padStart(2,'0')}. `:''}Nhân viên chỉ thấy phiếu của mình sau khi chốt.</span>`):'Của bạn'}</p></div>
-    <div class="toolbar">${ed?`<button class="btn" data-act="pay-profiles">Hồ sơ lương</button><button class="btn" data-act="pay-set">Thiết lập</button>${appr?'':`<button class="btn ${locked?'':'primary'}" data-act="pay-lock" data-id="${locked?'0':'1'}">${locked?'Mở chốt':'Chốt bảng lương'}</button>`}`:''}
+  return `<div class="head"><div class="grow"><h1>${d&&!d.all?(d.provisional?'Phiếu lương tạm tính':'Phiếu lương'):(d&&d.all&&!locked&&!appr?'Lương tạm tính':'Bảng lương')} tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${d&&d.all?(appr?pill('Đã duyệt chi','ok')+` <span class="small muted">${esc(ar.approvedBy||'')}, ${fmtDate(String(ar.approvedAt).slice(0,10))}</span>`:locked?pill('Đã chốt, chờ duyệt chi','info'):pill('Tạm tính đến hôm nay, chưa chốt','warn')+` <span class="small muted">${(d.settings||{}).autoLock!==false?`Máy tự chốt 0 giờ ngày ${esc(String((d.settings||{}).autoLockDay||1))}/${m.slice(5)==='12'?'01':String(+m.slice(5)+1).padStart(2,'0')}. `:''}Nhân viên xem được phiếu tạm tính của mình, xác nhận sau khi chốt.</span>`):d&&d.provisional?pill('Tạm tính đến hôm nay, chưa chốt','warn'):'Của bạn'}</p></div>
+    <div class="toolbar">${ed?`<button class="btn" data-act="pay-profiles">Hồ sơ lương</button><button class="btn" data-act="pay-set">Thiết lập</button>${appr?'':locked?`<button class="btn" data-act="pay-lock" data-id="0">Mở chốt</button>`:payMonthEnded(m)?`<button class="btn primary" data-act="pay-lock" data-id="1">Chốt bảng lương</button>`:`<button class="btn ghost" data-act="pay-lock" data-id="1e" title="Tháng chưa kết thúc; máy tự chốt đầu tháng sau">Chốt sớm…</button>`}`:''}
       ${ap&&locked?`<button class="btn ${appr?'':'primary'}" data-act="pay-approve" data-id="${appr?'0':'1'}">${appr?'Hủy duyệt chi':'Duyệt chi lương'}</button>`:''}</div></div>
   <div class="toolbar" style="margin:4px 0 10px">${monthSel('plm', m)}${d&&d.all?`<select data-f="pld" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
     <span style="flex:1"></span>${exportMenu([['pay-pdf','','Phiếu lương từng người (PDF)'],['pay-xlsx','','Bảng lương kế toán (Excel)'],['pay-acc-pdf','','Bảng lương kế toán (PDF)']].concat(d.bank?[['pay-bank','','Danh sách chuyển khoản ngân hàng'+(appr?'':' (sau khi duyệt chi)'),!appr]]:[]))}`:''}</div>${body}`;
@@ -506,7 +509,11 @@ ACT['pay-adj']=id=>{ const r=payRow(id); if(!r) return; closeModal();
   openForm({title:'Điều chỉnh lương: '+r.name, narrow:true, value:{bonus:r.bonus||'', deduction:r.deduction||'', note:r.note||''},
     fields:[{key:'bonus',label:'Thưởng, bổ sung khác (đồng, tính thuế)',type:'money'},{key:'deduction',label:'Khấu trừ khác (đồng)',type:'money'},{key:'note',label:'Ghi chú (in trên phiếu)',type:'text'}],
     onSave:async v=>{ await api('PUT',`/api/vp/luong/${payMonth()}/${encodeURIComponent(id)}`,{bonus:N(v.bonus), deduction:N(v.deduction), note:v.note||''}); delete VP.pay[payMonth()]; return {id}; }}); };
+// Tháng đã kết thúc (theo giờ Việt Nam) thì mới nên chốt; tháng đang chạy chỉ chốt sớm khi xác nhận
+const payMonthEnded = m => { const t=new Date(Date.now()+7*3600e3).toISOString().slice(0,7); return m < t; };
 ACT['pay-lock']=async l=>{ const m=payMonth(); const d=VP.pay[m]; const miss=d&&d.rows? d.rows.filter(r=>!r.hasProfile).length : 0;
+  if(l==='1e'){ if(!await confirmBox(`Tháng ${m.slice(5)}/${m.slice(0,4)} <b>chưa kết thúc</b>. Máy sẽ tự chốt vào đầu tháng sau, khi đã đủ công, đề xuất và thưởng KPI. Chốt sớm thì số liệu các ngày còn lại không được tính, phải mở chốt để tính lại. Vẫn chốt ngay?`,'Vẫn chốt sớm')) return; l='1';
+    await api('POST',`/api/vp/luong/${m}/chot`,{lock:true}); delete VP.pay[m]; render(); toast('Đã chốt bảng lương'); return; }
   if(l==='1' && !await confirmBox(`Chốt bảng lương tháng ${m.slice(5)}/${m.slice(0,4)}? Số liệu được lưu cố định, người lao động xem được phiếu lương của mình.${miss?` <b>${miss} người chưa có hồ sơ lương</b> sẽ không có phiếu.`:''}`,'Chốt')) return;
   await api('POST',`/api/vp/luong/${m}/chot`,{lock:l==='1'}); delete VP.pay[m]; render(); toast(l==='1'?'Đã chốt bảng lương':'Đã mở chốt'); };
 const payAllowText = l => (l||[]).map(a=>[a.name, a.amount, a.exempt||0].join('; ')).join('\n');
@@ -549,7 +556,7 @@ ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
       const b={...s}; ['empBhxh','empBhyt','empBhtn','coBhxh','coBhyt','coBhtn','coKpcd','baseWage','regionMinWage','personalDeduction','dependentDeduction','otRate','otRestRate','otHolidayRate','otMaxPerDay','otMaxUrgent','confirmFrom','confirmTo','autoLockDay'].forEach(k=>b[k]=N(v[k])); b.autoLock=v.autoLock!=='0'; b.payDay=v.payDay||''; b.otByApproval=v.otByApproval!=='0'; b.otWithAllowances=v.otWithAllowances!=='0'; b.eworkBonus=v.eworkBonus!=='0'; b.taxTables=taxTables;
       await api('PUT','/api/vp/luong-settings', b); VP.pay={}; return {id:'luong'}; }}); };
 ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||'';
-  const rows=d.rows.filter(r=>!dep||r.departmentId===dep).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'))
+  const rows=d.rows.filter(r=>r.hasProfile&&(!dep||r.departmentId===dep)).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'))
     .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances-(r.allowanceCut||0), r.otNormal||0, r.otRest||0, r.otHoliday||0, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost, r.leaveOver||0, r.unusedLeavePay||0, r.tripPay||0, r.fuelPay||0, r.tempAdvance||0, r.confirmState||'', r.feedback||'']);
   exportXlsx(`Bang_luong_${m}.xlsx`, [{name:'Luong '+m, title:`BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}`, sub:`Ngày công chuẩn ${fmtN(d.rows[0]?.standard||0,1)}`,
     head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ TC ngày thường (150%)','Giờ TC ngày nghỉ (200%)','Giờ TC ngày lễ (300%)','Tổng giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty','Nghỉ vượt phép (ngày)','Tiền phép chưa nghỉ','Công tác phí','Xăng xe','Tạm ứng trừ lương','Xác nhận','Kiến nghị'],

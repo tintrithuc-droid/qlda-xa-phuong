@@ -101,6 +101,7 @@ exports.CHAPTERS = [
 <p class="note">Cách tính áp dụng từ tháng 12/2026; sau 3 tháng Công ty đánh giá lại và điều chỉnh nếu cần.</p>` },
 
   { id: 'phieu-luong', title: 'Phiếu lương và xác nhận lương', roles: ALL, shot: 'phieu-luong', html: `
+<p>Trong tháng, mục <b>Lương</b> hiện <b>Phiếu lương tạm tính</b> của bạn (tính theo nhận nhiệm vụ, đề xuất, tăng ca đã duyệt tới hôm nay; chưa có thưởng KPI). Phiếu tạm tính chỉ để theo dõi, không xác nhận; thấy thiếu ngày công thì lập đề xuất ngay để kịp sửa.</p>
 <ol><li>Bảng lương tháng tự chốt lúc 0 giờ ngày 1 tháng sau. Vào <b>Văn phòng → Lương</b>, chọn tháng để xem phiếu lương của mình: ngày công, lương thời gian, phụ cấp, tăng ca, công tác phí, thưởng KPI, bảo hiểm, thuế thu nhập cá nhân, tạm ứng, thực nhận.</li>
 <li>Từ ngày 1 đến hết ngày 3 tháng sau: bấm <b>Đồng ý, xác nhận lương</b>, hoặc ghi rõ ý kiến rồi bấm <b>Gửi kiến nghị</b>. Quá hạn coi như đồng ý.</li>
 <li>Kế toán trả lời kiến nghị ngay trên phiếu lương. Bấm <b>In, lưu PDF phiếu lương</b> để lưu.</li></ol>

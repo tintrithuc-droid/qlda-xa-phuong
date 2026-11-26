@@ -533,7 +533,7 @@ public class VanPhongController : ApiControllerBase
         // Bản 1.10.21: bỏ người đã nghỉ việc, khóa tài khoản; trừ khi có chấm công trong tháng hoặc nghỉ việc từ tháng này (giữ tháng cũ đủ người)
         var offU = await StaffFilter.LockedUsers(Db); var came = await StaffFilter.AttendedIn(Db, from, to);
         var emps = (await Db.Employees.AsNoTracking().Where(e => e.Attendance).OrderBy(e => e.Name).ToListAsync())
-            .Where(e => (scope is null || scope.Contains(e.Id)) && (StaffFilter.Working(e, offU, from) || came.Contains(e.Id))).ToList();
+            .Where(e => (scope is null || scope.Contains(e.Id)) && (StaffFilter.Working(e, offU, from) || (came.Contains(e.Id) && !(e.EndDate is { } end && end < from)))).ToList();
         var (standard, rows) = await VpCalc.Month(Db, s, emps, from);
         return Ok(new { month, standard, rows });
     }

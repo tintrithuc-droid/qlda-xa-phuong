@@ -207,6 +207,16 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
     const pa = await J(qa.get(BASE + '/api/vp/luong?month=' + PM, { headers: H })), pb = await J(qb.get(BASE + '/api/vp/luong?month=' + PM, { headers: H }));
     ok(pa.dept !== true && pa.all === false, 'Chỉ người cùng phụ trách mà trưởng phòng vẫn xem lương phòng');
     ok(pb.dept === true, 'Người cùng phụ trách phải xem lương phòng');
+    // 1.10.23: người lao động (không xem lương phòng) thấy phiếu tạm tính tháng hiện tại; tháng trả trên e-work cũ thì không
+    await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, deptView: 'khong' } });
+    const pc = await J(qb.get(BASE + '/api/vp/luong?month=' + thisMonth(), { headers: H }));
+    ok(pc.all === false && pc.provisional === true && pc.rows.length === 1 && !pc.rows[0].locked, 'Nhân viên chưa thấy phiếu lương tạm tính: ' + JSON.stringify({ all: pc.all, p: pc.provisional, n: (pc.rows || []).length }));
+    const pp = await J(qb.get(BASE + '/api/vp/luong?month=' + PM, { headers: H }));
+    const pn = await J(qa.get(BASE + '/api/vp/luong?month=' + thisMonth(), { headers: H })); ok(!pn.provisional && pn.rows.length === 0, 'Người chưa có hồ sơ lương không nên có phiếu tạm tính');
+    console.log('Tháng trước: provisional=' + pp.provisional + ', ' + (pp.rows || []).length + ' phiếu');
+    { const pg = await cB.newPage(); await pg.goto(BASE + '/#luong'); await pg.waitForSelector('#app', { timeout: 20000 }); await pg.waitForTimeout(2500);
+      const tx = await pg.textContent('body'); ok(/Phiếu lương tạm tính/.test(tx) && !/Xác nhận lương/.test(tx), 'Giao diện phiếu tạm tính sai');
+      await pg.screenshot({ path: path.join(tmp, 'phieu-tam-tinh.png') }); await pg.close(); }
     await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, deptView: 'ca-hai' } }); }
   // 1.10.21: tự chốt bảng lương tháng trước (không cần Kế toán bấm); Kế toán mở chốt thì không tự chốt lại
   { const c1 = cli(['--tu-chot-luong']); ok(c1.code === 0, 'Tự chốt lương lỗi: ' + c1.out);
@@ -218,6 +228,11 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   // 7) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
   const vs1 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs1.leaveSeniorityBonus === false && vs1.inOnly === true, 'Thiết lập chưa lưu');
 
+  // 1.10.23: tháng đang chạy chỉ có nút "Chốt sớm…" (không phải nút chính), người chưa có hồ sơ lương không thành dòng trong bảng
+  { await p.goto(BASE + '/#luong'); await p.waitForTimeout(2500);
+    const btn = await p.$('[data-act="pay-lock"]'); const bt = btn ? (await btn.textContent()).trim() : '';
+    ok(/Chốt sớm/.test(bt) && !/primary/.test(await btn.getAttribute('class')), 'Tháng đang chạy mà nút chốt vẫn là nút chính: ' + bt);
+    await p.screenshot({ path: path.join(tmp, 'luong-thang-nay.png') }); }
   // 8) Hướng dẫn theo vai trò tự hiện khi đăng nhập, bấm "Đã đọc" thì không hiện lại
   { const gid = await p.evaluate(() => S.user.groupId);
     if (await p.evaluate(() => D('guides').some(g => (g.groups || []).includes(S.user.groupId)))) {

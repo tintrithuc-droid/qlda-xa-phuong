@@ -145,7 +145,7 @@ ACT['cv-add']=x=>{ const [p,k]=String(x||'|').split('|'); ACT['cv-new'](null,nul
 
 function cvAssignees(d){
   const pm=d.perms||{}; const me=VP.st.me;
-  const list=VP.emps.filter(e=>e.userId && vpWorking(e) && (!me||e.userId!==me.userId) && (pm.boss || (pm.assignable||[]).includes(e.userId)));
+  const list=VP.emps.filter(e=>e.userId && vpPickable(e) && (!me||e.userId!==me.userId) && (pm.boss || (pm.assignable||[]).includes(e.userId)));
   return list.map(e=>[e.userId, e.name+(e.departmentId?' · '+vpDeptName(e.departmentId):'')]);
 }
 ACT['cv-new']=async (mode, el, ev, base, preset)=>{
@@ -157,7 +157,7 @@ ACT['cv-new']=async (mode, el, ev, base, preset)=>{
   const projOpts=[['-','Việc nội bộ (không thuộc dự án)']].concat((d.projects||[]).map(p=>[p.id,p.name]));
   const pkFor=pid=> !pid||pid==='-'? [['','— (việc nội bộ không có gói thầu)']] : [['','Việc chung của dự án (không chọn gói thầu)']].concat((d.packages||[]).filter(k=>k.projectId===pid).map(k=>[k.id,k.name]));
   const parFor=pid=> d.parents.filter(p=>(!r||p.id!==r.id) && (p.projectId||'-')===(pid||'-')).map(p=>[p.id,(p.packageName?p.packageName+' › ':'')+p.name]);
-  const rm=!!d.resultMode, emps=VP.emps.filter(e=>e.userId&&vpWorking(e)).map(e=>[e.userId,e.name]);
+  const rm=!!d.resultMode, emps=VP.emps.filter(e=>e.userId&&vpPickable(e)).map(e=>[e.userId,e.name]);
   const F={
     projectId:{key:'projectId',label:'Dự án (cấp cha)',type:'select',options:projOpts,req:true},
     packageId:{key:'packageId',label:'Gói thầu (cấp con)',type:'select',options:pkFor,dep:'projectId',req:true,hint:'Dự án chưa có gói thầu hoặc việc chung của dự án thì để "Việc chung của dự án".'},

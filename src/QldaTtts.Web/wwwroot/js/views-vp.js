@@ -521,6 +521,8 @@ const VP_REC = [['bang-cap','Bằng cấp, chứng chỉ','Tên văn bằng, ch�
   ['ky-luat','Kỷ luật','Nội dung vi phạm','Hình thức kỷ luật','Số quyết định','Ngày'],['giay-to','Giấy tờ khác (CCCD, sơ yếu lý lịch, giấy khám sức khỏe…)','Tên giấy tờ','Nơi cấp','Số','Ngày cấp']];
 const vpUser = id => D('users').find(u=>u.id===id);
 // Bản 1.10.21: người đã nghỉ việc hoặc tài khoản đã khóa không hiện ở danh sách chọn người (giao việc, phối hợp, mời họp…)
+// Bản 1.10.25: ô chọn người (giao việc, mời họp, phối hợp) ẩn luôn người đã có ngày nghỉ việc, kể cả chưa tới ngày
+const vpPickable = e => vpWorking(e) && !e.endDate;
 const vpWorking = e => !!e && e.status!=='Nghỉ việc' && !(e.endDate && e.endDate < isoLocal(new Date())) && !(e.userId && (vpUser(e.userId)||{}).active===false);
 /* Bản 1.10.12: hồ sơ (vp-prof) là trang riêng, xem views-hs.js */
 ACT['vp-dept']=id=>{ const d=vpDept(id)||{order:VP.depts.length+1};

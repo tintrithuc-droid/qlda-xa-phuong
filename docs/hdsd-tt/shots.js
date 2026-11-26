@@ -39,7 +39,7 @@ const VIEW = { width: 1366, height: 820 };
   // thông tin đơn vị: Công ty Tri Thức, giao diện Công nghệ
   const br = await J(r.get(BASE + '/api/branding'));
   await r.put(BASE + '/api/branding', { headers: H, data: { ...br, appName: 'e-work Tri Thức', orgShort: 'Công ty Tri Thức', orgName: 'Công ty Cổ phần Tin học Tri Thức', unitName: 'Công ty Cổ phần Tin học Tri Thức',
-    bannerTitle: 'e-work Tri Thức', bannerText: 'Điểm danh, đề xuất, công việc, KPI, lương trên một hệ thống.', style: 'tech', color: 'teal', field: 'cntt', printNation: '0',
+    bannerTitle: 'e-work Tri Thức', bannerText: 'Nhận nhiệm vụ, đề xuất, công việc, KPI, lương trên một hệ thống.', style: 'tech', color: 'teal', field: 'cntt', printNation: '0',
     footer: '© {năm} Công ty Cổ phần Tin học Tri Thức', hideMods: '', loginHint: 'Dùng tài khoản e-work của bạn.' } });
 
   // dữ liệu mẫu: nạp e-work kiểm thử, thêm Kế toán, Giám đốc
@@ -49,6 +49,7 @@ const VIEW = { width: 1366, height: 820 };
   fx.users.push({ ...base, Id: 'u5', UserName: 'thuha', Email: 'thuha@vidu.vn', FullName: 'Phạm Thu Hà', RoleName: 'KETOAN', PhongBan: 'pb-kd' });
   fx.users.push({ ...base, Id: 'u6', UserName: 'giamdoc', Email: 'giamdoc@vidu.vn', FullName: 'Đỗ Minh Quang', RoleName: 'GIAMDOC', PhongBan: 'pb-kd' });
   fx.luutru.QuanLyCongViecs = [];
+  fx.phongbans.forEach(p => { p.Name = p.Id === 'pb-kt' ? 'Phòng Dự án - Kỹ thuật' : 'Hành chính - Kế toán'; });
   const FX = path.join(tmp, 'ew.json'); fs.writeFileSync(FX, JSON.stringify(fx));
   console.log(cli(['--nhap-ework', FX], { QLDA_MAT_KHAU_CHUNG: 'TriThuc2026' }).split('\n').filter(l => /dự án|nhân sự/.test(l)).join('\n'));
   const emps = await J(r.get(BASE + '/api/vp/employees', { headers: H })); const E = n => emps.find(e => e.name === n);
@@ -126,7 +127,9 @@ const VIEW = { width: 1366, height: 820 };
   await shot(kt, 'tong-hop', 'diem-danh', `S.tab.dd='bang'; render()`);
   await shot(nv, 'de-xuat', 'de-xuat');
   await shot(nv, 'cong-viec', 'cong-viec');
-  await shot(nv, 'kpi', 'kpi', `S.f.kpim='${PM}'; render()`);
+  { const ks = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H })); await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks, auto: true, resultFrom: thisMonth() } }); }
+  for (const e of emps) await r.put(BASE + `/api/vp/kpi/${thisMonth()}/${e.id}`, { headers: H, data: { clearWork: true } });
+  await shot(nv, 'kpi', 'kpi', `S.f.kpim='${thisMonth()}'; render()`);
   await shot(nv, 'phieu-luong', 'luong', `S.f.plm='${PM}'; render()`);
   await shot(tp, 'giao-viec', 'cong-viec', `S.f.cvs='giao'; render()`);
   await shot(tp, 'chi-tiet-viec', 'cong-viec', `ACT['cv-view']('${v1}')`, { full: true });

@@ -6,7 +6,7 @@ const { ROLES, CHAPTERS } = require('./content');
 const OUT = process.argv[2] || path.join(__dirname, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const SHOTS = path.join(__dirname, 'shots'), VER = '1.10.24', DATE = '26/11/2026';
 const CAP = { 'dang-nhap': 'Trang đăng nhập', 'du-an': 'Quản lý dự án: thông tin dự án, các thẻ Công việc, Hồ sơ pháp lý, Tình trạng thực hiện', 'du-an-sua': 'Sửa thông tin dự án: cuối biểu mẫu có mục Lịch sử thay đổi (ai, lúc nào, sửa gì)', 'diem-danh': 'Trang Nhận nhiệm vụ sau khi nhận: nơi làm, nhắc việc, KPI tạm tính, phép còn lại',
-  'de-xuat': 'Trang Đề xuất', 'cong-viec': 'Công việc: ba thẻ Việc của tôi, Được giao, Tôi giao; cột Sản phẩm bàn giao; x/y sản phẩm đã nghiệm thu', 'kpi': 'KPI tháng: Cách tính, nút Xuất',
+  'de-xuat': 'Trang Đề xuất', 'cong-viec': 'Công việc: ba thẻ Việc của tôi, Được giao, Tôi giao; cột Sản phẩm bàn giao; x/y sản phẩm đã nghiệm thu', 'kpi': 'KPI tháng theo 3 chiều: Sản phẩm, Tương tác, Chuyên cần; Cách tính, nút Xuất',
   'phieu-luong': 'Phiếu lương, xác nhận hoặc gửi kiến nghị', 'giao-viec': 'Thẻ Tôi giao: sản phẩm chờ nghiệm thu lên đầu, xin gia hạn', 'chi-tiet-viec': 'Chi tiết việc: sản phẩm bàn giao, tiêu chí đạt, sản phẩm đã nộp, người phối hợp, nhật ký', 'nop-san-pham': 'Nộp sản phẩm: đính kèm tệp hoặc dán đường dẫn, ghi chú nơi kiểm tra', 'nghiem-thu': 'Nghiệm thu: Đạt tốt, Đạt, hoặc Chưa đạt (trả lại sửa, ghi rõ cần sửa gì)', 'tang-ca': 'Phiếu xác nhận tăng ca: chọn công việc làm thêm giờ', 'nhan-nhiem-vu': 'Nhận nhiệm vụ: chọn nơi làm, bấm một lần mỗi sáng', 'hom-nay': 'Bảng công: Hôm nay ai ở đâu', 'duyet': 'Đề xuất chờ tôi duyệt',
   'nhan-su': 'Hồ sơ nhân sự', 'bang-luong': 'Bảng lương tháng: chốt, duyệt chi, nút Xuất', 'duyet-chi': 'Bảng lương đã duyệt chi: xuất danh sách chuyển khoản ngân hàng',
   'qt-nguoi-dung': 'Quản trị hệ thống' };
@@ -39,7 +39,7 @@ function html(k) {
   </style></head><body>
   <div class="cover"><div class="top">CÔNG TY CỔ PHẦN TIN HỌC TRI THỨC</div>
     <div><h1>Hướng dẫn sử dụng<br>e-work Tri Thức</h1><span class="role">Dành cho ${role.name}</span><p class="intro">${role.intro}</p></div>
-    <div class="foot">Phiên bản phần mềm ${VER} · Ban hành ngày ${DATE} · https://trithuc.qlda.trithucsoft.vn<br>Ảnh minh họa dùng dữ liệu mẫu.</div></div>
+    <div class="foot">Phiên bản phần mềm ${VER} · Ban hành ngày ${DATE} · https://e-work.vn<br>Ảnh minh họa dùng dữ liệu mẫu.</div></div>
   <div class="toc"><h2>Nội dung</h2><ol>${toc}</ol></div>${body}</body></html>`;
 }
 

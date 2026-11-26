@@ -48,7 +48,7 @@ public class ViecController : ApiControllerBase
         _managed = (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Me || d.DeputyUserId == Me).Select(d => d.Id).ToListAsync()).ToHashSet();
         _empByUser = (await Db.Employees.AsNoTracking().Where(e => e.UserId != null).ToListAsync()).GroupBy(e => e.UserId!).ToDictionary(g => g.Key, g => g.First());
         var lockedU = await StaffFilter.LockedUsers(Db);
-        _off = _empByUser.Values.Where(e => !StaffFilter.Working(e, lockedU) || e.EndDate != null).Select(e => e.UserId!).Concat(lockedU).ToHashSet();
+        _off = _empByUser.Values.Where(e => !StaffFilter.Working(e, lockedU)).Select(e => e.UserId!).Concat(lockedU).ToHashSet();
         _pendingExt = (await Db.TaskLogs.AsNoTracking().Where(l => l.Kind == "xin-gia-han" && l.State == "Chờ duyệt").Select(l => l.TaskId).ToListAsync()).ToHashSet();
         _otHours = (await Db.Requests.AsNoTracking().Where(r => r.TaskId != null && r.Type == "Tăng ca" && r.Status != "Từ chối" && r.Status != "Đã hủy").Select(r => new { r.TaskId, r.Hours }).ToListAsync())
             .GroupBy(r => r.TaskId!).ToDictionary(g => g.Key, g => g.Sum(r => r.Hours ?? 0));

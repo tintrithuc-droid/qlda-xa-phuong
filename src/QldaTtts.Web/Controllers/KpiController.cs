@@ -97,6 +97,8 @@ public class KpiSettings
     public decimal RInteract { get; set; } = 20;
     /// <summary>Tương tác đủ 100 điểm khi số ngày làm việc có cập nhật trên phần mềm đạt tỷ lệ này so với số ngày đi làm (0,6 = khoảng 3 ngày mỗi tuần).</summary>
     public decimal InteractTarget { get; set; } = 0.6m;
+    /// <summary>Bản 1.10.25 (anh Trí 26/11): hồ sơ nhân sự không đánh giá KPI (không lên danh sách KPI, không xếp hạng, không thưởng KPI). Lương chính không đổi.</summary>
+    public List<string> Exclude { get; set; } = new();
     public bool ResultMode => !string.IsNullOrWhiteSpace(ResultFrom);
     public bool ResultFor(DateOnly monthStart) => ResultMode && string.CompareOrdinal(monthStart.ToString("yyyy-MM"), ResultFrom!.Trim()) >= 0;
     public decimal ResultQuality(int? q) => q is >= 4 ? GoodFactor : PassFactor;
@@ -235,7 +237,7 @@ public class KpiController : ApiControllerBase
         var lockedIds = sheets.Values.Where(x => x.LockedAt != null).Select(x => x.EmployeeId).ToHashSet();
         var lockedUsers = await StaffFilter.LockedUsers(db);
         var emps = (await db.Employees.AsNoTracking().OrderBy(e => e.Name).ToListAsync())
-            .Where(e => lockedIds.Contains(e.Id) || StaffFilter.Working(e, lockedUsers, from)).ToList();
+            .Where(e => lockedIds.Contains(e.Id) || (StaffFilter.Working(e, lockedUsers, from) && !k.Exclude.Contains(e.Id))).ToList();
         var deptNames = await db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name);
         var (_, stats) = await VpCalc.Month(db, vs, emps, from);
         var atts = (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());

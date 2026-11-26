@@ -44,7 +44,7 @@ public class BrandingController : ApiControllerBase
         ("style", "gov", 10),
         // Màu nền thanh menu và banner trang đăng nhập (phong cách Công nghệ): peach (mặc định), blue, night, teal, slate
         ("sideBg", "peach", 12),
-        // Mẫu trang đăng nhập (phong cách Công nghệ): split (hai cột, mặc định), aurora, network, grid, orbit, bento, glass
+        // Mẫu trang đăng nhập (phong cách Công nghệ): split (hai cột, mặc định), si (siêu trí tuệ, màu logo Tri Thức), aurora, network, grid, orbit, bento, glass
         ("loginTpl", "split", 12),
         // Mẫu in (báo cáo, phiếu trình, bảng đối soát)
         ("printNation", "1", 1),  // 1: in quốc hiệu, tiêu ngữ; 0: không in
@@ -63,7 +63,7 @@ public class BrandingController : ApiControllerBase
     public static readonly Dictionary<string, string> Colors = new()
     { ["navy"] = "#0d2a57", ["teal"] = "#0a3431", ["indigo"] = "#1e1b4b", ["green"] = "#0f2f1c", ["earth"] = "#2e1608", ["slate"] = "#111827" };
     public static readonly HashSet<string> SideBgs = new() { "peach", "blue", "night", "teal", "slate" };
-    public static readonly HashSet<string> LoginTpls = new() { "split", "aurora", "network", "grid", "orbit", "bento", "glass" };
+    public static readonly HashSet<string> LoginTpls = new() { "split", "si", "aurora", "network", "grid", "orbit", "bento", "glass" };
     private static readonly HashSet<string> Flags = new() { "bannerDeco", "printNation" };
 
     private readonly FileStore _store;

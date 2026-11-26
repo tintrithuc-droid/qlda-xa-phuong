@@ -170,7 +170,7 @@ ACT.del=async(id,el)=>{
 /* ===== Thiết lập lần đầu & đăng nhập ===== */
 /* Mẫu trang đăng nhập (phong cách Công nghệ, Quản trị → Thông tin đơn vị → Mẫu trang đăng nhập).
    Họa tiết chỉ là trang trí (aria-hidden), không tải ảnh ngoài; CSS trong congnghe.css theo data-login. */
-const LOGIN_TPLS=[['split','Hai cột (cổ điển)'],['aurora','Cực quang (nền tối, dải màu chuyển động)'],['network','Mạng kết nối (nền tối, nút dữ liệu)'],
+const LOGIN_TPLS=[['split','Hai cột (cổ điển)'],['si','Siêu trí tuệ Tri Thức (màu logo cam, xanh lá trên nền xanh đậm)'],['aurora','Cực quang (nền tối, dải màu chuyển động)'],['network','Mạng kết nối (nền tối, nút dữ liệu)'],
   ['grid','Không gian số (nền tối, lưới phối cảnh)'],['orbit','Quỹ đạo sáng tạo (nền sáng, phân hệ xoay quanh)'],['bento','Bảng tính năng (nền sáng, ô chức năng)'],['glass','Kính mờ tối giản (khung giữa màn hình)']];
 const loginTpl = () => document.documentElement.dataset.style==='tech' && LOGIN_TPLS.some(x=>x[0]===BR.loginTpl) ? BR.loginTpl : 'split';
 function loginNet(){ // nút và đường nối cố định (cùng một hình mỗi lần mở), vài đường có dòng dữ liệu chạy
@@ -183,7 +183,17 @@ function loginNet(){ // nút và đường nối cố định (cùng một hình
 const LOGIN_ICO={du:'<path d="M3 7h18v13H3z"/><path d="M8 7V4h8v3"/>', cv:'<path d="m4 12 5 5L20 6"/>', kpi:'<path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/>',
   lich:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4m8-4v4"/>', nv:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', tb:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/>'};
 const lIco = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${LOGIN_ICO[k]}</svg>`;
+/* Biểu tượng ô vuông của Tri Thức (cam, xanh lá) dùng khi đơn vị chưa tải logo */
+const TT_TILES=[[0,0,'o'],[1,0,'o'],[2,0,'o'],[0,1,'g'],[1,1,'o'],[2,1,'g'],[0,2,'g'],[1,2,'o'],[2,2,'g']];
+const ttMark = () => `<svg class="tt-mark" viewBox="0 0 64 64" aria-hidden="true"><g transform="translate(6 10) skewY(9) skewX(-6)">${TT_TILES.map(([x,y,c])=>`<rect x="${x*17+(y*3)}" y="${y*15}" width="14" height="12.5" rx="3" fill="${c==='o'?'#f08942':'#79c272'}"/>`).join('')}</g></svg>`;
+function loginMosaic(){ // lưới ô vuông theo logo, sáng dần thành sóng như nơ-ron
+  let x=11, rnd=()=>(x=(x*16807)%2147483647)/2147483647, h='';
+  for(let r=0;r<7;r++) for(let c=0;c<9;c++){ const v=rnd(); if(v<.18) { h+='<i class="e"></i>'; continue; }
+    h+=`<i class="${v<.6?'o':'g'}" style="--d:${((r+c)*0.32).toFixed(2)}s"></i>`; }
+  return `<div class="mosaic">${h}</div>`;
+}
 function loginFx(t){
+  if(t==='si') return `<div class="fx" aria-hidden="true"><i class="glow1"></i><i class="glow2"></i>${loginNet()}${loginMosaic()}</div>`;
   if(t==='aurora') return '<div class="fx" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i></div>';
   if(t==='network') return `<div class="fx" aria-hidden="true"><i class="glow"></i>${loginNet()}</div>`;
   if(t==='grid') return '<div class="fx" aria-hidden="true"><i class="sky"></i><i class="sun"></i><i class="floor"></i><i class="scan"></i></div>';
@@ -203,8 +213,8 @@ function loginArtExtra(t){
 function authArt(){
   const t=loginTpl(), deco=BR.bannerDeco!=='0', bg=BR.loginBg&&t==='split'?` has-bg" style="--art-bg:url('${esc(BR.loginBg)}')`:'';
   return `${loginFx(t)}<div class="art${bg}">${deco&&!BR.logo&&!BR.loginBg?`<div class="drum-mark">${drumSVG()}</div>`:''}
-  <div class="art-head"><div class="seal${BR.logo?' logo':''}">${brandMark()}</div><div><div class="org1">${esc(BR.orgName)}</div><div class="org2">${esc(BR.unitName)}</div></div></div>
-  <div class="art-title"><h1>${esc(BR.bannerTitle)}</h1><p>${esc(BR.bannerText)}</p></div>${loginArtExtra(t)}
+  <div class="art-head"><div class="seal${BR.logo||t==='si'?' logo':''}">${BR.logo||t!=='si'?brandMark():ttMark()}</div><div><div class="org1">${esc(BR.orgName)}</div><div class="org2">${esc(BR.unitName)}</div></div></div>
+  <div class="art-title">${t==='si'?'<div class="si-chip"><b></b>Đổi mới sáng tạo · Siêu trí tuệ SI</div>':''}<h1>${esc(BR.bannerTitle)}</h1><p>${esc(BR.bannerText)}</p></div>${loginArtExtra(t)}
   ${/* địa chỉ chưa điền (còn dấu …) thì không hiện dòng giữ chỗ */ /…\s*$|\.\.\.\s*$/.test(BR.address||'')?'':`<div class="meta">${esc(BR.address)}</div>`}</div>`;
 }
 const authCls = () => 'auth'+(BR.bannerDeco==='0'?' plain':'');

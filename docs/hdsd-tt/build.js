@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const { ROLES, CHAPTERS } = require('./content');
 const OUT = process.argv[2] || path.join(__dirname, 'out'); fs.mkdirSync(OUT, { recursive: true });
-const SHOTS = path.join(__dirname, 'shots'), VER = '1.10.16', DATE = '26/11/2026';
+const SHOTS = path.join(__dirname, 'shots'), VER = '1.10.17', DATE = '26/11/2026';
 const CAP = { 'dang-nhap': 'Trang đăng nhập', 'diem-danh': 'Trang Điểm danh: giờ vào, ra, nhắc việc, KPI tạm tính, phép còn lại',
   'de-xuat': 'Trang Đề xuất', 'cong-viec': 'Việc của tôi: nhắc việc quá hạn, KPI tạm tính, các nút thao tác', 'kpi': 'KPI tháng của tôi',
   'phieu-luong': 'Phiếu lương, xác nhận hoặc gửi kiến nghị', 'giao-viec': 'Việc của phòng tôi phụ trách', 'duyet': 'Đề xuất chờ tôi duyệt',

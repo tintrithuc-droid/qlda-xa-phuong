@@ -168,11 +168,43 @@ ACT.del=async(id,el)=>{
 };
 
 /* ===== Thiết lập lần đầu & đăng nhập ===== */
+/* Mẫu trang đăng nhập (phong cách Công nghệ, Quản trị → Thông tin đơn vị → Mẫu trang đăng nhập).
+   Họa tiết chỉ là trang trí (aria-hidden), không tải ảnh ngoài; CSS trong congnghe.css theo data-login. */
+const LOGIN_TPLS=[['split','Hai cột (cổ điển)'],['aurora','Cực quang (nền tối, dải màu chuyển động)'],['network','Mạng kết nối (nền tối, nút dữ liệu)'],
+  ['grid','Không gian số (nền tối, lưới phối cảnh)'],['orbit','Quỹ đạo sáng tạo (nền sáng, phân hệ xoay quanh)'],['bento','Bảng tính năng (nền sáng, ô chức năng)'],['glass','Kính mờ tối giản (khung giữa màn hình)']];
+const loginTpl = () => document.documentElement.dataset.style==='tech' && LOGIN_TPLS.some(x=>x[0]===BR.loginTpl) ? BR.loginTpl : 'split';
+function loginNet(){ // nút và đường nối cố định (cùng một hình mỗi lần mở), vài đường có dòng dữ liệu chạy
+  let x=7, rnd=()=>(x=(x*16807)%2147483647)/2147483647; const n=[];
+  for(let i=0;i<46;i++) n.push([Math.round(rnd()*1000), Math.round(rnd()*700), rnd()]);
+  const ln=[]; n.forEach((a,i)=>n.slice(i+1).forEach(b=>{ const d=Math.hypot(a[0]-b[0],a[1]-b[1]); if(d<175) ln.push([a,b,d]); }));
+  return `<svg class="net" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice">${ln.map(([a,b],i)=>`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}"${i%7===0?` class="flow" style="animation-delay:-${(i%9)*0.7}s"`:''}/>`).join('')}
+    ${n.map(([cx,cy,r],i)=>`<circle cx="${cx}" cy="${cy}" r="${(2+r*3.2).toFixed(1)}"${i%5===0?` class="hub" style="animation-delay:-${(i%6)*0.6}s"`:''}/>`).join('')}</svg>`;
+}
+const LOGIN_ICO={du:'<path d="M3 7h18v13H3z"/><path d="M8 7V4h8v3"/>', cv:'<path d="m4 12 5 5L20 6"/>', kpi:'<path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/>',
+  lich:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4m8-4v4"/>', nv:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', tb:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/>'};
+const lIco = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${LOGIN_ICO[k]}</svg>`;
+function loginFx(t){
+  if(t==='aurora') return '<div class="fx" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i></div>';
+  if(t==='network') return `<div class="fx" aria-hidden="true"><i class="glow"></i>${loginNet()}</div>`;
+  if(t==='grid') return '<div class="fx" aria-hidden="true"><i class="sky"></i><i class="sun"></i><i class="floor"></i><i class="scan"></i></div>';
+  if(t==='glass') return '<div class="fx" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>';
+  return '';
+}
+function loginArtExtra(t){
+  if(t==='orbit'){ const ring=(c,items)=>`<div class="ring ${c}">${items.map(([k,l],i)=>`<span class="sat" style="--a:${Math.round(360/items.length*i)}deg"><b>${lIco(k)}${esc(l)}</b></span>`).join('')}</div>`;
+    return `<div class="orbit" aria-hidden="true"><div class="core">${brandMark()}</div>${ring('r1',[['nv','Nhận nhiệm vụ'],['cv','Công việc']])}${ring('r2',[['du','Dự án'],['kpi','KPI'],['lich','Lịch họp']])}${ring('r3',[['tb','Thông báo'],['du','Gói thầu'],['kpi','Bảng công'],['cv','Đề xuất']])}</div>`; }
+  if(t==='bento') return `<div class="bento" aria-hidden="true">
+    <div class="tile t1"><span class="ic">${lIco('nv')}</span><b>Nhận nhiệm vụ</b><small>Mỗi sáng một lần, chọn nơi làm việc</small></div>
+    <div class="tile t2"><span class="ic">${lIco('kpi')}</span><b>KPI tự động</b><small>Sản phẩm, chuyên cần, tương tác</small><i class="bars"><i style="--h:40%"></i><i style="--h:65%"></i><i style="--h:52%"></i><i style="--h:80%"></i><i style="--h:72%"></i><i style="--h:94%"></i></i></div>
+    <div class="tile t3"><span class="ic">${lIco('du')}</span><b>Dự án › Gói thầu › Việc</b><small>Một nguồn, theo kết quả sản phẩm</small><i class="prog"><i></i></i></div>
+    <div class="tile t4"><span class="ic">${lIco('lich')}</span><b>Lịch họp, thông báo</b><small>Đúng người, đúng lúc</small></div></div>`;
+  return '';
+}
 function authArt(){
-  const deco=BR.bannerDeco!=='0', bg=BR.loginBg?` has-bg" style="--art-bg:url('${esc(BR.loginBg)}')`:'';
-  return `<div class="art${bg}">${deco&&!BR.logo&&!BR.loginBg?`<div class="drum-mark">${drumSVG()}</div>`:''}
+  const t=loginTpl(), deco=BR.bannerDeco!=='0', bg=BR.loginBg&&t==='split'?` has-bg" style="--art-bg:url('${esc(BR.loginBg)}')`:'';
+  return `${loginFx(t)}<div class="art${bg}">${deco&&!BR.logo&&!BR.loginBg?`<div class="drum-mark">${drumSVG()}</div>`:''}
   <div class="art-head"><div class="seal${BR.logo?' logo':''}">${brandMark()}</div><div><div class="org1">${esc(BR.orgName)}</div><div class="org2">${esc(BR.unitName)}</div></div></div>
-  <div class="art-title"><h1>${esc(BR.bannerTitle)}</h1><p>${esc(BR.bannerText)}</p></div>
+  <div class="art-title"><h1>${esc(BR.bannerTitle)}</h1><p>${esc(BR.bannerText)}</p></div>${loginArtExtra(t)}
   ${/* địa chỉ chưa điền (còn dấu …) thì không hiện dòng giữ chỗ */ /…\s*$|\.\.\.\s*$/.test(BR.address||'')?'':`<div class="meta">${esc(BR.address)}</div>`}</div>`;
 }
 const authCls = () => 'auth'+(BR.bannerDeco==='0'?' plain':'');

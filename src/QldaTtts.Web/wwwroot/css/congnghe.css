@@ -169,3 +169,155 @@
 :root[data-style="tech"] td a:hover{text-decoration:underline}
 /* Tiêu đề trang và dòng mô tả: khoảng cách đều cho mọi màn hình */
 :root[data-style="tech"] .head .grow > p, :root[data-style="tech"] .head > div > p{margin-top:6px}
+
+/* ===== Mẫu trang đăng nhập (Quản trị → Thông tin đơn vị → Mẫu trang đăng nhập), chỉ áp dụng phong cách Công nghệ =====
+   split: hai cột (mặc định, như trên). aurora, network, grid: nền tối toàn màn hình. orbit, bento: banner sáng. glass: khung giữa trên nền kính mờ.
+   Họa tiết thuần CSS/SVG, không tải ảnh ngoài; tắt chuyển động khi người dùng chọn giảm chuyển động. */
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"],[data-login="glass"]) .auth{position:relative; overflow:hidden; isolation:isolate}
+:root[data-style="tech"] .auth > .fx{position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden}
+:root[data-style="tech"] .auth > .fx i{position:absolute; display:block}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"],[data-login="glass"]) .auth > :is(.art,.box){position:relative; z-index:1; background:transparent; border:0}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"],[data-login="glass"]) .auth .art{background:none}
+@keyframes lg-drift{0%{transform:translate(0,0) scale(1)} 33%{transform:translate(6%,4%) scale(1.08)} 66%{transform:translate(-4%,7%) scale(.94)} 100%{transform:translate(0,0) scale(1)}}
+@keyframes lg-spin{to{rotate:360deg}}
+@keyframes lg-spinr{to{rotate:-360deg}}
+@keyframes lg-float{50%{translate:0 -6px}}
+@keyframes lg-pulse{0%,100%{opacity:.55; transform:scale(1)} 50%{opacity:1; transform:scale(1.9)}}
+@keyframes lg-flow{to{stroke-dashoffset:-452}}
+@keyframes lg-floor{to{background-position:0 64px, 0 64px}}
+
+/* Nền tối dùng chung (cực quang, mạng kết nối, không gian số): chữ sáng, khung đăng nhập kính tối */
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"]) .auth{background:#050816; color-scheme:dark;
+  --panel:rgba(255,255,255,.06); --panel2:rgba(255,255,255,.09); --ink:#eef2ff; --muted:#a7b1c9; --line:rgba(255,255,255,.12); --line2:rgba(255,255,255,.2);
+  --bg:transparent; --accent:#4f7bff; --accent-ink:#fff; --brand-ink:#b9c4e2; color:var(--ink)}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"]) .auth :is(.art-head .org1, .art-title h1){color:#fff}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"]) .auth .art-head .org2{color:#b9c4e2}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"]) .auth form{background:rgba(12,17,36,.58); border-color:rgba(255,255,255,.13);
+  -webkit-backdrop-filter:blur(18px) saturate(140%); backdrop-filter:blur(18px) saturate(140%); box-shadow:0 30px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08)}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"]) .auth input:not([type=checkbox]){background:rgba(255,255,255,.05)}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"]) .auth .art-title h1::after{background:linear-gradient(90deg,#4f7bff,#22d3ee)}
+:root[data-style="tech"]:is([data-login="aurora"],[data-login="network"],[data-login="grid"]) .auth form .btn.primary{background:linear-gradient(135deg,#3b6cff,#6d4bff); border-color:transparent; box-shadow:0 10px 26px rgba(79,123,255,.35)}
+
+/* Cực quang: các dải màu mờ trôi chậm, tiêu đề chữ chuyển màu */
+:root[data-style="tech"][data-login="aurora"] .auth > .fx i{border-radius:50%; filter:blur(80px); mix-blend-mode:screen; animation:lg-drift 22s ease-in-out infinite}
+:root[data-style="tech"][data-login="aurora"] .fx .b1{width:52vmax; height:52vmax; left:-14vmax; top:-18vmax; background:#2a56e0; opacity:.75}
+:root[data-style="tech"][data-login="aurora"] .fx .b2{width:44vmax; height:44vmax; left:18vmax; bottom:-24vmax; background:#7c3aed; opacity:.6; animation-duration:28s; animation-delay:-6s}
+:root[data-style="tech"][data-login="aurora"] .fx .b3{width:36vmax; height:36vmax; right:-12vmax; top:-6vmax; background:#06b6d4; opacity:.45; animation-duration:25s; animation-delay:-12s}
+:root[data-style="tech"][data-login="aurora"] .fx .b4{width:24vmax; height:24vmax; right:14vmax; bottom:-4vmax; background:#db2777; opacity:.25; animation-duration:31s}
+:root[data-style="tech"][data-login="aurora"] .auth > .fx::after{content:""; position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size:48px 48px; -webkit-mask:radial-gradient(ellipse at 30% 40%, #000 0, transparent 70%); mask:radial-gradient(ellipse at 30% 40%, #000 0, transparent 70%)}
+:root[data-style="tech"][data-login="aurora"] .auth .art-title h1{background:linear-gradient(100deg,#ffffff 20%,#c7d2fe 55%,#67e8f9 95%); -webkit-background-clip:text; background-clip:text; color:transparent}
+
+/* Mạng kết nối: các nút dữ liệu nối nhau, vài đường có dòng dữ liệu chạy */
+:root[data-style="tech"][data-login="network"] .auth{background:radial-gradient(ellipse 80% 70% at 28% 40%, #10245a 0, #070d22 55%, #04070f 100%)}
+:root[data-style="tech"][data-login="network"] .fx .net{position:absolute; inset:0; width:100%; height:100%; -webkit-mask:linear-gradient(90deg,rgba(0,0,0,.3) 0,rgba(0,0,0,.4) 38%,#000 62%); mask:linear-gradient(90deg,rgba(0,0,0,.3) 0,rgba(0,0,0,.4) 38%,#000 62%)}
+:root[data-style="tech"][data-login="network"] .fx line{stroke:rgba(125,170,255,.2); stroke-width:1}
+:root[data-style="tech"][data-login="network"] .fx line.flow{stroke:#5eead4; stroke-width:1.6; stroke-dasharray:10 216; animation:lg-flow 5.5s linear infinite}
+:root[data-style="tech"][data-login="network"] .fx circle{fill:rgba(160,195,255,.6)}
+:root[data-style="tech"][data-login="network"] .fx circle.hub{fill:#5eead4; transform-box:fill-box; transform-origin:center; animation:lg-pulse 3.6s ease-in-out infinite}
+:root[data-style="tech"][data-login="network"] .fx .glow{right:8%; top:50%; width:44vmax; height:44vmax; translate:0 -50%; border-radius:50%; background:radial-gradient(circle, rgba(79,123,255,.28), transparent 65%)}
+:root[data-style="tech"][data-login="network"] .auth .art-title h1 span, :root[data-style="tech"][data-login="network"] .auth .art-title h1::after{background:linear-gradient(90deg,#5eead4,#4f7bff)}
+
+/* Không gian số: bầu trời sao, mặt trời kẻ vạch và lưới phối cảnh chạy về phía trước */
+:root[data-style="tech"][data-login="grid"] .auth{background:linear-gradient(180deg,#04061a 0%,#0b1145 58%,#1c0b45 62%,#070418 100%)}
+:root[data-style="tech"][data-login="grid"] .fx .sky{inset:0 0 38% 0; opacity:.8; background-image:radial-gradient(1.2px 1.2px at 12% 18%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 32% 8%,#c7d2fe 50%,transparent 51%),
+  radial-gradient(1.4px 1.4px at 58% 22%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 76% 12%,#a5f3fc 50%,transparent 51%),radial-gradient(1.2px 1.2px at 88% 30%,#fff 50%,transparent 51%),
+  radial-gradient(1px 1px at 22% 36%,#c7d2fe 50%,transparent 51%),radial-gradient(1px 1px at 46% 40%,#fff 50%,transparent 51%),radial-gradient(1.3px 1.3px at 66% 44%,#e0e7ff 50%,transparent 51%),radial-gradient(1px 1px at 6% 44%,#fff 50%,transparent 51%)}
+:root[data-style="tech"][data-login="grid"] .fx .sun{width:min(36vmin,330px); aspect-ratio:1; left:50%; top:62%; translate:-50% -78%; border-radius:50%;
+  background:linear-gradient(180deg,#67e8f9 0%,#4f7bff 45%,#a855f7 100%); box-shadow:0 0 120px 30px rgba(99,102,241,.35);
+  -webkit-mask:linear-gradient(180deg,#000 0 52%,transparent 52% 56%,#000 56% 64%,transparent 64% 69%,#000 69% 76%,transparent 76% 82%,#000 82% 88%,transparent 88%);
+          mask:linear-gradient(180deg,#000 0 52%,transparent 52% 56%,#000 56% 64%,transparent 64% 69%,#000 69% 76%,transparent 76% 82%,#000 82% 88%,transparent 88%)}
+:root[data-style="tech"][data-login="grid"] .fx .floor{left:-60%; right:-60%; top:62%; height:60%; opacity:.75; transform-origin:50% 0; transform:perspective(260px) rotateX(62deg);
+  background-image:linear-gradient(rgba(103,232,249,.55) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(129,140,248,.5) 1.5px, transparent 1.5px); background-size:64px 64px;
+  animation:lg-floor 2.4s linear infinite; -webkit-mask:linear-gradient(180deg,transparent 0,#000 30%); mask:linear-gradient(180deg,transparent 0,#000 30%)}
+:root[data-style="tech"][data-login="grid"] .fx .scan{left:0; right:0; top:62%; height:2px; background:linear-gradient(90deg,transparent,#67e8f9 30%,#a855f7 70%,transparent); box-shadow:0 0 18px 2px rgba(103,232,249,.6)}
+
+/* Quỹ đạo sáng tạo và Bảng tính năng: banner sáng (tối khi người dùng chọn chế độ tối) */
+:root[data-style="tech"]:is([data-login="orbit"],[data-login="bento"]) .auth{--lp-bg:#f5f8ff; --lp-bg2:#e6edff; --lp-ink:#0b1430; --lp-mut:#4a5572; --lp-card:#ffffff; --lp-line:#dfe6f5}
+:root[data-style="tech"][data-mode="dark"]:is([data-login="orbit"],[data-login="bento"]) .auth{--lp-bg:#0a1020; --lp-bg2:#121b36; --lp-ink:#eef2ff; --lp-mut:#a7b1c9; --lp-card:#141c30; --lp-line:#26314d}
+:root[data-style="tech"]:is([data-login="orbit"],[data-login="bento"]) .auth .art{background:radial-gradient(ellipse 90% 80% at 75% 70%, var(--lp-bg2), var(--lp-bg) 70%); color:var(--lp-mut)}
+:root[data-style="tech"]:is([data-login="orbit"],[data-login="bento"]) .auth :is(.art-head .org1, .art-title h1){color:var(--lp-ink)}
+:root[data-style="tech"]:is([data-login="orbit"],[data-login="bento"]) .auth :is(.art-head .org2, .art-title p){color:var(--lp-mut)}
+:root[data-style="tech"]:is([data-login="orbit"],[data-login="bento"]) .auth .art .meta{color:var(--lp-mut)}
+:root[data-style="tech"]:is([data-login="orbit"],[data-login="bento"]) .auth .art-title h1::after{background:linear-gradient(90deg,var(--accent),#22d3ee)}
+
+:root[data-style="tech"][data-login="orbit"] .auth .art{justify-content:flex-start; gap:clamp(36px,8vh,96px)}
+:root[data-style="tech"][data-login="orbit"] .auth .art .meta{margin-top:auto}
+:root[data-style="tech"][data-login="orbit"] .art .orbit{--S:min(440px,44vh,46vw); position:absolute; width:var(--S); height:var(--S); left:50%; bottom:max(96px,11vh); translate:-50% 0; pointer-events:none}
+:root[data-style="tech"][data-login="orbit"] .art-title, :root[data-style="tech"][data-login="orbit"] .art-head, :root[data-style="tech"][data-login="orbit"] .art .meta{z-index:1}
+:root[data-style="tech"][data-login="orbit"] .orbit .core{position:absolute; left:50%; top:50%; width:78px; height:78px; translate:-50% -50%; border-radius:24px; padding:17px; color:#fff;
+  background:linear-gradient(135deg,var(--accent),#7c3aed); box-shadow:0 0 0 12px color-mix(in srgb,var(--accent) 12%,transparent), 0 0 0 28px color-mix(in srgb,var(--accent) 6%,transparent), 0 20px 50px color-mix(in srgb,var(--accent) 40%,transparent)}
+:root[data-style="tech"][data-login="orbit"] .orbit .core :is(svg,img){width:100%; height:100%} :root[data-style="tech"][data-login="orbit"] .orbit .core .bm-gov{display:none}
+:root[data-style="tech"][data-login="orbit"] .orbit .ring{position:absolute; left:50%; top:50%; width:calc(var(--r) * 2); height:calc(var(--r) * 2); margin:calc(var(--r) * -1) 0 0 calc(var(--r) * -1);
+  border-radius:50%; border:1.5px dashed color-mix(in srgb,var(--accent) 28%,transparent); animation:lg-spin var(--d) linear infinite}
+:root[data-style="tech"][data-login="orbit"] .orbit .r1{--r:calc(var(--S) * .27); --d:38s}
+:root[data-style="tech"][data-login="orbit"] .orbit .r2{--r:calc(var(--S) * .39); --d:56s; animation-direction:reverse}
+:root[data-style="tech"][data-login="orbit"] .orbit .r3{--r:calc(var(--S) * .5); --d:80s; border-style:solid; border-color:color-mix(in srgb,var(--accent) 14%,transparent)}
+:root[data-style="tech"][data-login="orbit"] .orbit .sat{position:absolute; left:50%; top:50%; width:0; height:0; transform:rotate(var(--a)) translateX(var(--r)) rotate(calc(var(--a) * -1))}
+:root[data-style="tech"][data-login="orbit"] .orbit .sat b{position:absolute; translate:-50% -50%; display:flex; align-items:center; gap:7px; white-space:nowrap; padding:7px 13px 7px 8px; border-radius:999px;
+  background:var(--lp-card); border:1px solid var(--lp-line); color:var(--lp-ink); font-size:12.5px; font-weight:600; box-shadow:0 8px 22px rgba(15,23,41,.1); animation:lg-spinr var(--d) linear infinite}
+:root[data-style="tech"][data-login="orbit"] .orbit .r2 .sat b{animation-name:lg-spin}
+:root[data-style="tech"][data-login="orbit"] .orbit .sat svg{width:22px; height:22px; padding:4px; border-radius:50%; color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent)}
+
+:root[data-style="tech"][data-login="bento"] .art .bento{position:relative; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; max-width:36rem}
+:root[data-style="tech"][data-login="bento"] .bento .tile{display:flex; flex-direction:column; gap:6px; padding:16px; border-radius:16px; background:var(--lp-card); border:1px solid var(--lp-line);
+  box-shadow:0 10px 30px rgba(15,23,41,.07); animation:lg-float 6s ease-in-out infinite; min-width:0}
+:root[data-style="tech"][data-login="bento"] .bento .t2{animation-delay:-1.5s} :root[data-style="tech"][data-login="bento"] .bento .t3{animation-delay:-3s} :root[data-style="tech"][data-login="bento"] .bento .t4{animation-delay:-4.5s}
+:root[data-style="tech"][data-login="bento"] .bento .ic{width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent)}
+:root[data-style="tech"][data-login="bento"] .bento .ic svg{width:18px; height:18px}
+:root[data-style="tech"][data-login="bento"] .bento .t1 .ic{color:#0e9f6e; background:rgba(14,159,110,.12)} :root[data-style="tech"][data-login="bento"] .bento .t4 .ic{color:#7c3aed; background:rgba(124,58,237,.12)}
+:root[data-style="tech"][data-login="bento"] .bento b{color:var(--lp-ink); font-size:14px; letter-spacing:-.01em}
+:root[data-style="tech"][data-login="bento"] .bento small{color:var(--lp-mut); font-size:12.5px; line-height:1.45}
+:root[data-style="tech"][data-login="bento"] .bento .bars{display:flex; align-items:flex-end; gap:5px; height:34px; margin-top:4px}
+:root[data-style="tech"][data-login="bento"] .bento .bars i{flex:1; height:var(--h); border-radius:4px 4px 2px 2px; background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent) 45%,#22d3ee))}
+:root[data-style="tech"][data-login="bento"] .bento .prog{display:block; height:6px; border-radius:6px; background:var(--lp-line); margin-top:8px; overflow:hidden}
+:root[data-style="tech"][data-login="bento"] .bento .prog i{display:block; width:68%; height:100%; border-radius:6px; background:linear-gradient(90deg,var(--accent),#22d3ee)}
+
+/* Kính mờ tối giản: một cột giữa màn hình, logo và tiêu đề phía trên khung đăng nhập */
+:root[data-style="tech"][data-login="glass"] .auth{grid-template-columns:minmax(0,1fr); align-content:center; background:#eef2fb}
+:root[data-style="tech"][data-mode="dark"][data-login="glass"] .auth{background:#070b18}
+:root[data-style="tech"][data-login="glass"] .auth > .fx i{border-radius:50%; filter:blur(90px); animation:lg-drift 26s ease-in-out infinite}
+:root[data-style="tech"][data-login="glass"] .fx .b1{width:44vmax; height:44vmax; left:-10vmax; top:-14vmax; background:#93c5fd; opacity:.8}
+:root[data-style="tech"][data-login="glass"] .fx .b2{width:40vmax; height:40vmax; right:-12vmax; top:10vmax; background:#c4b5fd; opacity:.7; animation-delay:-9s}
+:root[data-style="tech"][data-login="glass"] .fx .b3{width:34vmax; height:34vmax; left:20vmax; bottom:-18vmax; background:#67e8f9; opacity:.55; animation-delay:-17s}
+:root[data-style="tech"][data-mode="dark"][data-login="glass"] .fx i{opacity:.32}
+:root[data-style="tech"][data-login="glass"] .auth .art{align-items:center; justify-content:flex-start; text-align:center; gap:14px; padding:40px 16px 6px; color:var(--muted)}
+:root[data-style="tech"][data-login="glass"] .auth .art-head{flex-direction:column; gap:10px}
+:root[data-style="tech"][data-login="glass"] .auth .art-head .seal{width:60px; height:60px; border-radius:18px; box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 35%,transparent)}
+:root[data-style="tech"][data-login="glass"] .auth :is(.art-head .org1, .art-title h1){color:var(--ink)}
+:root[data-style="tech"][data-login="glass"] .auth :is(.art-head .org2, .art-title p){color:var(--muted)}
+:root[data-style="tech"][data-login="glass"] .auth .art-title{max-width:34rem}
+:root[data-style="tech"][data-login="glass"] .auth .art-title h1{font-size:clamp(1.5rem, 1.2rem + 1vw, 2rem)}
+:root[data-style="tech"][data-login="glass"] .auth .art-title h1::after{display:none}
+:root[data-style="tech"][data-login="glass"] .auth .art-title p{font-size:14.5px; margin-top:10px}
+:root[data-style="tech"][data-login="glass"] .auth .art .meta{display:none}
+:root[data-style="tech"][data-login="glass"] .auth .box{justify-content:flex-start; padding-top:18px}
+:root[data-style="tech"][data-login="glass"] .auth form{background:rgba(255,255,255,.6); border-color:rgba(255,255,255,.75); -webkit-backdrop-filter:blur(22px) saturate(160%); backdrop-filter:blur(22px) saturate(160%);
+  box-shadow:0 24px 70px rgba(30,41,90,.16), inset 0 1px 0 rgba(255,255,255,.8)}
+:root[data-style="tech"][data-mode="dark"][data-login="glass"] .auth form{background:rgba(20,28,48,.55); border-color:rgba(255,255,255,.1); box-shadow:0 24px 70px rgba(0,0,0,.4)}
+:root[data-style="tech"][data-login="glass"] .auth input:not([type=checkbox]){background:color-mix(in srgb,var(--panel) 75%,transparent)}
+
+/* Điện thoại: banner gọn phía trên, bỏ vạch dưới; họa tiết lớn thu nhỏ để khung đăng nhập luôn trong màn hình đầu */
+@media (max-width:820px){
+  :root[data-style="tech"]:not([data-login="split"]) .auth .art{border-bottom:0}
+  :root[data-style="tech"][data-login="orbit"] .art .orbit{--S:300px; left:auto; right:-120px; top:-70px; bottom:auto; translate:none; opacity:.5}
+  :root[data-style="tech"][data-login="orbit"] .orbit .sat{display:none}
+  :root[data-style="tech"][data-login="bento"] .art .bento{gap:8px}
+  :root[data-style="tech"][data-login="bento"] .bento .tile{flex-direction:row; align-items:center; padding:9px 10px; border-radius:12px; gap:8px; animation:none}
+  :root[data-style="tech"][data-login="bento"] .bento :is(small,.bars,.prog){display:none}
+  :root[data-style="tech"][data-login="bento"] .bento b{font-size:12.5px; line-height:1.3}
+  :root[data-style="tech"][data-login="bento"] .bento .ic{width:28px; height:28px; flex:none}
+  :root[data-style="tech"][data-login="glass"] .auth .art{padding-top:28px}
+  :root[data-style="tech"][data-login="glass"] .auth .art-title p{display:none}
+  :root[data-style="tech"][data-login="grid"] .auth{background:linear-gradient(180deg,#04061a 0,#0b1145 50%,#1c0b45 56%,#070418 100%)}
+  :root[data-style="tech"][data-login="grid"] .fx .sun{display:none}
+  :root[data-style="tech"][data-login="grid"] :is(.fx .floor,.fx .scan){top:56%}
+  :root[data-style="tech"][data-login="grid"] .fx .sky{bottom:44%}
+  :root[data-style="tech"][data-login="orbit"] .orbit .core{display:none}
+}
+@media (prefers-reduced-motion:reduce){ :root[data-style="tech"] .auth :is(.fx *, .orbit *, .bento *){animation:none !important} }
+
+/* Xem trước trang đăng nhập trong Quản trị */
+.login-prev{position:fixed; inset:0; z-index:9999; overflow:auto; background:var(--bg)}
+.login-prev .auth{min-height:100%}
+.login-prev .lp-close{position:fixed; top:14px; right:14px; z-index:5; box-shadow:0 8px 24px rgba(0,0,0,.25)}

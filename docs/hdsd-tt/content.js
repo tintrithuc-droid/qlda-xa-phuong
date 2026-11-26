@@ -84,8 +84,8 @@ exports.CHAPTERS = [
 <tr><td>Lập báo cáo KTKT dự án X</td><td>Báo cáo KTKT dự án X được phê duyệt</td><td>Có quyết định phê duyệt; đính kèm báo cáo và quyết định</td></tr>
 <tr><td>Hỗ trợ khách hàng A dùng phần mềm</td><td>Biên bản hỗ trợ có xác nhận của khách hàng</td><td>Khách hàng ký hoặc xác nhận qua thư</td></tr>
 <tr><td>Cập nhật hồ sơ thanh toán gói 03</td><td>Hồ sơ thanh toán đợt 2 gói 03 đủ trên phần mềm</td><td>Đủ giấy đề nghị, bảng giá trị, biên bản nghiệm thu</td></tr></table>
-<p><b>Sản phẩm làm nhiều tháng</b> thì chia thành <b>mốc kết quả</b> bằng sản phẩm thành phần, mỗi mốc một hạn và một sản phẩm kiểm được. Ví dụ "Báo cáo KTKT dự án X" làm 2 tháng: mốc 1 "Hồ sơ dự thảo đủ thành phần" (hạn cuối tháng 1, Trưởng phòng nghiệm thu), mốc 2 "Hồ sơ trình thẩm định có văn bản tiếp nhận", mốc 3 "Báo cáo được phê duyệt có quyết định". Mỗi mốc được tính KPI vào tháng của mốc đó, nên tháng nào cũng có điểm.</p>
-<p class="note">Sản phẩm phải chờ cơ quan ngoài phê duyệt (chủ đầu tư, Sở) thì nên giao <b>hai sản phẩm nối nhau</b>: "Hồ sơ trình thẩm định" (Trưởng phòng nghiệm thu, hạn của mình) và "Văn bản được phê duyệt" (nộp kèm quyết định). Bên ngoài duyệt chậm thì <b>xin gia hạn trước hạn</b>, không bị trừ điểm.</p>
+<p><b>Sản phẩm làm nhiều tháng, cần phê duyệt</b>: khi giao chọn <b>Sản phẩm cần cơ quan phê duyệt: Có</b>, phần mềm tự tạo 3 mốc (Dự thảo, Trình thẩm định, Được phê duyệt) và tự đặt hạn; người làm nộp từng mốc như một sản phẩm. Không cần tự chia.</p>
+<p class="note">Cơ quan ngoài (chủ đầu tư, Sở) duyệt chậm thì <b>xin gia hạn trước hạn</b>, không bị trừ điểm.</p>
 <p><b>Làm việc</b>: bấm vào tên việc để xem sản phẩm cần bàn giao, tiêu chí và nhật ký.</p>
 <ol><li><b>Trao đổi</b> (không bắt buộc): hỏi, báo vướng mắc, gửi tài liệu tham khảo.</li>
 <li><b>Xin gia hạn</b>: chọn hạn mới, ghi lý do; người giao duyệt (việc của tôi thì gia hạn ngay). Xin <b>trước hạn</b> và được duyệt thì không trừ điểm; xin khi đã quá hạn thì vẫn tính trễ theo hạn cũ.</li>
@@ -96,17 +96,18 @@ exports.CHAPTERS = [
 <p class="note">Làm thêm giờ cho việc nào thì khi lập phiếu tăng ca chọn đúng việc đó; chi tiết công việc hiện tổng giờ tăng ca. Việc tạo trước đây chưa ghi sản phẩm thì hiện "chưa ghi", không phải điền lại.</p>` },
 
 
-  { id: 'kpi', title: 'KPI', roles: ALL, shot: 'kpi', html: `
-<p><b>KPI do máy tự tính hoàn toàn</b>, không ai chấm tay. Vào <b>Văn phòng → KPI</b>, chọn tháng. Bấm <b>Cách tính</b> để xem công thức; <b>Xuất → Bảng KPI (PDF/Excel)</b> để in, lưu.</p>
-<table><tr><th>Phần</th><th>Tỷ trọng</th><th>Cách tính</th></tr>
-<tr><td>Công việc</td><td>70%</td><td>Từ các sản phẩm có hạn hoặc được nộp trong tháng (chương <i>Công việc</i>), cách tính ở dưới.</td></tr>
-<tr><td>Chuyên cần</td><td>30%</td><td>100 điểm, mỗi lần đi muộn quá 5 phút trừ 5, mỗi ngày nghỉ không phép trừ 20; thấp nhất 0.</td></tr></table>
-<p><b>Ngày nộp</b> là ngày bấm <b>Nộp sản phẩm</b>, không ghi lùi được. <b>Điểm công việc</b> (từ tháng 12/2026): mỗi việc = mức độ (Bình thường 1, Quan trọng 1,5, Khẩn cấp 2) × hệ số đúng hạn (trễ đến 1 ngày làm việc còn 75%, đến 3 ngày còn 50%, trễ hơn 0) × <b>chất lượng</b> (Đạt tốt 100%, Đạt 85%, tự Đạt tính như Đạt) × (1 − 20% mỗi lần bị trả lại sửa). Việc đến hạn trong tháng mà chưa nộp: 0 điểm. Người phối hợp được tính 30% điểm. Điểm công việc = 100 × tổng điểm đạt ÷ tổng hệ số mức độ.</p>
-<p><b>Không có sản phẩm thì không có điểm công việc</b>: từ tháng 12/2026, cả tháng không có sản phẩm nào đến hạn hoặc được nộp thì phần công việc (70%) tính 0 điểm khi chốt. Người đang làm sản phẩm dài (hạn sau tháng này) thì tháng đó không bị tính 0: điểm tính theo chuyên cần. Để điểm đều mỗi tháng, sản phẩm dài nên chia thành các <b>mốc kết quả</b> (sản phẩm thành phần), mỗi mốc có hạn trong một tháng. Xếp loại: A từ 90, B từ 75, C từ 60, dưới 60 là D.</p>
-<p><b>Thưởng KPI</b>: cả công ty xếp hạng chung, chỉ <b>hạng 1 và hạng 2</b> được thưởng theo mức Công ty đặt. Máy tự chốt KPI lúc 0 giờ ngày 1 tháng sau, thưởng cộng vào lương tháng đó.</p>
-<p><b>Điểm KPI công khai</b>: mọi người xem được điểm, xếp loại, hạng của nhau để cùng phấn đấu. Tiền thưởng của người khác không hiện.</p>
-<p>Điểm tháng đang chạy (<b>KPI tạm tính</b>) hiện trên thẻ tháng của trang Nhận nhiệm vụ và đầu trang Công việc.</p>
-<p class="note">Cách tính áp dụng từ tháng 12/2026; sau 3 tháng Công ty đánh giá lại và điều chỉnh nếu cần.</p>` },
+  { id: 'kpi', title: 'KPI: đánh giá ba chiều, tự động', roles: ALL, shot: 'kpi', html: `
+<p><b>KPI do máy tự tính hoàn toàn</b> từ chính các thao tác của bạn trên phần mềm. Không ai chấm tay, không phải nhập gì thêm: mọi thông số chỉ xác định <b>một lần lúc giao việc</b>. Vào <b>Văn phòng → KPI</b>, chọn tháng; bấm <b>Cách tính</b> để xem công thức, <b>Xuất</b> để in, lưu.</p>
+<table><tr><th>Chiều</th><th>Tỷ trọng</th><th>Máy tự tính từ</th></tr>
+<tr><td><b>Sản phẩm</b></td><td>60%</td><td>Các sản phẩm, mốc kết quả có hạn hoặc được nộp trong tháng (cách tính ở dưới).</td></tr>
+<tr><td><b>Chuyên cần</b></td><td>20%</td><td>Nhận nhiệm vụ hằng ngày: 100 điểm, mỗi lần muộn quá 5 phút trừ 5, mỗi ngày nghỉ không phép trừ 20.</td></tr>
+<tr><td><b>Tương tác</b></td><td>20%</td><td>Số <b>ngày làm việc có cập nhật</b> trên phần mềm: nộp sản phẩm, trao đổi việc, xong phần phối hợp, cập nhật dữ liệu dự án, gửi đề xuất, lịch, thông báo, xác nhận lương, nghiệm thu, duyệt… Có cập nhật trong khoảng 3/5 số ngày đi làm là đủ 100 điểm. Mỗi ngày chỉ tính một lần: bấm nhiều trong ngày không cộng thêm. Đăng nhập, nhận nhiệm vụ không tính ở đây.</td></tr></table>
+<h3>Điểm sản phẩm</h3>
+<p>Mỗi sản phẩm (hoặc mốc) = <b>quy mô</b> (Nhỏ 1, Vừa 2, Lớn 4) × <b>tỷ lệ mốc</b> × mức độ (Bình thường 1, Quan trọng 1,5, Khẩn cấp 2) × <b>đúng hạn</b> (trễ đến 1 ngày làm việc còn 75%, đến 3 ngày còn 50%, trễ hơn 0) × <b>chất lượng</b> (Đạt tốt 100%, Đạt 85%, quá 3 ngày chưa nghiệm thu tự tính Đạt) × (1 − 20% mỗi lần bị trả lại sửa). Mốc đến hạn mà chưa nộp: 0 điểm. Người phối hợp được tính 30%. Điểm sản phẩm = 100 × tổng điểm đạt ÷ tổng hệ số.</p>
+<p><b>Sản phẩm cần cơ quan phê duyệt</b> (ví dụ báo cáo KTKT): lúc giao chọn "Có", phần mềm <b>tự chia 3 mốc</b> và tự đặt hạn: <b>Dự thảo 40%</b> (hạn ở giữa thời gian), <b>Trình thẩm định 30%</b>, <b>Được phê duyệt 30%</b> (hạn của sản phẩm). Mỗi mốc tính vào tháng của mốc, nên việc làm 2 tháng thì tháng nào cũng có điểm. Cơ quan ngoài duyệt chậm thì xin gia hạn mốc trước hạn, không bị trừ.</p>
+<p><b>Ngày nộp</b> là ngày bấm Nộp sản phẩm, không ghi lùi được. Cả tháng không có sản phẩm hay mốc nào (kể cả sản phẩm dài đang làm) thì phần sản phẩm 0 điểm; người đang làm sản phẩm dài thì tháng đó tính theo chuyên cần và tương tác.</p>
+<p>Xếp loại: A từ 90, B từ 75, C từ 60, dưới 60 là D. <b>Thưởng KPI</b>: cả công ty xếp hạng chung, <b>hạng 1 và hạng 2</b> được thưởng. Máy tự chốt lúc 0 giờ ngày 1 tháng sau. Điểm, xếp loại công khai; tiền thưởng của người khác không hiện. Điểm tháng đang chạy (<b>KPI tạm tính</b>) hiện ở trang Nhận nhiệm vụ và đầu trang Công việc.</p>
+<p class="note">Cách tính ba chiều áp dụng từ KPI tháng 12/2026 (tháng 11 tính như cũ: công việc 70%, chuyên cần 30%). Sau 3 tháng Công ty đánh giá lại.</p>` },
 
   { id: 'phieu-luong', title: 'Phiếu lương và xác nhận lương', roles: ALL, shot: 'phieu-luong', html: `
 <p>Trong tháng, mục <b>Lương</b> hiện <b>Phiếu lương tạm tính</b> của bạn (tính theo nhận nhiệm vụ, đề xuất, tăng ca đã duyệt tới hôm nay; chưa có thưởng KPI). Phiếu tạm tính chỉ để theo dõi, không xác nhận; thấy thiếu ngày công thì lập đề xuất ngay để kịp sửa.</p>
@@ -152,14 +153,14 @@ exports.CHAPTERS = [
 
   // ---------------- trưởng phòng
   { id: 'tp-giao-viec', title: 'Giao sản phẩm, duyệt gia hạn, nghiệm thu', roles: ['tp', 'gd'], shot: 'giao-viec', shots: ['nghiem-thu'], html: `
-<ol><li>Vào <b>Công việc</b>, bấm <b>+ Thêm việc</b>, ô <b>Ai làm</b> chọn <i>Giao cho người khác</i>. Ghi rõ <b>Sản phẩm bàn giao</b> (giao cái gì, để khi nghiệm thu kiểm được) và <b>Tiêu chí đạt</b> nếu cần; chọn dự án, gói thầu (hoặc <i>Việc chung của dự án</i>), người thực hiện, hạn bàn giao, mức độ. Người phối hợp, người theo dõi, sản phẩm thành phần, loại công việc: bấm <b>+ Thêm chi tiết</b>.</li>
+<ol><li>Vào <b>Công việc</b>, bấm <b>+ Thêm việc</b>, ô <b>Ai làm</b> chọn <i>Giao cho người khác</i>. Ghi rõ <b>Sản phẩm bàn giao</b> (giao cái gì, để khi nghiệm thu kiểm được) và <b>Tiêu chí đạt</b> nếu cần; chọn <b>Quy mô</b> (Nhỏ, Vừa, Lớn) và <b>Sản phẩm cần cơ quan phê duyệt</b> (Có thì phần mềm tự chia 3 mốc 40/30/30, tự đặt hạn); chọn dự án, gói thầu (hoặc <i>Việc chung của dự án</i>), người thực hiện, hạn bàn giao, mức độ. Người phối hợp, người theo dõi, sản phẩm thành phần, loại công việc: bấm <b>+ Thêm chi tiết</b>.</li>
 <li>Thẻ <b>Tôi giao</b>: mọi việc mình đã giao, sản phẩm chờ nghiệm thu ở đầu. Thẻ <b>Phòng tôi phụ trách</b> (Trưởng phòng) hoặc <b>Tất cả</b> (Ban giám đốc): việc của cả phòng, cả công ty. Lọc <i>Quá hạn</i>, <i>Việc tự tạo chờ xác nhận</i>, <i>Chờ nghiệm thu</i>.</li>
 <li>Xin gia hạn: mở việc, trong nhật ký bấm <b>Duyệt gia hạn</b> hoặc <b>Từ chối</b>.</li>
 <li>Việc tự tạo chờ xác nhận: bấm <b>Xác nhận</b> để tính KPI, hoặc <b>Không nhận</b> (việc chuyển sang Đã hủy).</li>
 <li>Sản phẩm chờ nghiệm thu: bấm <b>Nghiệm thu</b>, xem tệp, đường dẫn trong nhật ký rồi chọn <b>Đạt tốt</b> (đúng tiêu chí, không cần sửa), <b>Đạt</b> (dùng được, còn điểm nhỏ) hoặc <b>Chưa đạt</b> (ghi rõ cần sửa gì, chọn hạn sửa). Quá 3 ngày làm việc không nghiệm thu thì việc tự tính <b>Đạt</b>, nên cần nghiệm thu kịp thời.</li>
 <li>Đổi hạn sang ngày muộn hơn được tính là gia hạn. Ban giám đốc sửa nhầm hạn thì ở ô <i>Đổi hạn</i> chọn <i>Sửa nhầm hạn</i>.</li></ol>
 <p>Đầu trang Công việc hiện mục <b>Việc của phòng, người bạn giao</b>: số việc quá hạn, việc tự tạo chờ xác nhận, sản phẩm chờ nghiệm thu và những người có KPI tạm tính dưới mức C.</p>
-<p><b>Giao đúng cách</b>: mỗi việc một sản phẩm kiểm được; việc lớn nhiều tháng thì chia thành các sản phẩm theo mốc kết quả (ví dụ hồ sơ trình thẩm định → báo cáo được phê duyệt), không chia theo từng bước nhỏ. Sản phẩm lớn chọn mức độ <b>Quan trọng</b> (hệ số 1,5). Bị trả lại vì lỗi chất lượng thì chọn <b>Chưa đạt</b> (trừ 20%); chủ đầu tư đổi yêu cầu thì <b>cho gia hạn</b> hoặc giao sản phẩm mới, không trừ điểm người làm. Cập nhật dữ liệu dự án (Điều hành, Nghiệp vụ) muốn tính KPI thì giao thành việc có sản phẩm, ví dụ "Hồ sơ thanh toán đợt 2 gói 03 đủ trên phần mềm".</p>
+<p><b>Giao đúng cách</b>: mỗi việc một sản phẩm kiểm được; sản phẩm cần phê duyệt thì chọn "Có" để phần mềm tự chia mốc; không chia theo từng bước nhỏ. <b>Quy mô</b> chọn theo khối lượng: Nhỏ (vài ngày), Vừa (vài tuần), Lớn (từ một tháng, như báo cáo KTKT). Bị trả lại vì lỗi chất lượng thì chọn <b>Chưa đạt</b> (trừ 20%); chủ đầu tư đổi yêu cầu thì <b>cho gia hạn</b> hoặc giao sản phẩm mới, không trừ điểm người làm. Cập nhật dữ liệu dự án (Điều hành, Nghiệp vụ) muốn tính KPI thì giao thành việc có sản phẩm, ví dụ "Hồ sơ thanh toán đợt 2 gói 03 đủ trên phần mềm".</p>
 <p class="note">Không tự nghiệm thu việc của chính mình. Việc có sản phẩm thành phần chưa xong thì chưa nộp được; KPI tính theo từng sản phẩm thành phần.</p>` },
 
 

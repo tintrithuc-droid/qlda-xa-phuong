@@ -342,8 +342,9 @@ public class VanPhongController : ApiControllerBase
         if (!Uc.Can("diem-danh") && (await ManagedDepts()).Count == 0) return Denied();
         var d = DateOnly.TryParse(date, out var dd) ? dd : DateOnly.FromDateTime(VnTime.Now);
         var scope = await AttendanceScope(me);
+        var offU = await StaffFilter.LockedUsers(Db);
         var emps = (await Db.Employees.AsNoTracking().Where(e => e.Attendance && (e.EndDate == null || e.EndDate >= d) && (e.StartDate == null || e.StartDate <= d)).OrderBy(e => e.Name).ToListAsync())
-            .Where(e => scope is null || scope.Contains(e.Id)).ToList();
+            .Where(e => (scope is null || scope.Contains(e.Id)) && StaffFilter.Working(e, offU, d)).ToList();
         var ids = emps.Select(e => e.Id).ToHashSet();
         var atts = (await Db.Attendances.AsNoTracking().Where(a => a.Date == d).ToListAsync()).Where(a => ids.Contains(a.EmployeeId)).ToDictionary(a => a.EmployeeId);
         var dU = VnTime.ToUtc(d.ToDateTime(TimeOnly.MinValue)); var dU2 = VnTime.ToUtc(d.AddDays(1).ToDateTime(TimeOnly.MinValue));
@@ -529,7 +530,10 @@ public class VanPhongController : ApiControllerBase
         var to = from.AddMonths(1);
         var s = VpSettings.Load(Db);
         var scope = await AttendanceScope(await Me());
-        var emps = (await Db.Employees.AsNoTracking().Where(e => e.Attendance).OrderBy(e => e.Name).ToListAsync()).Where(e => scope is null || scope.Contains(e.Id)).ToList();
+        // Bản 1.10.21: bỏ người đã nghỉ việc, khóa tài khoản; trừ khi có chấm công trong tháng hoặc nghỉ việc từ tháng này (giữ tháng cũ đủ người)
+        var offU = await StaffFilter.LockedUsers(Db); var came = await StaffFilter.AttendedIn(Db, from, to);
+        var emps = (await Db.Employees.AsNoTracking().Where(e => e.Attendance).OrderBy(e => e.Name).ToListAsync())
+            .Where(e => (scope is null || scope.Contains(e.Id)) && (StaffFilter.Working(e, offU, from) || came.Contains(e.Id))).ToList();
         var (standard, rows) = await VpCalc.Month(Db, s, emps, from);
         return Ok(new { month, standard, rows });
     }

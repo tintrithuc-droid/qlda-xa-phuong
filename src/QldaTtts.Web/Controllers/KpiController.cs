@@ -181,9 +181,14 @@ public class KpiController : ApiControllerBase
         if (!DateOnly.TryParse(month + "-01", out var from)) return null;
         var to = from.AddMonths(1);
         var k = KpiSettings.Load(db); var vs = VpSettings.Load(db);
-        var emps = await db.Employees.AsNoTracking().Where(e => e.Status != "Nghỉ việc" || e.UpdatedAt >= from.ToDateTime(TimeOnly.MinValue)).OrderBy(e => e.Name).ToListAsync();
-        var deptNames = await db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name);
         var sheets = await db.KpiSheets.AsNoTracking().Where(x => x.Month == month).ToDictionaryAsync(x => x.EmployeeId);
+        // Bản 1.10.21 (anh Trí): KPI chỉ tính người đang làm việc; bỏ người đã nghỉ việc hoặc tài khoản đã khóa.
+        // Tháng đã chốt thì giữ nguyên dòng đã chốt để không mất lịch sử.
+        var lockedIds = sheets.Values.Where(x => x.LockedAt != null).Select(x => x.EmployeeId).ToHashSet();
+        var lockedUsers = await StaffFilter.LockedUsers(db);
+        var emps = (await db.Employees.AsNoTracking().OrderBy(e => e.Name).ToListAsync())
+            .Where(e => lockedIds.Contains(e.Id) || StaffFilter.Working(e, lockedUsers, from)).ToList();
+        var deptNames = await db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name);
         var (_, stats) = await VpCalc.Month(db, vs, emps, from);
         var atts = (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
         var (tasks, parents) = await TasksFor(db, from, to);

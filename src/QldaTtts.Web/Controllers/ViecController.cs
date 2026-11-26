@@ -25,6 +25,7 @@ public class ViecController : ApiControllerBase
     private HashSet<string> _managed = new();
     private HashSet<string> _pendingExt = new();
     private Dictionary<string, Employee> _empByUser = new();
+    private HashSet<string> _off = new(); // Bản 1.10.21: tài khoản của người đã nghỉ việc hoặc đã khóa: không giao việc, phối hợp, theo dõi mới
     private Dictionary<string, decimal> _otHours = new();
 
     /// <summary>Bản 1.10.17: trạng thái riêng của một người phối hợp (như e-work TaskAssignments): S trạng thái, P tiến độ %, D ngày xong, R kết quả.</summary>
@@ -46,6 +47,8 @@ public class ViecController : ApiControllerBase
     {
         _managed = (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == Me).Select(d => d.Id).ToListAsync()).ToHashSet();
         _empByUser = (await Db.Employees.AsNoTracking().Where(e => e.UserId != null).ToListAsync()).GroupBy(e => e.UserId!).ToDictionary(g => g.Key, g => g.First());
+        var lockedU = await StaffFilter.LockedUsers(Db);
+        _off = _empByUser.Values.Where(e => !StaffFilter.Working(e, lockedU)).Select(e => e.UserId!).Concat(lockedU).ToHashSet();
         _pendingExt = (await Db.TaskLogs.AsNoTracking().Where(l => l.Kind == "xin-gia-han" && l.State == "Chờ duyệt").Select(l => l.TaskId).ToListAsync()).ToHashSet();
         _otHours = (await Db.Requests.AsNoTracking().Where(r => r.TaskId != null && r.Type == "Tăng ca" && r.Status != "Từ chối" && r.Status != "Đã hủy").Select(r => new { r.TaskId, r.Hours }).ToListAsync())
             .GroupBy(r => r.TaskId!).ToDictionary(g => g.Key, g => g.Sum(r => r.Hours ?? 0));
@@ -193,7 +196,7 @@ public class ViecController : ApiControllerBase
             types = DefaultTypes.Concat(all.Where(t => !string.IsNullOrWhiteSpace(t.TaskType)).Select(t => t.TaskType!.Trim())).Distinct().OrderBy(x => x).ToList(), reviewDays = ReviewDays,
             packages = pkgs.Where(p => p.ProjectId != null && Uc.InScope(p.ProjectId)).OrderBy(p => p.Code).ThenBy(p => p.Name).Select(p => new { id = p.Id, p.ProjectId, name = packages[p.Id] }),
             projects = projects.Where(p => Uc.InScope(p.Key)).OrderBy(p => p.Value).Select(p => new { id = p.Key, name = p.Value }),
-            perms = new { boss = Boss, seeAll = SeeAll, managed = _managed, assignable = Boss ? null : _empByUser.Values.Where(e => e.DepartmentId != null && _managed.Contains(e.DepartmentId)).Select(e => e.UserId).ToList() }
+            perms = new { boss = Boss, seeAll = SeeAll, managed = _managed, assignable = Boss ? null : _empByUser.Values.Where(e => e.DepartmentId != null && _managed.Contains(e.DepartmentId) && !_off.Contains(e.UserId!)).Select(e => e.UserId).ToList() }
         });
     }
 
@@ -221,7 +224,7 @@ public class ViecController : ApiControllerBase
     }
     private static string? Type(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().Length > 100 ? s.Trim()[..100] : s.Trim();
     private string? Collab(List<string>? ids, string? assignee) => ids is null ? null :
-        string.Join(",", ids.Where(i => i != assignee && _empByUser.ContainsKey(i)).Distinct().Take(20)) is { Length: > 0 } s ? s : null;
+        string.Join(",", ids.Where(i => i != assignee && _empByUser.ContainsKey(i) && !_off.Contains(i)).Distinct().Take(20)) is { Length: > 0 } s ? s : null;
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] TaskBody b)
@@ -233,6 +236,7 @@ public class ViecController : ApiControllerBase
         if (b.StartDate is { } sd && sd > b.Due) return Error(400, "Ngày bắt đầu sau hạn hoàn thành.");
         var assignee = string.IsNullOrEmpty(b.AssigneeUserId) ? Me : b.AssigneeUserId;
         if (!_empByUser.ContainsKey(assignee)) return Error(400, "Người được giao chưa có hồ sơ nhân sự.");
+        if (assignee != Me && _off.Contains(assignee)) return Error(400, "Người này đã nghỉ việc hoặc tài khoản đã khóa, không giao việc được.");
         var (parent, perr) = await CheckParent(b.ParentId); if (perr is not null) return Error(400, perr);
         var self = assignee == Me && !Boss;
         if (assignee != Me && !CanAssignTo(assignee)) return Denied("Chỉ trưởng phòng giao việc cho người trong phòng; người quản lý KPI, dự án giao cho mọi người.");
@@ -288,6 +292,7 @@ public class ViecController : ApiControllerBase
         if (!string.IsNullOrEmpty(b.AssigneeUserId) && b.AssigneeUserId != t.AssigneeUserId)
         {
             if (!CanAssignTo(b.AssigneeUserId) || !_empByUser.ContainsKey(b.AssigneeUserId)) return Denied("Không giao được cho người này.");
+            if (_off.Contains(b.AssigneeUserId)) return Error(400, "Người này đã nghỉ việc hoặc tài khoản đã khóa, không giao việc được.");
             t.AssigneeUserId = b.AssigneeUserId; t.Assignee = NameOf(b.AssigneeUserId); t.Collaborators = Collab(KpiController.CollabIds(t), t.AssigneeUserId);
         }
         if (b.ParentId is not null && b.ParentId != (t.ParentId ?? ""))

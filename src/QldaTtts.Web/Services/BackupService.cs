@@ -165,6 +165,13 @@ public class MaintenanceService : BackgroundService
             _log.LogInformation("Đã tự chốt KPI {M}", locked);
         }
 
+        // Bản 1.10.21: hết ngày nghỉ việc thì tự khóa tài khoản
+        if (await StaffFilter.AutoLockLeavers(db) is { Count: > 0 } gone)
+        {
+            Log(db, "Tự khóa tài khoản người đã nghỉ việc", string.Join(", ", gone)); await db.SaveChangesAsync(ct);
+            _log.LogInformation("Đã tự khóa {N} tài khoản người nghỉ việc", gone.Count);
+        }
+
         // Sao lưu hằng đêm (một lần mỗi ngày, từ giờ cấu hình trở đi)
         var now = DateTime.Now;
         if (backup.Enabled && now.Hour >= backup.Hour && !backup.List().Any(b => b.CreatedAt.ToLocalTime().Date == now.Date))

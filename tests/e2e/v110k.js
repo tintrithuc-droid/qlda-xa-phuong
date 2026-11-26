@@ -169,6 +169,17 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   const ka = (await J(qa.get(BASE + '/api/vp/kpi?month=' + thisMonth(), { headers: H }))).rows;
   const kaB = ka.find(z => z.employeeId === ttb.id);
   ok(kaB && kaB.total != null && (stA.perms.managed.length || stA.perms.att || (kaB.rankBonus === 0 && kaB.bonus === 0)), 'KPI công khai: ' + JSON.stringify(kaB).slice(0, 200));
+  // 1.10.21: KPI chỉ tính người đang làm việc: khóa tài khoản Lê Văn C, cho Nguyễn Văn A nghỉ việc thì cả hai biến khỏi bảng KPI và bảng xếp hạng
+  const lvc = E('Lê Văn C'); ok(kr.some(z => z.employeeId === lvc.id), 'Lê Văn C phải có KPI khi còn làm');
+  const uC = { id: lvc.userId }; ok(!!lvc.userId, 'Lê Văn C chưa có tài khoản');
+  const lk = await r.post(BASE + `/api/users/${uC.id}/active`, { headers: H, data: { active: false } }); ok(lk.ok(), 'Khóa tài khoản lỗi ' + lk.status());
+  const eA = await J(r.get(BASE + '/api/vp/employees', { headers: H })); const nvaFull = eA.find(e => e.id === nva.id);
+  const nv = await r.put(BASE + `/api/vp/employees/${nva.id}`, { headers: H, data: { ...nvaFull, status: 'Nghỉ việc' } }); ok(nv.ok(), 'Cho nghỉ việc lỗi ' + nv.status() + ' ' + (await nv.text()).slice(0, 200));
+  const kr2 = (await J(r.get(BASE + '/api/vp/kpi?month=' + thisMonth(), { headers: H }))).rows;
+  ok(!kr2.some(z => z.employeeId === lvc.id || z.employeeId === nva.id), 'Người khóa tài khoản / nghỉ việc vẫn còn trong KPI: ' + JSON.stringify(kr2.map(z => z.name)));
+  ok(kr2.some(z => z.employeeId === ttb.id), 'Người đang làm phải còn KPI');
+  await r.post(BASE + `/api/users/${uC.id}/active`, { headers: H, data: { active: true } });
+  await r.put(BASE + `/api/vp/employees/${nva.id}`, { headers: H, data: { ...nvaFull } });
   // 7) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
   const vs1 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs1.leaveSeniorityBonus === false && vs1.inOnly === true, 'Thiết lập chưa lưu');
 

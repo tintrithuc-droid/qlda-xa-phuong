@@ -299,8 +299,14 @@ public class LuongController : ApiControllerBase
         return res;
     }
 
-    private async Task<List<Employee>> Staff(DateOnly from) =>
-        await Db.Employees.AsNoTracking().Where(e => e.Status != "Nghỉ việc" || e.UpdatedAt >= from.ToDateTime(TimeOnly.MinValue)).OrderBy(e => e.Name).ToListAsync();
+    // Bản 1.10.21: người đã nghỉ việc chỉ còn trong bảng lương tháng họ nghỉ (ngày nghỉ việc trong/sau tháng) hoặc tháng có chấm công.
+    // Trước đây lấy theo ngày sửa hồ sơ nên người nghỉ việc từ lâu (vừa nạp lại từ e-work) vẫn hiện. Tài khoản khóa nhưng còn làm việc vẫn tính lương.
+    private async Task<List<Employee>> Staff(DateOnly from)
+    {
+        var came = await StaffFilter.AttendedIn(Db, from, from.AddMonths(1));
+        return (await Db.Employees.AsNoTracking().OrderBy(e => e.Name).ToListAsync())
+            .Where(e => e.Status != "Nghỉ việc" || e.EndDate >= from || came.Contains(e.Id)).ToList();
+    }
 
     [HttpGet("luong")]
     public async Task<IActionResult> Get([FromQuery] string month)

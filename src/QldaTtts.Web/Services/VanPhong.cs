@@ -213,6 +213,47 @@ public static class VnTime
 }
 
 /// <summary>Số liệu công tháng của từng người (bảng công, KPI chuyên cần, lương dùng chung một cách tính).</summary>
+/// <summary>Bản 1.10.21 (anh Trí 26/11): người đã nghỉ việc hoặc tài khoản đã khóa không hiện ở danh sách chọn người
+/// (giao việc, phối hợp, mời họp, thông báo) và không bị tính KPI, chuyên cần; dữ liệu cũ của họ vẫn giữ để tra cứu.</summary>
+public static class StaffFilter
+{
+    public static async Task<HashSet<string>> LockedUsers(AppDbContext db) =>
+        (await db.Users.AsNoTracking().Where(u => !u.Active).Select(u => u.Id).ToListAsync()).ToHashSet();
+    /// <summary>Đang làm việc tại ngày asOf (mặc định hôm nay): tài khoản (nếu có) chưa khóa, chưa qua ngày nghỉ việc, chưa chuyển "Nghỉ việc".
+    /// Tính theo tháng (asOf = ngày đầu tháng) thì người nghỉ việc trong tháng đó vẫn tính, để hết tháng họ nghỉ mới bỏ.</summary>
+    public static bool Working(Employee e, HashSet<string> locked, DateOnly? asOf = null)
+    {
+        var d = asOf ?? DateOnly.FromDateTime(VnTime.Now);
+        if (e.UserId != null && locked.Contains(e.UserId)) return false;
+        if (e.EndDate is { } end && end < d) return false;
+        return e.Status != "Nghỉ việc" || (asOf != null && e.EndDate >= d);
+    }
+    /// <summary>Bản 1.10.21: tự khóa tài khoản của người đã qua ngày nghỉ việc (từ 0 giờ ngày hôm sau). Không khóa Quản trị chính.
+    /// Tài khoản được mở lại sau ngày nghỉ việc (người quản trị chủ ý mở) thì không khóa lại.</summary>
+    public static async Task<List<string>> AutoLockLeavers(AppDbContext db)
+    {
+        var today = DateOnly.FromDateTime(VnTime.Now);
+        var leavers = await db.Employees.AsNoTracking().Where(e => e.UserId != null && e.EndDate != null && e.EndDate < today).ToListAsync();
+        if (leavers.Count == 0) return new();
+        var owner = Owner.Ensure(db);
+        var ids = leavers.Select(e => e.UserId!).ToList();
+        var users = await db.Users.Where(u => ids.Contains(u.Id) && u.Active).ToListAsync();
+        var done = new List<string>();
+        foreach (var u in users)
+        {
+            if (u.Id == owner) continue;
+            var end = leavers.First(e => e.UserId == u.Id).EndDate!.Value;
+            if (u.UpdatedAt is { } up && up >= VnTime.ToUtc(end.AddDays(1).ToDateTime(TimeOnly.MinValue))) continue;
+            u.Active = false; u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = "Tự khóa (nghỉ việc " + end.ToString("dd/MM/yyyy") + ")";
+            done.Add(u.Username);
+        }
+        return done;
+    }
+    /// <summary>Những người có chấm công trong tháng (để bảng công, bảng lương tháng cũ vẫn đủ người đã nghỉ giữa tháng).</summary>
+    public static async Task<HashSet<string>> AttendedIn(AppDbContext db, DateOnly from, DateOnly to) =>
+        (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).Select(a => a.EmployeeId).Distinct().ToListAsync()).ToHashSet();
+}
+
 public static class VpCalc
 {
     public record Row(string EmployeeId, string Name, string? DepartmentId, decimal Standard, decimal Worked, int Late, int LateMinutes, int Early,

@@ -155,8 +155,9 @@ public class LichThongBaoController : ApiControllerBase
         var n = await Db.Notices.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id); if (n is null) return NotFound();
         if (!Uc.Can("thong-bao", true) && n.CreatedByUserId != Uc.User.Id) return Denied();
         var d = Split(n.DeptIds);
+        var offU = await StaffFilter.LockedUsers(Db);
         var emps = await Db.Employees.AsNoTracking().Where(e => e.UserId != null && e.Status != "Nghỉ việc").ToListAsync();
-        emps = emps.Where(e => d.Count == 0 || (e.DepartmentId != null && d.Contains(e.DepartmentId))).OrderBy(e => e.Name).ToList();
+        emps = emps.Where(e => StaffFilter.Working(e, offU)).Where(e => d.Count == 0 || (e.DepartmentId != null && d.Contains(e.DepartmentId))).OrderBy(e => e.Name).ToList();
         var reads = await Db.NoticeReads.AsNoTracking().Where(r => r.NoticeId == id).ToDictionaryAsync(r => r.UserId, r => r.ReadAt);
         return Ok(emps.Select(e => new { e.Id, e.Name, e.DepartmentId, readAt = reads.TryGetValue(e.UserId!, out var t) ? t : (DateTime?)null }));
     }

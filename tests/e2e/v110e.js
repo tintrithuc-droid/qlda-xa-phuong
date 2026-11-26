@@ -179,7 +179,7 @@ const thisMonth = () => vnToday().slice(0, 7);
   await r.put(BASE + `/api/vp/kpi/${KM}/${lvc.id}`, { headers: H, data: { workScore: 80, projectScore: 80, rating: 4 } });
   let kd = await (await r.get(BASE + `/api/vp/kpi?month=${KM}`, { headers: H })).json();
   const kr = id => kd.rows.find(x => x.employeeId === id);
-  ok(kr(ttb.id).rank === 1 && kr(ttb.id).rankBonus === 1000000 && kr(nva.id).rank === 2 && kr(nva.id).rankBonus === 500000 && !kr(lvc.id).rankBonus, 'Xếp hạng KPI trong phòng sai: ' + JSON.stringify(kd.rows.map(x => [x.name, x.total, x.grade, x.rank, x.rankBonus])));
+  ok(kr(ttb.id).rank === 1 && kr(ttb.id).rankBonus === 1000000 && kr(nva.id).rank === 2 && kr(nva.id).rankBonus === 500000 && !kr(lvc.id), 'Xếp hạng KPI (1.10.21: Lê Văn C khóa tài khoản trong e-work nên không tính KPI) trong phòng sai: ' + JSON.stringify(kd.rows.map(x => [x.name, x.total, x.grade, x.rank, x.rankBonus])));
   ok(String(kr(ttb.id).rankLabel).endsWith('Hạng 1'), 'Thiếu nhãn hạng: ' + kr(ttb.id).rankLabel);
   const nsee = await (await q2.get(BASE + `/api/vp/kpi?month=${KM}`, { headers: H })).json();
   ok(nsee.rows.length === 1 && nsee.rows[0].rank === 1, 'Nhân viên xem KPI của mình sai hạng: ' + JSON.stringify(nsee.rows.map(x => x.rank)));

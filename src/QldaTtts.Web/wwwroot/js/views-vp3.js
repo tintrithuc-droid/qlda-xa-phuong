@@ -136,7 +136,7 @@ ACT['cv-add']=x=>{ const [p,k]=String(x||'|').split('|'); ACT['cv-new'](null,nul
 
 function cvAssignees(d){
   const pm=d.perms||{}; const me=VP.st.me;
-  const list=VP.emps.filter(e=>e.userId && e.status!=='Nghỉ việc' && (!me||e.userId!==me.userId) && (pm.boss || (pm.assignable||[]).includes(e.userId)));
+  const list=VP.emps.filter(e=>e.userId && vpWorking(e) && (!me||e.userId!==me.userId) && (pm.boss || (pm.assignable||[]).includes(e.userId)));
   return list.map(e=>[e.userId, e.name+(e.departmentId?' · '+vpDeptName(e.departmentId):'')]);
 }
 ACT['cv-new']=async (mode, el, ev, base, preset)=>{
@@ -158,8 +158,8 @@ ACT['cv-new']=async (mode, el, ev, base, preset)=>{
     {key:'level',label:'Mức độ',type:'select',options:d.levels||['Bình thường','Quan trọng','Khẩn cấp'],req:true},
     {key:'taskType',label:'Loại công việc',suggest:d.types||[],ph:'Chọn hoặc gõ loại mới'},
     {key:'startDate',label:'Ngày bắt đầu',type:'date'},{key:'due',label:'Hạn hoàn thành',type:'date',req:true},
-    {key:'collaborators',label:'Người phối hợp',type:'checks',options:VP.emps.filter(e=>e.userId&&e.status!=='Nghỉ việc').map(e=>[e.userId,e.name])},
-    {key:'watchers',label:'Người theo dõi (xem, nhận nhắc, không tính KPI)',type:'checks',options:VP.emps.filter(e=>e.userId&&e.status!=='Nghỉ việc').map(e=>[e.userId,e.name])},
+    {key:'collaborators',label:'Người phối hợp',type:'checks',options:VP.emps.filter(e=>e.userId&&vpWorking(e)).map(e=>[e.userId,e.name])},
+    {key:'watchers',label:'Người theo dõi (xem, nhận nhắc, không tính KPI)',type:'checks',options:VP.emps.filter(e=>e.userId&&vpWorking(e)).map(e=>[e.userId,e.name])},
     {key:'note',label:'Nội dung, yêu cầu, sản phẩm cần có',type:'textarea',keepLines:true}];
   if(!r) fields.push({key:'files',label:'Tệp đính kèm (văn bản giao việc, tài liệu)',type:'files',multiple:true});
   if(r && r.canEdit && d.perms && d.perms.boss) fields.push({key:'correct',label:'Đổi hạn',type:'select',options:[['0','Gia hạn (đếm số lần gia hạn)'],['1','Sửa nhầm hạn (không tính gia hạn)']]});

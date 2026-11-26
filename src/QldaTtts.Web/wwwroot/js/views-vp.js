@@ -485,17 +485,17 @@ VIEWS['nhan-su']=()=>{
     body=`<div class="toolbar" style="margin:10px 0">${ed?`<button class="btn primary" data-act="vp-dept" data-id="">+ Thêm phòng ban</button>`:''}</div>`+table([
       {h:'Mã', k:'code'}, {h:'Phòng ban', f:d=>`<b style="font-weight:600">${esc(d.name)}</b>`},
       {h:'Trưởng phòng (duyệt đề xuất)', f:d=>{ const u=D('users').find(x=>x.id===d.managerUserId); return u? esc(u.name) : '<span class="muted">Chưa chọn</span>'; }},
-      {h:'Giờ vào', f:d=>esc(d.checkinTime||VP.st.settings.checkIn)}, {h:'Số người', r:1, f:d=>VP.emps.filter(e=>e.departmentId===d.id && e.status!=='Nghỉ việc').length}],
+      {h:'Giờ vào', f:d=>esc(d.checkinTime||VP.st.settings.checkIn)}, {h:'Số người', r:1, f:d=>VP.emps.filter(e=>e.departmentId===d.id && vpWorking(e)).length}],
       VP.depts, {empty:'Chưa có phòng ban.', pk:'pb', actions: ed? d=>`<button class="btn sm ghost" data-act="vp-dept" data-id="${esc(d.id)}">Sửa</button><button class="btn sm ghost danger" data-act="vp-dept-del" data-id="${esc(d.id)}">Xóa</button>` : null});
   }
-  return `<div class="head"><div class="grow"><h1>Nhân sự</h1><p>${VP.emps.filter(e=>e.status!=='Nghỉ việc').length} người đang làm việc · ${VP.depts.length} phòng ban</p></div>${VP.st.me?`<div><button class="btn" data-act="hs-me">Hồ sơ của tôi</button></div>`:''}</div>
+  return `<div class="head"><div class="grow"><h1>Nhân sự</h1><p>${VP.emps.filter(vpWorking).length} người đang làm việc · ${VP.depts.length} phòng ban</p></div>${VP.st.me?`<div><button class="btn" data-act="hs-me">Hồ sơ của tôi</button></div>`:''}</div>
   <div class="tabs">${[['ns','Hồ sơ nhân sự'],['pb','Phòng ban']].map(([k,l])=>`<button class="${t===k?'on':''}" data-act="tab" data-g="ns" data-id="${k}">${l}</button>`).join('')}</div>${body}`;
 };
 ACT['vp-emp']=id=>{
   const e=vpEmp(id)||{status:'Đang làm việc', attendance:true}; const ed=VP.st.perms.hrEdit;
   const used=new Set(VP.emps.filter(x=>x.id!==id && x.userId).map(x=>x.userId));
   const F=[{key:'name',label:'Họ tên',req:true},{key:'code',label:'Mã nhân viên'},{key:'departmentId',label:'Phòng ban',type:'select',options:()=>VP.depts.map(d=>[d.id,d.name])},
-    {key:'position',label:'Chức vụ, vị trí',suggest:()=>VP.emps.map(x=>x.position)},{key:'userId',label:'Tài khoản đăng nhập',type:'select',options:()=>D('users').filter(u=>!used.has(u.id)).map(u=>[u.id,u.name+' ('+u.username+')'])},
+    {key:'position',label:'Chức vụ, vị trí',suggest:()=>VP.emps.map(x=>x.position)},{key:'userId',label:'Tài khoản đăng nhập',type:'select',options:()=>D('users').filter(u=>!used.has(u.id) && (u.active!==false || u.id===e.userId)).map(u=>[u.id,u.name+' ('+u.username+')'])},
     {key:'status',label:'Trạng thái',type:'select',req:true,options:['Đang làm việc','Thử việc','Tạm nghỉ','Nghỉ việc']},{key:'attendance',label:'Chấm công',type:'select',req:true,options:[['true','Có điểm danh, lương theo ngày công'],['false','Không chấm công: hưởng nguyên lương chính, không cần xác nhận lương']]},
     {key:'phone',label:'Điện thoại'},{key:'email',label:'Thư điện tử'},{key:'birthday',label:'Ngày sinh',type:'date'},{key:'gender',label:'Giới tính',type:'select',options:['Nam','Nữ']},
     {key:'startDate',label:'Ngày vào làm',type:'date'},{key:'endDate',label:'Ngày nghỉ việc',type:'date'},
@@ -519,6 +519,8 @@ const VP_REC = [['bang-cap','Bằng cấp, chứng chỉ','Tên văn bằng, ch�
   ['cong-tac','Quá trình công tác','Nội dung (bổ nhiệm, điều chuyển, tăng lương…)','Phòng ban, đơn vị','Số quyết định','Từ ngày'],['khen-thuong','Khen thưởng','Nội dung khen thưởng','Hình thức','Số quyết định','Ngày'],
   ['ky-luat','Kỷ luật','Nội dung vi phạm','Hình thức kỷ luật','Số quyết định','Ngày'],['giay-to','Giấy tờ khác (CCCD, sơ yếu lý lịch, giấy khám sức khỏe…)','Tên giấy tờ','Nơi cấp','Số','Ngày cấp']];
 const vpUser = id => D('users').find(u=>u.id===id);
+// Bản 1.10.21: người đã nghỉ việc hoặc tài khoản đã khóa không hiện ở danh sách chọn người (giao việc, phối hợp, mời họp…)
+const vpWorking = e => !!e && e.status!=='Nghỉ việc' && !(e.endDate && e.endDate < isoLocal(new Date())) && !(e.userId && (vpUser(e.userId)||{}).active===false);
 /* Bản 1.10.12: hồ sơ (vp-prof) là trang riêng, xem views-hs.js */
 ACT['vp-dept']=id=>{ const d=vpDept(id)||{order:VP.depts.length+1};
   openForm({title: id?'Sửa phòng ban':'Thêm phòng ban', narrow:true, value:d, fields:[{key:'name',label:'Tên phòng ban',req:true},{key:'code',label:'Mã'},

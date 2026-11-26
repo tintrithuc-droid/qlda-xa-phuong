@@ -49,7 +49,7 @@ VIEWS['van-phong']=()=>{
   const html=_vpHome(); if(!VP.st) return html; vpInbox();
   const ib=VP.ib; if(!ib) return html;
   let top='', mid='';
-  if(ib.remind && !(VP.st.attendance&&VP.st.attendance.inAt)) top+=`<div class="alert warn" style="margin-bottom:10px"><b>${esc(ib.remind)}</b> Chọn nơi làm việc bên dưới rồi bấm <b>${esc(vpW())}</b>.</div>`;
+  /* Bản 1.10.17: bỏ băng nhắc chưa nhận nhiệm vụ trên trang (nút chính đã đủ rõ); nhắc trên thiết bị vẫn giữ */
   top+=vpMonthlyCard(ib.monthly);
   if(ib.important.length) top+=`<div class="alert bad" style="margin-bottom:10px"><b>Thông báo quan trọng chưa xem:</b> ${ib.important.map(n=>`<a href="#" data-act="nt-open" data-id="${esc(n.id)}">${esc(n.title)}</a>`).join(' · ')}</div>`;
   const ms=ib.meetings.filter(m=>m.status!=='Đã hủy');
@@ -86,7 +86,7 @@ VIEWS['lich-hop']=()=>{
     <input type="date" data-f="lhw" value="${esc(w)}" aria-label="Chọn tuần">
     <select data-f="lhk" aria-label="Loại">${opts(['Họp','Làm việc','Công tác','Sự kiện'], S.f.lhk||'', 'Mọi loại')}</select>
     <label class="small"><input type="checkbox" data-act="mt-mine" ${S.f.lhm==='1'?'checked':''}> Chỉ lịch của tôi</label>
-    <span style="flex:1"></span><button class="btn sm ghost" data-act="mt-pdf">In, lưu PDF</button><button class="btn sm ghost" data-act="mt-xlsx">Xuất Excel</button></div>${body}`;
+    <span style="flex:1"></span>${exportMenu([['mt-pdf','','Lịch tuần (PDF)'],['mt-xlsx','','Lịch tuần (Excel)']])}</div>${body}`;
 };
 ACT['mt-wk']=n=>{ S.f.lhw= +n===0? monday(TODAY) : addD(mtWeek(), +n); render(); };
 ACT['mt-mine']=()=>{ S.f.lhm= S.f.lhm==='1'? '' : '1'; render(); };
@@ -255,7 +255,7 @@ VIEWS['kpi']=()=>{
     const k=d.settings; const rows=d.rows.filter(r=>!dep||r.departmentId===dep);
     const locked=d.rows.length && d.rows.every(r=>r.locked);
     const need=rows.filter(r=>r.canRate && r.missing.length).length;
-    body=`<p class="small muted" style="margin:0 0 8px">${k.auto?`Máy tự tính, không ai chấm tay. Tổng điểm = Công việc ${k.wWork}% + Chuyên cần ${k.wAttendance}% (tháng không có việc được giao thì chỉ tính chuyên cần).`:`Tổng điểm = Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%.`} Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}. ${locked?pill('Đã chốt','ok'):need?pill(need+' người chưa chấm đủ','warn')+' <span class="small">Chưa chốt: điểm tạm tính trên các phần đã có; khi chốt, phần còn thiếu tính 0.</span>':''}</p>`
+    body=`<div class="toolbar" style="margin:0 0 8px;gap:12px"><details class="small muted kpi-how"><summary>Cách tính</summary>${k.auto?`Công việc ${k.wWork}% + Chuyên cần ${k.wAttendance}%; tháng không có việc được giao thì chỉ tính chuyên cần.`:`Công việc ${k.wWork}% + Kết quả dự án ${k.wProject}% + Chuyên cần ${k.wAttendance}% + Đánh giá quản lý ${k.wManager}%.`} Xếp loại: ${k.grades.map(g=>`${esc(g.name)} từ ${fmtN(g.min)}`).join(', ')}.</details>${locked?pill('Đã chốt','ok'):need&&!k.auto?pill(need+' người chưa chấm đủ','warn'):''}</div>`
     + table([
       {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>`},
       {h:`Công việc (${k.wWork}%)`, r:1, f:r=>`${kpiN(r.work)}${r.workOverride!=null?' <span class="small muted" title="Quản lý ghi đè">✎</span>':''}${r.workAuto?`<div class="small muted">${r.workAuto.total} việc, ${r.workAuto.onTime} đúng hạn${r.workAuto.late?', '+r.workAuto.late+' trễ':''}${r.workAuto.overdue?', '+r.workAuto.overdue+' quá hạn':''}${r.workAuto.collab?', '+r.workAuto.collab+' phối hợp':''}</div>`:''}`},
@@ -266,10 +266,10 @@ VIEWS['kpi']=()=>{
       rows, {empty:'Chưa có nhân sự trong phạm vi bạn xem.', nopage:true, rowAct:'kpi-row'});
   }
   const ed=d&&d.canEdit, locked=d&&d.rows&&d.rows.length&&d.rows.every(r=>r.locked);
-  return `<div class="head"><div class="grow"><h1>KPI tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${VP.st.perms.admin||ed?'Toàn công ty':(VP.st.perms.managed||[]).length?'Phòng do bạn phụ trách và của bạn':'Kết quả của bạn'}${locked?` · <b>Đã chốt</b>${d.rows[0].lockedBy?' ('+esc(d.rows[0].lockedBy)+')':''}`:d&&d.autoLockAt?` · Máy tự tính, tự chốt lúc 0 giờ ngày ${fmtDate(d.autoLockAt)}`:''}</p></div>
+  return `<div class="head"><div class="grow"><h1>KPI tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${VP.st.perms.admin||ed||(d&&d.rows&&d.rows.length>1&&!(VP.st.perms.managed||[]).length)?'Toàn công ty':(VP.st.perms.managed||[]).length?'Phòng do bạn phụ trách và của bạn':'Kết quả của bạn'}${locked?` · <b>Đã chốt</b>${d.rows[0].lockedBy?' ('+esc(d.rows[0].lockedBy)+')':''}`:d&&d.autoLockAt?` · tự chốt 0 giờ ngày ${fmtDate(d.autoLockAt)}`:''}</p></div>
     <div class="toolbar">${ed?`<button class="btn" data-act="kpi-set">Thiết lập</button><button class="btn ${locked?'':'primary'}" data-act="kpi-lock" data-id="${locked?'0':'1'}">${locked?'Mở chốt':'Chốt KPI tháng'}</button>`:''}</div></div>
-  <div class="toolbar" style="margin:4px 0 10px"><input type="month" data-f="kpim" value="${esc(m)}" aria-label="Tháng"><select data-f="kpid" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
-    <span style="flex:1"></span><button class="btn sm ghost" data-act="kpi-pdf">In, lưu PDF</button><button class="btn sm ghost" data-act="kpi-xlsx">Xuất Excel</button></div>${body}`;
+  <div class="toolbar" style="margin:4px 0 10px">${monthSel('kpim', m)}<select data-f="kpid" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
+    <span style="flex:1"></span>${exportMenu([['kpi-pdf','','Bảng KPI (PDF)'],['kpi-xlsx','','Bảng KPI (Excel)']])}</div>${body}`;
 };
 async function kpiSave(emp, body){ const m=kpiMonth(); await api('PUT',`/api/vp/kpi/${m}/${encodeURIComponent(emp)}`, body); delete VP.kpi[m]; render(); }
 ACT['kpi-star']=async id=>{ const [emp,n]=id.split('|'); await kpiSave(emp, {rating:+n}); toast('Đã chấm '+n+' sao'); };
@@ -406,11 +406,13 @@ const payRow = id => { const d=VP.pay[payMonth()]; return d&&d.rows&&d.rows.find
 VIEWS['luong']=()=>{
   if(!VP.st){ vpLoad(); return `<div class="head"><div class="grow"><h1>Lương</h1></div></div>`+vpWait(); }
   const m=payMonth(); const d=vpFetch(VP.pay, m, '/api/vp/luong?month='+m); const dep=S.f.pld||'';
+  /* Bản 1.10.17: người lao động mở trang mà tháng mặc định chưa có phiếu thì lùi về tháng trước (một lần) */
+  if(d && !d.error && !d.all && !d.rows.length && !S.f.plm && !S._payBack){ S._payBack=1; const x=new Date(m+'-01T00:00:00'); x.setMonth(x.getMonth()-1); S.f.plm=x.getFullYear()+'-'+pad(x.getMonth()+1); setTimeout(render,0); }
   let body;
   if(d===null) body='<div class="empty">Đang tải…</div>';
   else if(d.error) body=emptyBox(esc(d.error));
   else if(!d.all) body = d.rows.length? paySlipHTML(d.rows[0], m) + payConfirmHTML(d.rows[0], m) + `<div class="toolbar" style="margin-top:10px"><button class="btn" data-act="pay-pdf" data-id="${esc(d.rows[0].employeeId)}">In, lưu PDF phiếu lương</button></div>`
-      : emptyBox('Phiếu lương tháng này chưa chốt. Kế toán chốt bảng lương xong bạn sẽ xem được ở đây.');
+      : emptyBox(`Chưa có phiếu lương tháng ${m.slice(5)}/${m.slice(0,4)}.`);
   else {
     const rows=d.rows.filter(r=>!dep||r.departmentId===dep).map(r=>({...r,id:r.employeeId}));
     const noProf=rows.filter(r=>!r.hasProfile).length, sum=k=>rows.reduce((s,r)=>s+(r[k]||0),0);
@@ -438,8 +440,8 @@ VIEWS['luong']=()=>{
   return `<div class="head"><div class="grow"><h1>${d&&!d.all?'Phiếu lương':'Bảng lương'} tháng ${m.slice(5)}/${m.slice(0,4)}</h1><p>${d&&d.all?(appr?pill('Đã duyệt chi','ok')+` <span class="small muted">${esc(ar.approvedBy||'')}, ${fmtDate(String(ar.approvedAt).slice(0,10))}</span>`:locked?pill('Đã chốt, chờ duyệt chi','info'):pill('Đang tính, chưa chốt','warn')):'Của bạn'}</p></div>
     <div class="toolbar">${ed?`<button class="btn" data-act="pay-profiles">Hồ sơ lương</button><button class="btn" data-act="pay-set">Thiết lập</button>${appr?'':`<button class="btn ${locked?'':'primary'}" data-act="pay-lock" data-id="${locked?'0':'1'}">${locked?'Mở chốt':'Chốt bảng lương'}</button>`}`:''}
       ${ap&&locked?`<button class="btn ${appr?'':'primary'}" data-act="pay-approve" data-id="${appr?'0':'1'}">${appr?'Hủy duyệt chi':'Duyệt chi lương'}</button>`:''}</div></div>
-  <div class="toolbar" style="margin:4px 0 10px"><input type="month" data-f="plm" value="${esc(m)}" aria-label="Tháng">${d&&d.all?`<select data-f="pld" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
-    <span style="flex:1"></span><button class="btn sm ghost" data-act="pay-pdf" data-id="">In phiếu lương (PDF)</button><button class="btn sm ghost" data-act="pay-xlsx">Bảng lương kế toán (Excel)</button><button class="btn sm ghost" data-act="pay-acc-pdf">Bảng lương kế toán (PDF)</button>${d.bank?`<button class="btn sm ${appr?'':'ghost'}" data-act="pay-bank" ${appr?'':'disabled title="Xuất được sau khi Giám đốc hoặc Kế toán duyệt chi"'}>Danh sách chuyển khoản ngân hàng</button>`:''}`:''}</div>${body}`;
+  <div class="toolbar" style="margin:4px 0 10px">${monthSel('plm', m)}${d&&d.all?`<select data-f="pld" aria-label="Phòng ban">${opts(VP.depts.map(x=>[x.id,x.name]), dep, 'Tất cả phòng ban')}</select>
+    <span style="flex:1"></span>${exportMenu([['pay-pdf','','Phiếu lương từng người (PDF)'],['pay-xlsx','','Bảng lương kế toán (Excel)'],['pay-acc-pdf','','Bảng lương kế toán (PDF)']].concat(d.bank?[['pay-bank','','Danh sách chuyển khoản ngân hàng'+(appr?'':' (sau khi duyệt chi)'),!appr]]:[]))}`:''}</div>${body}`;
 };
 /* Bản 1.10.4: người lao động tự xác nhận lương trong hạn (mặc định ngày 1 đến 3 tháng sau), có thể gửi kiến nghị */
 function payStatePill(r){ if(!r.locked||!r.confirmState) return '<span class="small muted">—</span>';

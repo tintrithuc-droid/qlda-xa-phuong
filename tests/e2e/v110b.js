@@ -111,9 +111,9 @@ function totp(secret) {
   await p.evaluate(() => { vpReset(); location.hash = 'kpi'; }); await p.waitForTimeout(500);
   await p.evaluate(m => { S.f.kpim = m; render(); }, M); await p.waitForSelector('text=Trần Thị B', { timeout: 10000 });
   await p.screenshot({ path: `${SHOTS}/v110b-kpi.png`, fullPage: true });
-  const [dx] = await Promise.all([p.waitForEvent('download'), p.click('[data-act="kpi-xlsx"]')]); ok(/KPI_2026-11\.xlsx$/.test(dx.suggestedFilename()), 'Không xuất được Excel KPI');
+  const [dx] = await Promise.all([p.waitForEvent('download'), p.evaluate(()=>document.querySelectorAll('details.xmenu').forEach(d=>d.open=true)).then(()=>p.click('[data-act="kpi-xlsx"]'))]); ok(/KPI_2026-11\.xlsx$/.test(dx.suggestedFilename()), 'Không xuất được Excel KPI');
   await p.evaluate(() => { window._prt = null; const orig = document.body.appendChild.bind(document.body); document.body.appendChild = el => { if (el.tagName === 'IFRAME') setTimeout(() => { window._prt = el.contentDocument.documentElement.outerHTML; }, 100); return orig(el); }; });
-  await p.click('[data-act="kpi-pdf"]'); await p.waitForTimeout(600);
+  await p.evaluate(()=>document.querySelectorAll('details.xmenu').forEach(d=>d.open=true)).then(()=>p.click('[data-act="kpi-pdf"]')); await p.waitForTimeout(600);
   const prt = await p.evaluate(() => window._prt || ''); ok(/ĐÁNH GIÁ KPI THÁNG 11\/2026/.test(prt) && /Trần Thị B/.test(prt), 'Bản in KPI thiếu nội dung');
   const pv = await ctx.newPage(); await pv.setContent(prt); await pv.screenshot({ path: `${SHOTS}/v110b-kpi-in.png`, fullPage: true }); await pv.close();
   await p.evaluate(() => { location.hash = 'ework-cu'; }); await p.waitForSelector('text=Bảng KPI', { timeout: 10000 });

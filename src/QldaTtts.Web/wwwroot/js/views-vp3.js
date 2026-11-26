@@ -27,22 +27,22 @@ function cvActs(r, full){
   if(!full && r.extendPending) b.push(`<span class="pill warn" title="Có đề nghị gia hạn chờ duyệt">Xin gia hạn</span>`);
   return b.join(' ');
 }
-function cvRemindHTML(n, full){
+function cvRemindHTML(n, full, home){
   if(!n || n.error) return '';
   const it=x=>`<a href="#" data-act="cv-view" data-id="${esc(x.id)}">${esc(x.name)}</a> <span class="muted">(${x.late?'trễ '+x.late+' ngày':'hạn '+fmtDate(x.due)})</span>`;
   const parts=[];
   if(n.overdue.length) parts.push(`<div><b style="color:var(--red)">Quá hạn ${n.overdue.length} việc:</b> ${n.overdue.slice(0,full?20:3).map(it).join(' · ')}${!full&&n.overdue.length>3?' …':''}</div>`);
   if(n.soon.length) parts.push(`<div><b>Sắp đến hạn (${n.remindDays} ngày tới) ${n.soon.length} việc:</b> ${n.soon.slice(0,full?20:3).map(it).join(' · ')}${!full&&n.soon.length>3?' …':''}</div>`);
   if(n.myPending) parts.push(`<div class="small muted">${n.myPending} việc tự tạo của bạn đang chờ xác nhận (chưa tính KPI).</div>`);
-  if(n.kpi && n.kpi.estimate) parts.push(`<div class="small muted">KPI tháng này: chưa có điểm công việc nên chưa xếp loại (chuyên cần tạm tính ${fmtN(n.kpi.total,1)}).</div>`);
-  else if(n.kpi){ const k=n.kpi, ok=k.total>=k.targetMin;
+  if(n.kpi && n.kpi.estimate && !home) parts.push(`<div class="small muted">KPI tháng này: chưa có điểm công việc nên chưa xếp loại (chuyên cần tạm tính ${fmtN(n.kpi.total,1)}).</div>`);
+  else if(n.kpi && !home){ const k=n.kpi, ok=k.total>=k.targetMin;
     parts.push(`<div>KPI tạm tính tháng này: <b>${fmtN(k.total,1)}</b> điểm${k.grade?' ('+esc(k.grade)+')':''}, ${ok?`<span style="color:var(--green,#16a34a)">đạt mức ${esc(k.target)} (từ ${fmtN(k.targetMin)})</span>`:`<span style="color:var(--red)">dưới mức ${esc(k.target)} (cần từ ${fmtN(k.targetMin)})</span>`}${k.missing&&k.missing.length?` <span class="small muted">· chưa có: ${esc(k.missing.join(', '))}</span>`:''}</div>`); }
   const t=n.team;
-  if(t && (t.overdue||t.confirm||t.review||t.lowKpi.length)) parts.push(`<div style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--line,#ddd)"><b>Việc của phòng, người bạn giao:</b>
+  if(t && (t.overdue||t.confirm||t.review||(t.lowKpi.length&&!home))) parts.push(`<div style="margin-top:4px;padding-top:4px;border-top:1px dashed var(--line,#ddd)"><b>Việc của phòng, người bạn giao:</b>
     ${t.overdue?`<a href="#" data-act="cv-goto" data-id="dept|overdue">${t.overdue} việc quá hạn</a>${t.byPerson.length?' ('+t.byPerson.slice(0,5).map(p=>esc(p.name)+' '+p.n).join(', ')+')':''}`:''}
     ${t.confirm?` · <a href="#" data-act="cv-goto" data-id="all|confirm">${t.confirm} việc tự tạo chờ xác nhận</a>`:''}
     ${t.review?` · <a href="#" data-act="cv-goto" data-id="all|review">${t.review} việc chờ nghiệm thu</a>`:''}
-    ${t.lowKpi.length?`<div class="small">KPI tạm tính dưới mức ${esc(n.kpi?n.kpi.target:'B')}: ${t.lowKpi.map(p=>esc(p.name)+' '+fmtN(p.total,1)).join(', ')}</div>`:''}</div>`);
+    ${t.lowKpi.length&&!home?`<div class="small">KPI tạm tính dưới mức ${esc(n.kpi?n.kpi.target:'B')}: ${t.lowKpi.map(p=>esc(p.name)+' '+fmtN(p.total,1)).join(', ')}</div>`:''}</div>`);
   if(!parts.length) return full? `<div class="alert ok" style="margin-bottom:10px">Không có việc quá hạn hay sắp đến hạn.</div>` : '';
   return `<div class="alert ${n.overdue.length||(t&&t.overdue)?'bad':'info'} cv-remind" style="margin-bottom:10px">${parts.join('')}${full?'':' <a class="small" href="#cong-viec">Xem công việc</a>'}</div>`;
 }
@@ -53,7 +53,7 @@ ACT['cv-goto']=id=>{ const [sc,st]=id.split('|'); S.f.cvs=sc; S.f.cvt=st; goRout
 const _vpHome3=VIEWS['van-phong'];
 VIEWS['van-phong']=()=>{
   const html=_vpHome3(); if(!VP.st) return html;
-  const box=cvRemindHTML(cvRemind(), false); if(!box) return html;
+  const box=cvRemindHTML(cvRemind(), false, true); if(!box) return html;
   const i=html.indexOf('<div class="grid g2 vp-top">'); return i<0? html : html.slice(0,i)+box+html.slice(i);
 };
 
@@ -127,7 +127,7 @@ VIEWS['cong-viec']=()=>{
     <select data-f="cvp" aria-label="Dự án">${opts([['-','Việc nội bộ (không thuộc dự án)']].concat(((d&&d.projects)||[]).map(p=>[p.id,p.name])), S.f.cvp||'', 'Tất cả dự án')}</select>
     ${S.f.cvp&&S.f.cvp!=='-'&&pkOpts.length?`<select data-f="cvk" aria-label="Gói thầu">${opts([['-','Việc chung của dự án']].concat(pkOpts.map(k=>[k.id,k.name])), S.f.cvk||'', 'Mọi gói thầu')}</select>`:''}
     ${((d&&d.types)||[]).length?`<select data-f="cvy" aria-label="Loại công việc">${opts([['-','Chưa phân loại']].concat(d.types), S.f.cvy||'', 'Mọi loại việc')}</select>`:''}
-    <input type="month" data-f="cvm" value="${esc(S.f.cvm||'')}" aria-label="Tháng (hạn hoặc ngày xong)" title="Tháng (theo hạn hoặc ngày xong)">
+    ${monthSel('cvm', S.f.cvm||'', 'Mọi tháng', 'Tháng (theo hạn hoặc ngày xong)')}
     <input type="search" data-f="cvq" value="${esc(S.f.cvq||'')}" placeholder="Tìm việc, người làm…" aria-label="Tìm">
     <span style="flex:1"></span><button class="btn sm ghost" data-act="cv-xlsx">Xuất Excel</button></div>${body}`;
 };

@@ -56,6 +56,9 @@ public class PaySettings
     /// <summary>Bản 1.10.21 (anh Trí 26/11: bỏ bước Kế toán bấm chốt): 0 giờ ngày AutoLockDay tháng sau tự chốt bảng lương tháng trước (sau khi KPI tự chốt),
     /// mở cho người lao động tự xác nhận. Kế toán mở chốt để sửa thì không tự chốt lại.</summary>
     public bool AutoLock { get; set; } = true; public int AutoLockDay { get; set; } = 1;
+    /// <summary>Bản 1.10.22 (anh Trí 26/11: "Bảng lương chỉ cấp quyền cho Đoàn Thúy Quyên"): ai xem bảng lương của phòng (chỉ xem).
+    /// ca-hai = trưởng phòng và người cùng phụ trách; cung-phu-trach = chỉ người cùng phụ trách; truong-phong = chỉ trưởng phòng; khong = không ai.</summary>
+    public string DeptView { get; set; } = "ca-hai";
     /// <summary>Hạn xác nhận lương của tháng: từ ngày ConfirmFrom tháng sau; nếu chốt muộn hơn thì mở từ ngày chốt và kéo dài đủ số ngày.</summary>
     public (DateOnly from, DateOnly to) ConfirmWindow(string month, DateTime? lockedAtUtc)
     {
@@ -321,7 +324,9 @@ public class LuongController : ApiControllerBase
         {
             // Bản 1.10.21 (anh Trí 26/11: "không gì phải giấu để biết cân đối lương"): trưởng phòng, người cùng phụ trách xem bảng lương của phòng mình (chỉ xem)
             var uid = Uc.User.Id;
-            var mgd = (await Db.Departments.AsNoTracking().Where(d => d.ManagerUserId == uid || d.DeputyUserId == uid).Select(d => d.Id).ToListAsync()).ToHashSet();
+            var dv = PaySettings.Load(Db).DeptView;
+            bool asMgr = dv is "ca-hai" or "truong-phong" or "" or null, asDep = dv is "ca-hai" or "cung-phu-trach" or "" or null;
+            var mgd = (await Db.Departments.AsNoTracking().Where(d => (asMgr && d.ManagerUserId == uid) || (asDep && d.DeputyUserId == uid)).Select(d => d.Id).ToListAsync()).ToHashSet();
             if (mgd.Count > 0)
             {
                 var dEmps = emps.Where(e => e.UserId == uid || (e.DepartmentId != null && mgd.Contains(e.DepartmentId))).ToList();

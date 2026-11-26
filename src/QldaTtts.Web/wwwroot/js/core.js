@@ -217,6 +217,7 @@ const Store = {
     const me=S.user && this.data.users.find(u=>u.id===S.user.id); if(me) S.user={...S.user,...me};
     if(S.user) UI.load(S.user);
     onData();
+    if(S.user && !S.user.mustChangePassword && !S._gw && typeof guideWelcome==='function'){ S._gw=1; setTimeout(guideWelcome, 800); }
   },
   clear(){ COLS.forEach(c=>{ this.data[c]=[]; }); if(typeof vpReset==='function') vpReset(); },
   signedOut(){ if(S.user){ S.user=null; this.clear(); toast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.','err'); onData(); } },

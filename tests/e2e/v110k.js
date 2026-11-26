@@ -195,6 +195,19 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   // 1.10.21: trưởng phòng, người cùng phụ trách xem bảng lương phòng mình (chỉ xem, không tài khoản ngân hàng)
   { const pl = await J(qb.get(BASE + '/api/vp/luong?month=' + PM, { headers: H }));
     ok(pl.all === true && pl.dept === true && pl.canEdit === false && !pl.bank && pl.rows.some(x => x.employeeId === nva.id) && pl.rows.every(x => [nva.id, ttb.id].includes(x.employeeId) || (E2 => E2 && E2.departmentId === nva.departmentId)((emps.find(e => e.id === x.employeeId)))), 'Bảng lương phòng cho người cùng phụ trách sai: ' + JSON.stringify({ all: pl.all, dept: pl.dept, n: (pl.rows || []).length })); }
+  // 1.10.22: giao diện bảng lương phòng giữ dòng "chỉ xem" và vẫn có bảng (trước đây dòng thông báo bị ghi đè)
+  { const pg = await cB.newPage(); await pg.goto(BASE + '/#luong'); await pg.waitForSelector('#app', { timeout: 20000 });
+    await pg.evaluate(m => { S.f.plm = m; }, PM).catch(() => {}); await pg.waitForTimeout(2500);
+    const tx = await pg.textContent('main').catch(() => '') || await pg.textContent('body');
+    ok(/phòng bạn phụ trách/.test(tx) && !/undefined/.test(tx), 'Bảng lương phòng mất dòng thông báo hoặc hiện "undefined"');
+    await pg.screenshot({ path: path.join(tmp, 'luong-phong.png') }); await pg.close(); }
+  // 1.10.22: chỉ người cùng phụ trách xem bảng lương phòng (anh Trí: "chỉ cấp quyền cho Quyên")
+  { const ps = await J(r.get(BASE + '/api/vp/luong-settings', { headers: H }));
+    ok((await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, deptView: 'cung-phu-trach' } })).ok(), 'Lưu "Ai xem bảng lương phòng" lỗi');
+    const pa = await J(qa.get(BASE + '/api/vp/luong?month=' + PM, { headers: H })), pb = await J(qb.get(BASE + '/api/vp/luong?month=' + PM, { headers: H }));
+    ok(pa.dept !== true && pa.all === false, 'Chỉ người cùng phụ trách mà trưởng phòng vẫn xem lương phòng');
+    ok(pb.dept === true, 'Người cùng phụ trách phải xem lương phòng');
+    await r.put(BASE + '/api/vp/luong-settings', { headers: H, data: { ...ps, deptView: 'ca-hai' } }); }
   // 1.10.21: tự chốt bảng lương tháng trước (không cần Kế toán bấm); Kế toán mở chốt thì không tự chốt lại
   { const c1 = cli(['--tu-chot-luong']); ok(c1.code === 0, 'Tự chốt lương lỗi: ' + c1.out);
     if (c1.out.includes('Đã tự chốt bảng lương')) {
@@ -204,6 +217,18 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
     } else console.log('Tự chốt lương bỏ qua: ' + c1.out.trim()); }
   // 7) Phép năm: tắt cộng thâm niên thì người làm lâu năm vẫn 12 ngày
   const vs1 = await J(r.get(BASE + '/api/vp/settings', { headers: H })); ok(vs1.leaveSeniorityBonus === false && vs1.inOnly === true, 'Thiết lập chưa lưu');
+
+  // 8) Hướng dẫn theo vai trò tự hiện khi đăng nhập, bấm "Đã đọc" thì không hiện lại
+  { const gid = await p.evaluate(() => S.user.groupId);
+    if (await p.evaluate(() => D('guides').some(g => (g.groups || []).includes(S.user.groupId)))) {
+      await p.evaluate(() => { localStorage.setItem('hdsd-thu', '1'); localStorage.removeItem('hdsd-da-doc:' + S.user.id); });
+      await p.reload(); await p.waitForSelector('#app');
+      const shown = await p.waitForSelector('[data-act="guide-read"]', { timeout: 8000 }).then(() => true, () => false);
+      ok(shown, 'Hộp hướng dẫn vai trò không tự hiện');
+      if (shown) { await p.screenshot({ path: path.join(tmp, 'huong-dan-chao.png') }); await p.click('[data-act="guide-read"]');
+        await p.reload(); await p.waitForSelector('#app'); await p.waitForTimeout(2000);
+        ok(!(await p.$('[data-act="guide-read"]')), 'Đã đọc mà hộp hướng dẫn vẫn hiện lại'); }
+    } else console.log('Hướng dẫn: nhóm ' + gid + ' không có hướng dẫn mẫu, bỏ qua'); }
 
   console.log('Ảnh: ' + tmp);
   await b.close();

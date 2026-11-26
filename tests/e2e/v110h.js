@@ -129,7 +129,7 @@ const thisMonth = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0,
     const q = role.nva.request; const v = await J(q.get(BASE + '/api/vp/viec?scope=dept&status=all', { headers: H }));
     ok(v.perms && v.perms.managed && v.perms.managed.length === 1 && !v.perms.boss, 'Trưởng phòng không quản lý phòng: ' + JSON.stringify(v.perms));
     const l = await J(q.get(BASE + `/api/vp/luong?month=${M}`, { headers: H }));
-    ok(l.all === false, 'Trưởng phòng thấy bảng lương công ty');
+    ok(l.all === false || (l.dept === true && l.canEdit === false && !l.bank), 'Trưởng phòng thấy bảng lương công ty'); // 1.10.21: trưởng phòng xem bảng lương phòng mình (chỉ xem)
   }
   // 6) Kế toán: lập lương, duyệt chi, xem tài khoản ngân hàng; không giao việc chính thức
   {

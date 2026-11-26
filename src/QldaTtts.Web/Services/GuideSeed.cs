@@ -97,7 +97,16 @@ public static class GuideSeed
             var pdf = pdfs.FirstOrDefault(p => Path.GetFileName(p).Contains(" - " + file + " - ", StringComparison.OrdinalIgnoreCase));
             var g = db.Guides.FirstOrDefault(x => x.Title == title && x.UpdatedBy == "he-thong")
                 ?? (file == "Lanh dao xa phuong" ? db.Guides.FirstOrDefault(x => x.Title == "Hướng dẫn sử dụng dành cho Lãnh đạo UBND xã" && x.UpdatedBy == "he-thong") : null);
-            if (g is not null && g.Title != title) { g.Title = title; g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
+            // Bản 1.10.22: hướng dẫn đã được người quản trị đổi tên, viết lại nội dung thì tìm theo tệp PDF đang gắn, giữ nguyên tên và nội dung họ viết, chỉ thay tệp
+            var edited = false;
+            if (g is null)
+            {
+                var mark = " - " + file + " - ";
+                var rid = db.Attachments.Where(a => a.Collection == "guides" && a.DeletedAt == null).AsEnumerable()
+                    .FirstOrDefault(a => a.FileName.Contains(mark, StringComparison.OrdinalIgnoreCase))?.RecordId;
+                g = rid is null ? null : db.Guides.FirstOrDefault(x => x.Id == rid); edited = g is not null;
+            }
+            if (g is not null && !edited && g.Title != title) { g.Title = title; g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
             // Bản 1.10.4: bộ riêng của đơn vị (vai-tro.json) có vai trò mới chưa có hướng dẫn thì thêm (máy đã nạp bộ chuẩn trước đó)
             if (g is null && pdf is not null && custom)
             {
@@ -105,11 +114,14 @@ public static class GuideSeed
                     Groups = groups.ToList(), Order = order++, UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" };
                 db.Guides.Add(g);
             }
-            if (g is not null && custom && pdf is not null && !g.Groups.OrderBy(x => x).SequenceEqual(groups.OrderBy(x => x))) { g.Groups = groups.ToList(); g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
+            if (g is not null && !edited && custom && pdf is not null && !g.Groups.OrderBy(x => x).SequenceEqual(groups.OrderBy(x => x))) { g.Groups = groups.ToList(); g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
             if (pdf is null || g is null) continue;
             var olds = db.Attachments.Where(a => a.Collection == "guides" && a.RecordId == g.Id && a.DeletedAt == null).ToList();
             if (olds.Any(a => a.FileName == Path.GetFileName(pdf))) continue;
             foreach (var a in olds) { a.DeletedAt = DateTime.UtcNow; a.DeletedBy = "Hệ thống (nâng cấp phiên bản)"; }
+            // Bản 1.10.22: tài liệu mới thì cập nhật cả mô tả và thời điểm, để hướng dẫn tự hiện lại cho người dùng khi đăng nhập
+            if (!edited && custom && !string.IsNullOrWhiteSpace(content)) g.Content = content;
+            g.UpdatedAt = DateTime.UtcNow; if (!edited) g.UpdatedBy = "he-thong";
             var sf = store.SaveFromPath(pdf, "he-thong");
             db.Files.Add(sf);
             db.Attachments.Add(new Attachment { Id = "att-" + Guid.NewGuid().ToString("N")[..20], Collection = "guides", RecordId = g.Id, Kind = "Tài liệu",

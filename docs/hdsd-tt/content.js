@@ -1,4 +1,4 @@
-// Nội dung Hướng dẫn sử dụng e-work Tri Thức (bản 1.10.17: Nhận nhiệm vụ, KPI tự động, Công việc Dự án › Gói thầu › Việc) theo vai trò.
+// Nội dung Hướng dẫn sử dụng e-work Tri Thức (bản 1.10.21: Nhận nhiệm vụ, KPI và bảng lương tự chốt, Công việc Dự án › Gói thầu › Việc, người cùng phụ trách phòng) theo vai trò.
 // Mỗi chương: id, title, roles (nv: Nhân viên, tp: Trưởng phòng, kt: Kế toán, gd: Ban giám đốc, qt: Quản trị), html, shot (ảnh trong shots/, có thể thiếu).
 // Chương chung cho mọi người đặt roles: ALL.
 const ALL = ['nv', 'tp', 'kt', 'gd', 'qt'];
@@ -9,7 +9,7 @@ exports.ROLES = {
   tp: { name: 'Trưởng phòng', file: 'Truong phong', group: 'g-tp',
     intro: 'Trưởng phòng làm mọi việc như Nhân viên, thêm phần quản lý phòng mình: giao việc, xác nhận việc tự tạo, duyệt gia hạn, nghiệm thu, duyệt đề xuất, xem hôm nay ai ở đâu, theo dõi bảng công của phòng.' },
   kt: { name: 'Kế toán', file: 'Ke toan', group: 'g-ketoan',
-    intro: 'Kế toán làm mọi việc như Nhân viên, thêm phần hồ sơ nhân sự, bảng công, ngày nghỉ lễ, lập và chốt bảng lương, trả lời kiến nghị, duyệt chi lương, xuất bảng lương kế toán và danh sách chuyển khoản ngân hàng.' },
+    intro: 'Kế toán làm mọi việc như Nhân viên, thêm phần hồ sơ nhân sự, bảng công, ngày nghỉ lễ, rà bảng lương (bảng lương tự chốt ngày 1), nhập khoản phát sinh, trả lời kiến nghị, xuất bảng lương kế toán và danh sách chuyển khoản ngân hàng sau khi Giám đốc duyệt chi.' },
   gd: { name: 'Ban giám đốc', file: 'Ban giam doc', group: 'g-bgd',
     intro: 'Giám đốc làm việc trên phần mềm như mọi người (nhận nhiệm vụ, đề xuất, làm việc được giao, xác nhận lương), thêm quyền điều hành: xem toàn công ty, hôm nay ai ở đâu, giao việc, duyệt đề xuất, duyệt chi lương, đăng thông báo, quản lý dự án.' },
   qt: { name: 'Quản trị hệ thống', file: 'Quan tri he thong', group: 'g-admin',
@@ -22,16 +22,18 @@ exports.CHAPTERS = [
 <p>Mỗi tài khoản thuộc một <b>vai trò</b> (nhóm quyền). Khi nhân sự thay đổi, Quản trị chỉ đổi vai trò của tài khoản; quyền của từng vai trò giữ nguyên.</p>
 <table><tr><th>Vai trò</th><th>Của mình</th><th>Thêm quyền</th></tr>
 <tr><td><b>Nhân viên</b></td><td rowspan="5">Mọi người đều: nhận nhiệm vụ hằng ngày, gửi đề xuất, làm việc được giao, xem KPI của mọi người (công khai) và phiếu lương của mình, xác nhận lương, xem lịch họp, thông báo, xem thông tin dự án</td><td>Không xem lương, bảng công, hồ sơ nhân sự, tiền thưởng của người khác</td></tr>
-<tr><td><b>Trưởng phòng</b></td><td>Với phòng mình: giao việc, xác nhận việc tự tạo, nghiệm thu, duyệt đề xuất, xem hôm nay ai ở đâu, bảng công</td></tr>
-<tr><td><b>Kế toán</b></td><td>Hồ sơ nhân sự, bảng công, ngày lễ, lập và chốt lương, trả lời kiến nghị, duyệt chi lương, xuất bảng lương và danh sách chuyển khoản</td></tr>
-<tr><td><b>Ban giám đốc</b></td><td>Toàn công ty: giao việc, hôm nay ai ở đâu, mở chốt KPI khi cần sửa, duyệt đề xuất, duyệt chi lương, thông báo, lịch họp, quản lý dự án</td></tr>
+<tr><td><b>Trưởng phòng</b></td><td>Với phòng mình: giao việc, xác nhận việc tự tạo, nghiệm thu, duyệt đề xuất, xem hôm nay ai ở đâu, bảng công; xem bảng lương của phòng nếu được giao (chỉ xem)</td></tr>
+<tr><td><b>Kế toán</b></td><td>Hồ sơ nhân sự, bảng công, ngày lễ, rà bảng lương, nhập khoản phát sinh, trả lời kiến nghị, xuất bảng lương và danh sách chuyển khoản (không duyệt chi)</td></tr>
+<tr><td><b>Ban giám đốc</b></td><td>Toàn công ty: giao việc, hôm nay ai ở đâu, mở chốt KPI khi cần sửa, duyệt đề xuất của trưởng bộ phận, <b>duyệt chi lương (chỉ Giám đốc)</b>, thông báo, lịch họp, quản lý dự án</td></tr>
 <tr><td><b>Quản trị</b></td><td>Tài khoản, vai trò, thiết lập hệ thống, sao lưu</td></tr></table>
-<p class="note">Quyền Trưởng phòng đi theo phòng ban: phòng nào ghi tên người phụ trách là ai thì người đó quản lý phòng đó. Đổi trưởng phòng chỉ cần sửa phòng ban.</p>` },
+<p class="note">Quyền Trưởng phòng đi theo phòng ban: phòng nào ghi tên người phụ trách (và <b>người cùng phụ trách</b>) là ai thì người đó quản lý phòng đó. Đổi trưởng phòng chỉ cần sửa phòng ban.</p>
+<p>Người đã nghỉ việc hoặc bị khóa tài khoản không còn hiện ở các danh sách chọn người (giao việc, phối hợp, mời họp) và không tính KPI; dữ liệu cũ vẫn giữ để tra cứu.</p>` },
 
   { id: 'dang-nhap', title: 'Đăng nhập, đổi mật khẩu', roles: ALL, shot: 'dang-nhap', html: `
-<ol><li>Mở <b>https://trithuc.qlda.trithucsoft.vn</b> trên máy tính hoặc điện thoại.</li>
-<li>Nhập tên đăng nhập (như trên e-work cũ) và mật khẩu ban đầu do Quản trị gửi riêng.</li>
-<li>Lần đầu, phần mềm bắt đổi mật khẩu: mật khẩu mới tối thiểu 8 ký tự, có chữ và số. Không dùng chung mật khẩu với tài khoản khác.</li></ol>
+<ol><li>Mở <b>https://e-work.vn</b> (địa chỉ e-work quen thuộc, nay là bản mới) trên máy tính hoặc điện thoại.</li>
+<li>Đăng nhập bằng <b>tên đăng nhập và mật khẩu e-work cũ</b> của bạn, không cần cấp lại.</li>
+<li>Lần đầu vào, phần mềm hiện ngay <b>hướng dẫn dành cho vai trò của bạn</b>. Đọc qua rồi bấm <b>Đã đọc, không hiện lại</b> (hoặc <b>Để sau</b>). Xem lại bất cứ lúc nào ở mục <b>Hướng dẫn sử dụng</b>.</li>
+<li>Đổi mật khẩu khi cần: mật khẩu mới tối thiểu 8 ký tự, có chữ và số. Không dùng chung mật khẩu với tài khoản khác.</li></ol>
 <p>Trên điện thoại: mở trang bằng Chrome (Android) hoặc Safari (iPhone), chọn <b>Thêm vào màn hình chính</b> để dùng như ứng dụng.</p>
 <p class="note">Quên mật khẩu: báo Quản trị đặt lại. Phần mềm không bao giờ hỏi mật khẩu qua tin nhắn hay thư.</p>` },
 
@@ -99,10 +101,10 @@ exports.CHAPTERS = [
 <p class="note">Cách tính áp dụng từ tháng 12/2026; sau 3 tháng Công ty đánh giá lại và điều chỉnh nếu cần.</p>` },
 
   { id: 'phieu-luong', title: 'Phiếu lương và xác nhận lương', roles: ALL, shot: 'phieu-luong', html: `
-<ol><li>Khi bảng lương tháng được chốt, vào <b>Văn phòng → Lương</b>, chọn tháng để xem phiếu lương của mình: ngày công, lương thời gian, phụ cấp, tăng ca, công tác phí, thưởng KPI, bảo hiểm, thuế thu nhập cá nhân, tạm ứng, thực nhận.</li>
+<ol><li>Bảng lương tháng tự chốt lúc 0 giờ ngày 1 tháng sau. Vào <b>Văn phòng → Lương</b>, chọn tháng để xem phiếu lương của mình: ngày công, lương thời gian, phụ cấp, tăng ca, công tác phí, thưởng KPI, bảo hiểm, thuế thu nhập cá nhân, tạm ứng, thực nhận.</li>
 <li>Từ ngày 1 đến hết ngày 3 tháng sau: bấm <b>Đồng ý, xác nhận lương</b>, hoặc ghi rõ ý kiến rồi bấm <b>Gửi kiến nghị</b>. Quá hạn coi như đồng ý.</li>
 <li>Kế toán trả lời kiến nghị ngay trên phiếu lương. Bấm <b>In, lưu PDF phiếu lương</b> để lưu.</li></ol>
-<p class="note">Bạn chỉ thấy phiếu lương của chính mình. Thông tin tài khoản ngân hàng, số CCCD chỉ Kế toán và Ban giám đốc thấy để chi lương.</p>` },
+<p class="note">Bạn thấy phiếu lương của chính mình; người được Giám đốc giao (hiện là người cùng phụ trách phòng) xem được bảng lương của phòng để cân đối. Thông tin tài khoản ngân hàng, số CCCD chỉ Kế toán và Ban giám đốc thấy để chi lương.</p>` },
 
   { id: 'lich-thong-bao', title: 'Lịch công tác, thông báo, thông tin dự án', roles: ALL, html: `
 <ul><li><b>Lịch công tác</b>: xem theo tuần, chọn <i>Chỉ lịch của tôi</i>; bấm <b>Thêm</b> để tải tệp lịch vào điện thoại, Outlook, Google Calendar; <b>Xuất → Lịch tuần (PDF/Excel)</b> để in.</li>
@@ -124,11 +126,12 @@ exports.CHAPTERS = [
   { id: 'tp-duyet', title: 'Duyệt đề xuất', roles: ['tp', 'gd'], shot: 'duyet', html: `
 <ol><li>Vào <b>Đề xuất</b>, thẻ <b>Chờ tôi duyệt</b> (số trong ngoặc là số đề xuất đang chờ).</li>
 <li>Mở đề xuất, xem chứng từ đính kèm, bấm <b>Duyệt</b> hoặc <b>Không duyệt</b> (ghi lý do).</li></ol>
-<p>Trưởng phòng duyệt đề xuất của nhân viên phòng mình. Ban giám đốc duyệt mọi đề xuất, kể cả của Trưởng phòng. Không ai tự duyệt đề xuất của mình; đề xuất của Giám đốc do Quản trị duyệt.</p>` },
+<p><b>Ai duyệt cho ai:</b> trưởng bộ phận (trưởng phòng và người cùng phụ trách) duyệt đề xuất của chuyên viên trong phòng, ai duyệt trước cũng được. Giám đốc duyệt đề xuất của trưởng bộ phận. Không ai tự duyệt đề xuất của mình; đề xuất của Giám đốc do Quản trị duyệt.</p>` },
 
   { id: 'tp-kpi', title: 'Hôm nay ai ở đâu, Bảng công của phòng, KPI', roles: ['tp', 'gd'], shot: 'hom-nay', html: `
 <ol><li>Vào <b>Bảng công</b>, thẻ <b>Hôm nay ai ở đâu</b>: số người ở công ty, online, công tác, khác, có phiếu nghỉ, chưa nhận nhiệm vụ, đi muộn; từng người làm ở đâu, việc làm hôm nay, kết quả cuối ngày. Chọn ngày khác để xem lại.</li>
 <li>Thẻ <b>Tổng hợp tháng</b>: mỗi người số ngày công, ở công ty, online, công tác, khác, đi muộn, nghỉ phép, tăng ca, nghỉ không phép; <b>Xuất Excel</b> khi cần. Trưởng phòng thấy phòng mình, Ban giám đốc và Kế toán thấy toàn công ty.</li>
+<li><b>Lương</b>: người được giao xem bảng lương của phòng (hiện là người cùng phụ trách; Kế toán đổi ở <b>Lương → Thiết lập lương → Ai xem bảng lương của phòng</b>) chỉ xem, không sửa, không duyệt chi, để cân đối lương.</li>
 <li><b>KPI</b> máy tự tính và tự chốt lúc 0 giờ ngày 1 tháng sau, không ai phải chấm hay bấm chốt. Cần sửa sai sót thì Ban giám đốc bấm <b>Mở chốt</b>, sửa, bấm <b>Chốt KPI tháng</b>.</li></ol>
 <p>Muốn KPI phản ánh đúng: giao việc có hạn rõ ràng, nghiệm thu đúng lúc, duyệt gia hạn và xác nhận việc tự tạo kịp thời.</p>` },
 
@@ -136,7 +139,7 @@ exports.CHAPTERS = [
   { id: 'kt-nhan-su', title: 'Hồ sơ nhân sự, hồ sơ lương', roles: ['kt', 'gd'], shot: 'nhan-su', html: `
 <ol><li><b>Văn phòng → Nhân sự</b>, bấm tên một người để mở trang hồ sơ: thẻ <b>Thông tin chung</b> (cá nhân, phòng ban, chức vụ, ngày vào làm, ngân hàng, CCCD, người phụ thuộc), <b>Bằng cấp, chứng chỉ</b>, <b>Hợp đồng lao động</b>, <b>Quá trình công tác</b>, <b>Khen thưởng</b>, <b>Kỷ luật</b>, <b>Giấy tờ</b>, <b>Tất cả tệp</b>. Mỗi mục đính kèm được ảnh chụp hoặc bản PDF, bấm <b>Xem</b> để mở ngay. Mỗi người xem hồ sơ của mình ở <b>Hồ sơ của tôi</b>.</li>
 <li>Ô <b>Chấm công</b>: chọn <i>Không chấm công</i> cho người không cần nhận nhiệm vụ. Người đó hưởng nguyên lương chính, không cần tự xác nhận lương.</li>
-<li>Người nghỉ việc: ghi ngày nghỉ việc và trạng thái <i>Nghỉ việc</i>; hồ sơ vẫn giữ để tra cứu và tính lương tháng cuối.</li>
+<li>Người sắp nghỉ việc: chỉ cần ghi <b>Ngày nghỉ việc</b> (giữ trạng thái Đang làm việc). Đến hết ngày đó, người này vẫn chấm công và hưởng lương bình thường. Từ hôm sau, phần mềm <b>tự khóa tài khoản</b> và bỏ họ khỏi các danh sách chọn người và KPI. Bảng công, bảng lương tháng cuối vẫn tính đủ; hồ sơ vẫn giữ để tra cứu.</li>
 <li><b>Lương → Hồ sơ lương</b>: lương cơ bản, lương đóng bảo hiểm, các khoản phụ cấp, số người phụ thuộc, cách tính thuế, đóng hay không đóng bảo hiểm, mức công tác phí riêng (để trống thì dùng mức chung, 0 là không hưởng; đã lấy sẵn từ e-work).</li></ol>
 <p class="note">Thông tin CCCD, ngân hàng là dữ liệu cá nhân (Nghị định 13/2023): chỉ dùng để chi lương, không chụp màn hình gửi ra ngoài.</p>` },
 
@@ -145,10 +148,10 @@ exports.CHAPTERS = [
 <li><b>+ Bổ sung nhận nhiệm vụ</b> hoặc <b>Điều chỉnh</b> khi có sai sót (ô giờ để trống thì giữ giờ cũ; phần mềm ghi lại người sửa, lý do).</li>
 <li>Thẻ <b>Thiết lập</b>: chọn năm, bấm <b>Điền ngày lễ theo luật</b> cho năm mới; thêm ngày nghỉ bù, ngày làm bù theo thông báo của Chính phủ.</li></ol>` },
 
-  { id: 'kt-luong', title: 'Lập, chốt bảng lương', roles: ['kt', 'gd'], shot: 'bang-luong', html: `
-<ol><li>Vào <b>Lương</b>, chọn tháng. Bảng lương tự tính từ bảng công, đề xuất đã duyệt, KPI đã chốt và hồ sơ lương.</li>
+  { id: 'kt-luong', title: 'Bảng lương tự tính, tự chốt', roles: ['kt', 'gd'], shot: 'bang-luong', html: `
+<ol><li>Vào <b>Lương</b>, chọn tháng. Bảng lương tự tính từ bảng công, đề xuất đã được trưởng bộ phận duyệt, KPI đã chốt và hồ sơ lương. Kế toán không phải nhập lại.</li>
 <li>Từng người: <b>Thưởng, khấu trừ khác</b> để thêm khoản ngoài; mục <b>Đề xuất tạm ứng, xăng xe trong tháng</b> chọn <i>Đưa vào lương</i> hoặc không.</li>
-<li>Kiểm tra xong bấm <b>Chốt bảng lương</b>. Nhân viên thấy phiếu lương và xác nhận từ ngày 1 đến ngày 3 tháng sau.</li>
+<li><b>Bảng lương tự chốt lúc 0 giờ ngày 1 tháng sau</b> (ngay sau khi KPI tự chốt), không ai phải bấm. Có khoản phát sinh thì nhập trước ngày đó; nhập muộn thì <b>Mở chốt</b>, nhập, rồi <b>Chốt bảng lương</b> (đã mở chốt thì phần mềm không tự chốt lại). Nhân viên thấy phiếu lương và xác nhận từ ngày 1 đến ngày 3 tháng sau. Bật/tắt và chọn ngày tự chốt ở <b>Lương → Thiết lập</b>.</li>
 <li>Kiến nghị: bấm <b>Trả lời kiến nghị</b>. Cần sửa số liệu thì <b>Mở chốt</b>, sửa, chốt lại.</li></ol>
 <p><b>Quy tắc tính (theo quy định hiện hành):</b></p>
 <ul><li>Bảo hiểm người lao động đóng: BHXH 8%, BHYT 1,5%, BHTN 1%. Trần BHXH, BHYT = 20 lần lương cơ sở (2.530.000 đ từ 01/7/2026); trần BHTN = 20 lần lương tối thiểu vùng (vùng I 5.310.000 đ từ 01/01/2026, Nghị định 293/2025).</li>
@@ -158,7 +161,7 @@ exports.CHAPTERS = [
 <li>Công tác phí theo mức trong Thiết lập (bật hoặc tắt). Tạm ứng, xăng xe theo lựa chọn từng đề xuất.</li></ul>` },
 
   { id: 'kt-duyet-chi', title: 'Duyệt chi, xuất bảng lương và danh sách chuyển khoản', roles: ['kt', 'gd'], shot: 'duyet-chi', html: `
-<ol><li>Sau hạn xác nhận và đã trả lời hết kiến nghị, Giám đốc hoặc Kế toán bấm <b>Duyệt chi lương</b>. Còn kiến nghị chờ xử lý thì phần mềm chưa cho duyệt.</li>
+<ol><li>Sau hạn xác nhận và đã trả lời hết kiến nghị, <b>chỉ Giám đốc</b> bấm <b>Duyệt chi lương</b> (Kế toán lập, Giám đốc duyệt: tách người lập với người duyệt). Còn kiến nghị chờ xử lý thì phần mềm chưa cho duyệt.</li>
 <li>Bấm <b>Xuất → Bảng lương kế toán (Excel/PDF)</b>: đủ các cột theo quy định, có chữ ký Người lập biểu, Kế toán trưởng, Giám đốc và cột ký nhận. Dùng để lưu chứng từ.</li>
 <li><b>Xuất → Danh sách chuyển khoản ngân hàng</b>: tệp Excel đúng mẫu <i>Danh sách giao dịch</i> của MB Bank (STT, số tài khoản, tên người thụ hưởng, ngân hàng, số tiền, nội dung). Tải lên Internet Banking doanh nghiệp để chi lương.</li>
 <li>Đã duyệt chi thì không mở chốt được nữa. Cần sửa thì bấm <b>Hủy duyệt chi</b> trước.</li></ol>
@@ -177,8 +180,8 @@ exports.CHAPTERS = [
   // ---------------- quản trị
   { id: 'qt-tai-khoan', title: 'Tài khoản, vai trò khi nhân sự thay đổi', roles: ['qt'], shot: 'qt-nguoi-dung', html: `
 <ol><li><b>Quản trị hệ thống → Người dùng</b>: thêm tài khoản, chọn vai trò (Nhân viên, Trưởng phòng, Kế toán, Ban giám đốc), đặt mật khẩu ban đầu; người dùng phải đổi khi đăng nhập lần đầu.</li>
-<li><b>Nhân sự thay đổi</b>: sửa tài khoản, đổi vai trò. Ví dụ nhân viên lên Trưởng phòng: đổi vai trò sang Trưởng phòng và ghi người phụ trách ở <b>Nhân sự → Phòng ban</b> (Sửa phòng ban).</li>
-<li>Người nghỉ việc: khóa tài khoản (không xóa) để giữ lịch sử.</li>
+<li><b>Nhân sự thay đổi</b>: sửa tài khoản, đổi vai trò. Ví dụ nhân viên lên Trưởng phòng: đổi vai trò sang Trưởng phòng và ghi người phụ trách ở <b>Nhân sự → Phòng ban</b> (Sửa phòng ban). Phòng có hai người cùng quản lý thì chọn thêm <b>Người cùng phụ trách</b>.</li>
+<li>Người nghỉ việc: Kế toán ghi Ngày nghỉ việc trong hồ sơ, phần mềm tự khóa tài khoản từ hôm sau (không xóa, giữ lịch sử). Cần khóa ngay thì bấm Khóa ở đây.</li>
 <li><b>Nhóm, phân quyền</b>: quyền từng phân hệ (không, xem, sửa), ô <i>Duyệt hồ sơ</i> cho Đề xuất và Lương (duyệt chi). Chỉ sửa khi Công ty đổi quy chế.</li></ol>
 <p class="note">Quyền <i>xem</i> một phân hệ Văn phòng (Nhân sự, Bảng công, Đề xuất, KPI, Lương) nghĩa là xem dữ liệu của mọi người. Không cấp cho vai trò Nhân viên.</p>` },
 

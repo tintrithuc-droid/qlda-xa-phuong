@@ -670,6 +670,27 @@ function guideFiles(g){
     ${vids.map(a=>`<figure class="guide-video"><video controls preload="metadata" src="${attUrl(a)}"></video><figcaption class="small muted">${esc(a.fileName)} · ${fmtSize(a.size)}</figcaption></figure>`).join('')}
     ${imgs.length?`<div class="guide-imgs">${imgs.map(a=>`<a href="${attUrl(a)}" data-act="att-view" data-id="${esc(a.id)}"><img src="${attUrl(a)}" alt="${esc(a.fileName)}" loading="lazy"></a>`).join('')}</div>`:''}`;
 }
+/* Bản 1.10.22 (anh Trí 26/11): mọi người đăng nhập thấy ngay hướng dẫn của vai trò mình, đọc xong bấm "Đã đọc" thì không hiện lại
+   (hiện lại khi hướng dẫn được cập nhật). Ghi nhớ trên trình duyệt của từng người. */
+function guideWelcome(){
+  if(!S.user || !$('#ov').hidden) return;
+  // Trình duyệt tự động (kiểm thử) không bật hộp chào, trừ khi đặt cờ hdsd-thu
+  try{ if(navigator.webdriver && !localStorage.getItem('hdsd-thu')) return; }catch(e){}
+  const gid=S.user.groupId, mine=D('guides').filter(g=>(g.groups||[]).includes(gid)).sort((a,b)=>(a.order||0)-(b.order||0));
+  if(!mine.length) return;
+  const key='hdsd-da-doc:'+S.user.id, stamp=mine.map(g=>g.id+'|'+(g.updatedAt||'')).join(';');
+  let seen=null; try{ seen=localStorage.getItem(key); }catch(e){}
+  if(seen===stamp) return;
+  const g=mine.find(x=>x.content)||mine[0];
+  const files=mine.map(x=>guideFiles(x)).join('');
+  openModal(`<div class="mform wide"><header><h3>${esc(g.title)}</h3><button type="button" class="icon-btn" data-close aria-label="Đóng">×</button></header>
+    <div style="padding:16px;max-height:calc(100vh - 160px);overflow:auto"><p style="margin-top:0">Chào ${esc(S.user.name||'')}, đây là hướng dẫn dành cho vai trò của bạn. Mời đọc qua trước khi bắt đầu.</p>
+    ${g.content?`<div class="guide-text">${esc(g.content)}</div>`:''}${files?`<h4 style="margin:16px 0 6px">Tài liệu theo vai trò (xem hoặc in)</h4>${files}`:''}
+    <p class="small muted">Xem lại bất cứ lúc nào ở mục <b>Hướng dẫn sử dụng</b>.</p></div>
+    <footer style="display:flex;gap:8px;justify-content:flex-end;padding:12px 16px"><button class="btn" data-close>Để sau</button><button class="btn primary" data-act="guide-read">Đã đọc, không hiện lại</button></footer></div>`);
+  S._gwStamp=stamp;
+}
+ACT['guide-read']=()=>{ try{ localStorage.setItem('hdsd-da-doc:'+S.user.id, S._gwStamp||''); }catch(e){} closeModal(); };
 VIEWS['huong-dan']=()=>{
   const ed=can('quan-tri','edit'), q=S.f.hq||'', gf=ed?(S.f.hg||''):'';
   const gname=id=>(get('groups',id)||{}).name||id;

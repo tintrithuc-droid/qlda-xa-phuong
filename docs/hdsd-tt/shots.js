@@ -78,17 +78,26 @@ const VIEW = { width: 1366, height: 820 };
   await nv.request.put(BASE + '/api/vp/requests/dx-hd1', { headers: H, data: { type: 'Nghỉ phép', fromAt: nd + 'T08:00:00+07:00', toAt: nd + 'T17:30:00+07:00', days: 1, reason: 'Việc gia đình' } });
   await nv.request.put(BASE + '/api/vp/requests/dx-hd2', { headers: H, data: { type: 'Xăng xe', fromAt: D0 + 'T08:00:00+07:00', toAt: D0 + 'T17:00:00+07:00', place: 'Khách hàng tại quận 3', km: 24, amount: 120000, reason: 'Triển khai phần mềm' } });
 
-  // công việc: Giám đốc tạo nhiệm vụ, trưởng phòng giao việc
+  // công việc (bản 1.10.17): Dự án › Gói thầu › Việc; giao việc, phối hợp, loại công việc, việc của tôi, việc tự tạo, tăng ca gắn việc
   await r.put(BASE + '/api/data/projects/da-mau', { headers: H, data: { name: 'Phần mềm quản lý văn bản cho khách hàng A', code: 'PM-A' } });
-  const proj = { id: 'da-mau' };
-  const mk = async (q, data) => (await J(q.post(BASE + '/api/vp/viec', { headers: H, data }))).id;
-  const nvu = await mk(gd.request, { name: 'Triển khai phần mềm cho khách hàng A', projectId: proj?.id, assigneeUserId: E('Nguyễn Văn A').userId, level: 'Quan trọng', startDate: M + '-01', due: M + '-28' });
-  const v1 = await mk(tp.request, { name: 'Cài đặt máy chủ, nạp dữ liệu', parentId: nvu, assigneeUserId: ttb.userId, level: 'Quan trọng', startDate: M + '-03', due: D0 });
-  const v2 = await mk(tp.request, { name: 'Đào tạo người dùng', parentId: nvu, assigneeUserId: ttb.userId, level: 'Bình thường', startDate: M + '-10', due: M + '-27' });
-  const v3 = await mk(tp.request, { name: 'Viết biên bản nghiệm thu', parentId: nvu, assigneeUserId: ttb.userId, level: 'Bình thường', startDate: M + '-05', due: M + '-12' });
+  await r.put(BASE + '/api/data/packages/gt-01', { headers: H, data: { projectId: 'da-mau', code: 'GT01', name: 'Cung cấp, cài đặt phần mềm', status: 'Đang thực hiện' } });
+  await r.put(BASE + '/api/data/packages/gt-02', { headers: H, data: { projectId: 'da-mau', code: 'GT02', name: 'Đào tạo, chuyển giao', status: 'Đang thực hiện' } });
+  const proj = { id: 'da-mau' }, A = E('Nguyễn Văn A').userId;
+  const mk = async (q, data) => { const x = await J(q.post(BASE + '/api/vp/viec', { headers: H, data })); if (!x.id) console.log('lỗi tạo việc', data.name, x); return x.id; };
+  const nvu = await mk(gd.request, { name: 'Triển khai phần mềm cho khách hàng A', projectId: proj.id, packageId: 'gt-01', assigneeUserId: A, level: 'Quan trọng', taskType: 'Triển khai, cài đặt', startDate: M + '-01', due: M + '-28' });
+  const v1 = await mk(tp.request, { name: 'Cài đặt máy chủ, nạp dữ liệu', projectId: proj.id, packageId: 'gt-01', parentId: nvu, assigneeUserId: ttb.userId, collaborators: [E('Phạm Thu Hà').userId], level: 'Quan trọng', taskType: 'Triển khai, cài đặt', startDate: M + '-03', due: D0 });
+  const v2 = await mk(tp.request, { name: 'Đào tạo người dùng', projectId: proj.id, packageId: 'gt-02', assigneeUserId: ttb.userId, level: 'Bình thường', taskType: 'Đào tạo, chuyển giao', startDate: M + '-10', due: M + '-27' });
+  const v3 = await mk(tp.request, { name: 'Viết biên bản nghiệm thu', projectId: proj.id, assigneeUserId: ttb.userId, level: 'Bình thường', taskType: 'Hồ sơ, thủ tục', startDate: M + '-05', due: M + '-12' });
+  await mk(nv.request, { name: 'Soạn tài liệu hướng dẫn sử dụng', projectId: proj.id, packageId: 'gt-02', level: 'Bình thường', taskType: 'Đào tạo, chuyển giao', startDate: D0, due: M + '-27' });
+  await nv.request.post(BASE + `/api/vp/viec/${v1}/cap-nhat`, { headers: H, data: { content: 'Đã cài hệ điều hành, cơ sở dữ liệu; đang nạp dữ liệu.', progress: 80 } });
+  await kt.request.post(BASE + `/api/vp/viec/${v1}/phoi-hop-xong`, { headers: H, data: { result: 'Đã gửi danh mục dữ liệu kế toán.' } });
   await nv.request.post(BASE + `/api/vp/viec/${v1}/trang-thai`, { headers: H, data: { status: 'Hoàn thành', doneDate: D0, result: 'Đã cài đặt, nạp đủ dữ liệu' } });
-  await nv.request.post(BASE + `/api/vp/viec/${v2}/trang-thai`, { headers: H, data: { status: 'Đang thực hiện' } });
-  await nv.request.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Sửa lỗi in phiếu theo yêu cầu khách hàng', parentId: nvu, startDate: D0, due: M + '-27' } });
+  await nv.request.post(BASE + `/api/vp/viec/${v2}/cap-nhat`, { headers: H, data: { content: 'Đã chuẩn bị phòng học, danh sách học viên.', progress: 30 } });
+  await nv.request.post(BASE + `/api/vp/viec/${v2}/xin-gia-han`, { headers: H, data: { newDue: M + '-28', reason: 'Khách hàng dời lịch đào tạo' } });
+  await nv.request.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Sửa lỗi in phiếu theo yêu cầu khách hàng', projectId: proj.id, packageId: 'gt-01', parentId: nvu, startDate: D0, due: M + '-27' } });
+  { const yd = new Date(Date.now() + 7 * 3600e3 - 86400e3).toISOString().slice(0, 10);
+    const ot = await nv.request.put(BASE + '/api/vp/requests/dx-hd3', { headers: H, data: { type: 'Tăng ca', title: 'Tăng ca đảm bảo tiến độ dự án (bình thường)', fromAt: yd + 'T18:00:00+07:00', toAt: yd + 'T20:00:00+07:00', hours: 2, reason: 'Nạp dữ liệu ngoài giờ', taskId: v1 } });
+    if (!ot.ok()) console.log('lỗi phiếu tăng ca', ot.status(), await ot.text()); }
   // nhân viên: chụp màn hình trước khi nhận nhiệm vụ (chọn nơi làm, việc được giao), rồi nhận nhiệm vụ và ghi kết quả
   await (async () => { const pg = await nv.newPage(); await pg.goto(BASE + '/#van-phong'); await pg.waitForSelector('.vp-mode', { timeout: 30000 }); await pg.waitForTimeout(1500);
     await pg.screenshot({ path: path.join(OUT, 'nhan-nhiem-vu.png') }); await pg.close(); })();
@@ -118,7 +127,9 @@ const VIEW = { width: 1366, height: 820 };
   await shot(nv, 'cong-viec', 'cong-viec');
   await shot(nv, 'kpi', 'kpi', `S.f.kpim='${PM}'; render()`);
   await shot(nv, 'phieu-luong', 'luong', `S.f.plm='${PM}'; render()`);
-  await shot(tp, 'giao-viec', 'cong-viec', `S.f.cvs='dept'; render()`);
+  await shot(tp, 'giao-viec', 'cong-viec', `S.f.cvs='giao'; render()`);
+  await shot(tp, 'chi-tiet-viec', 'cong-viec', `ACT['cv-view']('${v1}')`, { full: true });
+  await shot(nv, 'tang-ca', 'de-xuat', `ACT['vp-req-form']('Tăng ca')`, { full: true });
   await shot(tp, 'duyet', 'de-xuat');
   await shot(kt, 'nhan-su', 'nhan-su');
   await shot(kt, 'bang-luong', 'luong', `S.f.plm='${PM}'; render()`);

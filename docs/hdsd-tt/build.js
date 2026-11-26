@@ -1,22 +1,23 @@
 // Dựng PDF Hướng dẫn sử dụng e-work Tri Thức theo vai trò: node docs/hdsd-tt/build.js [thư mục ra]
-// Ra: "HDSD e-work Tri Thuc - <Vai tro> - V1.10.4.pdf" và vai-tro.json (để nạp sẵn vào trang Hướng dẫn sử dụng, hdsd/ của gói cài).
+// Ra: "HDSD e-work Tri Thuc - <Vai tro> - V<phiên bản>.pdf" và vai-tro.json (để nạp sẵn vào trang Hướng dẫn sử dụng, hdsd/ của gói cài).
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const { ROLES, CHAPTERS } = require('./content');
 const OUT = process.argv[2] || path.join(__dirname, 'out'); fs.mkdirSync(OUT, { recursive: true });
 const SHOTS = path.join(__dirname, 'shots'), VER = '1.10.17', DATE = '26/11/2026';
-const CAP = { 'dang-nhap': 'Trang đăng nhập', 'diem-danh': 'Trang Điểm danh: giờ vào, ra, nhắc việc, KPI tạm tính, phép còn lại',
-  'de-xuat': 'Trang Đề xuất', 'cong-viec': 'Việc của tôi: nhắc việc quá hạn, KPI tạm tính, các nút thao tác', 'kpi': 'KPI tháng của tôi',
-  'phieu-luong': 'Phiếu lương, xác nhận hoặc gửi kiến nghị', 'giao-viec': 'Việc của phòng tôi phụ trách', 'duyet': 'Đề xuất chờ tôi duyệt',
-  'nhan-su': 'Hồ sơ nhân sự', 'bang-luong': 'Bảng lương tháng: chốt, duyệt chi, xuất bảng lương kế toán', 'duyet-chi': 'Bảng lương đã duyệt chi: xuất danh sách chuyển khoản ngân hàng',
+const CAP = { 'dang-nhap': 'Trang đăng nhập', 'diem-danh': 'Trang Nhận nhiệm vụ sau khi nhận: nơi làm, việc chọn làm hôm nay, nhắc việc, KPI tạm tính, phép còn lại',
+  'de-xuat': 'Trang Đề xuất', 'cong-viec': 'Công việc: ba thẻ Việc của tôi, Được giao, Tôi giao; cây Dự án › Gói thầu › Việc; nhắc việc, KPI tạm tính', 'kpi': 'KPI tháng: Cách tính, nút Xuất',
+  'phieu-luong': 'Phiếu lương, xác nhận hoặc gửi kiến nghị', 'giao-viec': 'Thẻ Tôi giao: việc đã giao, chờ nghiệm thu, xin gia hạn', 'chi-tiet-viec': 'Chi tiết việc: trạng thái từng người phối hợp, loại công việc, giờ tăng ca, nhật ký', 'tang-ca': 'Phiếu xác nhận tăng ca: chọn công việc làm thêm giờ', 'nhan-nhiem-vu': 'Nhận nhiệm vụ: chọn nơi làm, chọn việc làm hôm nay', 'hom-nay': 'Bảng công: Hôm nay ai ở đâu', 'duyet': 'Đề xuất chờ tôi duyệt',
+  'nhan-su': 'Hồ sơ nhân sự', 'bang-luong': 'Bảng lương tháng: chốt, duyệt chi, nút Xuất', 'duyet-chi': 'Bảng lương đã duyệt chi: xuất danh sách chuyển khoản ngân hàng',
   'qt-nguoi-dung': 'Quản trị hệ thống' };
 const img = id => { const f = path.join(SHOTS, id + '.png'); return fs.existsSync(f) ? 'data:image/png;base64,' + fs.readFileSync(f).toString('base64') : null; };
 
 function html(k) {
   const role = ROLES[k], chs = CHAPTERS.filter(c => c.roles.includes(k));
   const toc = chs.map((c, i) => `<li><span>${i + 1}. ${c.title}</span></li>`).join('');
-  const body = chs.map((c, i) => { const s = c.shot && img(c.shot);
-    return `<section><h2>${i + 1}. ${c.title}</h2>${c.html}${s ? `<figure><img src="${s}"><figcaption>Hình ${i + 1}. ${CAP[c.shot] || ''}</figcaption></figure>` : ''}</section>`; }).join('');
+  const body = chs.map((c, i) => { const ids = [].concat(c.shot || [], c.shots || []); let n = 0;
+    const figs = ids.map(id => { const s = img(id); return s ? `<figure><img src="${s}"><figcaption>Hình ${i + 1}${ids.length > 1 ? '.' + (++n) : ''}. ${CAP[id] || ''}</figcaption></figure>` : ''; }).join('');
+    return `<section><h2>${i + 1}. ${c.title}</h2>${c.html}${figs}</section>`; }).join('');
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
 
   body { font-family: 'Inter','Segoe UI','Noto Sans',Arial,sans-serif; font-size: 10.5pt; line-height: 1.55; color: #1f2933; }

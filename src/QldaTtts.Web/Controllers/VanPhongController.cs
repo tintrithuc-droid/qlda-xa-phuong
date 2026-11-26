@@ -80,7 +80,7 @@ public class VanPhongController : ApiControllerBase
             payConfirm = me is null ? null : await LuongController.PendingConfirm(Db, me.Id),
             payFeedback = Uc.Can("luong", true) ? await Db.Payslips.CountAsync(x => x.FeedbackStatus == "Chờ xử lý") : 0,
             me = me is null ? null : Public(me), today = today.ToString("yyyy-MM-dd"), now = VnTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), attendance = att,
-            settings = new { s.CheckIn, s.CheckOut, s.InOnly, s.Word, s.RemindAt, s.OutsideTripOnly, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.SaturdayAnchor, s.AllowOutside,
+            settings = new { s.CheckIn, s.CheckOut, s.InOnly, s.DailyTasks, s.Word, s.RemindAt, s.OutsideTripOnly, s.MorningStart, s.MorningEnd, s.AfternoonStart, s.AfternoonEnd, s.HoursPerDay, s.LeavePerYear, s.Saturday, s.SaturdayAnchor, s.AllowOutside,
                 places = s.Places.Select(p => new { p.Name, p.Lat, p.Lng, p.Radius }), holidays = s.EffectiveHolidays(new[] { year - 1, year, year + 1 }), s.Workdays, s.AutoLegal, ipCount = s.Ips.Count, syncOn = s.SyncKeyHash != null, s.SyncFrom },
             leave = new { year, total = me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year), used, left = (me is null ? s.LeavePerYear : VnTime.LeaveEntitlement(me, s, year)) - used },
             perms = new { hr = Uc.Can("nhan-su"), hrEdit = Uc.Can("nhan-su", true), att = Uc.Can("diem-danh"), attEdit = Uc.Can("diem-danh", true),

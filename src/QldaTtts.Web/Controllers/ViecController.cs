@@ -112,7 +112,7 @@ public class ViecController : ApiControllerBase
         CollabSt St(string u) => cst.TryGetValue(u, out var x) ? x : new CollabSt();
         return new
         {
-            t.Id, t.Name, t.ProjectId, projectName = t.ProjectId is not null && projects.TryGetValue(t.ProjectId, out var pn) ? pn : null,
+            t.Id, t.Name, t.Deliverable, t.Criteria, t.ProjectId, projectName = t.ProjectId is not null && projects.TryGetValue(t.ProjectId, out var pn) ? pn : null,
             t.PackageId, packageName = t.PackageId is not null && packages.TryGetValue(t.PackageId, out var kn) ? kn : null,
             t.ParentId, parentName = parent?.Name, hasChildren = parents.Contains(t.Id), autoAccepted = auto, pendingReview = PendingReview(t, today, vs),
             t.AssigneeUserId, assignee = t.AssigneeUserId is not null && NameOf(t.AssigneeUserId) is { Length: > 0 } an ? an : t.Assignee,
@@ -153,7 +153,7 @@ public class ViecController : ApiControllerBase
         if (scope == "all" && !SeeAll) list = list.Where(CanSee);
         list = (status ?? "open") switch
         {
-            "open" => list.Where(t => Open.Contains(t.Status ?? "Chưa bắt đầu")),
+            "open" => list.Where(t => Open.Contains(t.Status ?? "Chưa bắt đầu") || (k.ResultMode && PendingReview(t, today, vs))),
             "overdue" => list.Where(t => Open.Contains(t.Status ?? "Chưa bắt đầu") && t.Due < today),
             "confirm" => list.Where(t => t.Arising && t.ArisingConfirmedAt == null && t.Status != Cancelled),
             "review" => list.Where(t => PendingReview(t, today, vs)),
@@ -166,7 +166,8 @@ public class ViecController : ApiControllerBase
         if (!string.IsNullOrEmpty(month) && DateOnly.TryParse(month + "-01", out var mf))
         { var mt = mf.AddMonths(1); list = list.Where(t => (t.Due >= mf && t.Due < mt) || (t.DoneDate >= mf && t.DoneDate < mt)); }
         if (!string.IsNullOrWhiteSpace(q)) { var nq = KpiController.Norm(q); list = list.Where(t => KpiController.Norm(t.Name).Contains(nq) || KpiController.Norm(t.Assignee).Contains(nq)); }
-        var rows = list.OrderBy(t => Open.Contains(t.Status ?? "Chưa bắt đầu") ? 0 : 1).ThenBy(t => t.Due ?? DateOnly.MaxValue).Take(1000)
+        // bản 1.10.18 (theo kết quả): sản phẩm chờ nghiệm thu luôn ở đầu
+        var rows = list.OrderBy(t => k.ResultMode && PendingReview(t, today, vs) ? 0 : 1).ThenBy(t => Open.Contains(t.Status ?? "Chưa bắt đầu") ? 0 : 1).ThenBy(t => t.Due ?? DateOnly.MaxValue).Take(1000)
             .Select(t => Row(t, projects, packages, byId, parents, today, k.RemindDays, vs)).ToList();
         // tổng hợp theo dự án → gói thầu trên toàn bộ việc người xem được thấy trong phạm vi đang chọn (không theo bộ lọc trạng thái):
         // tổng số việc (không tính nhiệm vụ đã chia việc con), đang làm, quá hạn, chờ nghiệm thu, đã xong
@@ -175,7 +176,8 @@ public class ViecController : ApiControllerBase
         {
             var l = xs.ToList(); var open = l.Where(t => Open.Contains(t.Status ?? "Chưa bắt đầu")).ToList();
             var done = l.Count(t => t.Status == Done);
-            return new { total = l.Count, open = open.Count, overdue = open.Count(t => t.Due < today), review = l.Count(t => PendingReview(t, today, vs)), done, pct = l.Count == 0 ? 0 : (int)Math.Round(100.0 * done / l.Count) };
+            var review = l.Count(t => PendingReview(t, today, vs));
+            return new { total = l.Count, open = open.Count, overdue = open.Count(t => t.Due < today), review, done, accepted = done - review, pct = l.Count == 0 ? 0 : (int)Math.Round(100.0 * done / l.Count) };
         }
         var summary = basis.GroupBy(t => t.ProjectId ?? "").Select(g => new
         {
@@ -192,6 +194,7 @@ public class ViecController : ApiControllerBase
         {
             counts = new { my = all.Count(t => SelfMade(t) && Open.Contains(t.Status ?? "Chưa bắt đầu")), duoc = all.Count(t => Given(t) && Open.Contains(t.Status ?? "Chưa bắt đầu")),
                 giao = all.Count(t => GaveOut(t) && (Open.Contains(t.Status ?? "Chưa bắt đầu") || PendingReview(t, today, vs))) },
+            resultMode = k.ResultMode, trackProgress = !k.ResultMode || k.TrackProgress,
             unified = await Unified(Db), scope, rows, total = rows.Count, parents = parentOpts, levels = k.Levels.Select(l => l.Name), summary,
             types = DefaultTypes.Concat(all.Where(t => !string.IsNullOrWhiteSpace(t.TaskType)).Select(t => t.TaskType!.Trim())).Distinct().OrderBy(x => x).ToList(), reviewDays = ReviewDays,
             packages = pkgs.Where(p => p.ProjectId != null && Uc.InScope(p.ProjectId)).OrderBy(p => p.Code).ThenBy(p => p.Name).Select(p => new { id = p.Id, p.ProjectId, name = packages[p.Id] }),
@@ -201,7 +204,9 @@ public class ViecController : ApiControllerBase
     }
 
     public record TaskBody(string? Name, string? Note, string? ProjectId, string? ParentId, string? AssigneeUserId, List<string>? Collaborators, string? Level,
-        DateOnly? StartDate, DateOnly? Due, bool Correct = false, string? PackageId = null, List<string>? Watchers = null, string? TaskType = null);
+        DateOnly? StartDate, DateOnly? Due, bool Correct = false, string? PackageId = null, List<string>? Watchers = null, string? TaskType = null,
+        string? Deliverable = null, string? Criteria = null);
+    private static string? Cut(string? s, int n) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().Length > n ? s.Trim()[..n] : s.Trim();
 
     /// <summary>Gói thầu phải thuộc đúng dự án của việc; trống = việc chung của dự án.</summary>
     private async Task<(string? id, string? err)> CheckPackage(string? packageId, string? projectId)
@@ -233,6 +238,7 @@ public class ViecController : ApiControllerBase
         await Prepare();
         var name = (b.Name ?? "").Trim(); if (name.Length == 0) return Error(400, "Nhập tên công việc.");
         if (b.Due is null) return Error(400, "Nhập hạn hoàn thành.");
+        if (KpiSettings.Load(Db).ResultMode && string.IsNullOrWhiteSpace(b.Deliverable)) return Error(400, "Ghi sản phẩm bàn giao: giao cái gì để người giao kiểm được.");
         if (b.StartDate is { } sd && sd > b.Due) return Error(400, "Ngày bắt đầu sau hạn hoàn thành.");
         var assignee = string.IsNullOrEmpty(b.AssigneeUserId) ? Me : b.AssigneeUserId;
         if (!_empByUser.ContainsKey(assignee)) return Error(400, "Người được giao chưa có hồ sơ nhân sự.");
@@ -250,7 +256,7 @@ public class ViecController : ApiControllerBase
             Id = "cv-" + Guid.NewGuid().ToString("N")[..20], Name = name.Length > 500 ? name[..500] : name, Note = b.Note?.Trim(), ProjectId = projectId, PackageId = packageId, ParentId = parent?.Id,
             AssigneeUserId = assignee, Assignee = NameOf(assignee), Collaborators = Collab(b.Collaborators, assignee), Watchers = Collab(b.Watchers, assignee), AssignedByUserId = Me,
             Priority = string.IsNullOrWhiteSpace(b.Level) ? KpiSettings.Load(Db).Levels.FirstOrDefault()?.Name : b.Level.Trim(), StartDate = b.StartDate ?? DateOnly.FromDateTime(VnTime.Now), Due = b.Due,
-            TaskType = Type(b.TaskType), Status = "Chưa bắt đầu", Arising = self, UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
+            TaskType = Type(b.TaskType), Deliverable = Cut(b.Deliverable, 500), Criteria = Cut(b.Criteria, 1000), Status = "Chưa bắt đầu", Arising = self, UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
         };
         Db.Tasks.Add(t);
         AddLog(t, "giao", assignee == Me ? "Tạo việc của tôi" : $"Giao cho {t.Assignee}, hạn {t.Due:dd/MM/yyyy}");
@@ -280,6 +286,12 @@ public class ViecController : ApiControllerBase
         if (b.Note is not null) t.Note = b.Note.Trim();
         if (b.Level is not null) t.Priority = b.Level.Trim();
         if (b.TaskType is not null) t.TaskType = Type(b.TaskType);
+        if (b.Deliverable is not null)
+        {
+            if (string.IsNullOrWhiteSpace(b.Deliverable) && !string.IsNullOrWhiteSpace(t.Deliverable) && KpiSettings.Load(Db).ResultMode) return Error(400, "Không xóa trống sản phẩm bàn giao.");
+            t.Deliverable = Cut(b.Deliverable, 500);
+        }
+        if (b.Criteria is not null) t.Criteria = Cut(b.Criteria, 1000);
         if (b.StartDate is not null) t.StartDate = b.StartDate;
         if (b.Collaborators is not null)
         {
@@ -316,7 +328,7 @@ public class ViecController : ApiControllerBase
         {
             if (t.StartDate is { } s0 && s0 > nd) return Error(400, "Hạn trước ngày bắt đầu.");
             // dời hạn muộn hơn khi việc đã giao (không phải sửa nhầm) là gia hạn
-            if (t.Due is { } od && nd > od && !ownDraft && !(b.Correct && Boss)) { t.OriginalDue ??= od; t.ExtendCount++; AddLog(t, "gia-han", $"Người giao gia hạn từ {od:dd/MM/yyyy}", newDue: nd); }
+            if (t.Due is { } od && nd > od && !ownDraft && !(b.Correct && Boss)) { t.OriginalDue ??= od; t.ExtendCount++; LateExtend(t, od, Today); AddLog(t, "gia-han", $"Người giao gia hạn từ {od:dd/MM/yyyy}", newDue: nd); }
             t.Due = nd;
         }
         Touch(t);
@@ -343,6 +355,8 @@ public class ViecController : ApiControllerBase
         {
             if (parentHasOpenChildren(t.Id)) return Error(409, "Còn việc con chưa xong.");
             var dd = b.DoneDate ?? today; if (dd > today) return Error(400, "Ngày hoàn thành không được sau hôm nay.");
+            // bản 1.10.18 (theo kết quả): nộp sản phẩm phải có tệp, đường dẫn hoặc nơi kiểm tra
+            if (KpiSettings.Load(Db).ResultMode && string.IsNullOrWhiteSpace(b.Result)) return Error(400, "Nộp sản phẩm: đính kèm tệp, dán đường dẫn hoặc ghi nơi kiểm tra.");
             t.DoneDate = dd; t.ReportedAt = DateTime.UtcNow; t.Progress = 100;
             var cs0 = CollabStates(t); var notDone = KpiController.CollabIds(t).Where(u => !(cs0.TryGetValue(u, out var x) && x.S == Done)).Select(NameOf).Where(n => n.Length > 0).ToList();
             AddLog(t, "bao-xong", (string.IsNullOrWhiteSpace(b.Result) ? $"Báo xong ngày {dd:dd/MM/yyyy}" : b.Result.Trim())
@@ -371,17 +385,19 @@ public class ViecController : ApiControllerBase
         var line = b.Note?.Trim();
         if (b.Reopen)
         {
+            if (KpiSettings.Load(Db).ResultMode && string.IsNullOrWhiteSpace(b.Note)) return Error(400, "Chưa đạt: ghi rõ cần sửa gì.");
             t.Status = "Đang thực hiện"; t.DoneDate = null; t.ReportedAt = null; t.Quality = null; t.ReopenCount++;
             if (b.NewDue is { } nd) t.Due = nd;
             AddLog(t, "mo-lai", b.Note?.Trim() is { Length: > 0 } rn ? rn : "Yêu cầu làm lại", newDue: b.NewDue);
-            line = $"Mở lại lần {t.ReopenCount} ({VnTime.Now:dd/MM/yyyy}){(string.IsNullOrEmpty(line) ? "" : ": " + line)}";
+            line = $"{(KpiSettings.Load(Db).ResultMode ? "Chưa đạt, trả lại sửa" : "Mở lại")} lần {t.ReopenCount} ({VnTime.Now:dd/MM/yyyy}){(string.IsNullOrEmpty(line) ? "" : ": " + line)}";
         }
         else
         {
             if (b.Quality is not (>= 1 and <= 5)) return Error(400, "Chấm chất lượng từ 1 đến 5 sao.");
             t.Quality = b.Quality;
-            AddLog(t, "nghiem-thu", $"{b.Quality} sao" + (string.IsNullOrWhiteSpace(b.Note) ? "" : ": " + b.Note.Trim()));
-            line = $"Nghiệm thu {b.Quality} sao ({VnTime.Now:dd/MM/yyyy}){(string.IsNullOrEmpty(line) ? "" : ": " + line)}";
+            var ql = QualityName(b.Quality.Value, KpiSettings.Load(Db).ResultMode);
+            AddLog(t, "nghiem-thu", ql + (string.IsNullOrWhiteSpace(b.Note) ? "" : ": " + b.Note.Trim()));
+            line = $"Nghiệm thu: {ql} ({VnTime.Now:dd/MM/yyyy}){(string.IsNullOrEmpty(line) ? "" : ": " + line)}";
         }
         t.Note = string.Join("\n", new[] { t.Note, line }.Where(x => !string.IsNullOrEmpty(x)));
         Touch(t);
@@ -436,7 +452,7 @@ public class ViecController : ApiControllerBase
             logs = logs.Select(l => new { l.Id, l.Kind, l.Content, l.Progress, l.NewDue, l.State, l.ByName, l.At, decidedBy = NameOf(l.DecidedByUserId), l.DecidedAt,
                 canDecide = l.Kind == "xin-gia-han" && l.State == "Chờ duyệt" && CanManage(t!) }),
             overtime = ot.Select(r => new { r.Id, r.Code, name = empName.GetValueOrDefault(r.EmployeeId), r.FromAt, r.Hours, r.Status, r.Reason }),
-            files, canAttach = Mine(t!) || CanManage(t!) || t!.AssignedByUserId == Me
+            files, canAttach = Mine(t!) || CanManage(t!) || t!.AssignedByUserId == Me, resultMode = k.ResultMode, trackProgress = !k.ResultMode || k.TrackProgress
         });
     }
 
@@ -506,12 +522,19 @@ public class ViecController : ApiControllerBase
         if (b.NewDue is not { } nd || t.Due is not { } od || nd <= od) return Error(400, "Hạn mới phải sau hạn hiện tại.");
         if (string.IsNullOrWhiteSpace(b.Reason)) return Error(400, "Ghi lý do xin gia hạn.");
         if (await Db.TaskLogs.AnyAsync(l => l.TaskId == t.Id && l.Kind == "xin-gia-han" && l.State == "Chờ duyệt")) return Error(409, "Đang có đề nghị gia hạn chờ duyệt.");
-        if (SelfMade(t)) { t.OriginalDue ??= od; t.Due = nd; t.ExtendCount++; AddLog(t, "gia-han", b.Reason.Trim(), newDue: nd); }
+        if (SelfMade(t)) { t.OriginalDue ??= od; t.Due = nd; t.ExtendCount++; LateExtend(t, od, Today); AddLog(t, "gia-han", b.Reason.Trim(), newDue: nd); }
         else AddLog(t, "xin-gia-han", b.Reason.Trim(), newDue: nd, state: "Chờ duyệt");
         Touch(t); Uc.Log("Xin gia hạn công việc", "Công việc", $"{t.Name} → {nd:dd/MM/yyyy}", "tasks", t.Id);
         await Db.SaveChangesAsync();
         return Ok(new { ok = true });
     }
+
+    /// <summary>Bản 1.10.18: gia hạn xin khi đã quá hạn thì KPI vẫn tính trễ theo hạn cũ (giữ hạn sớm nhất bị quá).</summary>
+    private static void LateExtend(ProjectTask t, DateOnly oldDue, DateOnly askedOn) { if (askedOn > oldDue && (t.KpiDue is null || oldDue < t.KpiDue)) t.KpiDue = oldDue; }
+    private static DateOnly Today => DateOnly.FromDateTime(VnTime.Now);
+
+    /// <summary>Bản 1.10.18: theo kết quả, nghiệm thu Đạt tốt (5) hoặc Đạt (3); việc cũ chấm sao giữ cách ghi sao.</summary>
+    public static string QualityName(int q, bool result) => result && q == 5 ? "Đạt tốt" : result && q == 3 ? "Đạt" : $"{q} sao";
 
     public record DecideBody(string LogId, bool Accept, string? Note);
 
@@ -523,7 +546,7 @@ public class ViecController : ApiControllerBase
         var l = await Db.TaskLogs.FirstOrDefaultAsync(x => x.Id == b.LogId && x.TaskId == t!.Id && x.Kind == "xin-gia-han" && x.State == "Chờ duyệt");
         if (l is null) return Error(404, "Không còn đề nghị gia hạn chờ duyệt.");
         l.State = b.Accept ? "Đã duyệt" : "Từ chối"; l.DecidedByUserId = Me; l.DecidedAt = DateTime.UtcNow;
-        if (b.Accept && l.NewDue is { } nd) { if (t!.Due is { } od && nd > od) { t.OriginalDue ??= od; t.ExtendCount++; } t!.Due = nd; }
+        if (b.Accept && l.NewDue is { } nd) { if (t!.Due is { } od && nd > od) { t.OriginalDue ??= od; t.ExtendCount++; LateExtend(t, od, DateOnly.FromDateTime(l.At.AddHours(7))); } t!.Due = nd; }
         if (!string.IsNullOrWhiteSpace(b.Note)) l.Content = (l.Content + "\nÝ kiến: " + b.Note.Trim()).Trim();
         Touch(t!); Uc.Log(b.Accept ? "Duyệt gia hạn công việc" : "Từ chối gia hạn công việc", "Công việc", t!.Name, "tasks", t.Id);
         await Db.SaveChangesAsync();

@@ -802,3 +802,4 @@ details.kpi-how{max-width:70ch}
 details.kpi-how>summary{cursor:pointer; color:var(--accent,inherit)}
 .month-sel{width:auto; min-width:150px}
 @media (max-width:640px){ .alert.vp-done{display:grid; gap:6px} }
+.mform:not(.show-more) .fld-more{display:none}

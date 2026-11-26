@@ -91,6 +91,13 @@ public class ProjectTask : EntityBase, IHasProject
     [MaxLength(100)] public string? TaskType { get; set; }
     /// <summary>Trạng thái riêng của từng người phối hợp (như e-work TaskAssignments): JSON {mã tài khoản: {s, p, d, r}}.</summary>
     public string? CollabState { get; set; }
+    // ---- bản 1.10.18: quản lý theo kết quả (anh Trí 26/11/2026): giao việc là giao sản phẩm có hạn; nộp sản phẩm; nghiệm thu Đạt tốt / Đạt / Chưa đạt
+    /// <summary>Sản phẩm bàn giao (bắt buộc khi giao việc mới ở chế độ quản lý theo kết quả).</summary>
+    [MaxLength(500)] public string? Deliverable { get; set; }
+    /// <summary>Tiêu chí đạt của sản phẩm (không bắt buộc).</summary>
+    [MaxLength(1000)] public string? Criteria { get; set; }
+    /// <summary>Hạn dùng để tính trễ trong KPI khi gia hạn xin sau lúc đã quá hạn (trễ tính theo hạn cũ). Trống = theo Due.</summary>
+    public DateOnly? KpiDue { get; set; }
 }
 
 [Table("LegalDocuments")]

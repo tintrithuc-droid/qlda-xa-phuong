@@ -2213,6 +2213,14 @@ namespace QldaTtts.Web.Data.MigrationsPg
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<string>("Criteria")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Deliverable")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<DateOnly?>("DoneDate")
                         .HasColumnType("date");
 
@@ -2225,6 +2233,9 @@ namespace QldaTtts.Web.Data.MigrationsPg
 
                     b.Property<int>("ExtendCount")
                         .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("KpiDue")
+                        .HasColumnType("date");
 
                     b.Property<string>("Name")
                         .IsRequired()

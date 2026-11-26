@@ -51,11 +51,11 @@ VIEWS['van-phong']=()=>{
   else if(st.day && st.day.canCheck===false) box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div><div class="toolbar" style="justify-content:center"><button class="btn" data-act="vp-req-new">Lập phiếu xác nhận tăng ca</button></div>`;
   else if(simple) box=vpGreet(st)+`<div class="vp-clock"><div class="vp-time" id="vp_clock">${hhmm}</div><div class="muted">${['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'][now.getDay()]}, ${fmtDate(st.today)}</div></div>
     ${a&&a.inAt? `<div class="alert ok vp-done"><b>Đã ${esc(w)} lúc ${vpHM(a.inAt)}</b> ${vpPlacePill(a.inPlace)}${a.lateMinutes>0?' '+pill('Muộn '+vpMins(a.lateMinutes),'bad'):''}${a.note?`<div class="small">${esc(a.note)}</div>`:''}${a.taskNames?`<div class="small" style="margin-top:4px"><b>Việc hôm nay:</b><ul style="margin:2px 0 0 18px;padding:0">${a.taskNames.split('\n').map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>`:''}</div>
-    <div class="fld" style="margin-top:8px"><label for="vp_result">Kết quả hôm nay (không bắt buộc)</label><textarea id="vp_result" rows="2" maxlength="1000" style="width:100%" placeholder="Ví dụ: xong chức năng báo cáo, gửi khách hàng duyệt">${esc(S.f.vpres!=null?S.f.vpres:(a.result||''))}</textarea></div>
-    <div class="toolbar"><button class="btn sm" data-act="vp-result">${a.result?'Cập nhật kết quả':'Lưu kết quả'}</button>${a.resultAt?`<span class="small muted">Đã lưu lúc ${vpHM(a.resultAt)}</span>`:''}</div>`
+    ${st.settings.dailyTasks===false?'':`<div class="fld" style="margin-top:8px"><label for="vp_result">Kết quả hôm nay (không bắt buộc)</label><textarea id="vp_result" rows="2" maxlength="1000" style="width:100%" placeholder="Ví dụ: xong chức năng báo cáo, gửi khách hàng duyệt">${esc(S.f.vpres!=null?S.f.vpres:(a.result||''))}</textarea></div>
+    <div class="toolbar"><button class="btn sm" data-act="vp-result">${a.result?'Cập nhật kết quả':'Lưu kết quả'}</button>${a.resultAt?`<span class="small muted">Đã lưu lúc ${vpHM(a.resultAt)}</span>`:''}</div>`}`
     : `<div class="vp-mode" role="radiogroup" aria-label="Hôm nay làm việc ở đâu">${[['office','Ở công ty'],['online','Làm việc online'],['congtac','Đi công tác'],['khac','Khác']].map(([k,l])=>`<label><input type="radio" name="vp_mode" value="${k}" ${(S.f.vpmode||'office')===k?'checked':''}> ${l}</label>`).join('')}</div>
     <div class="fld" id="vp_note_box" style="margin:8px 0;${(S.f.vpmode||'office')==='khac'?'':'display:none'}"><label for="vp_note">Nội dung công việc hôm nay</label><textarea id="vp_note" rows="2" maxlength="500" style="width:100%" placeholder="Ví dụ: họp với khách hàng tại trụ sở khách hàng">${esc(S.f.vpnote||'')}</textarea></div>
-    ${vpTaskPick()}
+    ${st.settings.dailyTasks===false?'':vpTaskPick()}
     <div class="vp-btns"><button class="btn primary vp-big" data-act="vp-check" data-id="in">${esc(W)}</button></div>`}
     ${'Notification' in window && Notification.permission==='default' && !(a&&a.inAt)? `<div class="small" style="margin-top:6px"><a href="#" data-act="vp-notify-on">Bật nhắc trên thiết bị này</a></div>`:''}
     ${a&&a.inAt?'':`<p class="small muted" style="margin:8px 0 0">${esc(W)} trước ${esc(st.settings.checkIn)}.</p>`}`;
@@ -359,6 +359,7 @@ function vpSettingsHTML(){
     <div class="fld"><label for="vs_saturdayAnchor">Một thứ Bảy có đi làm (mốc cách tuần)</label><input id="vs_saturdayAnchor" type="date" value="${esc(s.saturdayAnchor||'')}"></div>
     <div class="fld"><label for="vs_leavePerYear">Ngày phép năm</label><input id="vs_leavePerYear" type="number" value="${esc(s.leavePerYear)}"></div>
     <div class="fld full"><label><input type="checkbox" id="vs_inOnly" ${s.inOnly?'checked':''}> Nhận nhiệm vụ: mỗi ngày bấm một lần, tự chọn Ở công ty / Online / Công tác / Khác, không định vị, không bấm ra</label></div>
+    <div class="fld full"><label><input type="checkbox" id="vs_daily" ${s.dailyTasks!==false?'checked':''}> Khi nhận nhiệm vụ có phần chọn việc làm hôm nay và ô kết quả cuối ngày (bỏ chọn khi quản lý công việc theo kết quả sản phẩm)</label></div>
     <div class="fld"><label for="vs_word">Tên nút, tên mục</label><input id="vs_word" value="${esc(s.word||'Điểm danh')}" placeholder="Điểm danh"></div>
     <div class="fld full"><label><input type="checkbox" id="vs_leaveBonus" ${s.leaveSeniorityBonus!==false?'checked':''}> Cộng 1 ngày phép cho mỗi 5 năm thâm niên (Điều 114 BLLĐ)</label></div>
  <div class="fld full" ${nn?'hidden':''}><label><input type="checkbox" id="vs_allowOutside" ${s.allowOutside?'checked':''}> Cho điểm danh khi ở ngoài công ty (ghi rõ "Ngoài công ty" để trưởng phòng xem)</label></div></div>
@@ -432,7 +433,7 @@ ACT['vp-set-save']=async()=>{
   const s={...VP.set}; ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd','saturday','saturdayAnchor'].forEach(k=>s[k]=$('#vs_'+k).value.trim());
   for(const k of ['checkIn','checkOut','morningStart','morningEnd','afternoonStart','afternoonEnd']) if(!/^\d{2}:\d{2}$/.test(s[k])){ toast('Giờ ghi dạng 08:00 (hai chữ số).','err'); return; }
   s.leavePerYear=N($('#vs_leavePerYear').value); s.allowOutside=$('#vs_allowOutside').checked;
-  s.inOnly=$('#vs_inOnly').checked; s.word=$('#vs_word').value.trim()||'Điểm danh'; s.leaveSeniorityBonus=$('#vs_leaveBonus').checked;
+  s.inOnly=$('#vs_inOnly').checked; s.dailyTasks=$('#vs_daily').checked; s.word=$('#vs_word').value.trim()||'Điểm danh'; s.leaveSeniorityBonus=$('#vs_leaveBonus').checked;
   const bad=[]; s.places=$('#vs_places').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const p=l.split(';').map(x=>x.trim()); const o={name:p[0], lat:parseFloat(p[1]), lng:parseFloat(p[2]), radius:parseInt(p[3])||500}; if(!o.name||isNaN(o.lat)||isNaN(o.lng)) bad.push(l); return o; });
   if(bad.length){ toast('Dòng nơi điểm danh chưa đúng: '+bad[0],'err'); return; }
   s.ips=$('#vs_ips').value.split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);

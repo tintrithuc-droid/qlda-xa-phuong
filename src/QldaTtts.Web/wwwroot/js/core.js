@@ -652,7 +652,7 @@ function fieldSuggest(f){ if(!f.suggest) return []; const l=typeof f.suggest==='
 const normKey = x => String(x||'').normalize('NFC').replace(/\s+/g,' ').trim().toLocaleLowerCase('vi');
 function fieldHTML(f, v, rec={}){
   const id='f_'+f.key, req=f.req?' <span class="req">*</span>':'';
-  const cls='fld'+(f.full||f.type==='textarea'||f.type==='works'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'');
+  const cls='fld'+(f.full||f.type==='textarea'||f.type==='works'||f.type==='checks'||f.type==='files'||f.type==='attach'?' full':'')+(f.more?' fld-more':'');
   let input='';
   const val = v ?? f.def ?? '';
   switch(f.type){

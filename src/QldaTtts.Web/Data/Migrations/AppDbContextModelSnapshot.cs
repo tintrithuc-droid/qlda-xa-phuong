@@ -2213,6 +2213,14 @@ namespace QldaTtts.Web.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<string>("Criteria")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Deliverable")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<DateOnly?>("DoneDate")
                         .HasColumnType("date");
 
@@ -2225,6 +2233,9 @@ namespace QldaTtts.Web.Data.Migrations
 
                     b.Property<int>("ExtendCount")
                         .HasColumnType("int");
+
+                    b.Property<DateOnly?>("KpiDue")
+                        .HasColumnType("date");
 
                     b.Property<string>("Name")
                         .IsRequired()

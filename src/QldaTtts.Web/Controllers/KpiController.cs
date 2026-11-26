@@ -83,6 +83,18 @@ public class KpiSettings
     }
     public decimal QualityFactor(int? q) => q is int v && v >= 1 && v <= QualityFactors.Count ? QualityFactors[v - 1] : 1m;
 
+    /// <summary>Bản 1.10.18 (anh Trí 26/11/2026): quản lý theo kết quả sản phẩm, áp dụng cho KPI từ tháng ResultFrom (yyyy-MM; trống = tắt).
+    /// Giao việc phải ghi sản phẩm bàn giao; nghiệm thu Đạt tốt (GoodFactor) / Đạt (PassFactor, kể cả tự Đạt) / Chưa đạt (trả lại sửa, trừ ReopenPenalty);
+    /// gia hạn xin trước hạn và được duyệt không trừ điểm, xin khi đã quá hạn thì trễ tính theo hạn cũ (KpiDue).</summary>
+    public string? ResultFrom { get; set; }
+    public decimal GoodFactor { get; set; } = 1m;
+    public decimal PassFactor { get; set; } = 0.85m;
+    /// <summary>Theo dõi tiến độ % trên từng việc (mặc định tắt ở chế độ theo kết quả).</summary>
+    public bool TrackProgress { get; set; }
+    public bool ResultMode => !string.IsNullOrWhiteSpace(ResultFrom);
+    public bool ResultFor(DateOnly monthStart) => ResultMode && string.CompareOrdinal(monthStart.ToString("yyyy-MM"), ResultFrom!.Trim()) >= 0;
+    public decimal ResultQuality(int? q) => q is >= 4 ? GoodFactor : PassFactor;
+
     public const string Key = "kpi";
     private static readonly JsonSerializerOptions Opts = new(JsonSerializerDefaults.Web);
     public static KpiSettings Load(AppDbContext db)
@@ -130,7 +142,7 @@ public class KpiController : ApiControllerBase
     public static WorkDetail? WorkOf(Employee e, string? username, List<ProjectTask> tasks, HashSet<string> parents, DateOnly from, DateOnly to, VpSettings vs, KpiSettings k, DateOnly? asOf = null)
     {
         var today = asOf ?? DateOnly.FromDateTime(VnTime.Now);
-        decimal sw = 0, got = 0; int onTime = 0, late = 0, overdue = 0, n = 0, collab = 0;
+        decimal sw = 0, got = 0; int onTime = 0, late = 0, overdue = 0, n = 0, collab = 0; var rm = k.ResultFor(from);
         foreach (var t in tasks)
         {
             if (!Countable(t, parents)) continue;
@@ -144,10 +156,12 @@ public class KpiController : ApiControllerBase
             var w = k.LevelWeight(t.Priority) * (mineCo ? k.CollabFactor : 1m); if (w <= 0) continue;
             sw += w; n++; if (mineCo) collab++;
             if (!done) { overdue++; continue; }
-            var fin = t.DoneDate ?? today; var lateDays = 0;
-            for (var x = d.AddDays(1); x <= fin; x = x.AddDays(1)) if (VnTime.WorkValue(x, vs) > 0) lateDays++;
+            var fin = t.DoneDate ?? today; var lateDays = 0; var ld = rm && t.KpiDue is { } kd && kd < d ? kd : d;
+            for (var x = ld.AddDays(1); x <= fin; x = x.AddDays(1)) if (VnTime.WorkValue(x, vs) > 0) lateDays++;
             if (lateDays == 0) onTime++; else late++;
-            var c = k.LateFactor(lateDays) * k.QualityFactor(t.Quality) * Math.Max(0m, 1m - t.ReopenCount * k.ReopenPenalty - t.ExtendCount * k.ExtendPenalty);
+            var c = rm
+                ? k.LateFactor(lateDays) * k.ResultQuality(t.Quality) * Math.Max(0m, 1m - t.ReopenCount * k.ReopenPenalty)
+                : k.LateFactor(lateDays) * k.QualityFactor(t.Quality) * Math.Max(0m, 1m - t.ReopenCount * k.ReopenPenalty - t.ExtendCount * k.ExtendPenalty);
             got += w * c;
         }
         return n == 0 ? null : new WorkDetail(n, onTime, late, overdue, Math.Round(100 * got / sw, 1, MidpointRounding.AwayFromZero), collab);
@@ -400,6 +414,9 @@ public class KpiController : ApiControllerBase
         k.LateSteps = k.LateSteps.OrderBy(x => x.Days).ToList();
         if (k.QualityFactors.Count != 5 || k.QualityFactors.Any(x => x < 0 || x > 1.5m)) return Error(400, "Hệ số chất lượng: đủ 5 mức (1–5 sao), từ 0 đến 1,5.");
         if (k.ReopenPenalty is < 0 or > 1 || k.ExtendPenalty is < 0 or > 1 || k.CollabFactor is < 0 or > 1 || k.RemindDays is < 0 or > 30) return Error(400, "Hệ số trừ, hệ số phối hợp từ 0 đến 1; nhắc trước 0–30 ngày.");
+        k.ResultFrom = string.IsNullOrWhiteSpace(k.ResultFrom) ? null : k.ResultFrom.Trim();
+        if (k.ResultFrom is not null && !System.Text.RegularExpressions.Regex.IsMatch(k.ResultFrom, @"^\d{4}-\d{2}$")) return Error(400, "Quản lý theo kết quả: tháng áp dụng dạng 2026-12, hoặc để trống để tắt.");
+        if (k.GoodFactor is < 0 or > 1.5m || k.PassFactor is < 0 or > 1.5m) return Error(400, "Hệ số Đạt tốt, Đạt từ 0 đến 1,5.");
         k.Save(Db, Uc.User.Username);
         Uc.Log("Cập nhật thiết lập KPI", "KPI", $"Trọng số {k.WWork}/{k.WProject}/{k.WAttendance}/{k.WManager}");
         await Db.SaveChangesAsync(); return Ok(new { ok = true });

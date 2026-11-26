@@ -40,6 +40,8 @@ public class VpSettings
     /// <summary>Bản 1.10.16: "Nhận nhiệm vụ": chỉ một lượt vào mỗi ngày, tự chọn Ở công ty / online / công tác / khác, không lấy vị trí, không cần phiếu
     /// (không điểm danh ra, không tính về sớm, quên điểm danh ra).</summary>
     public bool InOnly { get; set; }
+    /// <summary>Bản 1.10.18: trang nhận nhiệm vụ có phần chọn việc làm hôm nay và ô kết quả cuối ngày (tắt khi quản lý theo kết quả sản phẩm).</summary>
+    public bool DailyTasks { get; set; } = true;
     /// <summary>Bản 1.10.16: chữ hiện cho việc điểm danh (Tri Thức: "Nhận nhiệm vụ").</summary>
     public string Word { get; set; } = "Điểm danh";
     /// <summary>Bản 1.10.16: ngoài vùng điểm danh chỉ được ghi khi hôm đó có phiếu công tác (đã duyệt hoặc đang chờ duyệt); phiếu làm việc online đã duyệt thì không phải điểm danh.</summary>

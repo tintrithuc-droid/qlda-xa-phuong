@@ -354,7 +354,8 @@ public class ViecController : ApiControllerBase
         if (st == Done)
         {
             if (parentHasOpenChildren(t.Id)) return Error(409, "Còn việc con chưa xong.");
-            var dd = b.DoneDate ?? today; if (dd > today) return Error(400, "Ngày hoàn thành không được sau hôm nay.");
+            var dd = b.DoneDate ?? today; if (KpiSettings.Load(Db).ResultMode) dd = today; // theo kết quả: ngày nộp là ngày thật, không ghi lùi để tránh trễ hạn
+            if (dd > today) return Error(400, "Ngày hoàn thành không được sau hôm nay.");
             // bản 1.10.18 (theo kết quả): nộp sản phẩm phải có tệp, đường dẫn hoặc nơi kiểm tra
             if (KpiSettings.Load(Db).ResultMode && string.IsNullOrWhiteSpace(b.Result)) return Error(400, "Nộp sản phẩm: đính kèm tệp, dán đường dẫn hoặc ghi nơi kiểm tra.");
             t.DoneDate = dd; t.ReportedAt = DateTime.UtcNow; t.Progress = 100;

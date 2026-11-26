@@ -107,6 +107,24 @@ public static class Upgrades
             }
         }
 
+        // Bản 1.10.24 (anh Trí 26/11/2026 "Bỏ quyền xóa của nhân viên"): nhóm Nhân viên (g-nv) được thêm, sửa phần Dự án (Điều hành, Nghiệp vụ) nhưng không xóa;
+        // Trưởng phòng, Giám đốc, Quản trị vẫn xóa được. Chỉ đặt cho phân hệ nhóm đang có quyền sửa.
+        {
+            const string key = "upgrade:1.10.24-nv-khong-xoa";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                var mods = new[] { "tong-quan", "du-an", "von", "gpmb", "mo-hinh", "goi-thau", "tien-do", "nhat-ky", "khoi-luong", "nghiem-thu", "thanh-toan", "quyet-toan", "bao-cao" };
+                foreach (var g in db.Groups.ToList().Where(g => !g.Admin && g.Id == "g-nv"))
+                {
+                    var p = new Dictionary<string, string>(g.Perms);
+                    foreach (var m in mods) if (p.TryGetValue(m, out var v) && v == "edit") p[m + ":khongxoa"] = "1";
+                    g.Perms = p;
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // Bản 1.10.18 (anh Trí 26/11/2026): quản lý Công việc theo kết quả sản phẩm cho đơn vị đã chuyển từ e-work; KPI áp dụng từ tháng 12/2026.
         // Chất lượng nghiệm thu tính vào điểm (anh chọn): Đạt tốt 100%, Đạt 85%. Bỏ tiến độ %, bỏ chọn việc khi nhận nhiệm vụ.
         {

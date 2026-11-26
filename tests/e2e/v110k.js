@@ -245,6 +245,25 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
         ok(!(await p.$('[data-act="guide-read"]')), 'Đã đọc mà hộp hướng dẫn vẫn hiện lại'); }
     } else console.log('Hướng dẫn: nhóm ' + gid + ' không có hướng dẫn mẫu, bỏ qua'); }
 
+  // 1.10.24: mức "thêm, sửa, không xóa" (<phân hệ>:khongxoa) — máy chủ chặn xóa, giao diện không hiện nút Xóa
+  { const st = await J(qa.get(BASE + '/api/auth/state', { headers: H })); const gid = st.user.groupId;
+    const all = await J(r.get(BASE + '/api/data', { headers: H })); const g = (all.groups || []).find(x => x.id === gid);
+    ok(!!g, 'Không thấy nhóm của nva: ' + gid);
+    if (g) {
+      const setG = perms => r.put(BASE + '/api/data/groups/' + gid, { headers: H, data: { ...g, perms } });
+      ok((await setG({ ...g.perms, 'du-an': 'edit', 'du-an:khongxoa': '1' })).ok(), 'Lưu nhóm không xóa lỗi');
+      const pr = await qa.put(BASE + '/api/data/projects/p-kx', { headers: H, data: { id: 'p-kx', code: 'DA-KX', name: 'Dự án thử không xóa' } });
+      ok(pr.ok(), 'Nhân viên có quyền sửa mà không thêm được dự án: ' + pr.status());
+      const d1 = await qa.delete(BASE + '/api/data/projects/p-kx', { headers: H });
+      ok(d1.status() === 403, 'Nhóm "không xóa" mà vẫn xóa được: ' + d1.status());
+      const pg = await cA.newPage(); await pg.goto(BASE + '/#du-an'); await pg.waitForSelector('#app'); await pg.waitForTimeout(1500);
+      ok(await pg.evaluate(() => !canDel('du-an') && can('du-an', 'edit')), 'Giao diện: canDel phải false, can edit phải true'); await pg.close();
+      ok((await setG({ ...g.perms, 'du-an': 'edit' })).ok(), 'Bỏ không xóa lỗi');
+      const d2 = await qa.delete(BASE + '/api/data/projects/p-kx', { headers: H });
+      ok(d2.ok(), 'Bỏ "không xóa" mà vẫn không xóa được: ' + d2.status());
+      await setG(g.perms);
+    } }
+
   console.log('Ảnh: ' + tmp);
   await b.close();
   if (errs.length) { console.error('LỖI:\n' + errs.join('\n')); process.exit(1); }

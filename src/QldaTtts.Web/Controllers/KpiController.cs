@@ -213,6 +213,9 @@ public class KpiController : ApiControllerBase
             var st = stats.First(x => x.EmployeeId == e.Id);
             var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, parents, from, to, vs, k);
             var work = locked ? sh!.WorkFinal : sh?.WorkScore ?? wd?.Score;
+            // bản 1.10.24 (anh Trí: "kết quả sản phẩm xác định KPI"): theo kết quả, cả tháng không có sản phẩm nào đến hạn hoặc nộp thì phần công việc 0 điểm khi chốt,
+            // không để KPI chỉ còn chuyên cần mà vẫn xếp loại cao
+            if (!locked && work is null && strict && k.Auto && k.ResultFor(from)) work = 0m;
             var att = locked ? sh!.AttendanceFinal : e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
             var mgr = sh?.ManagerRating is { } mr ? mr * 20m : (decimal?)null;
             var total = locked ? sh!.Total ?? 0 : Total(k, work, sh?.ProjectScore, att, mgr, strict);

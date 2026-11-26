@@ -590,7 +590,7 @@ const BR_SECS=[
   ['Tên đơn vị và phần mềm', '', [['orgShort','Tên đơn vị rút gọn (thanh bên trái, phía trên tên phần mềm)'],['appName','Tên phần mềm (thanh bên trái, tiêu đề trình duyệt)'],
     ['orgName','Tên cơ quan chủ quản (trang đăng nhập dòng 1, đầu mẫu in)'],['unitName','Tên đơn vị sử dụng (trang đăng nhập dòng 2, đầu mẫu in)'],
     ['support','Thông tin hỗ trợ (cuối thanh bên trái)'],['footer','Chân trang ({năm} tự thay bằng năm hiện tại)','area']]],
-  ['Trang đăng nhập', 'Banner bên trái và khung đăng nhập bên phải.', [['bannerTitle','Tiêu đề banner'],['bannerText','Mô tả dưới tiêu đề banner','area'],['address','Địa chỉ (cuối banner)'],
+  ['Trang đăng nhập', 'Banner và khung đăng nhập. Mẫu trang đăng nhập áp dụng khi phong cách giao diện là Công nghệ; bấm «Xem trước trang đăng nhập» để xem mẫu đang chọn trước khi lưu.', [['loginTpl','Mẫu trang đăng nhập (phong cách Công nghệ)',()=>LOGIN_TPLS],['bannerTitle','Tiêu đề banner'],['bannerText','Mô tả dưới tiêu đề banner','area'],['address','Địa chỉ (cuối banner)'],
     ['bannerDeco','Họa tiết trống đồng và vạch màu đỏ, vàng trên banner',BR_YN],
     ['loginTitle','Tiêu đề khung đăng nhập'],['loginHint','Dòng hướng dẫn dưới tiêu đề'],['forgotText','Dòng hướng dẫn khi quên mật khẩu','area']]],
   ['Màu giao diện', 'Áp dụng cho mọi người dùng để phong cách và tông màu «Theo đơn vị» trong hộp thoại Giao diện (mặc định). Người đã tự chọn màu khác vẫn giữ lựa chọn của mình.',
@@ -617,7 +617,7 @@ function brandView(){
   const ed=can('quan-tri','edit'); S.after.push(_brWire);
   return `<div class="grid g3"><div class="card span2"><div class="ch"><h2>Thông tin đơn vị và nhận diện giao diện</h2></div>
     <form id="brform" class="fgrid">${BR_SECS.map(([h,n,f])=>`<h3 class="br-sec">${esc(h)}</h3>${n?`<p class="muted small br-note">${esc(n)}</p>`:''}${f.map(x=>brField(x,ed)).join('')}`).join('')}</form>
-    ${ed?`<div class="toolbar" style="margin-top:12px"><button class="btn primary" data-act="brand-save">Lưu thông tin</button><button class="btn ghost" data-act="brand-reset">Khôi phục mặc định</button></div>`:''}</div>
+    ${ed?`<div class="toolbar" style="margin-top:12px"><button class="btn primary" data-act="brand-save">Lưu thông tin</button><button class="btn ghost" data-act="brand-reset">Khôi phục mặc định</button><button class="btn ghost" data-act="brand-login-prev">Xem trước trang đăng nhập</button></div>`:''}</div>
     <div class="card"><h2>Logo đơn vị</h2><div class="brand-prev"><div class="side-prev"><div class="mark${BR.logo?' logo':''}">${brandMark()}</div><div><span>${esc(BR.orgShort)}</span><b>${esc(BR.appName)}</b></div></div></div>
     <p class="muted small">Ảnh vuông PNG, JPG hoặc WEBP, tối đa 2 MB.</p>
     ${brImg('logo',ed)}
@@ -632,6 +632,18 @@ const _brWire=()=>{ $$('input[type=file][data-kind]').forEach(f=>{ if(f._w) retu
   if(file.size>mb*1024*1024) return toast((lg?'Logo':'Ảnh nền')+' tối đa '+mb+' MB','err');
   const fd=new FormData(); fd.append('file',file);
   try{ setBrand(await api('POST','/api/branding/'+f.dataset.kind,fd)); toast(lg?'Đã cập nhật logo':'Đã cập nhật ảnh nền trang đăng nhập'); render(); }catch(ex){ toast(errText(ex),'err'); } }; }); };
+/* Xem trước trang đăng nhập theo mẫu đang chọn trong ô (chưa lưu), đóng bằng Esc hoặc nút Đóng */
+ACT['brand-login-prev']=()=>{ const sel=$('#br_loginTpl'), keep=BR.loginTpl, r=document.documentElement, oldStyle=r.dataset.style;
+  BR.loginTpl=sel?sel.value:keep; r.dataset.style='tech'; r.dataset.login=loginTpl();
+  const ov=document.createElement('div'); ov.className='login-prev';
+  ov.innerHTML=`<div class="${authCls()}">${authArt()}<div class="box"><form onsubmit="return false"><div class="form-head"><h2>${esc(BR.loginTitle)}</h2><p class="muted small">${esc(BR.loginHint)}</p></div>
+    <div class="fld"><label>Tên đăng nhập</label><input disabled></div><div class="fld"><label>Mật khẩu</label><input type="password" disabled></div>
+    <button class="btn primary" type="button" disabled style="justify-content:center;padding:10px">Đăng nhập</button><p class="small muted" style="margin:0">${esc(BR.forgotText)}</p></form><p class="auth-foot">${brandFoot()}</p></div></div>
+    <button class="btn primary lp-close" type="button">Đóng xem trước</button>`;
+  const close=()=>{ ov.remove(); BR.loginTpl=keep; r.dataset.style=oldStyle; r.dataset.login=keep||'split'; document.removeEventListener('keydown',esc_); };
+  const esc_=e=>{ if(e.key==='Escape') close(); };
+  ov.querySelector('.lp-close').onclick=close; document.addEventListener('keydown',esc_); document.body.appendChild(ov);
+};
 ACT['brand-save']=async()=>{ const b={}; BR_FIELDS.forEach(([k,,t])=>{ b[k]= t==='mods'? $$('#br_'+k+' input:not(:checked)').map(i=>i.value).join(',') : $('#br_'+k).value.trim(); }); const was=BR.field;
   try{ setBrand(await api('PUT','/api/branding',b));
     let n=0; if(BR.field==='cntt' && was!=='cntt') n=await applyITCats();

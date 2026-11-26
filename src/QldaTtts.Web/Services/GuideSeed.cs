@@ -95,17 +95,16 @@ public static class GuideSeed
         foreach (var (file, title, groups, content) in roles)
         {
             var pdf = pdfs.FirstOrDefault(p => Path.GetFileName(p).Contains(" - " + file + " - ", StringComparison.OrdinalIgnoreCase));
-            var g = db.Guides.FirstOrDefault(x => x.Title == title && x.UpdatedBy == "he-thong")
+            // Bản 1.10.22: ưu tiên hướng dẫn đang gắn tệp PDF của vai trò này VÀ dành cho nhóm của vai trò (người quản trị có thể đã đổi tên, viết lại nội dung:
+            // giữ nguyên tên, nội dung họ viết, chỉ thay tệp). Không lấy hướng dẫn cũ cùng tên tệp nhưng của nhóm khác (lỗi gắn nhầm khi cài 1.10.22).
+            var mark = " - " + file + " - ";
+            var rids = db.Attachments.Where(a => a.Collection == "guides" && a.DeletedAt == null).AsEnumerable()
+                .Where(a => a.FileName.Contains(mark, StringComparison.OrdinalIgnoreCase)).Select(a => a.RecordId).ToHashSet();
+            var g = db.Guides.Where(x => rids.Contains(x.Id)).AsEnumerable()
+                .Where(x => x.Groups.Intersect(groups).Any()).OrderByDescending(x => x.UpdatedAt).FirstOrDefault();
+            var edited = g is not null && !(g.Title == title && g.UpdatedBy == "he-thong");
+            g ??= db.Guides.AsEnumerable().Where(x => x.Title == title && x.UpdatedBy == "he-thong").OrderByDescending(x => x.Groups.Intersect(groups).Any()).FirstOrDefault()
                 ?? (file == "Lanh dao xa phuong" ? db.Guides.FirstOrDefault(x => x.Title == "Hướng dẫn sử dụng dành cho Lãnh đạo UBND xã" && x.UpdatedBy == "he-thong") : null);
-            // Bản 1.10.22: hướng dẫn đã được người quản trị đổi tên, viết lại nội dung thì tìm theo tệp PDF đang gắn, giữ nguyên tên và nội dung họ viết, chỉ thay tệp
-            var edited = false;
-            if (g is null)
-            {
-                var mark = " - " + file + " - ";
-                var rid = db.Attachments.Where(a => a.Collection == "guides" && a.DeletedAt == null).AsEnumerable()
-                    .FirstOrDefault(a => a.FileName.Contains(mark, StringComparison.OrdinalIgnoreCase))?.RecordId;
-                g = rid is null ? null : db.Guides.FirstOrDefault(x => x.Id == rid); edited = g is not null;
-            }
             if (g is not null && !edited && g.Title != title) { g.Title = title; g.Content = content; g.UpdatedAt = DateTime.UtcNow; }
             // Bản 1.10.4: bộ riêng của đơn vị (vai-tro.json) có vai trò mới chưa có hướng dẫn thì thêm (máy đã nạp bộ chuẩn trước đó)
             if (g is null && pdf is not null && custom)

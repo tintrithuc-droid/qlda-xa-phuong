@@ -200,7 +200,10 @@ public static class EworkImport
             {
                 Id = "dx-" + Guid.NewGuid().ToString("N")[..16], Code = $"DX-EW{++seq:0000}", Type = MapType(S(x, "TenDeXuat")) is var mt && mt == "Nghỉ phép" && OutOfLeave() ? "Nghỉ không lương" : mt, EmployeeId = e.Id,
                 Title = Cut(desc, 300), FromAt = from is { } f ? VnTime.ToUtc(f) : null, ToAt = to is { } t ? VnTime.ToUtc(t) : null,
-                Days = Jn("SoNgay", "SoNgayNghi", "SoNgayCongTac"), Hours = Jn("SoGio", "SoGioTangCa", "TongSoGio"), Amount = Jn("SoTien", "TongTien", "ThanhTien", "SoTienDeNghi"),
+                Days = Jn("SoNgay", "SoNgayNghi", "SoNgayCongTac"),
+                // Bản 1.10.24: phiếu xăng xe e-work: SoTien là đơn giá mỗi km, số km ở SoKm, thành tiền ở ThanhTien (như biểu mẫu QLDA: Hours = km, Amount = thành tiền)
+                Hours = mt == "Xăng xe" ? Jn("SoKm", "SoKM", "QuangDuong") : Jn("SoGio", "SoGioTangCa", "TongSoGio"),
+                Amount = mt == "Xăng xe" ? (Jn("ThanhTien", "TongTien") ?? (Jn("SoKm", "SoKM") * Jn("SoTien"))) : Jn("SoTien", "TongTien", "ThanhTien", "SoTienDeNghi"),
                 Place = J("DiaDiem", "NoiCongTac", "DiaDiemCongTac", "LoTrinh"), Reason = reason, Status = status,
                 ApproverName = S(x, "TenNguoiDuyet"), DecidedAt = Dt(S(x, "NgayHoanThanh")) is { } dc ? VnTime.ToUtc(dc) : null, DecisionNote = note,
                 CreatedAt = VnTime.ToUtc(created), EworkId = ew, UpdatedAt = now, UpdatedBy = by

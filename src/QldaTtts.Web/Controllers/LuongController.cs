@@ -31,6 +31,8 @@ public class PaySettings
     public bool OtByApproval { get; set; } = true;
     /// <summary>Bản 1.10.11: đơn giá giờ tăng ca = (lương chính + phụ cấp) ÷ công chuẩn ÷ 8 (như e-work, theo tiền lương thực trả - Điều 98 BLLĐ); false: chỉ lương chính.</summary>
     public bool OtWithAllowances { get; set; } = true;
+    /// <summary>Bản 1.10.20 (như e-work: LuongTheoNgay = (lương chính + phụ cấp) ÷ công chuẩn): ngày nghỉ không lương, vắng, nghỉ quá phép trừ cả phần phụ cấp theo ngày; false: chỉ trừ lương chính.</summary>
+    public bool AbsenceWithAllowances { get; set; } = true;
     /// <summary>Bản 1.10.13: tháng còn làm trên e-work (đã có bảng lương e-work chuyển sang) thì thưởng lấy theo cột Thưởng của bảng lương e-work,
     /// không lấy KPI tính trên QLDA (công việc tháng đó ở e-work).</summary>
     public bool EworkBonus { get; set; } = true;
@@ -129,6 +131,8 @@ public class LuongController : ApiControllerBase
         public string EmployeeId { get; set; } = ""; public string Name { get; set; } = ""; public string? DepartmentId { get; set; } public string? Position { get; set; }
         public decimal Standard { get; set; } public decimal Paid { get; set; } public decimal Absent { get; set; } public decimal OtHours { get; set; }
         public decimal BaseSalary { get; set; } public decimal TimePay { get; set; } public decimal Allowances { get; set; } public decimal OtPay { get; set; }
+        /// <summary>1.10.20: phần phụ cấp bị trừ theo ngày không hưởng lương (số âm hiện trên phiếu).</summary>
+        public decimal AllowanceCut { get; set; }
         public decimal KpiBonus { get; set; } public string? KpiGrade { get; set; } public decimal Bonus { get; set; } public decimal Gross { get; set; }
         public decimal InsBase { get; set; } public decimal Bhxh { get; set; } public decimal Bhyt { get; set; } public decimal Bhtn { get; set; } public decimal Insurance { get; set; }
         public int Dependents { get; set; } public decimal Taxable { get; set; } public decimal Assessable { get; set; } public decimal Pit { get; set; }
@@ -249,6 +253,13 @@ public class LuongController : ApiControllerBase
             var al = Allow(p?.Allowances); decimal exempt = 0;
             foreach (var a in al) { s.AllowanceLines.Add(new Line("pc", a.Name, a.Amount, a.Exempt > 0 ? $"không tính thuế {a.Exempt:#,0}" : null)); exempt += Math.Min(a.Amount, a.Exempt); }
             s.Allowances = al.Sum(a => a.Amount);
+            // 1.10.20 (như e-work): ngày không hưởng lương trừ cả phụ cấp theo ngày = tổng phụ cấp × (công chuẩn − công hưởng lương) ÷ công chuẩn
+            if (ps.AbsenceWithAllowances && standard > 0 && s.Paid < standard && s.Allowances > 0)
+            {
+                s.AllowanceCut = Math.Round(s.Allowances * (standard - s.Paid) / standard, 0);
+                s.AllowanceLines.Add(new Line("pc", $"Trừ phụ cấp {standard - s.Paid:0.##} ngày không hưởng lương", -s.AllowanceCut, null));
+                exempt = Math.Round(exempt * s.Paid / standard, 0);
+            }
             var hourly = standard > 0 ? s.BaseSalary / standard / 8 : 0;
             // 1.10.18 (như e-work: LuongKhongBHXH = lương cơ bản + phụ cấp − phụ cấp BHXH): phụ cấp mang tên BHXH không tính vào đơn giá tăng ca
             if (ps.OtWithAllowances && standard > 0) hourly = (s.BaseSalary + al.Where(a => !OtExcluded(a.Name)).Sum(a => a.Amount)) / standard / 8;
@@ -266,7 +277,7 @@ public class LuongController : ApiControllerBase
             if (e.EworkId is { } ewId && ewBonus.TryGetValue(ewId, out var eb)) { s.KpiBonus = eb; s.KpiGrade = "Theo bảng lương e-work"; }
             s.Bonus = sl?.Bonus ?? 0; s.Deduction = sl?.Deduction ?? 0; s.Note = sl?.Note;
             // Công tác phí, xăng xe đi công việc là khoản chi theo chế độ, không tính thuế TNCN; tiền phép năm chưa nghỉ tính thuế như tiền lương
-            s.Gross = s.TimePay + s.Allowances + s.OtPay + s.KpiBonus + s.Bonus + s.UnusedLeavePay + s.TripPay + s.FuelPay;
+            s.Gross = s.TimePay + s.Allowances - s.AllowanceCut + s.OtPay + s.KpiBonus + s.Bonus + s.UnusedLeavePay + s.TripPay + s.FuelPay;
             exempt += s.TripPay + s.FuelPay;
             if (p is { NoInsurance: false } && s.BaseSalary > 0)
             {

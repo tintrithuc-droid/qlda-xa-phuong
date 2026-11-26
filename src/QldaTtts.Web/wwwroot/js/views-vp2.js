@@ -426,7 +426,7 @@ VIEWS['luong']=()=>{
     + table([
       {h:'Họ tên', f:r=>`<b style="font-weight:600">${esc(r.name)}</b><div class="small muted">${esc(vpDeptName(r.departmentId))}</div>${r.noAttendance?pill('Không chấm công','info'):''}`},
       {h:'Công', r:1, f:r=>`${fmtN(r.paid,1)}/${fmtN(r.standard,1)}${r.absent?`<div class="small muted">vắng ${fmtN(r.absent,1)}</div>`:''}`},
-      {h:'Lương theo công', r:1, f:r=>vnd(r.timePay)}, {h:'Phụ cấp', r:1, f:r=>vnd(r.allowances)},
+      {h:'Lương theo công', r:1, f:r=>vnd(r.timePay)}, {h:'Phụ cấp', r:1, f:r=>vnd(r.allowances-(r.allowanceCut||0))},
       {h:'Tăng ca', r:1, f:r=>r.otPay?`${vnd(r.otPay)}<div class="small muted">${fmtN(r.otHours,1)} giờ</div>`:'0'},
       {h:'Thưởng', r:1, f:r=>vnd(r.kpiBonus+r.bonus)+(r.kpiGrade?`<div class="small muted">KPI ${esc(r.kpiGrade)}</div>`:'')},
       {h:'Bảo hiểm', r:1, f:r=>vnd(r.insurance)}, {h:'Thuế TNCN', r:1, f:r=>vnd(r.pit)},
@@ -486,7 +486,7 @@ function paySlipHTML(r, m){
   ${L('Lương chính', vnd(r.baseSalary))}${L('Ngày công hưởng lương', fmtN(r.paid,1)+' / '+fmtN(r.standard,1), r.noAttendance?'không chấm công: hưởng nguyên lương chính':r.absent?`vắng không lý do ${fmtN(r.absent,1)}`:'')}
   ${L('<b>1. Lương theo ngày công</b>', vnd(r.timePay))}
   ${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;Phụ cấp: '+esc(a.label), vnd(a.amount), esc(a.note||''))).join('')}
-  ${L('<b>2. Phụ cấp</b>', vnd(r.allowances))}${L('<b>3. Tăng ca</b>', vnd(r.otPay), r.otHours?fmtN(r.otHours,1)+' giờ':'')}
+  ${L('<b>2. Phụ cấp</b>', vnd(r.allowances-(r.allowanceCut||0)))}${L('<b>3. Tăng ca</b>', vnd(r.otPay), r.otHours?fmtN(r.otHours,1)+' giờ':'')}
   ${L('<b>4. Thưởng KPI</b>', vnd(r.kpiBonus), r.kpiGrade?'xếp loại '+esc(r.kpiGrade):'')}${L('<b>5. Thưởng, bổ sung khác</b>', vnd(r.bonus), esc(r.note||''))}
   ${payExtraLines(r, L)}
   ${L('<b>TỔNG THU NHẬP</b>', '<b>'+vnd(r.gross)+'</b>')}
@@ -547,7 +547,7 @@ ACT['pay-set']=async()=>{ const s=await api('GET','/api/vp/luong-settings');
       await api('PUT','/api/vp/luong-settings', b); VP.pay={}; return {id:'luong'}; }}); };
 ACT['pay-xlsx']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||'';
   const rows=d.rows.filter(r=>!dep||r.departmentId===dep).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'))
-    .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances, r.otNormal||0, r.otRest||0, r.otHoliday||0, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost, r.leaveOver||0, r.unusedLeavePay||0, r.tripPay||0, r.fuelPay||0, r.tempAdvance||0, r.confirmState||'', r.feedback||'']);
+    .map((r,i)=>[i+1, r.name, vpDeptName(r.departmentId), r.baseSalary, r.standard, r.paid, r.timePay, r.allowances-(r.allowanceCut||0), r.otNormal||0, r.otRest||0, r.otHoliday||0, r.otHours, r.otPay, r.kpiBonus, r.bonus, r.gross, r.bhxh, r.bhyt, r.bhtn, r.dependents, r.assessable, r.pit, r.advance, r.deduction, r.net, r.employerIns, r.cost, r.leaveOver||0, r.unusedLeavePay||0, r.tripPay||0, r.fuelPay||0, r.tempAdvance||0, r.confirmState||'', r.feedback||'']);
   exportXlsx(`Bang_luong_${m}.xlsx`, [{name:'Luong '+m, title:`BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}`, sub:`Ngày công chuẩn ${fmtN(d.rows[0]?.standard||0,1)}`,
     head:['STT','Họ tên','Phòng ban','Lương chính','Công chuẩn','Công hưởng lương','Lương theo công','Phụ cấp','Giờ TC ngày thường (150%)','Giờ TC ngày nghỉ (200%)','Giờ TC ngày lễ (300%)','Tổng giờ tăng ca','Tiền tăng ca','Thưởng KPI','Thưởng khác','Tổng thu nhập','BHXH','BHYT','BHTN','Người phụ thuộc','Thu nhập tính thuế','Thuế TNCN','Ứng lương','Khấu trừ khác','Thực lĩnh','BH doanh nghiệp','Chi phí công ty','Nghỉ vượt phép (ngày)','Tiền phép chưa nghỉ','Công tác phí','Xăng xe','Tạm ứng trừ lương','Xác nhận','Kiến nghị'],
     rows, money:[3,6,7,12,13,14,15,16,17,18,20,21,22,23,24,25,26,28,29,30,31]}]); };
@@ -578,9 +578,9 @@ ACT['pay-bank']=async()=>{ const t=payBankRows(); if(!t) return; if(!t.rows.leng
 ACT['pay-acc-pdf']=()=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; const dep=S.f.pld||''; const s=d.settings||{};
   const rows=d.rows.filter(r=>(!dep||r.departmentId===dep)&&(r.hasProfile||r.locked)).sort((a,b)=>vpDeptName(a.departmentId).localeCompare(vpDeptName(b.departmentId),'vi')||a.name.localeCompare(b.name,'vi'));
   const sum=k=>rows.reduce((a,r)=>a+(r[k]||0),0), v=x=>x?fmtVND(x):'';
-  const cols=[['Lương chính','baseSalary'],['Công','paid'],['Lương theo công','timePay'],['Phụ cấp','allowances'],['Tăng ca','otPay'],['Thưởng KPI','kpiBonus'],['Thưởng khác','bonus'],['Tổng thu nhập','gross'],['BHXH','bhxh'],['BHYT','bhyt'],['BHTN','bhtn'],['Thu nhập tính thuế','assessable'],['Thuế TNCN','pit'],['Ứng, khấu trừ','_adv'],['Thực lĩnh','net']];
-  const val=(r,k)=>k==='paid'?fmtN(r.paid,1):k==='_adv'?v((r.advance||0)+(r.deduction||0)):v(r[k]);
-  const tot=k=>k==='paid'?'':k==='_adv'?v(sum('advance')+sum('deduction')):k==='baseSalary'?'':v(sum(k));
+  const cols=[['Lương chính','baseSalary'],['Công','paid'],['Lương theo công','timePay'],['Phụ cấp','_pc'],['Tăng ca','otPay'],['Thưởng KPI','kpiBonus'],['Thưởng khác','bonus'],['Tổng thu nhập','gross'],['BHXH','bhxh'],['BHYT','bhyt'],['BHTN','bhtn'],['Thu nhập tính thuế','assessable'],['Thuế TNCN','pit'],['Ứng, khấu trừ','_adv'],['Thực lĩnh','net']];
+  const val=(r,k)=>k==='paid'?fmtN(r.paid,1):k==='_pc'?v(r.allowances-(r.allowanceCut||0)):k==='_adv'?v((r.advance||0)+(r.deduction||0)):v(r[k]);
+  const tot=k=>k==='paid'?'':k==='_pc'?v(sum('allowances')-sum('allowanceCut')):k==='_adv'?v(sum('advance')+sum('deduction')):k==='baseSalary'?'':v(sum(k));
   const html=`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Bảng lương ${m}</title><style>
   @page{size:A4 landscape; margin:10mm} body{font:11px/1.35 "Times New Roman",Times,serif; color:#000; margin:0}
   .hd{display:grid; grid-template-columns:1fr 1.2fr; text-align:center; margin-bottom:8px} .hd b{display:block} .hd .u{display:inline-block; border-top:1px solid #000; width:40%; margin-top:2px}
@@ -603,7 +603,7 @@ ACT['pay-pdf']=id=>{ const m=payMonth(), d=VP.pay[m]; if(!d||!d.rows) return; co
   const one=r=>`<div class="slip">${printHead()}<h1>PHIẾU LƯƠNG THÁNG ${m.slice(5)}/${m.slice(0,4)}</h1>
     <p>Họ tên: <b>${esc(r.name)}</b> &nbsp;·&nbsp; Phòng ban: ${esc(vpDeptName(r.departmentId))}${r.position?' &nbsp;·&nbsp; Chức vụ: '+esc(r.position):''}</p>
     <table><tbody>${L('Lương chính',vnd(r.baseSalary))}${L('Ngày công hưởng lương / công chuẩn',fmtN(r.paid,1)+' / '+fmtN(r.standard,1))}
-    ${L('<b>1. Lương theo ngày công</b>',vnd(r.timePay))}${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;'+esc(a.label),vnd(a.amount))).join('')}${L('<b>2. Phụ cấp</b>',vnd(r.allowances))}
+    ${L('<b>1. Lương theo ngày công</b>',vnd(r.timePay))}${(r.allowanceLines||[]).map(a=>L('&nbsp;&nbsp;'+esc(a.label),vnd(a.amount))).join('')}${L('<b>2. Phụ cấp</b>',vnd(r.allowances-(r.allowanceCut||0)))}
     ${L('<b>3. Tăng ca</b>',vnd(r.otPay),r.otHours?fmtN(r.otHours,1)+' giờ':'')}${L('<b>4. Thưởng KPI</b>',vnd(r.kpiBonus),r.kpiGrade?'Xếp loại '+esc(r.kpiGrade):'')}${L('<b>5. Thưởng, bổ sung khác</b>',vnd(r.bonus),esc(r.note||''))}
     ${payExtraLines(r, L)}${L('<b>TỔNG THU NHẬP</b>','<b>'+vnd(r.gross)+'</b>')}${L(`BHXH (${fmtN(s.empBhxh??8,1)}%), BHYT (${fmtN(s.empBhyt??1.5,1)}%), BHTN (${fmtN(s.empBhtn??1,1)}%)`,vnd(r.insurance))}${L('Thu nhập tính thuế',vnd(r.assessable),r.dependents?r.dependents+' người phụ thuộc':'')}${L('Thuế TNCN',vnd(r.pit))}
     ${L('Ứng lương',vnd(r.advance))}${L('Khấu trừ khác',vnd(r.deduction))}${L('<b>THỰC LĨNH</b>','<b>'+vnd(r.net)+'</b>')}</tbody></table>

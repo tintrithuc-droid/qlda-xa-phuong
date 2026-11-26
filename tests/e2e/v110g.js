@@ -119,6 +119,8 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
   await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [{ name: 'Phụ cấp trách nhiệm', amount: 2000000, exempt: 0 }], noInsurance: false, flatTax: false } });
   const a3 = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);
   ok(a3.otPay === Math.round(22000000 / a3.standard / 8 * 2 * 2), 'Tăng ca chưa tính trên lương gồm phụ cấp: ' + JSON.stringify({ p: a3.otPay, e: Math.round(22000000 / a3.standard / 8 * 4) }));
+  // 1.10.20 (như e-work): ngày không hưởng lương trừ cả phụ cấp theo ngày
+  ok(a3.paid < a3.standard && a3.allowanceCut === Math.round(2000000 * (a3.standard - a3.paid) / a3.standard), 'Ngày nghỉ không lương chưa trừ phụ cấp theo ngày: ' + JSON.stringify({ p: a3.paid, s: a3.standard, c: a3.allowanceCut }));
   // 1.10.18: phụ cấp BHXH không tính vào đơn giá tăng ca (e-work: LuongKhongBHXH = lương + phụ cấp − PC BHXH)
   await r.put(BASE + `/api/vp/luong-ho-so/${ttb.id}`, { headers: H, data: { baseSalary: 20000000, allowances: [{ name: 'Phụ cấp trách nhiệm', amount: 2000000, exempt: 0 }, { name: 'PC BHXH', amount: 1500000, exempt: 0 }], noInsurance: false, flatTax: false } });
   const a3b = (await J(r.get(BASE + `/api/vp/luong?month=${PM}`, { headers: H }))).rows.find(x => x.employeeId === ttb.id);

@@ -98,6 +98,10 @@ public class ProjectTask : EntityBase, IHasProject
     [MaxLength(1000)] public string? Criteria { get; set; }
     /// <summary>Hạn dùng để tính trễ trong KPI khi gia hạn xin sau lúc đã quá hạn (trễ tính theo hạn cũ). Trống = theo Due.</summary>
     public DateOnly? KpiDue { get; set; }
+    /// <summary>Bản 1.10.24 (anh Trí 26/11/2026): quy mô sản phẩm Nhỏ 1 / Vừa 2 / Lớn 4 (hệ số KPI; trống = 1). Mốc kết quả lấy quy mô của sản phẩm gốc.</summary>
+    public int? Scale { get; set; }
+    /// <summary>Tỷ lệ (%) của mốc kết quả trong sản phẩm gốc (ví dụ 40/30/30). Trống = chia đều cho các mốc.</summary>
+    public int? Share { get; set; }
 }
 
 [Table("LegalDocuments")]

@@ -264,6 +264,37 @@ const py = (code, file) => { const r = spawnSync('python3', ['-c', code, file], 
       await setG(g.perms);
     } }
 
+  // 1.10.24: KPI theo kết quả — tháng không có sản phẩm thì phần công việc 0 khi chốt; đang làm sản phẩm dài thì không bị 0; ngày nộp không ghi lùi
+  { const TM = thisMonth(); const ks0 = await J(r.get(BASE + '/api/vp/kpi-settings', { headers: H }));
+    ok((await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: { ...ks0, auto: true, resultFrom: TM } })).ok(), 'Lưu thiết lập KPI theo kết quả lỗi');
+    const nm = new Date(TM + '-01T00:00:00Z'); nm.setUTCMonth(nm.getUTCMonth() + 1); const nextDue = nm.toISOString().slice(0, 7) + '-20';
+    const cr = await r.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Báo cáo KTKT dự án thử', assigneeUserId: nva.userId, level: 'Bình thường', startDate: TM + '-01', due: nextDue, deliverable: 'Báo cáo KTKT được phê duyệt' } });
+    ok(cr.ok(), 'Giao việc dài lỗi ' + cr.status() + ' ' + (await cr.text()).slice(0, 200));
+    for (const e of [nva, ttb]) await r.put(BASE + `/api/vp/kpi/${TM}/${e.id}`, { headers: H, data: { clearWork: true } }); // bỏ điểm nhập tay ở bước trên
+    ok((await r.post(BASE + `/api/vp/kpi/${TM}/chot`, { headers: H, data: { lock: true } })).ok(), 'Chốt KPI lỗi');
+    const kp = await J(r.get(BASE + '/api/vp/kpi?month=' + TM, { headers: H }));
+    const ra = kp.rows.find(x => x.employeeId === nva.id), rb = kp.rows.find(x => x.employeeId === ttb.id);
+    ok(ra && ra.work == null, 'Đang làm sản phẩm dài mà vẫn bị tính điểm công việc: ' + JSON.stringify(ra && ra.work));
+    ok(!rb || rb.workAuto != null || rb.work === 0, 'Cả tháng không có sản phẩm mà phần công việc không phải 0: ' + JSON.stringify(rb && { w: rb.work, a: rb.workAuto }));
+    await r.post(BASE + `/api/vp/kpi/${TM}/chot`, { headers: H, data: { lock: false } });
+    // ngày nộp là ngày thật
+    const c2 = await J(r.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Biên bản hỗ trợ thử', assigneeUserId: nva.userId, level: 'Bình thường', due: D0, deliverable: 'Biên bản có xác nhận' } }));
+    const tid = c2.id || (c2.task && c2.task.id);
+    if (tid) { const st = await qa.post(BASE + `/api/vp/viec/${tid}/trang-thai`, { headers: H, data: { status: 'Hoàn thành', doneDate: addDays(D0, -3), result: 'https://vidu.vn/bien-ban.pdf' } });
+      ok(st.ok(), 'Nộp sản phẩm lỗi ' + st.status());
+      const tv = await J(r.get(BASE + '/api/vp/viec/' + tid, { headers: H })); const t = tv.row || tv;
+      ok(t.doneDate === D0, 'Nộp sản phẩm ghi lùi được ngày: ' + t.doneDate); }
+    else errs.push('Không lấy được mã việc vừa tạo: ' + JSON.stringify(c2).slice(0, 200));
+    // sản phẩm cần phê duyệt: tự chia 3 mốc 40/30/30, hạn mốc tự đặt; quy mô Lớn lưu ở sản phẩm gốc
+    const c3 = await J(r.post(BASE + '/api/vp/viec', { headers: H, data: { name: 'Lập BCKTKT dự án Y', assigneeUserId: nva.userId, level: 'Bình thường', startDate: TM + '-01', due: nextDue, deliverable: 'Báo cáo KTKT dự án Y được phê duyệt', scale: 4, approval: true } }));
+    const lst = await J(r.get(BASE + '/api/vp/viec?scope=all', { headers: H })); const rows = lst.rows || lst.tasks || lst;
+    const kids = (Array.isArray(rows) ? rows : []).filter(x => x.parentId === c3.id);
+    const root = (Array.isArray(rows) ? rows : []).find(x => x.id === c3.id);
+    ok(kids.length === 3 && kids.map(x => x.share).sort().join() === '30,30,40', 'Không tự chia 3 mốc 40/30/30: ' + JSON.stringify(kids.map(x => [x.name, x.share, x.due])));
+    ok(kids.some(x => x.due === nextDue) && kids.every(x => x.due <= nextDue), 'Hạn mốc không đúng: ' + JSON.stringify(kids.map(x => x.due)));
+    ok(root && root.scale === 4, 'Quy mô Lớn chưa lưu: ' + JSON.stringify(root && root.scale));
+    await r.put(BASE + '/api/vp/kpi-settings', { headers: H, data: ks0 }); }
+
   console.log('Ảnh: ' + tmp);
   await b.close();
   if (errs.length) { console.error('LỖI:\n' + errs.join('\n')); process.exit(1); }

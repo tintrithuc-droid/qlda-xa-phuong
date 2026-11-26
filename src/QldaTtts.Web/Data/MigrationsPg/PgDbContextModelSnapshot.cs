@@ -2237,6 +2237,12 @@ namespace QldaTtts.Web.Data.MigrationsPg
                     b.Property<DateOnly?>("KpiDue")
                         .HasColumnType("date");
 
+                    b.Property<int?>("Scale")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Share")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)

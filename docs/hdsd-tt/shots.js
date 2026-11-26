@@ -40,7 +40,7 @@ const VIEW = { width: 1366, height: 820 };
   const br = await J(r.get(BASE + '/api/branding'));
   await r.put(BASE + '/api/branding', { headers: H, data: { ...br, appName: 'e-work Tri Thức', orgShort: 'Công ty Tri Thức', orgName: 'Công ty Cổ phần Tin học Tri Thức', unitName: 'Công ty Cổ phần Tin học Tri Thức',
     bannerTitle: 'e-work Tri Thức', bannerText: 'Điểm danh, đề xuất, công việc, KPI, lương trên một hệ thống.', style: 'tech', color: 'teal', field: 'cntt', printNation: '0',
-    footer: '© {năm} Công ty Cổ phần Tin học Tri Thức', hideMods: 'von,gpmb,mo-hinh,nhat-ky,khoi-luong,quyet-toan', loginHint: 'Dùng tài khoản e-work của bạn.' } });
+    footer: '© {năm} Công ty Cổ phần Tin học Tri Thức', hideMods: '', loginHint: 'Dùng tài khoản e-work của bạn.' } });
 
   // dữ liệu mẫu: nạp e-work kiểm thử, thêm Kế toán, Giám đốc
   const fx = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/fixtures/ework_luutru.json'), 'utf8').replace(/^﻿/, ''));
@@ -139,5 +139,14 @@ const VIEW = { width: 1366, height: 820 };
   await r.post(BASE + `/api/vp/luong/${PM}/duyet`, { headers: H, data: { approve: true } });
   await shot(gd, 'duyet-chi', 'luong', `S.f.plm='${PM}'; render()`);
   await shot(ctx, 'qt-nguoi-dung', 'quan-tri');
+  // 1.10.24: phần Dự án — Nhân viên được thêm, sửa, không xóa (như trên máy chủ Tri Thức)
+  { const all = await J(r.get(BASE + '/api/data', { headers: H })); const g = (all.groups || []).find(x => x.id === 'g-nv');
+    const MODS = ['tong-quan', 'du-an', 'von', 'gpmb', 'mo-hinh', 'goi-thau', 'tien-do', 'nhat-ky', 'khoi-luong', 'nghiem-thu', 'thanh-toan', 'quyet-toan', 'bao-cao'];
+    if (g) { const perms = { ...g.perms }; MODS.forEach(m => { perms[m] = 'edit'; perms[m + ':khongxoa'] = '1'; }); await r.put(BASE + '/api/data/groups/g-nv', { headers: H, data: { ...g, perms } }); }
+    await r.put(BASE + '/api/data/projects/pj-hd', { headers: H, data: { id: 'pj-hd', code: 'DA-CDS-01', name: 'Chuyển đổi số hồ sơ hành chính cấp xã', status: 'Đang thực hiện', group: 'Nhóm C', tmdt: 4500000000, start: thisMonth() + '-01', end: '2027-06-30', owner: 'UBND phường A', location: 'Phường A', desc: 'Phần mềm một cửa, số hóa hồ sơ, đào tạo người dùng' } });
+    await r.put(BASE + '/api/data/legal/lg-hd1', { headers: H, data: { id: 'lg-hd1', projectId: 'pj-hd', kind: 'Quyết định phê duyệt', number: '125/QĐ-UBND', date: thisMonth() + '-05', issuer: 'UBND phường A', title: 'Phê duyệt báo cáo kinh tế - kỹ thuật' } });
+    await r.put(BASE + '/api/data/packages/pk-hd1', { headers: H, data: { id: 'pk-hd1', projectId: 'pj-hd', code: 'GT-01', name: 'Cung cấp, cài đặt phần mềm một cửa', status: 'Đang thực hiện', estimate: 2100000000, method: 'Chào hàng cạnh tranh' } });
+    await shot(nv, 'du-an', 'du-an', `ACT['open-project']('pj-hd')`);
+    await shot(nv, 'du-an-sua', 'du-an', `ACT['open-project']('pj-hd'); setTimeout(()=>{ const b=document.querySelector('[data-act="edit-projects"]'); if(b) b.click(); setTimeout(()=>{ const d=document.querySelector('details.rhist'); if(d){ d.open=true; d.dispatchEvent(new Event('toggle')); } }, 500); }, 900)`, { full: true }); }
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });

@@ -139,7 +139,7 @@ public class KpiController : ApiControllerBase
     public static bool IsAssignee(ProjectTask t, Employee e, string? username) => t.AssigneeUserId is not null && e.UserId is not null && t.AssigneeUserId == e.UserId;
 
     /// <summary>Điểm công việc của tháng: việc có hạn hoặc ngày xong rơi vào tháng; việc chưa đến hạn chưa tính.</summary>
-    public static WorkDetail? WorkOf(Employee e, string? username, List<ProjectTask> tasks, HashSet<string> parents, DateOnly from, DateOnly to, VpSettings vs, KpiSettings k, DateOnly? asOf = null)
+    public static WorkDetail? WorkOf(Employee e, string? username, List<ProjectTask> tasks, HashSet<string> parents, DateOnly from, DateOnly to, VpSettings vs, KpiSettings k, DateOnly? asOf = null, IReadOnlyDictionary<string, decimal>? factor = null)
     {
         var today = asOf ?? DateOnly.FromDateTime(VnTime.Now);
         decimal sw = 0, got = 0; int onTime = 0, late = 0, overdue = 0, n = 0, collab = 0; var rm = k.ResultFor(from);
@@ -153,7 +153,7 @@ public class KpiController : ApiControllerBase
             if (!((d >= from && d < to) || (t.DoneDate is { } dd && dd >= from && dd < to))) continue;
             var done = IsDone(t);
             if (!done && d >= today) continue; // chưa đến hạn: chưa tính
-            var w = k.LevelWeight(t.Priority) * (mineCo ? k.CollabFactor : 1m); if (w <= 0) continue;
+            var w = k.LevelWeight(t.Priority) * (mineCo ? k.CollabFactor : 1m) * (rm && factor is not null && factor.TryGetValue(t.Id, out var fx) ? fx : 1m); if (w <= 0) continue;
             sw += w; n++; if (mineCo) collab++;
             if (!done) { overdue++; continue; }
             var fin = t.DoneDate ?? today; var lateDays = 0; var ld = rm && t.KpiDue is { } kd && kd < d ? kd : d;
@@ -165,6 +165,33 @@ public class KpiController : ApiControllerBase
             got += w * c;
         }
         return n == 0 ? null : new WorkDetail(n, onTime, late, overdue, Math.Round(100 * got / sw, 1, MidpointRounding.AwayFromZero), collab);
+    }
+
+    /// <summary>Bản 1.10.24 (anh Trí 26/11/2026): hệ số của từng việc theo quy mô sản phẩm (Nhỏ 1, Vừa 2, Lớn 4) và tỷ lệ mốc kết quả.
+    /// Sản phẩm không chia mốc: hệ số = quy mô. Mốc kết quả (việc con của sản phẩm đã chia mốc): quy mô của sản phẩm gốc × tỷ lệ mốc (Share %, trống thì chia đều).</summary>
+    public static async Task<Dictionary<string, decimal>> MilestoneFactors(AppDbContext db, List<ProjectTask> tasks, HashSet<string> parents)
+    {
+        var all = await db.Tasks.AsNoTracking().Where(t => t.ParentId != null || t.Scale != null || parents.Contains(t.Id))
+            .Select(t => new { t.Id, t.ParentId, t.Scale, t.Share, t.Status, t.Arising }).ToListAsync();
+        var byId = all.ToDictionary(t => t.Id);
+        decimal ScaleOf(string id) { for (var i = 0; i < 20 && byId.TryGetValue(id, out var x); i++) { if (x.ParentId is null || !byId.ContainsKey(x.ParentId)) return Norm(x.Scale); id = x.ParentId; } return 1m; }
+        static decimal Norm(int? v) => v switch { 2 => 2m, 4 => 4m, _ => 1m };
+        var res = new Dictionary<string, decimal>();
+        foreach (var t in tasks)
+        {
+            if (!byId.TryGetValue(t.Id, out var x)) { res[t.Id] = Norm(t.Scale); continue; }
+            var f = ScaleOf(t.Id);
+            if (x.ParentId is { } pid && parents.Contains(pid) && !x.Arising)
+            {
+                var sib = all.Where(y => y.ParentId == pid && !y.Arising && y.Status != "Đã hủy").ToList();
+                var share = x.Share is int sh && sh > 0 ? sh : sib.Count > 0 ? 100m / sib.Count : 100m;
+                // tỷ lệ các mốc cộng lại khác 100 thì quy về 100 để sản phẩm không vượt hoặc thiếu điểm
+                var tot = sib.Sum(y => y.Share is int s1 && s1 > 0 ? s1 : (sib.Count > 0 ? 100m / sib.Count : 100m));
+                f *= tot > 0 ? share / tot : 1m;
+            }
+            res[t.Id] = f;
+        }
+        return res;
     }
 
     /// <summary>Nhiệm vụ đã chia thành việc con (do người giao chia, không tính việc phát sinh): KPI tính theo việc con, không tính chính nhiệm vụ.</summary>
@@ -206,16 +233,20 @@ public class KpiController : ApiControllerBase
         var (_, stats) = await VpCalc.Month(db, vs, emps, from);
         var atts = (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync()).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
         var (tasks, parents) = await TasksFor(db, from, to);
+        var factor = k.ResultFor(from) ? await MilestoneFactors(db, tasks, parents) : null;
+        // bản 1.10.24: sản phẩm dài (hạn sau tháng này) đang làm trong tháng: tháng đó không bị tính 0 điểm công việc vì "không có sản phẩm"
+        var longOpen = k.ResultFor(from) ? await db.Tasks.AsNoTracking().Where(t => t.Due != null && t.Due >= to && t.Status != "Đã hủy" && (t.StartDate == null || t.StartDate < to) && (t.DoneDate == null || t.DoneDate >= to)).ToListAsync() : new List<ProjectTask>();
         var users = await db.Users.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Username);
         var pre = emps.Select(e =>
         {
             sheets.TryGetValue(e.Id, out var sh); var locked = sh?.LockedAt != null;
             var st = stats.First(x => x.EmployeeId == e.Id);
-            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, parents, from, to, vs, k);
+            var wd = WorkOf(e, e.UserId != null && users.TryGetValue(e.UserId, out var un) ? un : null, tasks, parents, from, to, vs, k, null, factor);
             var work = locked ? sh!.WorkFinal : sh?.WorkScore ?? wd?.Score;
             // bản 1.10.24 (anh Trí: "kết quả sản phẩm xác định KPI"): theo kết quả, cả tháng không có sản phẩm nào đến hạn hoặc nộp thì phần công việc 0 điểm khi chốt,
             // không để KPI chỉ còn chuyên cần mà vẫn xếp loại cao
-            if (!locked && work is null && strict && k.Auto && k.ResultFor(from)) work = 0m;
+            if (!locked && work is null && strict && k.Auto && k.ResultFor(from)
+                && !longOpen.Any(t => IsAssignee(t, e, e.UserId != null && users.TryGetValue(e.UserId, out var u2) ? u2 : null) || (e.UserId is not null && CollabIds(t).Contains(e.UserId)))) work = 0m;
             var att = locked ? sh!.AttendanceFinal : e.Attendance ? AttendanceOf(st, atts.TryGetValue(e.Id, out var l) ? l : new(), k) : (decimal?)null;
             var mgr = sh?.ManagerRating is { } mr ? mr * 20m : (decimal?)null;
             var total = locked ? sh!.Total ?? 0 : Total(k, work, sh?.ProjectScore, att, mgr, strict);

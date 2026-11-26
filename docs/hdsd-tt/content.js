@@ -1,4 +1,4 @@
-// Nội dung Hướng dẫn sử dụng e-work Tri Thức (bản 1.10.24: Nhận nhiệm vụ, KPI và bảng lương tự chốt, Công việc theo kết quả sản phẩm, người cùng phụ trách phòng) theo vai trò.
+// Nội dung Hướng dẫn sử dụng e-work Tri Thức (bản 1.10.24: phần Dự án, quyền không xóa, Nhận nhiệm vụ, KPI và bảng lương tự chốt, Công việc theo kết quả sản phẩm, người cùng phụ trách phòng) theo vai trò.
 // Mỗi chương: id, title, roles (nv: Nhân viên, tp: Trưởng phòng, kt: Kế toán, gd: Ban giám đốc, qt: Quản trị), html, shot (ảnh trong shots/, có thể thiếu).
 // Chương chung cho mọi người đặt roles: ALL.
 const ALL = ['nv', 'tp', 'kt', 'gd', 'qt'];
@@ -21,8 +21,8 @@ exports.CHAPTERS = [
   { id: 'vai-tro', title: 'Vai trò và phạm vi được xem', roles: ALL, html: `
 <p>Mỗi tài khoản thuộc một <b>vai trò</b> (nhóm quyền). Khi nhân sự thay đổi, Quản trị chỉ đổi vai trò của tài khoản; quyền của từng vai trò giữ nguyên.</p>
 <table><tr><th>Vai trò</th><th>Của mình</th><th>Thêm quyền</th></tr>
-<tr><td><b>Nhân viên</b></td><td rowspan="5">Mọi người đều: nhận nhiệm vụ hằng ngày, gửi đề xuất, làm việc được giao, xem KPI của mọi người (công khai) và phiếu lương của mình, xác nhận lương, xem lịch họp, thông báo, xem thông tin dự án</td><td>Không xem lương, bảng công, hồ sơ nhân sự, tiền thưởng của người khác</td></tr>
-<tr><td><b>Trưởng phòng</b></td><td>Với phòng mình: giao việc, xác nhận việc tự tạo, nghiệm thu, duyệt đề xuất, xem hôm nay ai ở đâu, bảng công; xem bảng lương của phòng nếu được giao (chỉ xem)</td></tr>
+<tr><td><b>Nhân viên</b></td><td rowspan="5">Mọi người đều: nhận nhiệm vụ hằng ngày, gửi đề xuất, làm việc được giao, xem KPI của mọi người (công khai) và phiếu lương của mình, xác nhận lương, xem lịch họp, thông báo, xem và <b>cập nhật dữ liệu dự án</b> (Điều hành, Nghiệp vụ)</td><td><b>Không xóa</b> dữ liệu dự án (cần xóa thì báo Trưởng phòng). Không xem lương, bảng công, hồ sơ nhân sự, tiền thưởng của người khác</td></tr>
+<tr><td><b>Trưởng phòng</b></td><td>Với phòng mình: giao việc, xác nhận việc tự tạo, nghiệm thu, duyệt đề xuất, xem hôm nay ai ở đâu, bảng công; <b>xóa</b> dữ liệu dự án nhập sai; xem bảng lương của phòng nếu được giao (chỉ xem)</td></tr>
 <tr><td><b>Kế toán</b></td><td>Hồ sơ nhân sự, bảng công, ngày lễ, rà bảng lương, nhập khoản phát sinh, trả lời kiến nghị, xuất bảng lương và danh sách chuyển khoản (không duyệt chi)</td></tr>
 <tr><td><b>Ban giám đốc</b></td><td>Toàn công ty: giao việc, hôm nay ai ở đâu, mở chốt KPI khi cần sửa, duyệt đề xuất của trưởng bộ phận, <b>duyệt chi lương (chỉ Giám đốc)</b>, thông báo, lịch họp, quản lý dự án</td></tr>
 <tr><td><b>Quản trị</b></td><td>Tài khoản, vai trò, thiết lập hệ thống, sao lưu</td></tr></table>
@@ -79,6 +79,13 @@ exports.CHAPTERS = [
 <tr><td><b>Tôi giao</b></td><td>Việc tôi giao cho người khác. Sản phẩm chờ nghiệm thu luôn ở đầu.</td></tr></table>
 <p>Danh sách có cột <b>Sản phẩm bàn giao</b>; dòng dự án, gói thầu hiện số sản phẩm đã nghiệm thu trên tổng số (ví dụ "5/8 sản phẩm đã nghiệm thu"). Lọc theo trạng thái, dự án, gói thầu, loại công việc, tháng; <b>Xuất Excel</b> để lưu danh sách. Đầu trang hiện việc sắp đến hạn, quá hạn và <b>KPI tạm tính</b> tháng này.</p>
 <p><b>Thêm việc</b>: bấm <b>+ Thêm việc</b> (đầu trang, hoặc trên dòng dự án, gói thầu). Ghi <b>Tên việc</b>, <b>Sản phẩm bàn giao</b> (bắt buộc, ví dụ "Biên bản nghiệm thu có chữ ký khách hàng, bản PDF"), <b>Tiêu chí đạt</b> (không bắt buộc), ô <b>Ai làm</b> (<i>Việc của tôi</i> hoặc <i>Giao cho người khác</i>), <b>Hạn bàn giao</b>, mức độ. Bấm <b>+ Thêm chi tiết</b> khi cần người phối hợp, người theo dõi, sản phẩm thành phần, loại công việc, ghi chú, tệp đính kèm.</p>
+<p><b>Sản phẩm là kết quả cuối cùng dùng được</b>, không phải số phần trăm hay bản nháp. Không nhập chi tiết từng bước kiểu cũ; người làm tự sắp xếp các bước.</p>
+<table><tr><th>Việc</th><th>Sản phẩm bàn giao</th><th>Tiêu chí đạt</th></tr>
+<tr><td>Lập báo cáo KTKT dự án X</td><td>Báo cáo KTKT dự án X được phê duyệt</td><td>Có quyết định phê duyệt; đính kèm báo cáo và quyết định</td></tr>
+<tr><td>Hỗ trợ khách hàng A dùng phần mềm</td><td>Biên bản hỗ trợ có xác nhận của khách hàng</td><td>Khách hàng ký hoặc xác nhận qua thư</td></tr>
+<tr><td>Cập nhật hồ sơ thanh toán gói 03</td><td>Hồ sơ thanh toán đợt 2 gói 03 đủ trên phần mềm</td><td>Đủ giấy đề nghị, bảng giá trị, biên bản nghiệm thu</td></tr></table>
+<p><b>Sản phẩm làm nhiều tháng</b> thì chia thành <b>mốc kết quả</b> bằng sản phẩm thành phần, mỗi mốc một hạn và một sản phẩm kiểm được. Ví dụ "Báo cáo KTKT dự án X" làm 2 tháng: mốc 1 "Hồ sơ dự thảo đủ thành phần" (hạn cuối tháng 1, Trưởng phòng nghiệm thu), mốc 2 "Hồ sơ trình thẩm định có văn bản tiếp nhận", mốc 3 "Báo cáo được phê duyệt có quyết định". Mỗi mốc được tính KPI vào tháng của mốc đó, nên tháng nào cũng có điểm.</p>
+<p class="note">Sản phẩm phải chờ cơ quan ngoài phê duyệt (chủ đầu tư, Sở) thì nên giao <b>hai sản phẩm nối nhau</b>: "Hồ sơ trình thẩm định" (Trưởng phòng nghiệm thu, hạn của mình) và "Văn bản được phê duyệt" (nộp kèm quyết định). Bên ngoài duyệt chậm thì <b>xin gia hạn trước hạn</b>, không bị trừ điểm.</p>
 <p><b>Làm việc</b>: bấm vào tên việc để xem sản phẩm cần bàn giao, tiêu chí và nhật ký.</p>
 <ol><li><b>Trao đổi</b> (không bắt buộc): hỏi, báo vướng mắc, gửi tài liệu tham khảo.</li>
 <li><b>Xin gia hạn</b>: chọn hạn mới, ghi lý do; người giao duyệt (việc của tôi thì gia hạn ngay). Xin <b>trước hạn</b> và được duyệt thì không trừ điểm; xin khi đã quá hạn thì vẫn tính trễ theo hạn cũ.</li>
@@ -94,8 +101,8 @@ exports.CHAPTERS = [
 <table><tr><th>Phần</th><th>Tỷ trọng</th><th>Cách tính</th></tr>
 <tr><td>Công việc</td><td>70%</td><td>Từ các sản phẩm có hạn hoặc được nộp trong tháng (chương <i>Công việc</i>), cách tính ở dưới.</td></tr>
 <tr><td>Chuyên cần</td><td>30%</td><td>100 điểm, mỗi lần đi muộn quá 5 phút trừ 5, mỗi ngày nghỉ không phép trừ 20; thấp nhất 0.</td></tr></table>
-<p><b>Điểm công việc</b> (từ tháng 12/2026): mỗi việc = mức độ (Bình thường 1, Quan trọng 1,5, Khẩn cấp 2) × hệ số đúng hạn (trễ đến 1 ngày làm việc còn 75%, đến 3 ngày còn 50%, trễ hơn 0) × <b>chất lượng</b> (Đạt tốt 100%, Đạt 85%, tự Đạt tính như Đạt) × (1 − 20% mỗi lần bị trả lại sửa). Việc đến hạn trong tháng mà chưa nộp: 0 điểm. Người phối hợp được tính 30% điểm. Điểm công việc = 100 × tổng điểm đạt ÷ tổng hệ số mức độ.</p>
-<p>Tháng không có việc được giao thì điểm chỉ tính theo chuyên cần. Xếp loại: A từ 90, B từ 75, C từ 60, dưới 60 là D.</p>
+<p><b>Ngày nộp</b> là ngày bấm <b>Nộp sản phẩm</b>, không ghi lùi được. <b>Điểm công việc</b> (từ tháng 12/2026): mỗi việc = mức độ (Bình thường 1, Quan trọng 1,5, Khẩn cấp 2) × hệ số đúng hạn (trễ đến 1 ngày làm việc còn 75%, đến 3 ngày còn 50%, trễ hơn 0) × <b>chất lượng</b> (Đạt tốt 100%, Đạt 85%, tự Đạt tính như Đạt) × (1 − 20% mỗi lần bị trả lại sửa). Việc đến hạn trong tháng mà chưa nộp: 0 điểm. Người phối hợp được tính 30% điểm. Điểm công việc = 100 × tổng điểm đạt ÷ tổng hệ số mức độ.</p>
+<p><b>Không có sản phẩm thì không có điểm công việc</b>: từ tháng 12/2026, cả tháng không có sản phẩm nào đến hạn hoặc được nộp thì phần công việc (70%) tính 0 điểm khi chốt. Người đang làm sản phẩm dài (hạn sau tháng này) thì tháng đó không bị tính 0: điểm tính theo chuyên cần. Để điểm đều mỗi tháng, sản phẩm dài nên chia thành các <b>mốc kết quả</b> (sản phẩm thành phần), mỗi mốc có hạn trong một tháng. Xếp loại: A từ 90, B từ 75, C từ 60, dưới 60 là D.</p>
 <p><b>Thưởng KPI</b>: cả công ty xếp hạng chung, chỉ <b>hạng 1 và hạng 2</b> được thưởng theo mức Công ty đặt. Máy tự chốt KPI lúc 0 giờ ngày 1 tháng sau, thưởng cộng vào lương tháng đó.</p>
 <p><b>Điểm KPI công khai</b>: mọi người xem được điểm, xếp loại, hạng của nhau để cùng phấn đấu. Tiền thưởng của người khác không hiện.</p>
 <p>Điểm tháng đang chạy (<b>KPI tạm tính</b>) hiện trên thẻ tháng của trang Nhận nhiệm vụ và đầu trang Công việc.</p>
@@ -113,12 +120,35 @@ exports.CHAPTERS = [
 <li><b>Thông báo nội bộ</b>: thông báo mới có chấm đỏ trên chuông; mở là được ghi nhận đã xem.</li>
 <li><b>Hướng dẫn sử dụng</b>: menu Tiện ích → Hướng dẫn sử dụng, có tài liệu này.</li></ul>` },
 
-  { id: 'dieu-hanh-nghiep-vu', title: 'Xem dự án: mục Điều hành và Nghiệp vụ', roles: ALL, html: `
-<p>Mọi người được <b>xem</b> toàn bộ thông tin dự án để nắm bắt công việc ("không gì phải giấu"). Chỉ Ban giám đốc và người được giao mới thêm, sửa.</p>
-<ul><li><b>Điều hành</b>: <b>Tổng quan</b> (số dự án, vốn, giải ngân, việc quá hạn), <b>Quản lý dự án</b> (hồ sơ từng dự án, gói thầu, tab Công việc), <b>Trình duyệt hồ sơ</b>, <b>Trung tâm cảnh báo</b> (hạn hợp đồng, bảo lãnh, tiến độ chậm), <b>Kế hoạch vốn, giải ngân</b>, <b>Danh mục nhà thầu, đơn vị giám sát</b>.</li>
-<li><b>Nghiệp vụ</b>: theo từng giai đoạn dự án: gói thầu chuẩn bị, thanh toán chuẩn bị; gói thầu và hợp đồng, nghiệm thu, thanh toán tư vấn; quản lý tiến độ, nhật ký, khối lượng; nghiệm thu, vận hành thử, bảo hành; quản lý thanh toán, quyết toán; báo cáo, thống kê.</li>
-<li>Các trang có ô tìm kiếm, lọc theo dự án; bấm một dòng để xem chi tiết và tệp đính kèm.</li>
-<li>Việc của mình trong dự án vẫn làm ở mục <b>Công việc</b>; tab Công việc của dự án và mục Công việc là cùng một dữ liệu.</li></ul>` },
+  { id: 'dieu-hanh-nghiep-vu', title: 'Phần Dự án: Điều hành và Nghiệp vụ', roles: ALL, shot: 'du-an', shots: ['du-an-sua'], html: `
+<p>Công ty làm việc như một Ban quản lý dự án (dự án CNTT, chuyển đổi số, đổi mới sáng tạo). Mọi thông tin dự án nằm ở hai nhóm menu bên trái: <b>Điều hành</b> và <b>Nghiệp vụ</b>. Mọi người xem được hết ("không gì phải giấu"); chuyên viên và Trưởng phòng <b>cập nhật</b> trực tiếp.</p>
+<table><tr><th>Mục</th><th>Dùng để</th></tr>
+<tr><td colspan="2"><b>Điều hành</b></td></tr>
+<tr><td>Tổng quan</td><td>Số dự án, vốn, giải ngân, việc quá hạn, cảnh báo của toàn công ty.</td></tr>
+<tr><td>Quản lý dự án</td><td>Hồ sơ từng dự án: thẻ <i>Thông tin chung</i>, <i>Công việc</i>, <i>Hồ sơ pháp lý</i> (quyết định, tờ trình, văn bản kèm tệp), <i>Tình trạng thực hiện</i>.</td></tr>
+<tr><td>Trình duyệt hồ sơ</td><td>Hồ sơ đang chờ duyệt: thẻ <i>Chờ tôi xử lý</i>, <i>Tôi đang soạn</i>, <i>Tôi đã chuyển</i>, <i>Đã hoàn thành</i>, <i>Lịch sử duyệt</i>.</td></tr>
+<tr><td>Trung tâm cảnh báo</td><td>Hợp đồng, bảo lãnh sắp hết hạn, tiến độ chậm, thanh toán vượt giá trị nghiệm thu.</td></tr>
+<tr><td>Kế hoạch vốn, giải ngân</td><td>Vốn được giao theo năm, giải ngân thực tế.</td></tr>
+<tr><td>Nhà thầu, đơn vị giám sát</td><td>Danh mục đơn vị dùng chung khi lập gói thầu, hợp đồng.</td></tr>
+<tr><td colspan="2"><b>Nghiệp vụ</b> (theo giai đoạn dự án)</td></tr>
+<tr><td>Chuẩn bị dự án</td><td>Gói thầu tư vấn chuẩn bị (khảo sát, lập báo cáo KTKT, thẩm định), thanh toán chuẩn bị.</td></tr>
+<tr><td>Gói thầu và hợp đồng</td><td>Gói thầu, hợp đồng, phụ lục điều chỉnh (chỉ phụ lục đã duyệt mới cộng vào giá trị hợp đồng), nghiệm thu và thanh toán tư vấn.</td></tr>
+<tr><td>Tiến độ, nhật ký, khối lượng</td><td>Kế hoạch tiến độ (lập, trình duyệt, cập nhật % thực tế), nhật ký triển khai hằng ngày có ảnh, bảng khối lượng và các đợt nghiệm thu khối lượng.</td></tr>
+<tr><td>Nghiệm thu, bàn giao, bảo hành</td><td>Biên bản nghiệm thu, vận hành thử, bàn giao, bảo lãnh bảo hành.</td></tr>
+<tr><td>Thanh toán, quyết toán</td><td>Kế hoạch thanh toán theo đợt, hồ sơ thanh toán (đề nghị → trình duyệt → đã chi), quyết toán dự án hoàn thành.</td></tr>
+<tr><td>Báo cáo, thống kê</td><td>Báo cáo tổng hợp, in PDF, xuất Excel.</td></tr></table>
+<h3>Cập nhật dữ liệu</h3>
+<ol><li>Chọn dự án ở ô chọn dự án phía trên (hoặc mở dự án từ <b>Quản lý dự án</b>), vào mục cần cập nhật.</li>
+<li>Bấm <b>+ Thêm</b> (ví dụ <i>+ Thêm hồ sơ</i>, <i>+ Thêm gói thầu</i>, <i>+ Thêm nhật ký</i>) hoặc <b>Sửa</b> trên dòng cần sửa; điền các ô có dấu *, đính kèm tệp (PDF, ảnh, Excel); bấm <b>Lưu</b>.</li>
+<li>Hồ sơ có quy trình duyệt (kế hoạch tiến độ, đợt nghiệm thu khối lượng, phụ lục hợp đồng, hồ sơ thanh toán, biên bản nghiệm thu) lưu ở trạng thái <b>Soạn thảo</b> (<i>Lưu nháp</i>); đủ hồ sơ thì bấm <b>Chuyển duyệt</b>. Bị trả lại thì xem ý kiến ở thẻ <i>Tôi đang soạn</i>, sửa rồi trình lại. Chỉ hồ sơ <b>đã duyệt</b> mới được tính vào số liệu.</li>
+<li>Kế hoạch tiến độ, bảng khối lượng, khối lượng nghiệm thu nhập được từ tệp Excel theo mẫu (nút <i>Nhập Excel</i>, có tệp mẫu để tải).</li></ol>
+<h3>Quyền xóa và lịch sử</h3>
+<table><tr><th>Vai trò</th><th>Thêm, sửa</th><th>Xóa</th></tr>
+<tr><td>Nhân viên (chuyên viên)</td><td>Được</td><td><b>Không</b>. Nhập sai thì sửa lại; cần xóa thì báo Trưởng phòng.</td></tr>
+<tr><td>Trưởng phòng, Ban giám đốc</td><td>Được</td><td>Được, sau khi kiểm tra lại.</td></tr></table>
+<ul><li>Mọi lần thêm, sửa, xóa đều được ghi lại: mở hồ sơ bằng nút <b>Sửa</b>, cuối biểu mẫu có mục <b>Lịch sử thay đổi</b> (ai, lúc nào, sửa gì). Quản trị xem toàn bộ ở <b>Nhật ký hệ thống</b>.</li>
+<li>Xóa hồ sơ là xóa hẳn (chỉ tệp đính kèm vào Thùng rác); cần khôi phục thì Quản trị lấy từ bản sao lưu hằng đêm. Vì vậy chỉ Trưởng phòng, Ban giám đốc được xóa.</li>
+<li>Việc của mình trong dự án vẫn làm ở mục <b>Công việc</b>; tab Công việc của dự án và mục Công việc là cùng một dữ liệu. Cập nhật dữ liệu dự án được tính KPI khi được giao thành việc có sản phẩm.</li></ul>` },
 
   // ---------------- trưởng phòng
   { id: 'tp-giao-viec', title: 'Giao sản phẩm, duyệt gia hạn, nghiệm thu', roles: ['tp', 'gd'], shot: 'giao-viec', shots: ['nghiem-thu'], html: `
@@ -129,6 +159,7 @@ exports.CHAPTERS = [
 <li>Sản phẩm chờ nghiệm thu: bấm <b>Nghiệm thu</b>, xem tệp, đường dẫn trong nhật ký rồi chọn <b>Đạt tốt</b> (đúng tiêu chí, không cần sửa), <b>Đạt</b> (dùng được, còn điểm nhỏ) hoặc <b>Chưa đạt</b> (ghi rõ cần sửa gì, chọn hạn sửa). Quá 3 ngày làm việc không nghiệm thu thì việc tự tính <b>Đạt</b>, nên cần nghiệm thu kịp thời.</li>
 <li>Đổi hạn sang ngày muộn hơn được tính là gia hạn. Ban giám đốc sửa nhầm hạn thì ở ô <i>Đổi hạn</i> chọn <i>Sửa nhầm hạn</i>.</li></ol>
 <p>Đầu trang Công việc hiện mục <b>Việc của phòng, người bạn giao</b>: số việc quá hạn, việc tự tạo chờ xác nhận, sản phẩm chờ nghiệm thu và những người có KPI tạm tính dưới mức C.</p>
+<p><b>Giao đúng cách</b>: mỗi việc một sản phẩm kiểm được; việc lớn nhiều tháng thì chia thành các sản phẩm theo mốc kết quả (ví dụ hồ sơ trình thẩm định → báo cáo được phê duyệt), không chia theo từng bước nhỏ. Sản phẩm lớn chọn mức độ <b>Quan trọng</b> (hệ số 1,5). Bị trả lại vì lỗi chất lượng thì chọn <b>Chưa đạt</b> (trừ 20%); chủ đầu tư đổi yêu cầu thì <b>cho gia hạn</b> hoặc giao sản phẩm mới, không trừ điểm người làm. Cập nhật dữ liệu dự án (Điều hành, Nghiệp vụ) muốn tính KPI thì giao thành việc có sản phẩm, ví dụ "Hồ sơ thanh toán đợt 2 gói 03 đủ trên phần mềm".</p>
 <p class="note">Không tự nghiệm thu việc của chính mình. Việc có sản phẩm thành phần chưa xong thì chưa nộp được; KPI tính theo từng sản phẩm thành phần.</p>` },
 
 
@@ -182,7 +213,7 @@ exports.CHAPTERS = [
 <li>Trang Nhận nhiệm vụ hiện thêm mục <b>Việc của phòng, người bạn giao</b>: số việc quá hạn, việc tự tạo chờ xác nhận, sản phẩm chờ nghiệm thu. Bấm để mở ngay danh sách.</li>
 <li><b>Thông báo nội bộ</b>: <b>+ Đăng thông báo</b>, chọn người nhận; xem ai đã đọc (<i>Đã xem</i>).</li>
 <li><b>Lịch công tác</b>: <b>+ Thêm lịch</b>, ghi kết luận sau họp, <b>Xuất → Lịch tuần (PDF/Excel)</b>.</li>
-<li><b>Dự án</b>: tạo, sửa dự án, gói thầu. Dự án là cấp cha, gói thầu là cấp con của công việc; tab Công việc của dự án và mục Công việc là cùng một dữ liệu.</li>
+<li><b>Dự án</b>: tạo, sửa, xóa dự án, gói thầu (chương <i>Phần Dự án</i>). Dự án là cấp cha, gói thầu là cấp con của công việc; tab Công việc của dự án và mục Công việc là cùng một dữ liệu.</li>
 <li>Các trang KPI, Bảng công, Lương, Công việc, Lịch công tác đều có nút <b>Xuất</b> (Excel, PDF) để báo cáo.</li></ul>
 <p class="note">Giám đốc vẫn nhận nhiệm vụ, gửi đề xuất và xác nhận phiếu lương của mình như mọi người.</p>` },
 
@@ -191,7 +222,7 @@ exports.CHAPTERS = [
 <ol><li><b>Quản trị hệ thống → Người dùng</b>: thêm tài khoản, chọn vai trò (Nhân viên, Trưởng phòng, Kế toán, Ban giám đốc), đặt mật khẩu ban đầu; người dùng phải đổi khi đăng nhập lần đầu.</li>
 <li><b>Nhân sự thay đổi</b>: sửa tài khoản, đổi vai trò. Ví dụ nhân viên lên Trưởng phòng: đổi vai trò sang Trưởng phòng và ghi người phụ trách ở <b>Nhân sự → Phòng ban</b> (Sửa phòng ban). Phòng có hai người cùng quản lý thì chọn thêm <b>Người cùng phụ trách</b>.</li>
 <li>Người nghỉ việc: Kế toán ghi Ngày nghỉ việc trong hồ sơ, phần mềm tự khóa tài khoản từ hôm sau (không xóa, giữ lịch sử). Cần khóa ngay thì bấm Khóa ở đây.</li>
-<li><b>Nhóm, phân quyền</b>: quyền từng phân hệ (không, xem, sửa), ô <i>Duyệt hồ sơ</i> cho Đề xuất và Lương (duyệt chi). Chỉ sửa khi Công ty đổi quy chế.</li></ol>
+<li><b>Nhóm, phân quyền</b>: quyền từng phân hệ (không, xem, sửa), ô <i>Duyệt hồ sơ</i> cho Đề xuất và Lương (duyệt chi), ô <b>Không được xóa</b> (được thêm, sửa nhưng không xóa; nhóm Nhân viên đang đặt cho mọi mục phần Dự án). Chỉ sửa khi Công ty đổi quy chế.</li></ol>
 <p class="note">Quyền <i>xem</i> một phân hệ Văn phòng (Nhân sự, Bảng công, Đề xuất, KPI, Lương) nghĩa là xem dữ liệu của mọi người. Không cấp cho vai trò Nhân viên.</p>` },
 
   { id: 'qt-thiet-lap', title: 'Thiết lập hệ thống', roles: ['qt'], html: `

@@ -112,7 +112,7 @@ public class ViecController : ApiControllerBase
         CollabSt St(string u) => cst.TryGetValue(u, out var x) ? x : new CollabSt();
         return new
         {
-            t.Id, t.Name, t.Deliverable, t.Criteria, t.ProjectId, projectName = t.ProjectId is not null && projects.TryGetValue(t.ProjectId, out var pn) ? pn : null,
+            t.Id, t.Name, t.Deliverable, t.Criteria, t.Scale, t.Share, t.ProjectId, projectName = t.ProjectId is not null && projects.TryGetValue(t.ProjectId, out var pn) ? pn : null,
             t.PackageId, packageName = t.PackageId is not null && packages.TryGetValue(t.PackageId, out var kn) ? kn : null,
             t.ParentId, parentName = parent?.Name, hasChildren = parents.Contains(t.Id), autoAccepted = auto, pendingReview = PendingReview(t, today, vs),
             t.AssigneeUserId, assignee = t.AssigneeUserId is not null && NameOf(t.AssigneeUserId) is { Length: > 0 } an ? an : t.Assignee,
@@ -205,7 +205,7 @@ public class ViecController : ApiControllerBase
 
     public record TaskBody(string? Name, string? Note, string? ProjectId, string? ParentId, string? AssigneeUserId, List<string>? Collaborators, string? Level,
         DateOnly? StartDate, DateOnly? Due, bool Correct = false, string? PackageId = null, List<string>? Watchers = null, string? TaskType = null,
-        string? Deliverable = null, string? Criteria = null);
+        string? Deliverable = null, string? Criteria = null, int? Scale = null, bool Approval = false);
     private static string? Cut(string? s, int n) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().Length > n ? s.Trim()[..n] : s.Trim();
 
     /// <summary>Gói thầu phải thuộc đúng dự án của việc; trống = việc chung của dự án.</summary>
@@ -258,8 +258,33 @@ public class ViecController : ApiControllerBase
             Priority = string.IsNullOrWhiteSpace(b.Level) ? KpiSettings.Load(Db).Levels.FirstOrDefault()?.Name : b.Level.Trim(), StartDate = b.StartDate ?? DateOnly.FromDateTime(VnTime.Now), Due = b.Due,
             TaskType = Type(b.TaskType), Deliverable = Cut(b.Deliverable, 500), Criteria = Cut(b.Criteria, 1000), Status = "Chưa bắt đầu", Arising = self, UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
         };
+        if (parent is null) t.Scale = b.Scale is 2 or 4 ? b.Scale : 1;
         Db.Tasks.Add(t);
         AddLog(t, "giao", assignee == Me ? "Tạo việc của tôi" : $"Giao cho {t.Assignee}, hạn {t.Due:dd/MM/yyyy}");
+        // Bản 1.10.24 (anh Trí 26/11/2026: "tự động, không phải nhập gì, chỉ xác định ban đầu"): sản phẩm cần phê duyệt thì phần mềm tự chia 3 mốc kết quả
+        // 40/30/30 (Dự thảo / Trình thẩm định / Được phê duyệt), hạn mốc tự đặt ở 50% và 70% thời gian, mốc cuối là hạn của sản phẩm.
+        if (b.Approval && parent is null)
+        {
+            var st0 = t.StartDate!.Value; var span = Math.Max(0, t.Due!.Value.DayNumber - st0.DayNumber);
+            var d1 = st0.AddDays((int)Math.Round(span * 0.5)); var d2 = st0.AddDays((int)Math.Round(span * 0.7));
+            var prod = string.IsNullOrWhiteSpace(t.Deliverable) ? t.Name : t.Deliverable!;
+            var ms = new (string n, string dl, int sh, DateOnly due)[] {
+                ("Mốc 1: Dự thảo", "Hồ sơ dự thảo đủ thành phần (Trưởng phòng kiểm tra)", 40, d1),
+                ("Mốc 2: Trình thẩm định", "Hồ sơ đã trình thẩm định, có văn bản nộp hoặc tiếp nhận", 30, d2 < d1 ? d1 : d2),
+                ("Mốc 3: Được phê duyệt", prod + " — có quyết định, văn bản phê duyệt", 30, t.Due!.Value) };
+            var i = 0;
+            foreach (var m in ms)
+            {
+                var c = new ProjectTask
+                {
+                    Id = "cv-" + Guid.NewGuid().ToString("N")[..20], Name = Cut($"{t.Name} – {m.n}", 500)!, ProjectId = t.ProjectId, PackageId = t.PackageId, ParentId = t.Id,
+                    AssigneeUserId = t.AssigneeUserId, Assignee = t.Assignee, Collaborators = t.Collaborators, Watchers = t.Watchers, AssignedByUserId = Me, Priority = t.Priority,
+                    StartDate = i == 0 ? st0 : ms[i - 1].due, Due = m.due, TaskType = t.TaskType, Deliverable = Cut(m.dl, 500), Share = m.sh, Status = "Chưa bắt đầu", Arising = self,
+                    UpdatedAt = DateTime.UtcNow, UpdatedBy = Uc.User.Username
+                };
+                Db.Tasks.Add(c); AddLog(c, "giao", $"Mốc kết quả tự chia ({m.sh}%), hạn {c.Due:dd/MM/yyyy}"); i++;
+            }
+        }
         Uc.Log(self ? "Tạo việc phát sinh" : "Giao việc", "Công việc", $"{t.Name} → {t.Assignee}", "tasks", t.Id);
         await Db.SaveChangesAsync();
         return Ok(new { ok = true, id = t.Id, arising = t.Arising });
@@ -292,6 +317,7 @@ public class ViecController : ApiControllerBase
             t.Deliverable = Cut(b.Deliverable, 500);
         }
         if (b.Criteria is not null) t.Criteria = Cut(b.Criteria, 1000);
+        if (b.Scale is int sc && t.ParentId is null) t.Scale = sc is 2 or 4 ? sc : 1;
         if (b.StartDate is not null) t.StartDate = b.StartDate;
         if (b.Collaborators is not null)
         {

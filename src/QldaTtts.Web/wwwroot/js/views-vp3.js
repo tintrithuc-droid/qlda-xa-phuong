@@ -171,22 +171,24 @@ ACT['cv-new']=async (mode, el, ev, base, preset)=>{
     startDate:{key:'startDate',label:'Ngày bắt đầu',type:'date'}, due:{key:'due',label:rm?'Hạn bàn giao':'Hạn hoàn thành',type:'date',req:true},
     collaborators:{key:'collaborators',label:'Người phối hợp',type:'checks',options:emps},
     watchers:{key:'watchers',label:'Người theo dõi (xem, nhận nhắc, không tính KPI)',type:'checks',options:emps},
+    scale:{key:'scale',label:'Quy mô sản phẩm',type:'select',options:[['1','Nhỏ (hệ số 1)'],['2','Vừa (hệ số 2)'],['4','Lớn (hệ số 4)']],hint:'Xác định một lần lúc giao, dùng để tính KPI.'},
+    approval:{key:'approval',label:'Sản phẩm cần cơ quan phê duyệt',type:'select',options:[['0','Không: một mốc, nghiệm thu là xong'],['1','Có: tự chia 3 mốc Dự thảo 40% / Trình thẩm định 30% / Được phê duyệt 30%']],full:true,hint:'Chọn "Có" thì phần mềm tự tạo 3 mốc, tự đặt hạn từng mốc; mỗi mốc tính KPI vào tháng của mốc.'},
     note:{key:'note',label:rm?'Ghi chú':'Nội dung, yêu cầu, sản phẩm cần có',type:'textarea',keepLines:true}};
   /* Bản 1.10.18 (theo kết quả): các ô chính trước; ô ít dùng thu vào "Thêm chi tiết" */
   const fields= rm
-    ? [F.projectId,F.packageId,F.name,F.deliverable,F.criteria,F.who,F.assigneeUserId,F.due,F.level,
+    ? [F.projectId,F.packageId,F.name,F.deliverable,F.criteria,F.who,F.assigneeUserId,F.startDate,F.due,F.level,F.scale,...(r?[]:[F.approval]),
        {key:'_more',type:'html',full:true,html:'<div class="fld full"><a href="#" data-act="form-more">+ Thêm chi tiết (phối hợp, theo dõi, sản phẩm thành phần, loại công việc, ghi chú)</a></div>'},
-       ...[F.parentId,F.taskType,F.startDate,F.collaborators,F.watchers,F.note].map(f=>({...f,more:true}))]
+       ...[F.parentId,F.taskType,F.collaborators,F.watchers,F.note].map(f=>({...f,more:true}))]
     : [F.projectId,F.packageId,F.name,F.who,F.assigneeUserId,F.parentId,F.level,F.taskType,F.startDate,F.due,F.collaborators,F.watchers,F.note];
   if(!r) fields.push({key:'files',label:'Tệp đính kèm (văn bản giao việc, tài liệu)',type:'files',multiple:true,more:rm});
   if(r && r.canEdit && d.perms && d.perms.boss) fields.push({key:'correct',label:'Đổi hạn',type:'select',options:[['0','Gia hạn (đếm số lần gia hạn)'],['1','Sửa nhầm hạn (không tính gia hạn)']]});
   const mine=r? r.assigneeUserId===(me&&me.userId) : true;
-  const value=r? {projectId:r.projectId||'-', packageId:r.packageId||'', name:r.name, who:mine?'me':'give', assigneeUserId:mine?'':r.assigneeUserId, parentId:r.parentId||'', level:r.level||'', taskType:r.taskType||'', deliverable:r.deliverable||'', criteria:r.criteria||'', startDate:r.startDate||'', due:r.due||'', collaborators:r.collaborators, watchers:r.watchers||[], note:r.note||'', correct:'0'}
-    : {projectId:pre.projectId||'-', packageId:pre.packageId||'', who:(mode==='give'&&canGive)||!hasMe?'give':'me', level:(d.levels||[])[0]||'', startDate:TODAY, collaborators:[], watchers:[]};
+  const value=r? {projectId:r.projectId||'-', packageId:r.packageId||'', name:r.name, who:mine?'me':'give', assigneeUserId:mine?'':r.assigneeUserId, parentId:r.parentId||'', level:r.level||'', taskType:r.taskType||'', deliverable:r.deliverable||'', criteria:r.criteria||'', scale:String(r.scale||1), startDate:r.startDate||'', due:r.due||'', collaborators:r.collaborators, watchers:r.watchers||[], note:r.note||'', correct:'0'}
+    : {projectId:pre.projectId||'-', packageId:pre.packageId||'', who:(mode==='give'&&canGive)||!hasMe?'give':'me', level:(d.levels||[])[0]||'', scale:'1', approval:'0', startDate:TODAY, collaborators:[], watchers:[]};
   openForm({title:r?'Sửa công việc':'Thêm việc', value, fields,
     onSave:async v=>{ const pid=v.projectId==='-'?'':v.projectId;
       if(v.who==='give' && !v.assigneeUserId) throw new Error('Chọn người thực hiện.');
-      const body={name:v.name, parentId:v.parentId||'', projectId:v.parentId?null:pid, packageId:v.parentId?null:(v.packageId||''), assigneeUserId:v.who==='give'?v.assigneeUserId:(me&&me.userId), level:v.level, startDate:v.startDate||null, due:v.due, taskType:v.taskType||'', deliverable:v.deliverable||'', criteria:v.criteria||'', collaborators:v.collaborators||[], watchers:v.watchers||[], note:v.note||'', correct:v.correct==='1'};
+      const body={name:v.name, parentId:v.parentId||'', projectId:v.parentId?null:pid, packageId:v.parentId?null:(v.packageId||''), assigneeUserId:v.who==='give'?v.assigneeUserId:(me&&me.userId), level:v.level, startDate:v.startDate||null, due:v.due, taskType:v.taskType||'', deliverable:v.deliverable||'', criteria:v.criteria||'', collaborators:v.collaborators||[], watchers:v.watchers||[], note:v.note||'', correct:v.correct==='1', scale:v.parentId?null:(+v.scale||1), approval:!r&&!v.parentId&&v.approval==='1'};
       const res= r? await api('PUT','/api/vp/viec/'+encodeURIComponent(r.id), body) : await api('POST','/api/vp/viec', body);
       if(!r && v.files && v.files.length) await cvUpload(res.id, v.files, null, 'Văn bản giao việc');
       cvReset(); if(!r && res.arising) setTimeout(()=>toast('Đã tạo việc của bạn: trưởng phòng hoặc Ban giám đốc xác nhận thì việc được tính KPI'),400); return {id:res.id||r.id}; }});

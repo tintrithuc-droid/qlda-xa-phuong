@@ -587,7 +587,8 @@ function comboMake(sel){
   sync(); }
 const projOpts = () => projects().map(p=>[p.id, p.code+' – '+p.name]);
 /* Bản 1.10.27: mã tự sinh (máy chủ dùng cùng quy tắc, xem Services/CodeRules.cs).
-   Dự án DA-<năm>-<STT 2 số, đầu năm đếm lại>; gói thầu <mã dự án>-GT<STT 2 số trong dự án>. Điền sẵn, vẫn sửa được; để trống thì máy cấp. */
+   Dự án DA-<năm>-<STT 2 số, đầu năm đếm lại>; gói thầu <mã dự án>-GT<STT 2 số trong dự án>. Ô mã khóa nhập (anh chốt 27/11): máy chủ cấp khi lưu; chỉ quản trị sửa mã của bản ghi đã có. */
+const codeLocked=rec=>!(rec&&rec.id&&(get('groups',(S.user||{}).groupId)||{}).admin);
 const codeSeq=(c,pre)=>{ c=String(c||'').trim(); if(c.slice(0,pre.length).toUpperCase()!==pre.toUpperCase()) return 0; const r=c.slice(pre.length); return /^\d{1,6}$/.test(r)? +r : 0; };
 function nextProjCode(y){ const b=`DA-${y||TODAY.slice(0,4)}-`; const n=Math.max(0,...D('projects').map(p=>codeSeq(p.code,b))); return b+String(n+1).padStart(2,'0'); }
 function nextPkgCode(pid){ const p=get('projects',pid); if(!p||!String(p.code||'').trim()) return ''; const b=String(p.code).trim()+'-GT'; const ks=D('packages').filter(k=>k.projectId===pid);
@@ -686,7 +687,7 @@ function fieldHTML(f, v, rec={}){
         <input id="${id}_n" type="text" value="${esc(nw?nw.name||'':'')}" placeholder="Tên đầy đủ theo giấy chứng nhận đăng ký doanh nghiệp, hoặc tên liên danh"><div class="orgnew-2"><input id="${id}_sn" type="text" placeholder="Tên viết tắt"><input id="${id}_mst" type="text" placeholder="Mã số thuế"></div>
         ${f.kind==='gs'?'':`<label class="small"><input type="checkbox" id="${id}_m"> Thành viên hệ sinh thái</label>`}<button type="button" class="btn sm ghost" data-orgback>← Chọn từ danh mục</button></div></div>${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; break; }
     default: { const sg=fieldSuggest(f);
-      input=`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(f.ph||'')}"${sg.length?` list="${id}_dl" autocomplete="off"`:''}>${sg.length?`<datalist id="${id}_dl">${sg.map(o=>`<option value="${esc(o)}"></option>`).join('')}</datalist><div class="chips" data-chips-for="${id}">${sg.slice(0,12).map(o=>`<button type="button" class="chip${o===val?' on':''}" data-chip="${esc(o)}" title="Chọn nhanh">${esc(o)}</button>`).join('')}</div>`:''}${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; }
+      input=`<input id="${id}" type="text" value="${esc(val)}" placeholder="${esc(f.ph||'')}"${f.ro?' readonly tabindex="-1" class="ro"':''}${sg.length?` list="${id}_dl" autocomplete="off"`:''}>${sg.length?`<datalist id="${id}_dl">${sg.map(o=>`<option value="${esc(o)}"></option>`).join('')}</datalist><div class="chips" data-chips-for="${id}">${sg.slice(0,12).map(o=>`<button type="button" class="chip${o===val?' on':''}" data-chip="${esc(o)}" title="Chọn nhanh">${esc(o)}</button>`).join('')}</div>`:''}${f.hint?`<span class="hint">${esc(f.hint)}</span>`:''}`; }
   }
   return `<div class="${cls}"><label for="${id}">${esc(f.label)}${req}</label>${input}</div>`;
 }

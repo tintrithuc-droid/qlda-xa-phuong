@@ -167,9 +167,9 @@ public class DataController : ApiControllerBase
         if (obj is VolumeEntry ve && await VolumeLock(ve, existing as VolumeEntry) is { } vmsg) return Denied(vmsg);
         // Hợp đồng tư vấn giai đoạn chuẩn bị đầu tư nghiệm thu theo giá trị sản phẩm: lũy kế nghiệm thu không vượt giá trị sản phẩm
         if (obj is VolumeEntry pv && await PrepOver(pv) is { } pmsg) return Error(409, pmsg);
-        // Bản 1.10.27: mã dự án, mã gói thầu tự sinh theo quy tắc (để trống thì máy cấp), không trùng
-        if (obj is Project pjc && await CodeRules.Apply(Db, pjc, existing as Project) is { } cmsg) return Error(409, cmsg);
-        if (obj is Package pkc && await CodeRules.Apply(Db, pkc, existing as Package) is { } kmsg) return Error(409, kmsg);
+        // Bản 1.10.27: mã dự án, mã gói thầu máy tự cấp theo quy tắc (khóa nhập, chỉ quản trị sửa mã cũ), không trùng
+        if (obj is Project pjc && await CodeRules.Apply(Db, pjc, existing as Project, Uc.IsAdmin) is { } cmsg) return Error(409, cmsg);
+        if (obj is Package pkc && await CodeRules.Apply(Db, pkc, existing as Package, Uc.IsAdmin) is { } kmsg) return Error(409, kmsg);
 
         obj.UpdatedAt = DateTime.UtcNow; obj.UpdatedBy = Uc.User.Username;
         var what = existing is null ? "" : Fields.Describe(Workflow.Changed(existing, obj));

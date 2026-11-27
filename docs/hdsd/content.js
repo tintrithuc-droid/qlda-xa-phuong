@@ -285,7 +285,7 @@ S.projectEdit = () => [
   { h2: 'Thêm mới, cập nhật thông tin dự án' },
   { steps: [
     'Tại danh sách dự án, nhấn **+ Thêm dự án**; hoặc tại trang chi tiết dự án, nhấn **Sửa thông tin**.',
-    'Mã dự án máy tự điền theo quy tắc DA-năm-số thứ tự (ví dụ DA-2026-01; gói thầu của dự án là DA-2026-01-GT01, DA-2026-01-GT02…), có thể sửa nếu cần, để trống thì máy tự cấp; mã không được trùng.',
+    'Mã dự án do máy tự cấp khi lưu theo quy tắc DA-năm-số thứ tự (ví dụ DA-2026-01; gói thầu của dự án là DA-2026-01-GT01, DA-2026-01-GT02…), người dùng không nhập, không sửa; chỉ quản trị sửa được mã của dự án đã có khi cần.',
     'Nhập tên dự án, trạng thái, tổng mức đầu tư (bắt buộc) và các thông tin: nhóm dự án, loại dự án, giai đoạn, nguồn vốn, thời gian, địa điểm, quy mô.',
     'Chọn **Vai trò của Ban** đối với dự án (chủ đầu tư, quản lý dự án hoặc tư vấn quản lý dự án), **Hình thức quản lý dự án**, **Hồ sơ dự án** (báo cáo kinh tế – kỹ thuật hoặc báo cáo nghiên cứu khả thi); nhập **Chủ đầu tư** và **Người quyết định đầu tư** (mặc định: Chủ tịch UBND xã/phường).',
     'Tại phần **Quyết định phê duyệt dự án** (1), nhập số quyết định, ngày ban hành, cơ quan ban hành và đính kèm bản scan quyết định (2).',

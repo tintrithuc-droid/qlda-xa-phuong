@@ -142,6 +142,17 @@ const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x
   await p.evaluate(() => ACT['cv-new']('give')); await p.waitForTimeout(600);
   ok(await p.$('#f_assigneeUserId') && await p.$('#f_parentId') && await p.$('#f_collaborators'), 'Biểu mẫu giao việc thiếu ô');
   await p.evaluate(() => closeModal());
+  // Bản 1.10.29: việc chung của dự án (không chọn gói thầu) phải lưu được qua biểu mẫu
+  await p.evaluate(() => ACT['cv-new']('me')); await p.waitForTimeout(600);
+  await p.evaluate(d => { const set = (k, v) => { const el = document.querySelector('#f_' + k); if (!el) return; el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); if (el._cbSync) el._cbSync(); };
+    set('projectId', 'da-ew-da1'); set('packageId', ''); set('name', 'Việc chung dự án không gói thầu'); { const w = document.querySelector('#f_who'); if (w && w.options.length) set('who', w.options[0].value); } set('due', d); set('assigneeUserId', (document.querySelector('#f_assigneeUserId') || { options: [{}, { value: '' }] }).options[1]?.value || '');
+    set('deliverable', 'Báo cáo tổng hợp'); set('criteria', 'Được duyệt'); }, new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10));
+  ok(await p.$eval('#f_packageId', el => el.value === '' && el.options[0].textContent.includes('Việc chung của dự án')), 'Ô gói thầu không có lựa chọn Việc chung của dự án');
+  await p.click('.mform button[type=submit]'); await p.waitForTimeout(1500);
+  { const e = await p.$('#mform_err'); const et = e ? await e.textContent() : ''; ok(!et, 'Lưu việc chung của dự án báo lỗi: ' + et); }
+  await p.evaluate(() => closeModal());
+  { const all = await J(r.get(BASE + '/api/vp/viec?scope=all&status=all', { headers: H })); const x = (all.rows || []).find(x => x.name === 'Việc chung dự án không gói thầu');
+    ok(x && x.projectId === 'da-ew-da1' && !x.packageId, 'Không tạo được việc chung của dự án: ' + JSON.stringify(x)); }
   await p.evaluate(() => { location.hash = '#kpi'; }); await p.waitForTimeout(1200);
   await p.evaluate(() => ACT['kpi-set']()); await p.waitForTimeout(800);
   ok(await p.$('#f_levels') && await p.$('#f_qualityFactors') && await p.$('#f_collabFactor'), 'Thiết lập KPI thiếu cách tính điểm công việc');

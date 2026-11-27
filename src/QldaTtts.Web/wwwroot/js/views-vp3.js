@@ -160,7 +160,7 @@ ACT['cv-new']=async (mode, el, ev, base, preset)=>{
   const rm=!!d.resultMode, emps=VP.emps.filter(e=>e.userId&&vpWorking(e)).map(e=>[e.userId,e.name]);
   const F={
     projectId:{key:'projectId',label:'Dự án (cấp cha)',type:'select',options:projOpts,req:true},
-    packageId:{key:'packageId',label:'Gói thầu (cấp con)',type:'select',options:pkFor,dep:'projectId',req:true,hint:'Dự án chưa có gói thầu hoặc việc chung của dự án thì để "Việc chung của dự án".'},
+    packageId:{key:'packageId',label:'Gói thầu (cấp con)',type:'select',options:pkFor,dep:'projectId',req:true,allowEmpty:true,hint:'Dự án chưa có gói thầu hoặc việc chung của dự án thì để "Việc chung của dự án".'},
     name:{key:'name',label:rm?'Tên việc':'Tên công việc',req:true,full:true},
     deliverable:{key:'deliverable',label:'Sản phẩm bàn giao',req:rm&&!(r&&!r.deliverable),full:true,ph:'Ví dụ: Biên bản nghiệm thu có chữ ký của khách hàng (bản PDF)',hint:'Bàn giao cái gì, để người giao kiểm được khi nghiệm thu.'},
     criteria:{key:'criteria',label:'Tiêu chí đạt (không bắt buộc)',type:'textarea',rows:2,keepLines:true,ph:'Ví dụ: đủ chức năng theo hợp đồng; khách hàng ký, đóng dấu'},

@@ -737,7 +737,7 @@ function openForm({title, fields, value={}, onSave, narrow, wide, submit='Lưu',
       else if(f.type==='works'){ const r=worksRead(el); if(r.err){ err.textContent=r.err; return; } v[f.key]=r.text; }
       else if(['money','number','percent'].includes(f.type)) v[f.key]= el.value===''? null : Number(el.value);
       else { v[f.key]=el.value.replace(/\s+/g,' ').trim(); if(f.suggest && v[f.key]){ const hit=fieldSuggest(f).find(o=>normKey(o)===normKey(v[f.key])); if(hit) v[f.key]=hit; } }
-      if(f.req && (v[f.key]==null || v[f.key]==='' || (Array.isArray(v[f.key])&&!v[f.key].length))){ err.textContent='Vui lòng nhập "'+f.label+'".'; el.focus&&el.focus(); return; }
+      if(f.req && !f.allowEmpty && (v[f.key]==null || v[f.key]==='' || (Array.isArray(v[f.key])&&!v[f.key].length))){ err.textContent='Vui lòng nhập "'+f.label+'".'; el.focus&&el.focus(); return; }
       if(f.type==='percent' && v[f.key]!=null && (v[f.key]<0||v[f.key]>100)){ err.textContent='"'+f.label+'" phải từ 0 đến 100.'; return; }
     }
     const btn=send? e.submitter : form.querySelector('[type=submit]'), lb0=btn.textContent; btn.disabled=true; btn.textContent='Đang lưu…';

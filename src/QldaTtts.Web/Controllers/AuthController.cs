@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -17,7 +17,10 @@ public class AuthController : ApiControllerBase
     private const int MaxFailed = 5;
     private static readonly TimeSpan LockoutTime = TimeSpan.FromMinutes(15);
     private readonly TwoFactor _tf;
-    public AuthController(AppDbContext db, UserContext uc, TwoFactor tf) : base(db, uc) { _tf = tf; }
+    private readonly SetupGuard _guard;
+    private readonly TenantContext _tc;
+    public AuthController(AppDbContext db, UserContext uc, TwoFactor tf, SetupGuard guard, TenantContext tc, LoginGuard lg) : base(db, uc) { _tf = tf; _guard = guard; _tc = tc; _lg = lg; }
+    private readonly LoginGuard _lg;
 
     /// <summary>Trạng thái: hệ thống đã khởi tạo chưa, người dùng hiện tại là ai.</summary>
     [HttpGet("state")]
@@ -31,7 +34,15 @@ public class AuthController : ApiControllerBase
             var me = await Db.Users.AsNoTracking().FirstAsync(x => x.Id == Uc.User.Id);
             mfa = new { enabled = me.TotpSecret is not null, required = _tf.Required(me, Uc.Group), recoveryLeft = TwoFactor.RecoveryLeft(me) };
         }
-        return Ok(new { initialized, user = Uc.User, mfa, sampleUsers = initialized && await Db.Users.AnyAsync(u => u.Sample) });
+        return Ok(new { initialized, user = Uc.User, mfa, sampleUsers = initialized && await SampleHint(), setupToken = !initialized && _guard.Required });
+    }
+
+    /// <summary>Chỉ gợi ý tài khoản mẫu ở trang đăng nhập khi hệ thống còn là bản chạy thử (chưa có tài khoản nghiệp vụ thật).</summary>
+    private async Task<bool> SampleHint()
+    {
+        if (!await Db.Users.AnyAsync(u => u.Sample)) return false;
+        var adminGroups = await Db.Groups.Where(g => g.Admin).Select(g => g.Id).ToListAsync();
+        return !await Db.Users.AnyAsync(u => !u.Sample && (u.GroupId == null || !adminGroups.Contains(u.GroupId)));
     }
 
     public class SetupRequest
@@ -44,6 +55,8 @@ public class AuthController : ApiControllerBase
         /// <summary>Dữ liệu mẫu theo tập: {"projects":[…], "packages":[…], …}</summary>
         public Dictionary<string, List<JsonElement>>? Sample { get; set; }
         public List<SampleUser>? SampleUsers { get; set; }
+        /// <summary>Mã khởi tạo (bắt buộc khi máy chủ đặt mã, luôn bắt buộc ở chế độ cho thuê).</summary>
+        public string? Token { get; set; }
     }
     public record SampleUser(string Username, string Name, string GroupId, string? Unit);
 
@@ -52,6 +65,7 @@ public class AuthController : ApiControllerBase
     public async Task<IActionResult> Setup([FromBody] SetupRequest r)
     {
         if (await Db.Users.AnyAsync()) return Error(409, "Hệ thống đã được khởi tạo.");
+        if (await _guard.Check(r.Token) is { } tokenError) return Error(403, tokenError);
         var username = r.Username.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(r.Name)) return Error(400, "Vui lòng nhập họ tên.");
         if (!Passwords.ValidUsername(username)) return Error(400, Passwords.UsernameMessage);
@@ -87,35 +101,62 @@ public class AuthController : ApiControllerBase
             su.PasswordHash = Passwords.Hash(su, r.Password);
             Db.Users.Add(su);
         }
-        var u = new AppUser { Id = "u-admin", Username = username, Name = r.Name.Trim(), GroupId = "g-admin", Unit = "Ban QLDA", Active = true, CreatedAt = now, LastLogin = now, UpdatedAt = now, UpdatedBy = username };
+        var unit = (await BrandingController.Load(Db))["orgShort"] as string;
+        var u = new AppUser { Id = "u-admin", Username = username, Name = r.Name.Trim(), GroupId = "g-admin", Unit = unit is { Length: > 0 } && !unit.EndsWith('…') ? unit : "Ban QLDA", Active = true, CreatedAt = now, LastLogin = now, UpdatedAt = now, UpdatedBy = username };
         u.PasswordHash = Passwords.Hash(u, r.Password);
         Db.Users.Add(u);
         Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = now, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Khởi tạo hệ thống", Module = "Người dùng", Target = "Tài khoản quản trị " + username, Ip = Uc.Ip });
         await Db.SaveChangesAsync();
+        await _guard.Consume();
         // Tài khoản quản trị đầu tiên phải thiết lập xác thực 2 lớp ngay
         if (_tf.RequiredForAdmins) return Ok(MfaChallenge(u));
         await SignIn(u, false);
         return Ok(new { user = u });
     }
 
-    public record LoginRequest(string Username, string Password);
+    public record LoginRequest(string Username, string Password, string? CaptchaId = null, string? Captcha = null);
+
+    /// <summary>Lỗi đăng nhập kèm mã kiểm tra mới khi máy (IP) hoặc tài khoản đã nhập sai nhiều lần.</summary>
+    private ObjectResult LoginError(int status, string message, string ip, string key)
+    {
+        if (!_lg.NeedCaptcha(ip, key)) return Error(status, message);
+        var (id, img) = _lg.NewCaptcha();
+        return StatusCode(status, new { code = status, message, captcha = new { id, img } });
+    }
+
+    /// <summary>Mã kiểm tra mới (bấm "Đổi mã khác").</summary>
+    [HttpGet("captcha")]
+    public IActionResult NewCaptcha() { var (id, img) = _lg.NewCaptcha(); return Ok(new { id, img }); }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest r)
     {
         const string bad = "Tên đăng nhập hoặc mật khẩu không đúng.";
         var un = (r.Username ?? "").Trim().ToLowerInvariant();
+        var ip = Uc.Ip;
+        // Bộ đếm dùng chung cho mọi xã trên máy chủ thuê bao nên khóa đếm theo tài khoản có kèm mã xã
+        var key = un.Length == 0 ? "" : (_tc.Code is { } xa ? xa + "/" + un : un);
+        // Không khóa tài khoản trên toàn hệ thống: chỉ chặn tạm máy (IP) đang dò, máy khác vẫn đăng nhập bình thường
+        if (_lg.Blocked(ip, key) is { } left)
+            return Error(429, $"Máy này đã nhập sai quá nhiều lần nên tạm bị chặn đăng nhập tài khoản này trong {Math.Max(1, Math.Ceiling(left.TotalMinutes))} phút. Tài khoản vẫn đăng nhập bình thường từ máy khác.");
+        if (_lg.NeedCaptcha(ip, key) && !_lg.CheckCaptcha(r.CaptchaId, r.Captcha))
+            return LoginError(428, string.IsNullOrWhiteSpace(r.Captcha) ? "Đã nhập sai nhiều lần. Vui lòng nhập mã kiểm tra trong hình." : "Mã kiểm tra không đúng hoặc đã hết hạn, vui lòng nhập mã mới.", ip, key);
         var u = await Db.Users.FirstOrDefaultAsync(x => x.Username == un);
-        if (u is null) { Passwords.VerifyDummy(r.Password ?? ""); return Error(401, bad); }
+        if (u is null) { Passwords.VerifyDummy(r.Password ?? ""); _lg.Fail(ip, key); return LoginError(401, bad, ip, key); }
+        // Khóa tạm do nhập sai mã xác thực 2 lớp (chỉ người đã biết mật khẩu mới tới được bước này)
         if (u.LockoutUntil is { } until && until > DateTime.UtcNow)
-            return Error(423, $"Tài khoản tạm khóa do nhập sai mật khẩu nhiều lần. Thử lại sau {Math.Ceiling((until - DateTime.UtcNow).TotalMinutes)} phút.");
+            return Error(423, $"Tài khoản tạm khóa do nhập sai mã xác thực nhiều lần. Thử lại sau {Math.Ceiling((until - DateTime.UtcNow).TotalMinutes)} phút.");
         if (!Passwords.Verify(u, r.Password ?? ""))
         {
-            u.FailedCount++;
-            if (u.FailedCount >= MaxFailed) { u.LockoutUntil = DateTime.UtcNow + LockoutTime; u.FailedCount = 0; }
-            await Db.SaveChangesAsync();
-            return Error(401, bad);
+            _lg.Fail(ip, key);
+            if (_lg.Blocked(ip, key) is not null)
+            {
+                Db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, UserId = u.Id, Username = u.Username, Fullname = u.Name, Action = "Chặn đăng nhập sai nhiều lần", Module = "Người dùng", Target = $"{u.Username} từ {ip}", Ip = ip });
+                await Db.SaveChangesAsync();
+            }
+            return LoginError(401, bad, ip, key);
         }
+        _lg.Success(ip, key);
         if (!u.Active) return Error(403, "Tài khoản đã bị khóa. Liên hệ quản trị hệ thống.");
         var g = u.GroupId is null ? null : await Db.Groups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == u.GroupId);
         if (_tf.Required(u, g))
@@ -131,7 +172,7 @@ public class AuthController : ApiControllerBase
     /// <summary>Phát phiếu tạm cho bước 2: "verify" nếu đã có khóa, "enroll" kèm khóa mới và mã QR nếu chưa thiết lập.</summary>
     private object MfaChallenge(AppUser u)
     {
-        if (u.TotpSecret is not null) { _tf.IssueTicket(HttpContext, u, null); return new { mfa = "verify", recoveryLeft = TwoFactor.RecoveryLeft(u) }; }
+        if (u.TotpSecret is not null) { _tf.IssueTicket(HttpContext, u, null); return new { mfa = "verify", issuer = _tf.Issuer, recoveryLeft = TwoFactor.RecoveryLeft(u) }; }
         var secret = TwoFactor.NewSecret();
         _tf.IssueTicket(HttpContext, u, secret);
         var uri = _tf.OtpAuthUri(u.Username, secret);
@@ -263,7 +304,8 @@ public class AuthController : ApiControllerBase
         var u = await Db.Users.FirstAsync(x => x.Id == Uc.User.Id);
         if (!Passwords.Verify(u, r.Old ?? "")) return Error(400, "Mật khẩu hiện tại không đúng.");
         if (!Passwords.Strong(r.Password)) return Error(400, Passwords.WeakMessage);
-        u.PasswordHash = Passwords.Hash(u, r.Password);
+        if (r.Password == r.Old) return Error(400, "Mật khẩu mới phải khác mật khẩu hiện tại.");
+        u.PasswordHash = Passwords.Hash(u, r.Password); u.MustChangePassword = false;
         u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = u.Username;
         Uc.Log("Đổi mật khẩu", "Người dùng", u.Username);
         await Db.SaveChangesAsync();
@@ -275,6 +317,7 @@ public class AuthController : ApiControllerBase
     {
         var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, u.Id), new(ClaimTypes.Name, u.Username), new("stamp", Passwords.Stamp(u)) };
         if (mfa) claims.Add(new Claim("amr", "mfa"));
+        if (_tc.Code is { } code) claims.Add(new Claim(UserContext.TenantClaim, code));
         var id = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         return HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(id),
             new AuthenticationProperties { IsPersistent = false });

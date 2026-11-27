@@ -21,6 +21,8 @@ public interface IHasContract { string? ContractId { get; } }
 public class Project : EntityBase
 {
     [MaxLength(50)] public string Code { get; set; } = "";
+    /// <summary>Bản 1.8.2: tài khoản khách hàng (nhóm "chỉ thấy dự án được gán") được xem dự án này.</summary>
+    public List<string> ViewerIds { get; set; } = new();
     [MaxLength(500)] public string Name { get; set; } = "";
     [MaxLength(100)] public string? Group { get; set; }
     [Column(TypeName = "decimal(20,0)")] public decimal? Tmdt { get; set; }
@@ -41,6 +43,8 @@ public class Project : EntityBase
     [MaxLength(200)] public string? MgmtForm { get; set; }
     /// <summary>Loại dự án: xây dựng mới, sửa chữa cải tạo, mua sắm, nhiệm vụ khác.</summary>
     [MaxLength(100)] public string? ProjectKind { get; set; }
+    /// <summary>Bản 1.8.5: lĩnh vực của dự án CNTT (chuyển đổi số, ứng dụng CNTT, đổi mới sáng tạo…), dùng khi đơn vị chọn lĩnh vực CNTT.</summary>
+    [MaxLength(100)] public string? Field { get; set; }
     /// <summary>Hồ sơ dự án: báo cáo nghiên cứu khả thi hoặc báo cáo kinh tế - kỹ thuật.</summary>
     [MaxLength(100)] public string? ReportType { get; set; }
 }
@@ -56,6 +60,48 @@ public class ProjectTask : EntityBase, IHasProject
     [MaxLength(50)] public string? Priority { get; set; }
     public string? Note { get; set; }
     public DateOnly? DoneDate { get; set; }
+    // ---- bản 1.10.4: dự án → nhiệm vụ → công việc, việc phát sinh, phối hợp, nghiệm thu chất lượng (tính KPI)
+    /// <summary>Nhiệm vụ (công việc cha). Không có dự án là việc nội bộ công ty.</summary>
+    [MaxLength(64)] public string? ParentId { get; set; }
+    [MaxLength(64)] public string? AssigneeUserId { get; set; }
+    /// <summary>Người phối hợp: mã tài khoản, cách nhau dấu phẩy.</summary>
+    [MaxLength(1000)] public string? Collaborators { get; set; }
+    [MaxLength(64)] public string? AssignedByUserId { get; set; }
+    public DateOnly? StartDate { get; set; }
+    /// <summary>Hạn ban đầu (khi được gia hạn thì Due là hạn mới).</summary>
+    public DateOnly? OriginalDue { get; set; }
+    public int ExtendCount { get; set; }
+    /// <summary>Việc phát sinh trong khi làm nhiệm vụ/công việc ParentId; người giao xác nhận.</summary>
+    public bool Arising { get; set; }
+    public DateTime? ArisingConfirmedAt { get; set; }
+    /// <summary>Nghiệm thu chất lượng 1–5 sao (trống = đạt).</summary>
+    public int? Quality { get; set; }
+    public int ReopenCount { get; set; }
+    [MaxLength(64)] public string? EworkId { get; set; }
+    // ---- bản 1.10.17: cây Dự án → Gói thầu → Công việc (anh Trí 26/11/2026); báo xong chờ nghiệm thu, quá 3 ngày làm việc tự Đạt
+    /// <summary>Gói thầu của dự án mà việc thuộc về (trống = việc chung của dự án). Việc con kế thừa gói thầu của việc cha.</summary>
+    [MaxLength(64)] public string? PackageId { get; set; }
+    /// <summary>Lúc người làm bấm báo xong (tính hạn tự nghiệm thu Đạt sau 3 ngày làm việc).</summary>
+    public DateTime? ReportedAt { get; set; }
+    /// <summary>Tiến độ 0–100% do người làm cập nhật (như e-work TienDo); báo xong là 100.</summary>
+    public int Progress { get; set; }
+    /// <summary>Người theo dõi (như e-work ThongTinTheoDoi): xem, nhận nhắc, không tính KPI. Mã tài khoản, cách nhau dấu phẩy.</summary>
+    [MaxLength(1000)] public string? Watchers { get; set; }
+    /// <summary>Loại công việc (như e-work LoaiCongViec): khảo sát, lập trình, triển khai, đào tạo… dùng để lọc, thống kê.</summary>
+    [MaxLength(100)] public string? TaskType { get; set; }
+    /// <summary>Trạng thái riêng của từng người phối hợp (như e-work TaskAssignments): JSON {mã tài khoản: {s, p, d, r}}.</summary>
+    public string? CollabState { get; set; }
+    // ---- bản 1.10.18: quản lý theo kết quả (anh Trí 26/11/2026): giao việc là giao sản phẩm có hạn; nộp sản phẩm; nghiệm thu Đạt tốt / Đạt / Chưa đạt
+    /// <summary>Sản phẩm bàn giao (bắt buộc khi giao việc mới ở chế độ quản lý theo kết quả).</summary>
+    [MaxLength(500)] public string? Deliverable { get; set; }
+    /// <summary>Tiêu chí đạt của sản phẩm (không bắt buộc).</summary>
+    [MaxLength(1000)] public string? Criteria { get; set; }
+    /// <summary>Hạn dùng để tính trễ trong KPI khi gia hạn xin sau lúc đã quá hạn (trễ tính theo hạn cũ). Trống = theo Due.</summary>
+    public DateOnly? KpiDue { get; set; }
+    /// <summary>Bản 1.10.24 (anh Trí 26/11/2026): quy mô sản phẩm Nhỏ 1 / Vừa 2 / Lớn 4 (hệ số KPI; trống = 1). Mốc kết quả lấy quy mô của sản phẩm gốc.</summary>
+    public int? Scale { get; set; }
+    /// <summary>Tỷ lệ (%) của mốc kết quả trong sản phẩm gốc (ví dụ 40/30/30). Trống = chia đều cho các mốc.</summary>
+    public int? Share { get; set; }
 }
 
 [Table("LegalDocuments")]
@@ -74,6 +120,8 @@ public class LegalDocument : EntityBase, IHasProject
     [MaxLength(300)] public string? Url { get; set; }
     /// <summary>Hiệu lực đến (bảo lãnh, giấy phép…) để cảnh báo sắp hết hạn.</summary>
     public DateOnly? ValidUntil { get; set; }
+    /// <summary>Bản 1.8: trạng thái trình duyệt (khi quản trị bật quy trình duyệt hồ sơ pháp lý); trống = đã duyệt.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("ConstructionItems")]
@@ -117,6 +165,46 @@ public class Package : EntityBase, IHasProject
     [Column(TypeName = "decimal(20,0)")] public decimal? Estimate { get; set; }
     [MaxLength(100)] public string? Status { get; set; }
     [MaxLength(200)] public string? Duration { get; set; }
+    /// <summary>Bản 1.8: nhà thầu trúng thầu chọn từ danh mục (nhiều đơn vị = liên danh, đơn vị đầu tiên đứng đầu liên danh).</summary>
+    public List<string> ContractorIds { get; set; } = new();
+    /// <summary>Tên liên danh (để trống khi chỉ một nhà thầu).</summary>
+    [MaxLength(300)] public string? JointVenture { get; set; }
+    /// <summary>Bản 1.8.3: tỷ lệ tham gia liên danh (%) theo mã đơn vị; trống khi chưa có thông tin.</summary>
+    public Dictionary<string, decimal> ContractorShares { get; set; } = new();
+    /// <summary>Các đơn vị tư vấn giám sát của gói thầu (chọn từ danh mục đơn vị giám sát).</summary>
+    public List<string> SupervisorIds { get; set; } = new();
+    /// <summary>Giai đoạn: "cb" chuẩn bị đầu tư, "dt" thực hiện đầu tư. Trống thì suy theo loại gói thầu.</summary>
+    [MaxLength(10)] public string? Phase { get; set; }
+}
+
+/// <summary>
+/// Bản 1.8: danh mục nhà thầu (Kind "nt") và đơn vị tư vấn giám sát (Kind "gs"). Gói thầu chọn đơn vị từ danh mục;
+/// tài khoản gắn với đơn vị chỉ thấy các gói thầu của đơn vị mình.
+/// </summary>
+[Table("Organizations")]
+public class Organization : EntityBase
+{
+    [MaxLength(10)] public string Kind { get; set; } = "nt";
+    [MaxLength(300)] public string Name { get; set; } = "";
+    [MaxLength(100)] public string? ShortName { get; set; }
+    [MaxLength(20)] public string? TaxCode { get; set; }
+    [MaxLength(500)] public string? Address { get; set; }
+    [MaxLength(50)] public string? Phone { get; set; }
+    [MaxLength(200)] public string? Email { get; set; }
+    [MaxLength(200)] public string? Representative { get; set; }
+    [MaxLength(100)] public string? RepTitle { get; set; }
+    [MaxLength(50)] public string? BankAccount { get; set; }
+    [MaxLength(200)] public string? BankName { get; set; }
+    [MaxLength(100)] public string? CertNo { get; set; }
+    [MaxLength(50)] public string? CertGrade { get; set; }
+    public DateOnly? CertDate { get; set; }
+    [MaxLength(300)] public string? Field { get; set; }
+    [MaxLength(200)] public string? ContactName { get; set; }
+    [MaxLength(50)] public string? ContactPhone { get; set; }
+    public bool Active { get; set; } = true;
+    /// <summary>Bản 1.8.3: đơn vị thành viên của hệ sinh thái (Tổng quan lọc, báo cáo riêng theo đơn vị thành viên).</summary>
+    public bool Member { get; set; }
+    public string? Note { get; set; }
 }
 
 [Table("Contracts")]
@@ -136,6 +224,8 @@ public class Contract : EntityBase, IHasProject
     public DateOnly? AdvanceGuaranteeUntil { get; set; }
     public double? AdvanceRate { get; set; }
     public string? Note { get; set; }
+    /// <summary>Bản 1.8: trạng thái trình duyệt hợp đồng (khi quản trị bật); trống = đã duyệt.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("ContractAddenda")]
@@ -173,6 +263,9 @@ public class ScheduleItem : EntityBase, IHasProject
     public double? Progress { get; set; }
     public double? Weight { get; set; }
     public List<ProgressPoint> History { get; set; } = new();
+    /// <summary>Soạn thảo / Chờ duyệt / Đã duyệt / Từ chối (bản 1.5). Chỉ kế hoạch Đã duyệt (hoặc chưa có trạng thái, dữ liệu trước bản 1.5)
+    /// được tính vào tiến độ, đường cong S, cảnh báo và được cập nhật tiến độ thực tế.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 public class Photo
@@ -207,6 +300,8 @@ public class BoqItem : EntityBase, IHasContract
 {
     [MaxLength(64)] public string? ContractId { get; set; }
     [MaxLength(50)] public string? Code { get; set; }
+    /// <summary>Nhóm công việc (phần, hạng mục) theo bảng khối lượng, ví dụ "1. PHẦN ĐƯỜNG GIAO THÔNG".</summary>
+    [MaxLength(300)] public string? Section { get; set; }
     [MaxLength(500)] public string Name { get; set; } = "";
     [MaxLength(30)] public string? Unit { get; set; }
     public double? Qty { get; set; }
@@ -223,6 +318,22 @@ public class VolumeEntry : EntityBase, IHasContract
     public double? DoneQty { get; set; }
     public double? AcceptedQty { get; set; }
     public string? Note { get; set; }
+    /// <summary>Đợt nghiệm thu chứa dòng này (bản 1.7). Dòng không có đợt là dữ liệu trước bản 1.7, coi như đã nghiệm thu.</summary>
+    [MaxLength(64)] public string? BatchId { get; set; }
+}
+
+/// <summary>Đợt nghiệm thu khối lượng (bản 1.7): một biên bản nghiệm thu gồm nhiều công việc của hợp đồng,
+/// trình duyệt một lần cho cả đợt (tư vấn giám sát xác nhận, lãnh đạo Ban duyệt).</summary>
+[Table("VolumeBatches")]
+public class VolumeBatch : EntityBase, IHasContract
+{
+    [MaxLength(64)] public string? ContractId { get; set; }
+    [MaxLength(100)] public string Name { get; set; } = "";
+    [MaxLength(200)] public string? Number { get; set; }
+    public DateOnly? Date { get; set; }
+    public string? Note { get; set; }
+    /// <summary>Soạn thảo / Chờ kiểm tra / Chờ duyệt / Đã duyệt / Từ chối.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("PaymentPlans")]
@@ -233,6 +344,8 @@ public class PayPlan : EntityBase, IHasContract
     public DateOnly? PlanDate { get; set; }
     [Column(TypeName = "decimal(20,0)")] public decimal? Amount { get; set; }
     public string? Note { get; set; }
+    /// <summary>Bản 1.8: trạng thái trình duyệt kế hoạch thanh toán (khi quản trị bật); trống = đã duyệt.</summary>
+    [MaxLength(50)] public string? Status { get; set; }
 }
 
 [Table("Payments")]
@@ -340,6 +453,8 @@ public class AppUser : EntityBase
     [MaxLength(50)] public string? Phone { get; set; }
     public bool Active { get; set; } = true;
     public bool Sample { get; set; }
+    /// <summary>Bắt buộc đổi mật khẩu ở lần đăng nhập tới (tài khoản do quản trị tạo hoặc đặt lại mật khẩu).</summary>
+    public bool MustChangePassword { get; set; }
     [JsonIgnore] public string PasswordHash { get; set; } = "";
     [JsonIgnore] public int FailedCount { get; set; }
     [JsonIgnore] public DateTime? LockoutUntil { get; set; }
@@ -352,6 +467,8 @@ public class AppUser : EntityBase
     [NotMapped] public bool TwoFactor => TotpSecret is not null;
     public DateTime? CreatedAt { get; set; }
     public DateTime? LastLogin { get; set; }
+    /// <summary>Bản 1.8: tài khoản thuộc đơn vị nhà thầu / tư vấn giám sát: chỉ thấy các gói thầu có đơn vị này.</summary>
+    [MaxLength(64)] public string? OrgId { get; set; }
 }
 
 [Table("UserGroups")]
@@ -360,6 +477,8 @@ public class UserGroup : EntityBase
     [MaxLength(200)] public string Name { get; set; } = "";
     public string? Desc { get; set; }
     public bool Admin { get; set; }
+    /// <summary>Bản 1.8.2: tài khoản của nhóm chỉ thấy các dự án đã gán cho chính tài khoản đó (khách hàng, chủ đầu tư); chưa gán dự án nào thì không thấy dự án nào.</summary>
+    public bool AssignedOnly { get; set; }
     public Dictionary<string, string> Perms { get; set; } = new();
     public List<string> Scope { get; set; } = new();
 }
@@ -405,6 +524,9 @@ public class AuditLog : EntityBase
     [MaxLength(100)] public string? Module { get; set; }
     [MaxLength(500)] public string? Target { get; set; }
     [MaxLength(64)] public string? Ip { get; set; }
+    /// <summary>Bản 1.8.9: loại dữ liệu và mã hồ sơ của thao tác, để xem lịch sử thay đổi trên từng hồ sơ.</summary>
+    [MaxLength(50)] public string? Collection { get; set; }
+    [MaxLength(64)] public string? RecordId { get; set; }
 }
 
 /// <summary>Lịch sử trình duyệt hồ sơ (phụ lục hợp đồng, hồ sơ thanh toán, nghiệm thu): ai trình, ai duyệt, trả lại, ý kiến.</summary>
@@ -422,6 +544,15 @@ public class ApprovalLog : EntityBase, IHasProject
     [MaxLength(64)] public string? By { get; set; }
     [MaxLength(200)] public string? ByName { get; set; }
     public DateTime At { get; set; }
+    /// <summary>Bản 1.8: bước hồ sơ đang chờ sau thao tác này (trống khi về soạn thảo hoặc đã xong).</summary>
+    [MaxLength(20)] public string? Step { get; set; }
+    /// <summary>Người được chuyển đích danh xử lý bước tiếp theo.</summary>
+    [MaxLength(64)] public string? Assignee { get; set; }
+    [MaxLength(200)] public string? AssigneeName { get; set; }
+    /// <summary>Hạn xử lý bước tiếp theo.</summary>
+    public DateOnly? Due { get; set; }
+    /// <summary>Các bước của lần chuyển duyệt (ghi ở lần chuyển duyệt đầu tiên, giữ nguyên khi quản trị đổi quy trình).</summary>
+    public string? Route { get; set; }
 }
 
 [Table("StoredFiles")]

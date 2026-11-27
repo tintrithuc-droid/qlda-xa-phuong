@@ -1,16 +1,25 @@
-@{ Layout = null; }
+﻿@{ Layout = null; }
 <!doctype html>
 <html lang="vi">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>QLDA đầu tư xây dựng</title>
-<meta name="description" content="Phần mềm quản lý dự án đầu tư xây dựng - Ban Quản lý dự án xã/phường">
-<meta name="theme-color" content="#0d2a57">
-<link rel="manifest" href="~/manifest.webmanifest">
-<link rel="icon" href="~/icons/icon.svg" type="image/svg+xml">
+<title>@ViewData["Title"]</title>
+<meta name="description" content="@ViewData["Desc"]">
+<meta name="theme-color" content="@ViewData["Theme"]">
+<link rel="manifest" href="/api/branding/manifest.webmanifest">
+@if (ViewData["Icon"] is string icon)
+{
+<link rel="icon" href="@icon" id="favicon">
+<link rel="apple-touch-icon" href="@icon">
+}
+else
+{
+<link rel="icon" href="~/icons/icon.svg" type="image/svg+xml" id="favicon">
 <link rel="apple-touch-icon" href="~/icons/icon-192.png">
+}
 <link rel="stylesheet" href="~/css/app.css" asp-append-version="true">
+<link rel="stylesheet" href="~/css/congnghe.css" asp-append-version="true">
 </head>
 <body>
 <div id="root"></div>
@@ -23,6 +32,12 @@
 <script src="~/js/views-2.js" asp-append-version="true"></script>
 <script src="~/js/views-3.js" asp-append-version="true"></script>
 <script src="~/js/views-4.js" asp-append-version="true"></script>
+<script src="~/js/import.js" asp-append-version="true"></script>
+<script src="~/js/opening.js" asp-append-version="true"></script>
+<script src="~/js/views-vp.js" asp-append-version="true"></script>
+<script src="~/js/views-vp2.js" asp-append-version="true"></script>
+<script src="~/js/views-vp3.js" asp-append-version="true"></script>
+<script src="~/js/views-hs.js" asp-append-version="true"></script>
 <script>if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));</script>
 </body>
 </html>

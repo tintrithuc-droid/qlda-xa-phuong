@@ -38,6 +38,159 @@ public static class Upgrades
         }
         db.SaveChanges();
 
+        // Bản 1.10.14: mức công tác phí riêng từng người lấy từ bảng lương e-work đã chuyển, chạy một lần
+        {
+            const string key = "upgrade:1.10.14-cong-tac-phi-ework";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                EworkImport.TripRatesFromArchive(db).GetAwaiter().GetResult();
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
+        // Bản 1.10.16: đơn vị chuyển từ e-work (Công ty Tri Thức) dùng "Nhận nhiệm vụ" thay điểm danh: một lượt mỗi ngày, tự chọn nơi làm,
+        // không vị trí, không phiếu (anh Trí chốt 25/11/2026). Chạy một lần, sau đó sửa trong Thiết lập.
+        {
+            const string key = "upgrade:1.10.16-nhan-nhiem-vu";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                if (db.Employees.Any(e => e.EworkId != null))
+                {
+                    var vs = VpSettings.Load(db);
+                    vs.InOnly = true; vs.Word = "Nhận nhiệm vụ"; vs.LeaveSeniorityBonus = false;
+                    VpSettings.Save(db, vs, "he-thong");
+                    // KPI Tri Thức (anh Trí 25/11): tự động hoàn toàn, không ai chấm tay: công việc 70 + chuyên cần 30; bỏ chấm sao nghiệm thu khỏi điểm
+                    var k = QldaTtts.Web.Controllers.KpiSettings.Load(db);
+                    k.Auto = true; k.WWork = 70; k.WProject = 0; k.WAttendance = 30; k.WManager = 0;
+                    k.QualityFactors = new() { 1m, 1m, 1m, 1m, 1m };
+                    // Công việc làm chung: chỉ 2 người điểm cao nhất toàn công ty được thưởng KPI (anh Trí chọn 25/11)
+                    k.RankOn = true; k.RankCompany = true; k.RankTop = 2; k.Public = true;
+                    k.Save(db, "he-thong");
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
+        // Bản 1.10.17: công việc một nguồn (anh Trí duyệt 26/11/2026). Việc nhập ở tab dự án ghi người làm bằng chữ: khớp đúng họ tên hoặc tên đăng nhập
+        // của một người thì gán tài khoản (KPI từ nay chỉ tính theo tài khoản); không khớp để trống cho người giao chọn lại.
+        // Mức ưu tiên cũ Cao/Trung bình/Thấp đổi sang thang mức độ KPI: Cao -> mức thứ hai, còn lại -> mức đầu. Chạy một lần.
+        {
+            const string key = "upgrade:1.10.17-cong-viec-mot-nguon";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                if (QldaTtts.Web.Controllers.ViecController.Unified(db).GetAwaiter().GetResult())
+                {
+                    string N(string? x) => QldaTtts.Web.Controllers.KpiController.Norm(x);
+                    var emps = db.Employees.Where(e => e.UserId != null).ToList();
+                    var users = db.Users.ToList().ToDictionary(u => u.Id);
+                    var byKey = new Dictionary<string, List<string>>();
+                    foreach (var e in emps)
+                        foreach (var kx in new[] { N(e.Name), users.TryGetValue(e.UserId!, out var u) ? N(u.Username) : "" }.Where(x => x.Length > 0).Distinct())
+                            (byKey.TryGetValue(kx, out var l) ? l : byKey[kx] = new()).Add(e.UserId!);
+                    var k = QldaTtts.Web.Controllers.KpiSettings.Load(db);
+                    var names = k.Levels.Select(l => l.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    string? lv0 = k.Levels.ElementAtOrDefault(0)?.Name, lv1 = k.Levels.ElementAtOrDefault(1)?.Name ?? lv0;
+                    foreach (var t in db.Tasks.ToList())
+                    {
+                        if (t.AssigneeUserId is null && N(t.Assignee) is { Length: > 0 } a && byKey.TryGetValue(a, out var ids) && ids.Distinct().Count() == 1)
+                            t.AssigneeUserId = ids[0];
+                        if (lv0 is not null && !names.Contains(t.Priority ?? ""))
+                            t.Priority = (t.Priority ?? "").Trim() == "Cao" ? lv1 : lv0;
+                    }
+                }
+                // lịch sử công việc e-work (cập nhật tiến độ, gia hạn, mở lại, tiến độ %, người theo dõi) từ kho lưu trữ e-work đã nạp
+                QldaTtts.Web.Services.EworkImport.TaskHistory(db).GetAwaiter().GetResult();
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
+        // Bản 1.10.24 (anh Trí 26/11/2026 "Phần dự án đã qua rồi thì cho nghiệm thu hết", "chỉ tính từ ngày mai cho phần mới"):
+        // việc đã báo xong mà chưa nghiệm thu trước bản này thì nghiệm thu Đạt hàng loạt; việc cũ không tính KPI theo sản phẩm (chỉ việc có Scale).
+        {
+            const string key = "upgrade:1.10.24-nghiem-thu-viec-cu";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                var olds = db.Tasks.Where(t => t.Status == "Hoàn thành" && t.Quality == null).ToList();
+                foreach (var t in olds) { t.Quality = 3; t.UpdatedAt = DateTime.UtcNow; t.UpdatedBy = "he-thong"; }
+                foreach (var t in db.Tasks.Where(t => t.Assignee != null && t.Assignee.StartsWith("Đang tải")).ToList()) t.Assignee = null;
+                db.Logs.Add(new AuditLog { Id = "log-" + Guid.NewGuid().ToString("N")[..16], Ts = DateTime.UtcNow, Username = "he-thong", Fullname = "Hệ thống", Action = "Nghiệm thu hàng loạt việc cũ (Đạt)", Module = "Công việc", Target = $"{olds.Count} việc đã báo xong trước bản 1.10.24" });
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
+        // Bản 1.10.24 (anh Trí 26/11/2026 "Bỏ quyền xóa của nhân viên"): nhóm Nhân viên (g-nv) được thêm, sửa phần Dự án (Điều hành, Nghiệp vụ) nhưng không xóa;
+        // Trưởng phòng, Giám đốc, Quản trị vẫn xóa được. Chỉ đặt cho phân hệ nhóm đang có quyền sửa.
+        {
+            const string key = "upgrade:1.10.24-nv-khong-xoa";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                var mods = new[] { "tong-quan", "du-an", "von", "gpmb", "mo-hinh", "goi-thau", "tien-do", "nhat-ky", "khoi-luong", "nghiem-thu", "thanh-toan", "quyet-toan", "bao-cao" };
+                foreach (var g in db.Groups.ToList().Where(g => !g.Admin && g.Id == "g-nv"))
+                {
+                    var p = new Dictionary<string, string>(g.Perms);
+                    foreach (var m in mods) if (p.TryGetValue(m, out var v) && v == "edit") p[m + ":khongxoa"] = "1";
+                    g.Perms = p;
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
+        // Bản 1.10.18 (anh Trí 26/11/2026): quản lý Công việc theo kết quả sản phẩm cho đơn vị đã chuyển từ e-work; KPI áp dụng từ tháng 12/2026.
+        // Chất lượng nghiệm thu tính vào điểm (anh chọn): Đạt tốt 100%, Đạt 85%. Bỏ tiến độ %, bỏ chọn việc khi nhận nhiệm vụ.
+        {
+            const string key = "upgrade:1.10.24-cong-viec-ket-qua";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                if (db.Employees.Any(e => e.EworkId != null))
+                {
+                    var k = QldaTtts.Web.Controllers.KpiSettings.Load(db);
+                    if (string.IsNullOrWhiteSpace(k.ResultFrom)) { k.ResultFrom = "2026-12"; k.GoodFactor = 1m; k.PassFactor = 0.85m; k.TrackProgress = false; k.Save(db, "he-thong"); }
+                    var vs = VpSettings.Load(db); vs.DailyTasks = false; VpSettings.Save(db, vs, "he-thong");
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
+        // Bản 1.10.17: đơn vị dùng "Nhận nhiệm vụ" mà dòng giới thiệu trang đăng nhập còn chữ "Điểm danh" thì đổi chữ (chạy một lần, giữ nguyên phần còn lại)
+        {
+            const string key = "upgrade:1.10.17-chu-dang-nhap";
+            if (!db.Settings.Any(x => x.Key == key))
+            {
+                var vs = VpSettings.Load(db);
+                var br = db.Settings.FirstOrDefault(x => x.Key == QldaTtts.Web.Controllers.BrandingController.Key);
+                if (br?.Value is { } v)
+                {
+                    try
+                    {
+                        if (System.Text.Json.Nodes.JsonNode.Parse(v) is System.Text.Json.Nodes.JsonObject o)
+                        {
+                            var doi = false;
+                            if (vs.InOnly && o["bannerText"]?.GetValue<string>() is { } t && t.Contains("Điểm danh"))
+                            { o["bannerText"] = t.Replace("Điểm danh", vs.Word ?? "Nhận nhiệm vụ"); doi = true; }
+                            // Địa chỉ cũ trước sắp xếp đơn vị hành chính: P. Võ Thị Sáu, Q.3 nay là phường Xuân Hòa
+                            if (o["address"]?.GetValue<string>() is { } a)
+                            {
+                                var a2 = System.Text.RegularExpressions.Regex.Replace(a.Normalize(),
+                                    @"(P\.|Phường)\s*Võ Thị Sáu\s*,\s*(Q\.|Quận)\s*3\s*,\s*(TP\.?\s*HCM|TP\.?\s*Hồ Chí Minh|Thành phố Hồ Chí Minh)\.?",
+                                    "phường Xuân Hòa, TP. Hồ Chí Minh");
+                                if (a2 != a) { o["address"] = a2; doi = true; }
+                            }
+                            if (doi) { br.Value = o.ToJsonString(); br.UpdatedAt = DateTime.UtcNow; br.UpdatedBy = "he-thong"; }
+                        }
+                    }
+                    catch (System.Text.Json.JsonException) { }
+                }
+                db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                db.SaveChanges();
+            }
+        }
+
         // 3) Phiên bản 1.1: chức năng Ban QLDA cấp xã (Luật Xây dựng 2025, NĐ 217/2026, NĐ 207/2026), chạy một lần
         CapXa(db);
 
@@ -46,6 +199,96 @@ public static class Upgrades
 
         // 5) Vai trò Lãnh đạo xã/phường (Bí thư, Chủ tịch, Phó Chủ tịch…), chạy một lần
         LanhDaoXa(db);
+
+        // 6) Phiên bản 1.5: trình duyệt kế hoạch tiến độ, chạy một lần
+        V15(db);
+
+        // 7) Phiên bản 1.7: đợt nghiệm thu khối lượng, quyền kiểm tra của tư vấn giám sát, quản trị chính
+        V17(db);
+
+        // 8) Phiên bản 1.8: đơn vị tính xây dựng cho bảng giá Mẫu số 11B, bảng dự toán
+        V18(db);
+
+        // 9) Bản 1.8.10: Quản trị hệ thống chỉ dành cho nhóm toàn quyền
+        V1810(db);
+        Owner.Ensure(db);
+    }
+
+    /// <summary>Bản 1.8.10: bỏ quyền "Quản trị hệ thống" của các nhóm không phải quản trị (bộ nhóm mẫu cũ cấp "Chỉ xem" cho Lãnh đạo Ban, Cán bộ kỹ thuật).</summary>
+    private static void V1810(AppDbContext db)
+    {
+        const string key = "upgrade:1.8.10-quan-tri-chi-admin";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        foreach (var g in db.Groups.ToList().Where(g => !g.Admin && g.Perms.TryGetValue("quan-tri", out var v) && v != "none"))
+        {
+            var p = new Dictionary<string, string>(g.Perms) { ["quan-tri"] = "none" };
+            g.Perms = p; g.UpdatedAt = DateTime.UtcNow; g.UpdatedBy = "he-thong";
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
+    }
+
+    /// <summary>Đơn vị tính theo định mức, đơn giá xây dựng (bảng khối lượng hợp đồng nhập từ Excel).</summary>
+    public static readonly string[] ConstructionUnits = { "100m", "100m2", "100m3", "km", "kg", "lít", "viên", "tấm", "md", "trụ", "cấu kiện", "1 cấu kiện", "công", "ca", "lần", "điểm", "hố", "mối nối" };
+
+    /// <summary>Bản 1.8: bổ sung một lần các đơn vị tính thường gặp trong bảng giá Mẫu số 11B, bảng dự toán (Quản trị có thể xóa bớt).</summary>
+    private static void V18(AppDbContext db)
+    {
+        const string key = "upgrade:1.8-don-vi-tinh";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        var units = db.Catalogs.Where(c => c.Type == "Đơn vị tính").ToList();
+        if (units.Count == 0) return;   // hệ thống chưa khởi tạo: danh mục mẫu đã có sẵn các đơn vị này
+        var order = units.Max(c => c.Order);
+        foreach (var v in ConstructionUnits)
+            if (!units.Any(c => string.Equals(c.Value, v, StringComparison.OrdinalIgnoreCase)))
+                db.Catalogs.Add(new Catalog { Id = "cat-" + Guid.NewGuid().ToString("N")[..12], Type = "Đơn vị tính", Value = v, Order = ++order, UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
+    }
+
+    /// <summary>Bản 1.7: khối lượng đã nhập được gom thành đợt nghiệm thu theo hợp đồng và tên đợt (coi là đã duyệt, giữ nguyên số liệu);
+    /// nhóm Tư vấn giám sát được quyền kiểm tra (xác nhận) đợt nghiệm thu, nhóm Lãnh đạo Ban được quyền duyệt.</summary>
+    private static void V17(AppDbContext db)
+    {
+        const string key = "upgrade:1.7-dot-nghiem-thu";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        var vols = db.Volumes.Where(v => v.BatchId == null || v.BatchId == "").ToList();
+        foreach (var g in vols.Where(v => v.ContractId != null).GroupBy(v => (v.ContractId, Name: string.IsNullOrWhiteSpace(v.Period) ? "Đợt 1" : v.Period!.Trim())))
+        {
+            var b = new VolumeBatch
+            {
+                Id = "vb-" + Guid.NewGuid().ToString("N")[..16], ContractId = g.Key.ContractId, Name = g.Key.Name,
+                Date = g.Max(v => v.Date), Number = g.Select(v => v.Note).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
+                Status = "Đã duyệt", UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong"
+            };
+            db.VolumeBatches.Add(b);
+            foreach (var v in g) v.BatchId = b.Id;
+        }
+        foreach (var g in db.Groups.ToList().Where(g => !g.Admin))
+        {
+            var p = new Dictionary<string, string>(g.Perms);
+            if (g.Id == "g-site" || g.Name.Contains("giám sát", StringComparison.OrdinalIgnoreCase)) p["khoi-luong:kiemtra"] = "1";
+            if (g.Id == "g-lead" || g.Name.Contains("Lãnh đạo Ban", StringComparison.OrdinalIgnoreCase)) p["khoi-luong:duyet"] = "1";
+            g.Perms = p;
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
+    }
+
+    /// <summary>Bản 1.5: kế hoạch tiến độ đang có được coi là đã duyệt (không đổi số liệu của đơn vị đang dùng);
+    /// nhóm Lãnh đạo Ban được quyền duyệt kế hoạch tiến độ.</summary>
+    private static void V15(AppDbContext db)
+    {
+        const string key = "upgrade:1.5-duyet-ke-hoach-tien-do";
+        if (db.Settings.Any(x => x.Key == key)) return;
+        foreach (var s in db.Schedule.Where(s => s.Status == null || s.Status == "").ToList()) s.Status = "Đã duyệt";
+        foreach (var g in db.Groups.ToList().Where(g => !g.Admin && (g.Id == "g-lead" || g.Name.Contains("Lãnh đạo Ban", StringComparison.OrdinalIgnoreCase))))
+        {
+            var p = new Dictionary<string, string>(g.Perms) { ["tien-do:duyet"] = "1" };
+            g.Perms = p;
+        }
+        db.Settings.Add(new AppSetting { Key = key, Value = DateTime.UtcNow.ToString("O"), UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+        db.SaveChanges();
     }
 
     public const string LanhDaoXaName = "Lãnh đạo xã/phường";

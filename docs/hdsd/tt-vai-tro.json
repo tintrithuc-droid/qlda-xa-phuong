@@ -1,0 +1,16 @@
+[
+  { "file": "Quan tri he thong", "title": "Hướng dẫn sử dụng dành cho Quản trị hệ thống", "groups": ["g-admin"],
+    "content": "Tài khoản và nhóm quyền của công ty, quy trình duyệt, danh mục dùng chung, thông tin đơn vị và giao diện, hướng dẫn sử dụng, kho tệp, sao lưu và phục hồi dữ liệu, dữ liệu đầu kỳ." },
+  { "file": "Ban Giam doc", "title": "Hướng dẫn sử dụng dành cho Ban Giám đốc", "groups": ["g-lead"],
+    "content": "Theo dõi Tổng quan, cảnh báo, tiến độ, khối lượng, nghiệm thu, hợp đồng, thanh toán của các dự án công ty đang tư vấn, giám sát; duyệt, trả lại, thu hồi hồ sơ; khai thác báo cáo." },
+  { "file": "Nhan vien Tri Thuc", "title": "Hướng dẫn sử dụng dành cho Nhân viên Tri Thức", "groups": ["g-tech"],
+    "content": "Cập nhật dự án, gói thầu, hợp đồng, tiến độ, nhật ký, khối lượng, nghiệm thu; giám sát xác nhận khối lượng; trình hồ sơ và duyệt hồ sơ khi được giao." },
+  { "file": "Ke toan", "title": "Hướng dẫn sử dụng dành cho Kế toán", "groups": ["g-acc"],
+    "content": "Kế hoạch vốn và giải ngân, kế hoạch thanh toán, hồ sơ thanh toán, xác nhận đã chi, quyết toán, đối chiếu khối lượng nghiệm thu." },
+  { "file": "Nha thau", "title": "Hướng dẫn sử dụng dành cho Nhà thầu", "groups": ["g-site"],
+    "content": "Ghi nhật ký thi công kèm ảnh hiện trường, cập nhật tiến độ, nhập khối lượng thực hiện trên các dự án được giao." },
+  { "file": "Chu dau tu - Khach hang", "title": "Hướng dẫn sử dụng dành cho Chủ đầu tư, khách hàng", "groups": ["g-ubnd"],
+    "content": "Theo dõi trên máy tính hoặc điện thoại các dự án Tri Thức đang tư vấn, giám sát: tiến độ, nhật ký, khối lượng, nghiệm thu, thanh toán, báo cáo." },
+  { "file": "Su dung tren dien thoai", "title": "Hướng dẫn sử dụng trên điện thoại", "groups": ["g-site", "g-tech", "g-lead", "g-ubnd"],
+    "content": "Thêm phần mềm ra màn hình chính trên Android và iPhone, ghi nhật ký và chụp ảnh tại hiện trường, cập nhật tiến độ, duyệt hồ sơ, tra cứu." }
+]

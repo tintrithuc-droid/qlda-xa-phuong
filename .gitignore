@@ -9,3 +9,9 @@ test-results/
 tests/e2e/shots/
 dist/
 src/QldaTtts.Web/hdsd/
+.pub/
+.pubwin/
+out/
+pubtest/
+docs/hdsd-tt/out/
+http:/

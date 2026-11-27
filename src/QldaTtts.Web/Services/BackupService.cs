@@ -19,10 +19,10 @@ public class BackupService
     public int Hour => Math.Clamp(_cfg.GetValue("Backup:Hour", 1), 0, 23);
     public bool Enabled => _cfg.GetValue("Backup:Enabled", true);
 
-    public BackupService(FileStore store, IConfiguration cfg, IWebHostEnvironment env)
+    public BackupService(FileStore store, IConfiguration cfg, TenantContext tc)
     {
         _store = store; _cfg = cfg;
-        Dir = Path.GetFullPath(cfg["Storage:BackupPath"] is { Length: > 0 } p ? p : Path.Combine(env.ContentRootPath, "App_Data", "backups"));
+        Dir = Path.GetFullPath(tc.BackupPath);
     }
 
     public static async Task<byte[]> ExportJson(AppDbContext db)
@@ -34,9 +34,23 @@ public class BackupService
         data["files"] = await db.Files.AsNoTracking().ToListAsync();
         data["attachments"] = await db.Attachments.AsNoTracking().ToListAsync();
         data["settings"] = await db.Settings.AsNoTracking().ToListAsync();
+        // Bản 1.10: phân hệ Văn phòng (không nằm trong Collections vì có thông tin riêng của nhân sự, không nạp chung xuống trình duyệt)
+        foreach (var (name, q) in VpTables(db)) data[name] = await q.AsNoTracking().Cast<object>().ToListAsync();
         var payload = new { app = "qlda-ttts", version = 3, exportedAt = DateTime.UtcNow, data, passwords = users.ToDictionary(u => u.Id, u => u.PasswordHash) };
         return JsonSerializer.SerializeToUtf8Bytes(payload, JsonConfig.Options);
     }
+
+    /// <summary>Các bảng phân hệ Văn phòng có trong sao lưu (tên khóa trong tệp, bảng).</summary>
+    public static IEnumerable<(string Name, IQueryable<EntityBase> Query)> VpTables(AppDbContext db) => new (string, IQueryable<EntityBase>)[]
+    {
+        ("vp_departments", db.Departments), ("vp_employees", db.Employees), ("vp_attendances", db.Attendances), ("vp_requests", db.Requests),
+        ("vp_meetings", db.Meetings), ("vp_notices", db.Notices), ("vp_noticereads", db.NoticeReads), ("vp_kpi", db.KpiSheets), ("vp_payprofiles", db.PayProfiles), ("vp_payslips", db.Payslips), ("vp_hoso", db.EmployeeRecords), ("vp_ework", db.EworkArchive)
+    };
+    public static readonly Dictionary<string, Type> VpTypes = new()
+    {
+        ["vp_departments"] = typeof(Department), ["vp_employees"] = typeof(Employee), ["vp_attendances"] = typeof(Attendance), ["vp_requests"] = typeof(Request),
+        ["vp_meetings"] = typeof(Meeting), ["vp_notices"] = typeof(Notice), ["vp_noticereads"] = typeof(NoticeRead), ["vp_kpi"] = typeof(KpiSheet), ["vp_payprofiles"] = typeof(PayProfile), ["vp_payslips"] = typeof(Payslip), ["vp_hoso"] = typeof(EmployeeRecord), ["vp_ework"] = typeof(EworkRow)
+    };
 
     public record BackupInfo(string Name, long Size, DateTime CreatedAt);
 
@@ -105,15 +119,30 @@ public class MaintenanceService : BackgroundService
         await Task.Delay(TimeSpan.FromSeconds(30), stop).ContinueWith(_ => { });
         while (!stop.IsCancellationRequested)
         {
-            try { await Tick(stop); }
+            try
+            {
+                var tenancy = _sp.GetRequiredService<TenancyOptions>();
+                if (!tenancy.Enabled) { using var scope = _sp.CreateScope(); await Tick(scope, stop); }
+                else
+                {
+                    // Chế độ cho thuê: lần lượt từng xã đang hoạt động; lỗi ở một xã không chặn các xã khác
+                    var reg = _sp.GetRequiredService<TenantRegistry>(); var ops = _sp.GetRequiredService<TenantOps>();
+                    foreach (var t in await reg.All())
+                    {
+                        if (stop.IsCancellationRequested) break;
+                        if (t.Status != TenantStatus.Active || reg.StateOf(t.Code).state != TenantRegistry.State.Ready) continue;
+                        try { using var scope = ops.ScopeFor(t); await Tick(scope, stop); }
+                        catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogError(ex, "Lỗi tác vụ sao lưu / dọn thùng rác của xã {Code}", t.Code); }
+                    }
+                }
+            }
             catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogError(ex, "Lỗi tác vụ sao lưu / dọn thùng rác"); }
             await Task.Delay(TimeSpan.FromMinutes(15), stop).ContinueWith(_ => { });
         }
     }
 
-    private async Task Tick(CancellationToken ct)
+    private async Task Tick(IServiceScope scope, CancellationToken ct)
     {
-        using var scope = _sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var backup = scope.ServiceProvider.GetRequiredService<BackupService>();
         var store = scope.ServiceProvider.GetRequiredService<FileStore>();
@@ -127,6 +156,27 @@ public class MaintenanceService : BackgroundService
             await AttachmentsController.PurgeAsync(db, store, expired);
             Log(db, "Tự động xóa tệp quá hạn trong thùng rác", $"{expired.Count} tệp");
             await db.SaveChangesAsync(ct);
+        }
+
+        // Bản 1.10.13: tự chốt KPI tháng trước (từ 0 giờ ngày cấu hình của tháng sau)
+        if (await Controllers.KpiController.AutoLockTick(db, VnTime.Now) is { } locked)
+        {
+            Log(db, "Tự chốt KPI tháng", locked); await db.SaveChangesAsync(ct);
+            _log.LogInformation("Đã tự chốt KPI {M}", locked);
+        }
+
+        // Bản 1.10.21: tự chốt bảng lương tháng trước (sau KPI), mở cho người lao động tự xác nhận
+        if (await Controllers.LuongController.AutoLockTick(db, VnTime.Now) is { } paid)
+        {
+            Log(db, "Tự chốt bảng lương tháng", paid); await db.SaveChangesAsync(ct);
+            _log.LogInformation("Đã tự chốt bảng lương {M}", paid);
+        }
+
+        // Bản 1.10.21: hết ngày nghỉ việc thì tự khóa tài khoản
+        if (await StaffFilter.AutoLockLeavers(db) is { Count: > 0 } gone)
+        {
+            Log(db, "Tự khóa tài khoản người đã nghỉ việc", string.Join(", ", gone)); await db.SaveChangesAsync(ct);
+            _log.LogInformation("Đã tự khóa {N} tài khoản người nghỉ việc", gone.Count);
         }
 
         // Sao lưu hằng đêm (một lần mỗi ngày, từ giờ cấu hình trở đi)

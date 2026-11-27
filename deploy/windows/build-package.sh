@@ -14,6 +14,9 @@ echo "== Phần mềm (win-x64, tự chứa .NET 8)"
 dotnet publish "$ROOT/src/QldaTtts.Web" -c Release -r win-x64 --self-contained -p:DebugType=none -o "$OUT/app"
 rm -rf "$OUT/app/App_Data" "$OUT/app/appsettings.Development.json"
 
+if [[ -n "${PG_DIR:-}" ]]; then   # PG_DIR: thư mục pgsql của gói trước (kèm thư viện VC++), dùng lại khi mạng tải bị giới hạn
+  echo "== PostgreSQL lấy từ $PG_DIR"; cp -r "$PG_DIR" "$OUT/pgsql"
+else
 echo "== PostgreSQL $PG_VER (bản nhị phân Windows x64)"
 if [[ -n "${PG_JAR:-}" ]]; then cp "$PG_JAR" "$TMP/pg.jar"; else   # PG_JAR: tệp .jar đã tải sẵn (khi mạng chặn/giới hạn)
 curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o "$TMP/pg.jar" "https://repo1.maven.org/maven2/io/zonky/test/postgres/embedded-postgres-binaries-windows-amd64/$PG_VER/embedded-postgres-binaries-windows-amd64-$PG_VER.jar"; fi
@@ -26,8 +29,11 @@ python3 -m pip download -q --no-deps --only-binary=:all: --platform win_amd64 --
 unzip -q -o "$TMP"/vc/*.whl -d "$TMP/vc/x"
 for f in vcruntime140.dll vcruntime140_1.dll msvcp140.dll; do cp "$(find "$TMP/vc/x" -name "$f" | head -1)" "$OUT/pgsql/bin/"; done
 
-cp "$ROOT/deploy/windows/"{cai-dat.ps1,go-cai-dat.ps1,sao-luu.ps1,dat-lai-2fa.ps1,CAI_DAT.bat} "$OUT/"
-sed -i 's/\r*$/\r/' "$OUT/"*.ps1 "$OUT/"*.bat   # Windows: xuống dòng CRLF
+fi
+
+cp "$ROOT/deploy/windows/"{cai-dat.ps1,go-cai-dat.ps1,sao-luu.ps1,dat-lai-2fa.ps1,thiet-lap-may-chu.ps1,CAI_DAT.bat} "$OUT/"
+mkdir -p "$OUT/ework" && cp "$ROOT/deploy/ework/"{chep-cham-cong-ework.ps1,xuat-ework.ps1} "$OUT/ework/"
+sed -i 's/\r*$/\r/' "$OUT/"*.ps1 "$OUT/"*.bat "$OUT/ework/"*.ps1   # Windows: xuống dòng CRLF
 cp "$ROOT/docs/HUONG_DAN_CAI_DAT_WINDOWS.md" "$OUT/"
 for f in "$ROOT/dist/HUONG_DAN_CAI_DAT_WINDOWS".{pdf,docx}; do [[ -f "$f" ]] && cp "$f" "$OUT/"; done
 (cd "$ROOT/dist" && zip -qr -9 "$NAME.zip" "$NAME")

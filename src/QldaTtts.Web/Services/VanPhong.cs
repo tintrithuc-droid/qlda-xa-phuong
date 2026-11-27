@@ -1,0 +1,346 @@
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using QldaTtts.Web.Data;
+
+namespace QldaTtts.Web.Services;
+
+/// <summary>Thiết lập phân hệ Văn phòng (lưu trong bảng Settings, khóa "vp").</summary>
+public class VpSettings
+{
+    public class Place { public string Name { get; set; } = ""; public double Lat { get; set; } public double Lng { get; set; } public int Radius { get; set; } = 500; }
+    public List<Place> Places { get; set; } = new();
+    /// <summary>Địa chỉ IP mạng công ty (điểm danh từ mạng này tính là trong công ty).</summary>
+    public List<string> Ips { get; set; } = new();
+    public string CheckIn { get; set; } = "08:15";
+    public string CheckOut { get; set; } = "17:30";
+    public string MorningStart { get; set; } = "08:00";
+    public string MorningEnd { get; set; } = "12:30";
+    public string AfternoonStart { get; set; } = "13:30";
+    public string AfternoonEnd { get; set; } = "17:30";
+    public decimal HoursPerDay { get; set; } = 8;
+    public decimal LeavePerYear { get; set; } = 12;
+    /// <summary>Bản 1.10.16: cộng 1 ngày phép cho mỗi 5 năm thâm niên (Điều 114 BLLĐ). Tri Thức tắt để giống e-work: đủ năm là 12 ngày.</summary>
+    public bool LeaveSeniorityBonus { get; set; } = true;
+    /// <summary>Bản 1.10.16: giờ nhắc người chưa nhận nhiệm vụ (trống = không nhắc).</summary>
+    public string? RemindAt { get; set; } = "07:50";
+    /// <summary>Làm việc thứ Bảy: "khong", "sang" (buổi sáng), "ca-ngay", "cach-tuan" (tuần làm cả ngày, tuần nghỉ, luân phiên).</summary>
+    public string Saturday { get; set; } = "khong";
+    /// <summary>Bản 1.10.4: một thứ Bảy có đi làm (yyyy-MM-dd) làm mốc cho chế độ "cach-tuan"; các thứ Bảy cách mốc số chẵn tuần là ngày làm.</summary>
+    public string SaturdayAnchor { get; set; } = "2026-10-10";
+    /// <summary>Số công của một ngày thứ Bảy theo thiết lập (chưa xét lễ, làm bù).</summary>
+    public decimal SaturdayValue(DateOnly d) => Saturday switch
+    {
+        "ca-ngay" => 1,
+        "sang" => 0.5m,
+        "cach-tuan" => DateOnly.TryParse(SaturdayAnchor, out var a) && ((d.DayNumber - a.DayNumber) / 7) % 2 == 0 ? 1 : 0,
+        _ => 0
+    };
+    /// <summary>Cho phép điểm danh ngoài công ty (ghi nhận "Ngoài công ty" để trưởng phòng xem).</summary>
+    public bool AllowOutside { get; set; } = true;
+    /// <summary>Bản 1.10.16: "Nhận nhiệm vụ": chỉ một lượt vào mỗi ngày, tự chọn Ở công ty / online / công tác / khác, không lấy vị trí, không cần phiếu
+    /// (không điểm danh ra, không tính về sớm, quên điểm danh ra).</summary>
+    public bool InOnly { get; set; }
+    /// <summary>Bản 1.10.18: trang nhận nhiệm vụ có phần chọn việc làm hôm nay và ô kết quả cuối ngày (tắt khi quản lý theo kết quả sản phẩm).</summary>
+    public bool DailyTasks { get; set; } = true;
+    /// <summary>Bản 1.10.16: chữ hiện cho việc điểm danh (Tri Thức: "Nhận nhiệm vụ").</summary>
+    public string Word { get; set; } = "Điểm danh";
+    /// <summary>Bản 1.10.16: ngoài vùng điểm danh chỉ được ghi khi hôm đó có phiếu công tác (đã duyệt hoặc đang chờ duyệt); phiếu làm việc online đã duyệt thì không phải điểm danh.</summary>
+    public bool OutsideTripOnly { get; set; }
+    /// <summary>Ngày nghỉ lễ, tết (yyyy-MM-dd), nửa ngày ghi thêm ":s" (sáng) hoặc ":c" (chiều).</summary>
+    public List<string> Holidays { get; set; } = new();
+    /// <summary>Bản 1.10.4: ngày đi làm bù (làm việc dù là cuối tuần hoặc ngày nghỉ), dạng yyyy-MM-dd, làm nửa ngày ghi thêm ":s"; có thể kèm ghi chú sau dấu cách.</summary>
+    public List<string> Workdays { get; set; } = new();
+    /// <summary>Bản 1.10.7: tự áp dụng ngày lễ, tết theo luật (Điều 112 BLLĐ 2019, kèm nghỉ bù) cho mọi năm, không cần nhập; danh sách Holidays chỉ còn ngày phát sinh.
+    /// Ngày Chính phủ hoán đổi: ghi ngày nghỉ thay vào Holidays và ngày đi làm vào Workdays (Workdays luôn được ưu tiên).</summary>
+    public bool AutoLegal { get; set; } = true;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<DateOnly, string>> LegalCache = new();
+    /// <summary>Ngày lễ theo luật của một năm (theo thiết lập thứ Bảy hiện tại, để tính nghỉ bù).</summary>
+    public Dictionary<DateOnly, string> LegalOf(int year) => LegalCache.GetOrAdd($"{year}|{Saturday}|{SaturdayAnchor}",
+        _ => LichNghi.Legal(year, this).GroupBy(x => DateOnly.Parse(x.Date)).ToDictionary(g => g.Key, g => g.First().Name));
+    /// <summary>Ngày nghỉ hiệu lực (phát sinh + theo luật nếu bật) của các năm cho trước, cùng dạng chuỗi với Holidays.</summary>
+    public List<string> EffectiveHolidays(IEnumerable<int> years)
+    {
+        var have = Holidays.Select(h => h.Length >= 10 ? h[..10] : h).ToHashSet();
+        var extra = AutoLegal ? years.SelectMany(y => LegalOf(y)).Where(kv => !have.Contains(kv.Key.ToString("yyyy-MM-dd")))
+            .Select(kv => kv.Key.ToString("yyyy-MM-dd") + " " + kv.Value) : Enumerable.Empty<string>();
+        return Holidays.Concat(extra).OrderBy(x => x).ToList();
+    }
+    /// <summary>Lời chúc trên màn hình điểm danh: ngày làm việc, ngày nghỉ (ngày lễ thêm tên lễ ở đầu).</summary>
+    public string GreetWork { get; set; } = "Chúc ngày làm việc mới vui vẻ, thành công!";
+    public string GreetOff { get; set; } = "Hôm nay là ngày nghỉ. Chúc anh chị ngày nghỉ vui vẻ!";
+    /// <summary>Băm SHA-256 của khóa chép chấm công sang e-work.</summary>
+    public string? SyncKeyHash { get; set; }
+    /// <summary>Ngày bắt đầu chép chấm công sang e-work (lượt điểm danh trên QLDA từ ngày này).</summary>
+    public string? SyncFrom { get; set; }
+
+    public const string Key = "vp";
+    private static readonly JsonSerializerOptions Opts = new(JsonSerializerDefaults.Web);
+    public static VpSettings Load(AppDbContext db)
+    {
+        var s = db.Settings.AsNoTracking().FirstOrDefault(x => x.Key == Key)?.Value;
+        if (string.IsNullOrEmpty(s)) return new VpSettings();
+        try { return JsonSerializer.Deserialize<VpSettings>(s, Opts) ?? new VpSettings(); } catch { return new VpSettings(); }
+    }
+    public static void Save(AppDbContext db, VpSettings v, string by)
+    {
+        var row = db.Settings.FirstOrDefault(x => x.Key == Key);
+        var json = JsonSerializer.Serialize(v, Opts);
+        if (row is null) db.Settings.Add(new AppSetting { Key = Key, Value = json, UpdatedAt = DateTime.UtcNow, UpdatedBy = by });
+        else { row.Value = json; row.UpdatedAt = DateTime.UtcNow; row.UpdatedBy = by; }
+    }
+}
+
+/// <summary>Giờ Việt Nam và các phép tính chấm công.</summary>
+public static class VnTime
+{
+    private static readonly TimeZoneInfo Tz = Find();
+    private static TimeZoneInfo Find()
+    {
+        foreach (var id in new[] { "Asia/Ho_Chi_Minh", "SE Asia Standard Time", "Asia/Bangkok" })
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { }
+        return TimeZoneInfo.CreateCustomTimeZone("VN", TimeSpan.FromHours(7), "VN", "VN");
+    }
+    public static DateTime Now => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Tz);
+    public static DateTime ToVn(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Tz);
+    public static DateTime ToUtc(DateTime vn) => TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(vn, DateTimeKind.Unspecified), Tz);
+    public static TimeSpan Hm(string? s, string def) => TimeSpan.TryParse(string.IsNullOrWhiteSpace(s) ? def : s, out var t) ? t : TimeSpan.Parse(def);
+
+    /// <summary>Khoảng cách (mét) giữa hai tọa độ.</summary>
+    public static double Meters(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double R = 6371000; double r(double d) => d * Math.PI / 180;
+        var dLat = r(lat2 - lat1); var dLng = r(lng2 - lng1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) + Math.Cos(r(lat1)) * Math.Cos(r(lat2)) * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        return 2 * R * Math.Asin(Math.Min(1, Math.Sqrt(a)));
+    }
+
+    /// <summary>Bản 1.10.16: buổi phải làm của một ngày theo lịch công ty (sáng, chiều).</summary>
+    public static (bool Am, bool Pm) Sessions(DateOnly d, VpSettings s)
+    {
+        var di = Day(d, s);
+        if (di.Value <= 0) return (false, false);
+        if (di.Value >= 1) return (true, true);
+        var hol = s.Holidays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        if (hol?.Half == "s" && !s.Workdays.Select(ParseDay).Any(x => x is not null && x.Date == d)) return (false, true);   // nghỉ sáng, làm chiều
+        return (true, false);   // thứ Bảy buổi sáng, làm bù nửa ngày, nghỉ chiều
+    }
+
+    /// <summary>Bản 1.10.16: phiếu (nghỉ, online, công tác…) có che buổi sáng/chiều của ngày d không. Phiếu chỉ ghi ngày (00:00) tính trọn ngày.</summary>
+    public static bool Covers(Request r, DateOnly d, bool am, VpSettings s)
+    {
+        if (r.FromAt is not { } f) return false;
+        var a = ToVn(f);
+        var b = r.ToAt is { } t ? ToVn(t) : a.Date.AddDays(1);
+        if (a.TimeOfDay == TimeSpan.Zero && b.TimeOfDay == TimeSpan.Zero) b = b.AddDays(1);   // phiếu ghi ngày: đến hết ngày cuối
+        if (b <= a) b = a.Date.AddDays(1);
+        var st = d.ToDateTime(TimeOnly.FromTimeSpan(Hm(am ? s.MorningStart : s.AfternoonStart, am ? "08:00" : "13:30")));
+        var en = d.ToDateTime(TimeOnly.FromTimeSpan(Hm(am ? s.MorningEnd : s.AfternoonEnd, am ? "12:30" : "17:30")));
+        return a < en && b > st;
+    }
+
+    /// <summary>Bản 1.10.16: giờ bắt đầu tính đi muộn của một người trong ngày: đầu buổi đầu tiên phải làm tại công ty (bỏ buổi đã có phiếu nghỉ, online, công tác).
+    /// Không còn buổi nào phải có mặt thì trả null (không tính muộn).</summary>
+    public static TimeSpan? LateFrom(DateOnly d, VpSettings s, string? deptCheckin, IEnumerable<Request> approved)
+    {
+        var (am, pm) = Sessions(d, s);
+        var list = approved.ToList();
+        if (am && !list.Any(r => Covers(r, d, true, s))) return Hm(deptCheckin, s.CheckIn);
+        if (pm && !list.Any(r => Covers(r, d, false, s)))
+        {
+            // Giờ vào riêng của phòng/ân hạn buổi sáng áp sang chiều theo cùng độ lệch so với đầu ca sáng
+            var shift = Hm(deptCheckin, s.CheckIn) - Hm(s.MorningStart, "08:00");
+            return Hm(s.AfternoonStart, "13:30") + (shift > TimeSpan.Zero ? shift : TimeSpan.Zero);
+        }
+        return null;
+    }
+
+    /// <summary>Ngày làm việc trong tháng: 1 = cả ngày, 0.5 = nửa ngày (thứ Bảy buổi sáng, lễ nửa ngày), 0 = nghỉ.</summary>
+    public static decimal WorkValue(DateOnly d, VpSettings s) => Day(d, s).Value;
+
+    /// <summary>Bản 1.10.4: số ngày phép năm được hưởng (Điều 113, 114 Bộ luật Lao động 2019): mức chung của công ty, cứ đủ 5 năm làm việc thêm 1 ngày;
+    /// năm đầu vào làm tính theo số tháng làm việc trong năm; nghỉ việc trong năm tính đến tháng nghỉ.</summary>
+    public static decimal LeaveEntitlement(Employee e, VpSettings s, int year)
+    {
+        var baseDays = s.LeavePerYear;
+        if (e.StartDate is { } sd)
+        {
+            if (sd.Year > year) return 0;
+            var years = year - sd.Year - (new DateOnly(year, 12, 31) < sd.AddYears(year - sd.Year) ? 1 : 0);
+            if (s.LeaveSeniorityBonus) baseDays += Math.Max(0, years / 5);
+        }
+        int fromM = e.StartDate is { } st && st.Year == year ? st.Month : 1;
+        int toM = e.EndDate is { } en && en.Year == year ? en.Month : 12;
+        if (e.EndDate is { } en2 && en2.Year < year) return 0;
+        var months = Math.Max(0, toM - fromM + 1);
+        return months >= 12 ? baseDays : Math.Round(baseDays * months / 12m * 2, MidpointRounding.AwayFromZero) / 2;
+    }
+
+    /// <summary>Một dòng ngày trong thiết lập: "2026-09-02", "2026-09-02:s", "2026-09-02 Quốc khánh", "2026-09-02:c Nghỉ chiều".</summary>
+    public record DayLine(DateOnly Date, string? Half, string? Name);
+    public static DayLine? ParseDay(string? line)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(line ?? "", @"^\s*(\d{4}-\d{2}-\d{2})(?::([sc]))?(?:\s+(.*))?$");
+        if (!m.Success || !DateOnly.TryParseExact(m.Groups[1].Value, "yyyy-MM-dd", out var d)) return null;
+        return new DayLine(d, m.Groups[2].Success ? m.Groups[2].Value : null, m.Groups[3].Success && m.Groups[3].Value.Trim().Length > 0 ? m.Groups[3].Value.Trim() : null);
+    }
+
+    /// <summary>Loại ngày: "work" (làm cả ngày), "half" (làm nửa ngày), "off" (nghỉ cuối tuần), "holiday" (nghỉ lễ, nghỉ theo lịch công ty).</summary>
+    public record DayInfo(decimal Value, string Kind, string? Name);
+    /// <summary>Ghi chú ngày nghỉ là nghỉ cuối tuần (để trống, "nghỉ thứ 7", "thứ Bảy", "cuối tuần").</summary>
+    public static bool WeekendNote(string? name) => string.IsNullOrWhiteSpace(name)
+        || System.Text.RegularExpressions.Regex.IsMatch(name, @"th[ứu]\s*(7|b[ảa]y)|cu[ốo]i\s*tu[ầa]n|saturday|weekend|phi[êe]n|ch[ủu]\s*nh[ậa]t", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    public static DayInfo Day(DateOnly d, VpSettings s)
+    {
+        var key = d.ToString("yyyy-MM-dd");
+        var wk = s.Workdays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        if (wk is not null) return new DayInfo(wk.Half is null ? 1 : 0.5m, wk.Half is null ? "work" : "half", wk.Name ?? "Ngày làm bù");
+        decimal v = d.DayOfWeek switch
+        {
+            DayOfWeek.Sunday => 0,
+            DayOfWeek.Saturday => s.SaturdayValue(d),
+            _ => 1
+        };
+        var hol = s.Holidays.Select(ParseDay).FirstOrDefault(x => x is not null && x.Date == d);
+        if (hol is null && s.AutoLegal && s.LegalOf(d.Year).TryGetValue(d, out var lname)) return new DayInfo(0, "holiday", lname);
+        // Bản 1.10.4: thứ Bảy nghỉ luân phiên ghi trong danh sách ngày nghỉ (e-work ghi từng ngày) là nghỉ hằng tuần, không phải ngày lễ (tăng ca 200%, không 300%)
+        // Bản 1.10.18: Chủ nhật e-work cũng ghi vào danh sách ngày nghỉ ("Chủ Nhật") là nghỉ hằng tuần (tăng ca theo mức ngày nghỉ, không phải 300% ngày lễ)
+        if (hol is not null && (d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) && hol.Half is null && WeekendNote(hol.Name)) return new DayInfo(0, "off", hol.Name);
+        if (hol is not null)
+        {
+            if (hol.Half is null || v == 0) return new DayInfo(0, "holiday", hol.Name ?? "Nghỉ lễ");
+            return new DayInfo(Math.Max(0, v - 0.5m), v - 0.5m > 0 ? "half" : "holiday", hol.Name ?? "Nghỉ nửa ngày");
+        }
+        return new DayInfo(v, v == 1 ? "work" : v > 0 ? "half" : "off", null);
+    }
+}
+
+/// <summary>Số liệu công tháng của từng người (bảng công, KPI chuyên cần, lương dùng chung một cách tính).</summary>
+/// <summary>Bản 1.10.21 (anh Trí 26/11): người đã nghỉ việc hoặc tài khoản đã khóa không hiện ở danh sách chọn người
+/// (giao việc, phối hợp, mời họp, thông báo) và không bị tính KPI, chuyên cần; dữ liệu cũ của họ vẫn giữ để tra cứu.</summary>
+public static class StaffFilter
+{
+    public static async Task<HashSet<string>> LockedUsers(AppDbContext db) =>
+        (await db.Users.AsNoTracking().Where(u => !u.Active).Select(u => u.Id).ToListAsync()).ToHashSet();
+    /// <summary>Đang làm việc tại ngày asOf (mặc định hôm nay): tài khoản (nếu có) chưa khóa, chưa qua ngày nghỉ việc, chưa chuyển "Nghỉ việc".
+    /// Tính theo tháng (asOf = ngày đầu tháng) thì người nghỉ việc trong tháng đó vẫn tính, để hết tháng họ nghỉ mới bỏ.</summary>
+    public static bool Working(Employee e, HashSet<string> locked, DateOnly? asOf = null)
+    {
+        var d = asOf ?? DateOnly.FromDateTime(VnTime.Now);
+        if (e.UserId != null && locked.Contains(e.UserId)) return false;
+        if (e.EndDate is { } end && end < d) return false;
+        return e.Status != "Nghỉ việc" || (asOf != null && e.EndDate >= d);
+    }
+    /// <summary>Bản 1.10.21: tự khóa tài khoản của người đã qua ngày nghỉ việc (từ 0 giờ ngày hôm sau). Không khóa Quản trị chính.
+    /// Tài khoản được mở lại sau ngày nghỉ việc (người quản trị chủ ý mở) thì không khóa lại.</summary>
+    public static async Task<List<string>> AutoLockLeavers(AppDbContext db)
+    {
+        var today = DateOnly.FromDateTime(VnTime.Now);
+        var leavers = await db.Employees.AsNoTracking().Where(e => e.UserId != null && e.EndDate != null && e.EndDate < today).ToListAsync();
+        if (leavers.Count == 0) return new();
+        var owner = Owner.Ensure(db);
+        var ids = leavers.Select(e => e.UserId!).ToList();
+        var users = await db.Users.Where(u => ids.Contains(u.Id) && u.Active).ToListAsync();
+        var done = new List<string>();
+        foreach (var u in users)
+        {
+            if (u.Id == owner) continue;
+            var end = leavers.First(e => e.UserId == u.Id).EndDate!.Value;
+            if (u.UpdatedAt is { } up && up >= VnTime.ToUtc(end.AddDays(1).ToDateTime(TimeOnly.MinValue))) continue;
+            u.Active = false; u.UpdatedAt = DateTime.UtcNow; u.UpdatedBy = "Tự khóa (nghỉ việc " + end.ToString("dd/MM/yyyy") + ")";
+            done.Add(u.Username);
+        }
+        return done;
+    }
+    /// <summary>Những người có chấm công trong tháng (để bảng công, bảng lương tháng cũ vẫn đủ người đã nghỉ giữa tháng).</summary>
+    public static async Task<HashSet<string>> AttendedIn(AppDbContext db, DateOnly from, DateOnly to) =>
+        (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).Select(a => a.EmployeeId).Distinct().ToListAsync()).ToHashSet();
+}
+
+public static class VpCalc
+{
+    public record Row(string EmployeeId, string Name, string? DepartmentId, decimal Standard, decimal Worked, int Late, int LateMinutes, int Early,
+        int Outside, int Online, int NoOut, decimal Leave, decimal Trip, decimal Overtime, decimal Absent, decimal PrivateLeave = 0, decimal Unpaid = 0, int Office = 0, int TripDays = 0, int Other = 0);
+
+    /// <summary>Bản 1.10.4: các loại nghỉ có đề xuất được duyệt (không tính vắng không lý do).</summary>
+    public static readonly string[] LeaveTypes = { "Nghỉ phép", "Nghỉ việc riêng có lương", "Nghỉ không lương", "Nghỉ ốm, thai sản (BHXH)" };
+
+    /// <summary>Bản 1.10.16: ngày có phiếu "Làm việc online" đã duyệt (che hết các buổi phải làm) mà chưa có điểm danh thì tự ghi một lượt "Làm việc online"
+    /// (không phải bấm), để bảng công thấy và lượt này được chép sang e-work. Chỉ ghi đến hôm nay; empId null = mọi người.</summary>
+    public static async Task EnsureOnlineDays(AppDbContext db, VpSettings s, string? empId, DateOnly? since = null)
+    {
+        var today = DateOnly.FromDateTime(VnTime.Now);
+        var start = since ?? today.AddDays(-60);
+        var sU = VnTime.ToUtc(start.ToDateTime(TimeOnly.MinValue));
+        var reqs = await db.Requests.AsNoTracking().Where(r => r.Type == "Làm việc online" && r.Status == "Đã duyệt" && r.FromAt != null && (empId == null || r.EmployeeId == empId)
+            && (r.ToAt ?? r.FromAt) >= sU).ToListAsync();
+        if (reqs.Count == 0) return;
+        var emps = await db.Employees.AsNoTracking().Where(e => e.Attendance).ToDictionaryAsync(e => e.Id);
+        var added = 0;
+        foreach (var r in reqs)
+        {
+            if (!emps.TryGetValue(r.EmployeeId, out var e)) continue;
+            var d0 = DateOnly.FromDateTime(VnTime.ToVn(r.FromAt!.Value)); var d1 = DateOnly.FromDateTime(VnTime.ToVn(r.ToAt ?? r.FromAt!.Value));
+            if (d0 < start) d0 = start;
+            for (var d = d0; d <= d1 && d <= today; d = d.AddDays(1))
+            {
+                if (e.EndDate is { } ed && d > ed) break;
+                var (am, pm) = VnTime.Sessions(d, s); if (!am && !pm) continue;
+                if ((am && !VnTime.Covers(r, d, true, s)) || (pm && !VnTime.Covers(r, d, false, s))) continue;
+                if (await db.Attendances.AnyAsync(a => a.EmployeeId == e.Id && a.Date == d)) continue;
+                var t = VnTime.ToUtc(d.ToDateTime(TimeOnly.FromTimeSpan(VnTime.Hm(am ? s.MorningStart : s.AfternoonStart, "08:00"))));
+                db.Attendances.Add(new Attendance { Id = "cc-" + Guid.NewGuid().ToString("N")[..16], EmployeeId = e.Id, Date = d, InAt = t, InPlace = "Làm việc online",
+                    Site = $"Theo phiếu {r.Code}", Note = "Làm việc online theo phiếu đã duyệt (không phải bấm)", UpdatedAt = DateTime.UtcNow, UpdatedBy = "he-thong" });
+                added++;
+            }
+        }
+        if (added > 0) await db.SaveChangesAsync();
+    }
+
+    public static async Task<(decimal standard, List<Row> rows)> Month(AppDbContext db, VpSettings s, List<Employee> emps, DateOnly from)
+    {
+        var to = from.AddMonths(1);
+        var ids = emps.Select(e => e.Id).ToHashSet();
+        var atts = (await db.Attendances.AsNoTracking().Where(a => a.Date >= from && a.Date < to).ToListAsync())
+            .Where(a => ids.Contains(a.EmployeeId)).GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
+        var reqs = (await db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.FromAt != null).ToListAsync())
+            .Where(r => r.FromAt < VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue)) && (r.ToAt ?? r.FromAt) >= VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue))).ToList();
+        // Bản 1.10.9: phiếu tăng ca được duyệt trong tháng nào thì tính vào lương tháng đó (theo ngày duyệt)
+        var fU = VnTime.ToUtc(from.ToDateTime(TimeOnly.MinValue)); var tU = VnTime.ToUtc(to.ToDateTime(TimeOnly.MinValue));
+        var otByApproval = QldaTtts.Web.Controllers.PaySettings.Load(db).OtByApproval;
+        var otByEmp = (await db.Requests.AsNoTracking().Where(r => r.Status == "Đã duyệt" && r.Type == "Tăng ca").ToListAsync())
+            .Where(r => (otByApproval ? r.DecidedAt ?? r.FromAt : r.FromAt) is { } dd && dd >= fU && dd < tU).GroupBy(r => r.EmployeeId).ToDictionary(g => g.Key, g => g.Sum(r => r.Hours ?? 0));
+        decimal standard = 0; for (var d = from; d < to; d = d.AddDays(1)) standard += VnTime.WorkValue(d, s);
+        var nowVn = VnTime.Now; var today = DateOnly.FromDateTime(nowVn);
+        // Chỉ tính vắng từ ngày hệ thống có dữ liệu điểm danh đầu tiên (tránh tính vắng cả tháng khi mới đưa vào dùng)
+        var first = await db.Attendances.AsNoTracking().OrderBy(a => a.Date).Select(a => (DateOnly?)a.Date).FirstOrDefaultAsync() ?? today.AddDays(1);
+        var rows = emps.Select(e =>
+        {
+            var xs = atts.TryGetValue(e.Id, out var l) ? l : new();
+            var mine = reqs.Where(r => r.EmployeeId == e.Id).ToList();
+            decimal Days(string type) => mine.Where(r => r.Type == type).Sum(r => r.Days ?? 0);
+            var worked = xs.Where(a => a.InAt != null || a.OutAt != null).Sum(a => Math.Max(0.5m, VnTime.WorkValue(a.Date, s) == 0 ? 1 : VnTime.WorkValue(a.Date, s)));
+            // Ngày làm việc đã qua không có điểm danh; bản 1.10.16: xét theo buổi (phiếu nửa ngày chỉ che buổi đó), không tính sau ngày nghỉ việc, hôm nay chỉ tính khi đã hết giờ làm
+            var absent = 0m;
+            var cover = mine.Where(r => LeaveTypes.Contains(r.Type) || r.Type is "Công tác" or "Làm việc online").ToList();
+            for (var d = from; d < to && d <= today; d = d.AddDays(1))
+            {
+                if (d < first || (e.StartDate is { } sd && d < sd) || (e.EndDate is { } ed && d > ed)) continue;
+                if (d == today && nowVn.TimeOfDay < VnTime.Hm(s.AfternoonEnd, "17:30")) continue;
+                var wv = VnTime.WorkValue(d, s); if (wv == 0 || xs.Any(a => a.Date == d)) continue;
+                var (am, pm) = VnTime.Sessions(d, s);
+                // Bản 1.10.18 (như e-work): ngày có phiếu nghỉ/công tác/online cho một buổi thì buổi còn lại tự tính đi làm, không đòi điểm danh
+                if (cover.Any(r => (am && VnTime.Covers(r, d, true, s)) || (pm && VnTime.Covers(r, d, false, s)))) continue;
+                var miss = 0m;
+                if (am && !cover.Any(r => VnTime.Covers(r, d, true, s))) miss += 0.5m;
+                if (pm && !cover.Any(r => VnTime.Covers(r, d, false, s))) miss += 0.5m;
+                absent += Math.Min(miss, wv);
+            }
+            return new Row(e.Id, e.Name, e.DepartmentId, standard, worked, xs.Count(a => a.LateMinutes > 0), xs.Sum(a => a.LateMinutes), s.InOnly ? 0 : xs.Count(a => a.EarlyMinutes > 0),
+                xs.Count(a => a.InPlace == "Ngoài công ty"), xs.Count(a => a.InPlace == "Làm việc online"), s.InOnly ? 0 : xs.Count(a => a.InAt != null && a.OutAt == null && a.Date < today),
+                Days("Nghỉ phép"), Days("Công tác"), otByEmp.TryGetValue(e.Id, out var oth) ? oth : 0, absent,
+                Days("Nghỉ việc riêng có lương"), Days("Nghỉ không lương") + Days("Nghỉ ốm, thai sản (BHXH)"),
+                xs.Count(a => a.InAt != null && a.InPlace == "Trong công ty"), xs.Count(a => a.InPlace == "Công tác"), xs.Count(a => a.InPlace == "Khác"));
+        }).ToList();
+        return (standard, rows);
+    }
+}

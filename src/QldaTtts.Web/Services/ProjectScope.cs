@@ -15,6 +15,15 @@ public static class ProjectScope
         _ => null
     };
 
+    /// <summary>Gói thầu của bản ghi (bản 1.8, giới hạn tài khoản thuộc đơn vị nhà thầu, giám sát); null = không gắn gói thầu.</summary>
+    public static async Task<string?> PackageOf(AppDbContext db, EntityBase e) => e switch
+    {
+        Package k => k.Id,
+        IHasContract hc => hc.ContractId is null ? null :
+            await db.Contracts.AsNoTracking().Where(c => c.Id == hc.ContractId).Select(c => c.PackageId).FirstOrDefaultAsync(),
+        _ => e.GetType().GetProperty("PackageId")?.GetValue(e) as string
+    };
+
     public static bool Scoped(EntityBase e) => e is Project or IHasProject or IHasContract;
 
     /// <summary>Phân hệ được phép đính kèm tệp cho từng loại bản ghi (cần quyền cập nhật một trong các phân hệ).</summary>
@@ -25,12 +34,14 @@ public static class ProjectScope
         ["legal"] = new[] { "du-an", "goi-thau" },
         ["items"] = new[] { "mo-hinh" },
         ["packages"] = new[] { "goi-thau" },
+        ["orgs"] = new[] { "goi-thau" },
         ["contracts"] = new[] { "goi-thau", "khoi-luong", "thanh-toan" },
         ["addenda"] = new[] { "goi-thau" },
         ["schedule"] = new[] { "tien-do" },
         ["diaries"] = new[] { "nhat-ky" },
         ["boq"] = new[] { "khoi-luong" },
         ["volumes"] = new[] { "khoi-luong" },
+        ["vbatches"] = new[] { "khoi-luong" },
         ["payplans"] = new[] { "thanh-toan" },
         ["payments"] = new[] { "thanh-toan" },
         ["guides"] = new[] { "quan-tri" },

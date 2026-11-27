@@ -10,9 +10,17 @@ const MOB = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMob
 let b;
 
 async function newPage(opts) { const c = await b.newContext(opts); const p = await c.newPage(); p.on('pageerror', e => console.log('PAGEERR', e.message)); return p; }
+// Tài khoản do quản trị tạo phải đặt mật khẩu riêng ở lần đăng nhập đầu: chụp màn hình một lần, rồi đổi sang mật khẩu tạm và đổi lại
+async function pwFirst(p) {
+  if (!(await p.$('#pwfirst'))) return;
+  const f = path.join(__dirname, 'shots', 'chung-doi-mat-khau-lan-dau.png');
+  if (!fs.existsSync(f)) await p.screenshot({ path: f });
+  await p.evaluate(async pw => { for (const [o, n] of [[pw, pw + 'x'], [pw + 'x', pw]]) await fetch('/api/auth/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-QLDA': '1' }, body: JSON.stringify({ old: o, password: n }) }); }, PW);
+  await p.reload(); await p.waitForSelector('#app', { timeout: 20000 });
+}
 async function login(p, u) {
   await p.goto(BASE + '/'); await p.waitForSelector('#login,#app', { timeout: 20000 });
-  if (await p.$('#login')) { await p.fill('#lg_user', u); await p.fill('#lg_pw', PW); await p.click('#login button[type=submit]'); await p.waitForSelector('#app', { timeout: 20000 }); }
+  if (await p.$('#login')) { await p.fill('#lg_user', u); await p.fill('#lg_pw', PW); await p.click('#login button[type=submit]'); await p.waitForSelector('#app,#pwfirst', { timeout: 20000 }); await pwFirst(p); }
   await wait(400);
 }
 async function go(p, r) { await closeModal(p); await p.evaluate(r => { location.hash = r; scrollTo(0, 0); }, r); await wait(500); }
@@ -41,6 +49,7 @@ async function ann(p, a) {
 async function clearAnn(p) { await p.evaluate(() => document.querySelectorAll('.hd-ann').forEach(x => x.remove())); }
 // clip: undefined = khung nhìn; 'full' = cả trang; selector = vùng phần tử (+ lề 18px)
 async function shot(p, name, clip, a) {
+  await require('./hd-lib').repl(p);
   if (a) await ann(p, a);
   const file = path.join(OUT, name + '.png');
   if (clip === 'full') await p.screenshot({ path: file, fullPage: true });

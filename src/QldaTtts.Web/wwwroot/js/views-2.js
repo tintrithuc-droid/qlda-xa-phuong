@@ -51,7 +51,7 @@ ACT['model-hist']=(id)=>{ const m=get('models',id); const vs=D('models').filter(
   openModal(`<div class="mform"><header><h3>Lịch sử phiên bản: ${esc(m.name)}</h3><button class="icon-btn" data-close>×</button></header><div style="padding:16px;overflow:auto">${table([{h:'Phiên bản',f:r=>'v'+r.version},{h:'Ngày',f:r=>fmtDate(r.date)},{h:'Đơn vị',k:'by'},{h:'Nội dung thay đổi',k:'note'},{h:'Dung lượng',r:1,f:r=>fmtSize(r.size)},{h:'Tệp',f:r=>fileUrl(r)?`<a href="${esc(fileUrl(r))}" target="_blank" rel="noopener" ${isPdf(r)?pdfAttr(fileUrl(r),r.fileName):''}>${isPdf(r)?'Xem':'Tải về'}</a>`:'—'}], vs)}</div></div>`); };
 
 /* ===== GÓI THẦU VÀ HỢP ĐỒNG (UC10–14) ===== */
-const pkgFields=()=>[{key:'projectId',label:'Thuộc dự án',type:'select',options:projOpts,req:true,full:true,def:S.pid},{key:'code',label:'Ký hiệu gói thầu',req:true},{key:'type',label:'Loại gói thầu',type:'select',options:()=>catalog('Loại gói thầu'),req:true},
+const pkgFields=()=>[{key:'projectId',label:'Thuộc dự án',type:'select',options:projOpts,req:true,full:true,def:S.pid},{key:'code',label:'Ký hiệu gói thầu',def:S.pid?nextPkgCode(S.pid):'',hint:'Máy tự sinh: mã dự án-GT số thứ tự (ví dụ DA-2026-01-GT01). Có thể sửa; để trống thì máy tự cấp.'},{key:'type',label:'Loại gói thầu',type:'select',options:()=>catalog('Loại gói thầu'),req:true},
   {key:'phase',label:'Giai đoạn',type:'select',options:phaseOpts,req:true,def:routePh(),hint:XD('Gói tư vấn khảo sát, lập báo cáo kinh tế - kỹ thuật, thiết kế, dự toán… thuộc chuẩn bị đầu tư; gói thi công, mua sắm, tư vấn giám sát… thuộc thực hiện đầu tư.','Gói lập, thẩm tra báo cáo kinh tế - kỹ thuật, thẩm định giá… thuộc chuẩn bị đầu tư; gói lập và thẩm định HSMT, quản lý dự án, giám sát, kiểm thử, triển khai, mua sắm… thuộc thực hiện đầu tư. Gói tư vấn ở cả hai giai đoạn nghiệm thu, thanh toán theo sản phẩm.')},
   {key:'name',label:'Tên gói thầu',req:true,full:true},{key:'method',label:'Hình thức lựa chọn nhà thầu',type:'select',options:()=>catalog('Hình thức lựa chọn nhà thầu')},{key:'estimate',label:'Giá gói thầu (đồng)',type:'money',req:true},
   {key:'status',label:'Trạng thái',type:'select',options:()=>catalog('Trạng thái gói thầu'),req:true},{key:'duration',label:'Thời gian thực hiện gói thầu'}];
@@ -69,6 +69,8 @@ function pkgForm(k){
     ctx.kq=await legalInlineSave('kq', v, kq, {...base, type:'Kết quả lựa chọn nhà thầu', title:(kq&&kq.title)||'Phê duyệt kết quả LCNT gói '+r.code, ...(kq?{issuer:kq.issuer}:{})});
     return r; }});
   pkgShareWire(k||{});
+  if(!k){ const sp=$('#f_projectId'), cd=$('#f_code'); let auto=cd&&cd.value; if(sp&&cd){ if(!cd.value && sp.value) cd.value=auto=nextPkgCode(sp.value);
+    sp.addEventListener('change',()=>{ if(!cd.value.trim()||cd.value===auto){ cd.value=auto=nextPkgCode(sp.value); } }); } }
 }
 /* Ô tỷ lệ liên danh: hiện một ô cho mỗi thành viên đang chọn (đứng đầu + thành viên khác), cập nhật khi đổi lựa chọn */
 function pkgShareWire(k){ const box=$('#f__shbox'); if(!box) return; const cur={...(k.contractorShares||{})};

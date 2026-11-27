@@ -515,7 +515,7 @@ ACT['open-project']=(id)=>{ S.sel.project=id; S.tab.proj='info'; if(location.has
 
 /* ===== QUẢN LÝ DỰ ÁN (UC1–5) ===== */
 const projFields=()=>[
-  {key:'code',label:'Mã dự án',req:true},{key:'status',label:'Trạng thái',type:'select',options:()=>catalog('Trạng thái dự án'),req:true},
+  {key:'code',label:'Mã dự án',def:nextProjCode(),hint:'Máy tự sinh theo quy tắc DA-năm-số thứ tự (ví dụ DA-2026-01). Có thể sửa; để trống thì máy tự cấp.'},{key:'status',label:'Trạng thái',type:'select',options:()=>catalog('Trạng thái dự án'),req:true},
   {key:'name',label:'Tên dự án',req:true,full:true},
   {key:'group',label:'Nhóm dự án',type:'select',options:()=>catalog('Nhóm dự án')},{key:'phase',label:'Giai đoạn',type:'select',options:()=>catalog('Giai đoạn')},
   {key:'tmdt',label:'Tổng mức đầu tư (đồng)',type:'money',req:true},{key:'capital',label:'Nguồn vốn',type:'select',options:()=>catalog('Nguồn vốn')},
@@ -554,7 +554,7 @@ function projForm(p){
   const fields=[...projFields(), ...legalInline('dec','quyết định phê duyệt dự án',ctx,cur,{issuer:true})];
   const value=legalInlineValue('dec', cur, {...(p||{})}); if(p && !cur && p.decision) value.decNo=p.decision;
   openForm({title:p?'Cập nhật thông tin dự án':'Thêm dự án', fields, value, onSave:async v=>{
-    if(!p && D('projects').some(x=>x.code===v.code)){ $('#mform_err').textContent='Mã dự án đã tồn tại.'; return false; }
+    v.code=String(v.code||'').trim(); if(v.code && (!p||p.code!==v.code) && D('projects').some(x=>x.id!==(p&&p.id) && String(x.code||'').trim().toUpperCase()===v.code.toUpperCase())){ $('#mform_err').textContent='Mã dự án đã tồn tại.'; return false; }
     const no=(v.decNo||'').trim(), dt=v.decDate;
     v.decision = no ? no+(dt?' ngày '+fmtDate(dt):'') : (p?p.decision:'');
     const pv={...v}; ['decNo','decDate','decIssuer','decAtt'].forEach(k=>delete pv[k]);

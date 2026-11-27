@@ -586,6 +586,12 @@ function comboMake(sel){
   sel.addEventListener('change',sync); sel.addEventListener('focus',()=>inp.focus()); sel._cbSync=sync;
   sync(); }
 const projOpts = () => projects().map(p=>[p.id, p.code+' – '+p.name]);
+/* Bản 1.10.27: mã tự sinh (máy chủ dùng cùng quy tắc, xem Services/CodeRules.cs).
+   Dự án DA-<năm>-<STT 2 số, đầu năm đếm lại>; gói thầu <mã dự án>-GT<STT 2 số trong dự án>. Điền sẵn, vẫn sửa được; để trống thì máy cấp. */
+const codeSeq=(c,pre)=>{ c=String(c||'').trim(); if(c.slice(0,pre.length).toUpperCase()!==pre.toUpperCase()) return 0; const r=c.slice(pre.length); return /^\d{1,6}$/.test(r)? +r : 0; };
+function nextProjCode(y){ const b=`DA-${y||TODAY.slice(0,4)}-`; const n=Math.max(0,...D('projects').map(p=>codeSeq(p.code,b))); return b+String(n+1).padStart(2,'0'); }
+function nextPkgCode(pid){ const p=get('projects',pid); if(!p||!String(p.code||'').trim()) return ''; const b=String(p.code).trim()+'-GT'; const ks=D('packages').filter(k=>k.projectId===pid);
+  const n=Math.max(ks.length,0,...ks.map(k=>codeSeq(k.code,b))); return b+String(n+1).padStart(2,'0'); }
 /* Bản 1.8.8: gói thầu, hợp đồng nhóm theo dự án, ghi tên gói trước, ký hiệu sau; tìm được theo số hợp đồng, nhà thầu */
 const pjGroup = pid => { const p=projOf(pid)||{}; return (p.code||'')+' – '+(p.name||''); };
 const codeCmp = (a,b) => String(a||'').localeCompare(String(b||''),'vi',{numeric:true});
